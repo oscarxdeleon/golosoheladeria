@@ -139,6 +139,10 @@ function CajaPage() {
 
   async function closeSession() {
     if (!current) return;
+    if (occupiedTables.length > 0) {
+      toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar. Cobra o libera antes de cerrar caja.`);
+      return;
+    }
     setSaving(true);
     try {
       const counted = Number(countedAmount) || 0;
