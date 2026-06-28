@@ -197,6 +197,15 @@ function MesasPage() {
                       Liberar
                     </span>
                   )}
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); setQrMesa(m); }}
+                    className="absolute bottom-2 right-2 rounded-md bg-background/80 p-1 text-foreground hover:bg-background"
+                    aria-label="QR de la mesa"
+                    title="QR para pedir desde el teléfono"
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                  </span>
                   {isAdmin && (
                     <span
                       role="button"
