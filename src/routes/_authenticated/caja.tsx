@@ -226,15 +226,16 @@ function CajaPage() {
       if (!closed || closed.status !== "closed") {
         throw new Error("El cierre no devolvió el registro actualizado.");
       }
-      qc.setQueryData(["cash-session-open", user?.id], null);
+      // Limpia inmediatamente el estado "abierta" y fuerza refetch
+      qc.setQueryData(["cash-session-open", user.id], null);
+      qc.removeQueries({ queryKey: ["session-cash-sales"] });
       toast.success(`Caja cerrada. Diferencia ${formatMoney(closed.difference ?? 0)}`);
       setCloseDialog(false);
       setCountedAmount("");
       setClosingNotes("");
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["cash-session-open"] }),
-        qc.invalidateQueries({ queryKey: ["cash-sessions-history"] }),
-        qc.invalidateQueries({ queryKey: ["session-cash-sales"] }),
+        qc.refetchQueries({ queryKey: ["cash-session-open", user.id], exact: true }),
+        qc.refetchQueries({ queryKey: ["cash-sessions-history"] }),
       ]);
     } catch (e) {
       console.error("closeSession", e);
