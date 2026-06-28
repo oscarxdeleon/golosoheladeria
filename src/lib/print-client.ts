@@ -71,31 +71,41 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   }
 }
 
-/** Imprime HTML usando un iframe oculto (fallback al diálogo del navegador). */
+/** Imprime HTML usando un iframe oculto (fallback al diálogo del navegador).
+ *  Es no-bloqueante: el llamador retoma el control de inmediato y el diálogo
+ *  de impresión se abre en el próximo tick del navegador.
+ */
 export function printHTMLFallback(html: string) {
   if (typeof document === "undefined") return;
   const iframe = document.createElement("iframe");
+  iframe.setAttribute("aria-hidden", "true");
   iframe.style.position = "fixed";
   iframe.style.right = "0";
   iframe.style.bottom = "0";
   iframe.style.width = "0";
   iframe.style.height = "0";
   iframe.style.border = "0";
+  iframe.style.opacity = "0";
+  iframe.srcdoc = html;
+  iframe.onload = () => {
+    // Diferimos al siguiente tick para no bloquear el hilo actual
+    setTimeout(() => {
+      try {
+        const win = iframe.contentWindow;
+        if (!win) return;
+        const cleanup = () => setTimeout(() => iframe.remove(), 500);
+        win.addEventListener("afterprint", cleanup, { once: true });
+        win.focus();
+        win.print();
+        // Garantía de limpieza si el navegador no dispara afterprint
+        setTimeout(cleanup, 8000);
+      } catch (e) {
+        console.error("print error", e);
+        iframe.remove();
+      }
+    }, 0);
+  };
   document.body.appendChild(iframe);
-  const doc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!doc) return;
-  doc.open();
-  doc.write(html);
-  doc.close();
-  setTimeout(() => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch (e) {
-      console.error("print error", e);
-    }
-    setTimeout(() => iframe.remove(), 1000);
-  }, 250);
 }
 
 /**
