@@ -236,10 +236,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("settings").select("delivery_fee").maybeSingle();
-      return data;
+      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate").maybeSingle();
+      return data as { delivery_fee: number; tax_rate: number } | null;
     },
   });
+
   const { data: openSession } = useQuery({
     queryKey: ["cash-session-open", user?.id],
     enabled: !!user,
