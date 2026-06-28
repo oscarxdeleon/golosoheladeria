@@ -474,31 +474,59 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     }
     setPaying(true);
     try {
-      const { data: sale, error } = await supabase
-        .from("sales")
-        .insert({
-          user_id: user.id,
-          user_name: profile?.full_name ?? user.email,
-          subtotal,
-          total,
-          payment_method: "Pendiente",
-          status: "pending",
-          source: "pos",
-          printed_at: new Date().toISOString(),
-          customer_name: customer || null,
-          notes: notes || null,
-          order_type: orderType,
-          table_id: tableId ?? null,
-          delivery_address: orderType === "domicilio" ? address : null,
-          delivery_phone: orderType === "domicilio" ? phone : null,
-          delivery_fee: deliveryFee,
-        })
-        .select("id,ticket_number,created_at")
-        .single();
-      if (error) {
-        console.error("save sale error", error);
-        throw new Error(error.message || "No se pudo guardar el pedido");
+      let sale: { id: string; ticket_number: number; created_at: string };
+      if (pendingSaleId) {
+        // Actualizar pedido pendiente existente y reemplazar items
+        const { data, error } = await supabase
+          .from("sales")
+          .update({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            customer_name: customer || null,
+            notes: notes || null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+            printed_at: new Date().toISOString(),
+          })
+          .eq("id", pendingSaleId)
+          .select("id,ticket_number,created_at")
+          .single();
+        if (error) throw new Error(error.message || "No se pudo actualizar el pedido");
+        sale = data;
+        await supabase.from("sale_items").delete().eq("sale_id", pendingSaleId);
+      } else {
+        const { data, error } = await supabase
+          .from("sales")
+          .insert({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            payment_method: "Pendiente",
+            status: "pending",
+            source: "pos",
+            printed_at: new Date().toISOString(),
+            customer_name: customer || null,
+            notes: notes || null,
+            order_type: orderType,
+            table_id: tableId ?? null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+          })
+          .select("id,ticket_number,created_at")
+          .single();
+        if (error) {
+          console.error("save sale error", error);
+          throw new Error(error.message || "No se pudo guardar el pedido");
+        }
+        sale = data;
+        setPendingSaleId(sale.id);
       }
+
       const items = cart.map((l) => ({
         sale_id: sale.id,
         product_id: l.product_id,
@@ -536,14 +564,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         created_at: sale.created_at,
       });
 
-      setCart([]);
-      setCustomer("");
-      setNotes("");
-      setAddress("");
-      setPhone("");
+      // No vaciamos el carrito: queda visible para poder cobrar de inmediato
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
-      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS · ya puedes cobrar`);
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
@@ -551,6 +576,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       setPaying(false);
     }
   }
+
 
   function handlePrecuenta() {
     if (cart.length === 0) return toast.error("Carrito vacío");
