@@ -43,7 +43,7 @@ interface CashSession {
 
 function CajaPage() {
   const qc = useQueryClient();
-  const { user, profile, isAdmin } = useAuth();
+  const { user, profile, isAdmin, loading: authLoading } = useAuth();
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
   const [openingAmount, setOpeningAmount] = useState("");
