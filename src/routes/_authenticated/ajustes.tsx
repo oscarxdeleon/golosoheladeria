@@ -243,6 +243,16 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
                     </Select>
                   </div>
                 </div>
+                <div className="rounded-md bg-muted/50 border p-2 text-xs text-muted-foreground space-y-1">
+                  <div className="font-medium text-foreground">Compatibilidad de impresión</div>
+                  <div>• <b>Windows:</b> instala el driver de la térmica como impresora predeterminada del navegador y los tickets se envían por diálogo de impresión.</div>
+                  <div>• <b>Android:</b> usa una app puente (p.ej. RawBT) o asigna la térmica como impresora predeterminada del sistema; los tickets se envían vía hoja de impresión del navegador.</div>
+                  <div>• La IP/puerto se guarda para impresoras de red ESC/POS.</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={edit?.active ?? true} onCheckedChange={(v) => setEdit({ ...edit, active: v })} />
+                  <Label>Activa</Label>
+                </div>
               </div>
               <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
