@@ -238,6 +238,22 @@ function CajaPage() {
       ]);
     } catch (e) {
       console.error("closeSession", e);
+      const rec = (typeof e === "object" && e !== null ? (e as Record<string, unknown>) : {});
+      const code = typeof rec.code === "string" ? rec.code : "";
+      const msg = typeof rec.message === "string" ? rec.message : "";
+      // P0001 + "no hay caja abierta" => la sesión ya estaba cerrada (otro dispositivo / doble clic)
+      if (code === "P0001" && /no hay caja abierta/i.test(msg)) {
+        qc.setQueryData(["cash-session-open", user?.id], null);
+        await Promise.all([
+          qc.invalidateQueries({ queryKey: ["cash-session-open"] }),
+          qc.invalidateQueries({ queryKey: ["cash-sessions-history"] }),
+        ]);
+        setCloseDialog(false);
+        setCountedAmount("");
+        setClosingNotes("");
+        toast.info("La caja ya estaba cerrada. Actualicé el estado en pantalla.");
+        return;
+      }
       const errorDetails = getErrorDetails(e, "Error al cerrar caja");
       setCloseError(errorDetails);
       toast.error(errorDetails.title, errorDetails.description ? { description: errorDetails.description } : undefined);
