@@ -87,6 +87,102 @@ function printComanda(o: {
   }, 250);
 }
 
+function printHTML(html: string) {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) return;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.error("print error", e);
+    }
+    setTimeout(() => iframe.remove(), 1000);
+  }, 250);
+}
+
+function printPrecuenta(o: {
+  header: string;
+  items: { name: string; qty: number; unit_price: number }[];
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  customer: string;
+  user_name: string;
+}) {
+  const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const rows = o.items
+    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
+    .join("");
+  const html = `<!doctype html><html><head><title>Precuenta</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  <body>
+    <h1>PRECUENTA</h1>
+    <div class="muted" style="text-align:center">${new Date().toLocaleString("es-CO")}</div>
+    <hr/>
+    <h2>${o.header}</h2>
+    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    <div class="muted">Cajero: ${o.user_name}</div>
+    <hr/>
+    <table>${rows}</table>
+    <hr/>
+    <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <hr/>
+    <div class="muted" style="text-align:center">Documento no fiscal</div>
+  </body></html>`;
+  printHTML(html);
+}
+
+function printTicketFinal(o: {
+  ticket: number;
+  header: string;
+  items: { name: string; qty: number; unit_price: number }[];
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  payment_method: string;
+  customer: string;
+  user_name: string;
+  created_at: string;
+}) {
+  const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const rows = o.items
+    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
+    .join("");
+  const html = `<!doctype html><html><head><title>Ticket #${o.ticket}</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  <body>
+    <h1>Heladería Goloso</h1>
+    <div class="muted" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <div class="muted" style="text-align:center">Ticket #${o.ticket} · ${o.header}</div>
+    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    <div class="muted">Cajero: ${o.user_name}</div>
+    <hr/>
+    <table>${rows}</table>
+    <hr/>
+    <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <div class="row"><span>Pago</span><span>${o.payment_method}</span></div>
+    <hr/>
+    <div style="text-align:center">¡Gracias por tu compra!</div>
+  </body></html>`;
+  printHTML(html);
+}
+
 
 interface Props {
   orderType: OrderType;
@@ -265,6 +361,20 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         user_name: profile?.full_name ?? user.email ?? "",
         created_at: sale.created_at,
       });
+      // Imprimir ticket final automáticamente
+      printTicketFinal({
+        ticket: sale.ticket_number,
+        header,
+        items: cart,
+        subtotal,
+        deliveryFee,
+        total: Number(sale.total),
+        payment_method: sale.payment_method,
+        customer,
+        user_name: profile?.full_name ?? user.email ?? "",
+        created_at: sale.created_at,
+      });
+
       setCart([]);
       setCustomer("");
       setNotes("");
@@ -281,7 +391,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   }
 
   async function saveComanda() {
-    if (!user) return;
+    if (!user) return toast.error("Inicia sesión para guardar el pedido");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (orderType === "domicilio" && (!address || !phone)) {
       return toast.error("Dirección y teléfono requeridos para domicilio");
@@ -297,6 +407,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           total,
           payment_method: "Pendiente",
           status: "pending",
+          source: "pos",
           printed_at: new Date().toISOString(),
           customer_name: customer || null,
           notes: notes || null,
@@ -308,7 +419,10 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         })
         .select("id,ticket_number,created_at")
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error("save sale error", error);
+        throw new Error(error.message || "No se pudo guardar el pedido");
+      }
       const items = cart.map((l) => ({
         sale_id: sale.id,
         product_id: l.product_id,
@@ -319,7 +433,19 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         modifiers: [],
       }));
       const { error: e2 } = await supabase.from("sale_items").insert(items);
-      if (e2) throw e2;
+      if (e2) {
+        console.error("save items error", e2);
+        throw new Error(e2.message || "No se pudieron guardar los productos");
+      }
+
+      // Marcar mesa como ocupada si aplica
+      if (orderType === "mesa" && tableId) {
+        await supabase
+          .from("restaurant_tables")
+          .update({ status: "occupied", occupied_at: new Date().toISOString() })
+          .eq("id", tableId);
+        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+      }
 
       // Imprimir comanda en una ventana de impresión
       printComanda({
@@ -343,11 +469,42 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       qc.invalidateQueries({ queryKey: ["sales"] });
       toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
     } catch (err) {
+      console.error(err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setPaying(false);
     }
   }
+
+  function handlePrecuenta() {
+    if (cart.length === 0) return toast.error("Carrito vacío");
+    printPrecuenta({
+      header,
+      items: cart,
+      subtotal,
+      deliveryFee,
+      total,
+      customer,
+      user_name: profile?.full_name ?? user?.email ?? "",
+    });
+  }
+
+  function reprintTicket() {
+    if (!lastSale) return;
+    printTicketFinal({
+      ticket: lastSale.ticket_number,
+      header,
+      items: lastSale.lines,
+      subtotal: lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0),
+      deliveryFee: Math.max(0, lastSale.total - lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0)),
+      total: lastSale.total,
+      payment_method: lastSale.payment_method,
+      customer: lastSale.customer,
+      user_name: lastSale.user_name,
+      created_at: lastSale.created_at,
+    });
+  }
+
 
 
 
@@ -478,14 +635,24 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             </div>
           </div>
 
-          <Button
-            disabled={paying || cart.length === 0}
-            onClick={saveComanda}
-            variant="outline"
-            className="w-full border-primary text-primary hover:bg-primary/10"
-          >
-            <Save className="h-4 w-4 mr-1" /> Guardar y enviar a cocina / KDS
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              disabled={cart.length === 0}
+              onClick={handlePrecuenta}
+              variant="outline"
+            >
+              Precuenta
+            </Button>
+            <Button
+              disabled={paying || cart.length === 0}
+              onClick={saveComanda}
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary/10"
+            >
+              <Save className="h-4 w-4 mr-1" /> Guardar / KDS
+            </Button>
+          </div>
+
 
           <div className="border-t pt-3">
             <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
@@ -511,8 +678,9 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           {lastSale && <TicketPreview sale={lastSale} />}
           <DialogFooter className="no-print">
             <Button variant="outline" onClick={() => setLastSale(null)}>Cerrar</Button>
-            <Button onClick={() => window.print()}>Imprimir</Button>
+            <Button onClick={reprintTicket}>Imprimir ticket</Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </div>
