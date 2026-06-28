@@ -217,6 +217,16 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr,420px]">
+      {!openSession && (
+        <div className="lg:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
+          <span>
+            <strong>Caja cerrada.</strong> Debes abrir caja antes de cobrar ventas.
+          </span>
+          <a href="/caja" className="rounded-md bg-amber-500 px-3 py-1 text-white text-xs font-medium hover:bg-amber-600">
+            Ir a Caja
+          </a>
+        </div>
+      )}
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
