@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2, Utensils, ShoppingBag, Bike, Monitor } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2, Utensils, ShoppingBag, Bike, Monitor, Save } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import {
@@ -31,6 +31,41 @@ const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color
   domicilio: { label: "A domicilio", icon: Bike, color: "bg-blue-500 text-white" },
   kiosko: { label: "Kiosko", icon: Monitor, color: "bg-purple-500 text-white" },
 };
+
+function printComanda(o: {
+  ticket: number;
+  header: string;
+  items: { name: string; qty: number }[];
+  customer: string;
+  notes: string;
+  address: string;
+  phone: string;
+  user_name: string;
+  created_at: string;
+}) {
+  const w = window.open("", "_blank", "width=380,height=600");
+  if (!w) return;
+  const rows = o.items.map((i) => `<tr><td style="padding:4px 0">${i.qty} ×</td><td style="padding:4px 0">${i.name}</td></tr>`).join("");
+  w.document.write(`<!doctype html><html><head><title>Comanda #${o.ticket}</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px}h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}</style></head>
+  <body>
+    <h1>COMANDA #${o.ticket}</h1>
+    <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <div class="muted">Cajero: ${o.user_name}</div>
+    <hr/>
+    <h2>${o.header}</h2>
+    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    ${o.address ? `<div>Dir: ${o.address}</div>` : ""}
+    ${o.phone ? `<div>Tel: ${o.phone}</div>` : ""}
+    <hr/>
+    <table>${rows}</table>
+    <hr/>
+    ${o.notes ? `<div><b>Notas:</b> ${o.notes}</div>` : ""}
+    <div class="muted" style="margin-top:8px">*** ENVIAR A COCINA ***</div>
+    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}</script>
+  </body></html>`);
+  w.document.close();
+}
 
 interface Props {
   orderType: OrderType;
@@ -211,6 +246,77 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     }
   }
 
+  async function saveComanda() {
+    if (!user) return;
+    if (cart.length === 0) return toast.error("Carrito vacío");
+    if (orderType === "domicilio" && (!address || !phone)) {
+      return toast.error("Dirección y teléfono requeridos para domicilio");
+    }
+    setPaying(true);
+    try {
+      const { data: sale, error } = await supabase
+        .from("sales")
+        .insert({
+          user_id: user.id,
+          user_name: profile?.full_name ?? user.email,
+          subtotal,
+          total,
+          payment_method: "Pendiente",
+          status: "pending",
+          printed_at: new Date().toISOString(),
+          customer_name: customer || null,
+          notes: notes || null,
+          order_type: orderType,
+          table_id: tableId ?? null,
+          delivery_address: orderType === "domicilio" ? address : null,
+          delivery_phone: orderType === "domicilio" ? phone : null,
+          delivery_fee: deliveryFee,
+        })
+        .select("id,ticket_number,created_at")
+        .single();
+      if (error) throw error;
+      const items = cart.map((l) => ({
+        sale_id: sale.id,
+        product_id: l.product_id,
+        product_name: l.name,
+        qty: l.qty,
+        unit_price: l.unit_price,
+        subtotal: l.unit_price * l.qty,
+        modifiers: [],
+      }));
+      const { error: e2 } = await supabase.from("sale_items").insert(items);
+      if (e2) throw e2;
+
+      // Imprimir comanda en una ventana de impresión
+      printComanda({
+        ticket: sale.ticket_number,
+        header,
+        items: cart,
+        customer,
+        notes,
+        address: orderType === "domicilio" ? address : "",
+        phone: orderType === "domicilio" ? phone : "",
+        user_name: profile?.full_name ?? user.email ?? "",
+        created_at: sale.created_at,
+      });
+
+      setCart([]);
+      setCustomer("");
+      setNotes("");
+      setAddress("");
+      setPhone("");
+      qc.invalidateQueries({ queryKey: ["kds-pending"] });
+      qc.invalidateQueries({ queryKey: ["sales"] });
+      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setPaying(false);
+    }
+  }
+
+
+
   const meta = TYPE_META[orderType];
   const Icon = meta.icon;
   const header = title ?? (mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
@@ -326,12 +432,24 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {methods.map((m: { id: string; name: string }) => (
-              <Button key={m.id} disabled={paying || cart.length === 0 || !openSession} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
-                {m.name}
-              </Button>
-            ))}
+          <Button
+            disabled={paying || cart.length === 0}
+            onClick={saveComanda}
+            variant="outline"
+            className="w-full border-primary text-primary hover:bg-primary/10"
+          >
+            <Save className="h-4 w-4 mr-1" /> Guardar y enviar a cocina / KDS
+          </Button>
+
+          <div className="border-t pt-3">
+            <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
+            <div className="grid grid-cols-2 gap-2">
+              {methods.map((m: { id: string; name: string }) => (
+                <Button key={m.id} disabled={paying || cart.length === 0 || !openSession} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
+                  {m.name}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>

@@ -6,13 +6,14 @@ import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2 } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
@@ -40,11 +41,13 @@ function AjustesPage() {
       <Tabs defaultValue="estab">
         <TabsList>
           <TabsTrigger value="estab">Establecimiento</TabsTrigger>
+          <TabsTrigger value="suc">Sucursales</TabsTrigger>
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
         </TabsList>
         <TabsContent value="estab"><EstablecimientoTab disabled={!isAdmin} /></TabsContent>
+        <TabsContent value="suc"><SucursalesTab disabled={!isAdmin} /></TabsContent>
         <TabsContent value="impr"><ImpresorasTab disabled={!isAdmin} /></TabsContent>
         <TabsContent value="pagos"><PagosTab disabled={!isAdmin} /></TabsContent>
         <TabsContent value="domi"><DomicilioTab disabled={!isAdmin} /></TabsContent>
@@ -86,8 +89,39 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
           <div><Label>Dirección</Label><Input disabled={disabled} value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
           <div><Label>Ciudad</Label><Input disabled={disabled} value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
           <div><Label>Teléfono</Label><Input disabled={disabled} value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
-          <div><Label>URL del logo</Label><Input disabled={disabled} value={s.logo_url ?? ""} onChange={(e) => setS({ ...s, logo_url: e.target.value })} placeholder="https://…/logo.png" /></div>
+          <div className="md:col-span-2">
+            <Label>Logo</Label>
+            <div className="flex items-center gap-3">
+              {s.logo_url && (
+                <img src={s.logo_url} alt="logo" className="h-16 w-16 rounded-lg border object-contain bg-white" />
+              )}
+              <Input
+                disabled={disabled}
+                type="file"
+                accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+                  const path = `logo-${Date.now()}.${ext}`;
+                  const up = await supabase.storage.from("logos").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
+                  if (up.error) return toast.error(up.error.message);
+                  const { data: signed } = await supabase.storage.from("logos").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+                  if (signed?.signedUrl) setS({ ...s, logo_url: signed.signedUrl });
+                  toast.success("Logo subido");
+                }}
+              />
+              {s.logo_url && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setS({ ...s, logo_url: null })}>
+                  Quitar
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">PNG o BMP recomendado. Se guarda al pulsar "Guardar cambios".</p>
+          </div>
         </div>
+
+
 
         <div>
           <Label>Link del menú en línea</Label>
@@ -247,3 +281,116 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
     </Card>
   );
 }
+
+interface Branch {
+  id: string; name: string; address: string | null; phone: string | null; city: string | null;
+  is_main: boolean; inherits_main_catalog: boolean;
+}
+
+function SucursalesTab({ disabled }: { disabled: boolean }) {
+  const qc = useQueryClient();
+  const [edit, setEdit] = useState<Partial<Branch> | null>(null);
+  const [copyCatalog, setCopyCatalog] = useState(true);
+  const { data = [] } = useQuery<Branch[]>({
+    queryKey: ["branches"],
+    queryFn: async () => (await supabase.from("branches").select("*").order("is_main", { ascending: false }).order("name")).data as unknown as Branch[] ?? [],
+  });
+
+  async function save() {
+    if (!edit?.name?.trim()) return toast.error("Nombre requerido");
+    const payload = {
+      name: edit.name.trim(),
+      address: edit.address ?? null,
+      phone: edit.phone ?? null,
+      city: edit.city ?? null,
+      inherits_main_catalog: copyCatalog,
+    };
+    const { error } = edit.id
+      ? await supabase.from("branches").update(payload).eq("id", edit.id)
+      : await supabase.from("branches").insert(payload);
+    if (error) return toast.error(error.message);
+    toast.success(copyCatalog ? "Sucursal creada con catálogo de la sede principal" : "Sucursal creada");
+    setEdit(null);
+    qc.invalidateQueries({ queryKey: ["branches"] });
+  }
+  async function remove(b: Branch) {
+    if (b.is_main) return toast.error("No se puede eliminar la sede principal");
+    if (!confirm(`¿Eliminar sucursal "${b.name}"?`)) return;
+    const { error } = await supabase.from("branches").delete().eq("id", b.id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["branches"] });
+  }
+
+  return (
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Sucursales</CardTitle>
+        {!disabled && (
+          <Dialog open={!!edit} onOpenChange={(o) => { if (!o) setEdit(null); }}>
+            <DialogTrigger asChild>
+              <Button onClick={() => { setEdit({}); setCopyCatalog(true); }}>
+                <Plus className="h-4 w-4 mr-1" /> Agregar sucursal
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader><DialogTitle>{edit?.id ? "Editar" : "Nueva"} sucursal</DialogTitle></DialogHeader>
+              <div className="space-y-3">
+                <div><Label>Nombre</Label><Input value={edit?.name ?? ""} onChange={(e) => setEdit({ ...edit, name: e.target.value })} placeholder="Goloso Norte" /></div>
+                <div><Label>Dirección</Label><Input value={edit?.address ?? ""} onChange={(e) => setEdit({ ...edit, address: e.target.value })} /></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div><Label>Ciudad</Label><Input value={edit?.city ?? ""} onChange={(e) => setEdit({ ...edit, city: e.target.value })} /></div>
+                  <div><Label>Teléfono</Label><Input value={edit?.phone ?? ""} onChange={(e) => setEdit({ ...edit, phone: e.target.value })} /></div>
+                </div>
+                {!edit?.id && (
+                  <div className="flex items-center justify-between rounded-lg border p-3">
+                    <div>
+                      <div className="font-medium text-sm">Copiar productos de la sede principal</div>
+                      <div className="text-xs text-muted-foreground">La sucursal usará el mismo catálogo, categorías y precios.</div>
+                    </div>
+                    <Switch checked={copyCatalog} onCheckedChange={setCopyCatalog} />
+                  </div>
+                )}
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button>
+                <Button onClick={save}>Guardar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+      </CardHeader>
+      <CardContent className="p-0">
+        <Table>
+          <TableHeader><TableRow>
+            <TableHead>Sucursal</TableHead><TableHead>Ciudad</TableHead><TableHead>Teléfono</TableHead><TableHead>Catálogo</TableHead><TableHead></TableHead>
+          </TableRow></TableHeader>
+          <TableBody>
+            {data.map((b) => (
+              <TableRow key={b.id}>
+                <TableCell className="font-medium flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  {b.name}
+                  {b.is_main && <Badge className="ml-1"><Star className="h-3 w-3 mr-1" /> Principal</Badge>}
+                </TableCell>
+                <TableCell>{b.city ?? "—"}</TableCell>
+                <TableCell>{b.phone ?? "—"}</TableCell>
+                <TableCell>{b.inherits_main_catalog ? "Sede principal" : "Independiente"}</TableCell>
+                <TableCell className="text-right">
+                  {!disabled && !b.is_main && (
+                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(b)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+            {data.length === 0 && (
+              <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Sin sucursales</TableCell></TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </CardContent>
+    </Card>
+  );
+}
+
