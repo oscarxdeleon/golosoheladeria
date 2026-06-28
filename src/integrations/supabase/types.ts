@@ -14,6 +14,42 @@ export type Database = {
   }
   public: {
     Tables: {
+      branches: {
+        Row: {
+          address: string | null
+          city: string | null
+          created_at: string
+          id: string
+          inherits_main_catalog: boolean
+          is_main: boolean
+          name: string
+          phone: string | null
+          updated_at: string
+        }
+        Insert: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          inherits_main_catalog?: boolean
+          is_main?: boolean
+          name: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string | null
+          city?: string | null
+          created_at?: string
+          id?: string
+          inherits_main_catalog?: boolean
+          is_main?: boolean
+          name?: string
+          phone?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cash_sessions: {
         Row: {
           closed_at: string | null
@@ -365,9 +401,12 @@ export type Database = {
           delivery_fee: number
           delivery_phone: string | null
           id: string
+          kds_ack_at: string | null
           notes: string | null
           order_type: string
           payment_method: string
+          printed_at: string | null
+          status: string
           subtotal: number
           table_id: string | null
           ticket_number: number
@@ -382,9 +421,12 @@ export type Database = {
           delivery_fee?: number
           delivery_phone?: string | null
           id?: string
+          kds_ack_at?: string | null
           notes?: string | null
           order_type?: string
           payment_method: string
+          printed_at?: string | null
+          status?: string
           subtotal?: number
           table_id?: string | null
           ticket_number?: number
@@ -399,9 +441,12 @@ export type Database = {
           delivery_fee?: number
           delivery_phone?: string | null
           id?: string
+          kds_ack_at?: string | null
           notes?: string | null
           order_type?: string
           payment_method?: string
+          printed_at?: string | null
+          status?: string
           subtotal?: number
           table_id?: string | null
           ticket_number?: number
