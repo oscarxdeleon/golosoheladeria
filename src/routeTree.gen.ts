@@ -16,8 +16,11 @@ import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
+import { Route as AuthenticatedLlevarRouteImport } from './routes/_authenticated/llevar'
+import { Route as AuthenticatedKioskoRouteImport } from './routes/_authenticated/kiosko'
 import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kds'
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
+import { Route as AuthenticatedDomicilioRouteImport } from './routes/_authenticated/domicilio'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
@@ -62,6 +65,16 @@ const AuthenticatedMesasRoute = AuthenticatedMesasRouteImport.update({
   path: '/mesas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLlevarRoute = AuthenticatedLlevarRouteImport.update({
+  id: '/llevar',
+  path: '/llevar',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKioskoRoute = AuthenticatedKioskoRouteImport.update({
+  id: '/kiosko',
+  path: '/kiosko',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedKdsRoute = AuthenticatedKdsRouteImport.update({
   id: '/kds',
   path: '/kds',
@@ -70,6 +83,11 @@ const AuthenticatedKdsRoute = AuthenticatedKdsRouteImport.update({
 const AuthenticatedDomiciliosRoute = AuthenticatedDomiciliosRouteImport.update({
   id: '/domicilios',
   path: '/domicilios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDomicilioRoute = AuthenticatedDomicilioRouteImport.update({
+  id: '/domicilio',
+  path: '/domicilio',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
@@ -130,8 +148,11 @@ export interface FileRoutesByFullPath {
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/kds': typeof AuthenticatedKdsRoute
+  '/kiosko': typeof AuthenticatedKioskoRoute
+  '/llevar': typeof AuthenticatedLlevarRoute
   '/mesas': typeof AuthenticatedMesasRoute
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -149,8 +170,11 @@ export interface FileRoutesByTo {
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/kds': typeof AuthenticatedKdsRoute
+  '/kiosko': typeof AuthenticatedKioskoRoute
+  '/llevar': typeof AuthenticatedLlevarRoute
   '/mesas': typeof AuthenticatedMesasRoute
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -170,8 +194,11 @@ export interface FileRoutesById {
   '/_authenticated/caja': typeof AuthenticatedCajaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/domicilio': typeof AuthenticatedDomicilioRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
   '/_authenticated/kds': typeof AuthenticatedKdsRoute
+  '/_authenticated/kiosko': typeof AuthenticatedKioskoRoute
+  '/_authenticated/llevar': typeof AuthenticatedLlevarRoute
   '/_authenticated/mesas': typeof AuthenticatedMesasRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
@@ -191,8 +218,11 @@ export interface FileRouteTypes {
     | '/caja'
     | '/clientes'
     | '/dashboard'
+    | '/domicilio'
     | '/domicilios'
     | '/kds'
+    | '/kiosko'
+    | '/llevar'
     | '/mesas'
     | '/pos'
     | '/usuarios'
@@ -210,8 +240,11 @@ export interface FileRouteTypes {
     | '/caja'
     | '/clientes'
     | '/dashboard'
+    | '/domicilio'
     | '/domicilios'
     | '/kds'
+    | '/kiosko'
+    | '/llevar'
     | '/mesas'
     | '/pos'
     | '/usuarios'
@@ -230,8 +263,11 @@ export interface FileRouteTypes {
     | '/_authenticated/caja'
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
+    | '/_authenticated/domicilio'
     | '/_authenticated/domicilios'
     | '/_authenticated/kds'
+    | '/_authenticated/kiosko'
+    | '/_authenticated/llevar'
     | '/_authenticated/mesas'
     | '/_authenticated/pos'
     | '/_authenticated/usuarios'
@@ -299,6 +335,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedMesasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/llevar': {
+      id: '/_authenticated/llevar'
+      path: '/llevar'
+      fullPath: '/llevar'
+      preLoaderRoute: typeof AuthenticatedLlevarRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kiosko': {
+      id: '/_authenticated/kiosko'
+      path: '/kiosko'
+      fullPath: '/kiosko'
+      preLoaderRoute: typeof AuthenticatedKioskoRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/kds': {
       id: '/_authenticated/kds'
       path: '/kds'
@@ -311,6 +361,13 @@ declare module '@tanstack/react-router' {
       path: '/domicilios'
       fullPath: '/domicilios'
       preLoaderRoute: typeof AuthenticatedDomiciliosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/domicilio': {
+      id: '/_authenticated/domicilio'
+      path: '/domicilio'
+      fullPath: '/domicilio'
+      preLoaderRoute: typeof AuthenticatedDomicilioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/dashboard': {
@@ -385,8 +442,11 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDomicilioRoute: typeof AuthenticatedDomicilioRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
   AuthenticatedKdsRoute: typeof AuthenticatedKdsRoute
+  AuthenticatedKioskoRoute: typeof AuthenticatedKioskoRoute
+  AuthenticatedLlevarRoute: typeof AuthenticatedLlevarRoute
   AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
@@ -403,8 +463,11 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedCajaRoute: AuthenticatedCajaRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDomicilioRoute: AuthenticatedDomicilioRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
   AuthenticatedKdsRoute: AuthenticatedKdsRoute,
+  AuthenticatedKioskoRoute: AuthenticatedKioskoRoute,
+  AuthenticatedLlevarRoute: AuthenticatedLlevarRoute,
   AuthenticatedMesasRoute: AuthenticatedMesasRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
