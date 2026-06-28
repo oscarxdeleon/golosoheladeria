@@ -18,6 +18,7 @@ import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
+import { Route as AuthenticatedPedidosOnlineRouteImport } from './routes/_authenticated/pedidos-online'
 import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
 import { Route as AuthenticatedLlevarRouteImport } from './routes/_authenticated/llevar'
 import { Route as AuthenticatedKioskoRouteImport } from './routes/_authenticated/kiosko'
@@ -26,6 +27,7 @@ import { Route as AuthenticatedInventarioRouteImport } from './routes/_authentic
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
 import { Route as AuthenticatedDomicilioRouteImport } from './routes/_authenticated/domicilio'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
 import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
@@ -79,6 +81,12 @@ const AuthenticatedPosRoute = AuthenticatedPosRouteImport.update({
   path: '/pos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPedidosOnlineRoute =
+  AuthenticatedPedidosOnlineRouteImport.update({
+    id: '/pedidos-online',
+    path: '/pedidos-online',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMesasRoute = AuthenticatedMesasRouteImport.update({
   id: '/mesas',
   path: '/mesas',
@@ -117,6 +125,11 @@ const AuthenticatedDomicilioRoute = AuthenticatedDomicilioRouteImport.update({
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
+  id: '/crm',
+  path: '/crm',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
@@ -173,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -181,6 +195,7 @@ export interface FileRoutesByFullPath {
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
@@ -199,6 +214,7 @@ export interface FileRoutesByTo {
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -207,6 +223,7 @@ export interface FileRoutesByTo {
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
@@ -227,6 +244,7 @@ export interface FileRoutesById {
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
   '/_authenticated/caja': typeof AuthenticatedCajaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/domicilio': typeof AuthenticatedDomicilioRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -235,6 +253,7 @@ export interface FileRoutesById {
   '/_authenticated/kiosko': typeof AuthenticatedKioskoRoute
   '/_authenticated/llevar': typeof AuthenticatedLlevarRoute
   '/_authenticated/mesas': typeof AuthenticatedMesasRoute
+  '/_authenticated/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
@@ -255,6 +274,7 @@ export interface FileRouteTypes {
     | '/ayuda'
     | '/caja'
     | '/clientes'
+    | '/crm'
     | '/dashboard'
     | '/domicilio'
     | '/domicilios'
@@ -263,6 +283,7 @@ export interface FileRouteTypes {
     | '/kiosko'
     | '/llevar'
     | '/mesas'
+    | '/pedidos-online'
     | '/pos'
     | '/usuarios'
     | '/ventas'
@@ -281,6 +302,7 @@ export interface FileRouteTypes {
     | '/ayuda'
     | '/caja'
     | '/clientes'
+    | '/crm'
     | '/dashboard'
     | '/domicilio'
     | '/domicilios'
@@ -289,6 +311,7 @@ export interface FileRouteTypes {
     | '/kiosko'
     | '/llevar'
     | '/mesas'
+    | '/pedidos-online'
     | '/pos'
     | '/usuarios'
     | '/ventas'
@@ -308,6 +331,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ayuda'
     | '/_authenticated/caja'
     | '/_authenticated/clientes'
+    | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/domicilio'
     | '/_authenticated/domicilios'
@@ -316,6 +340,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kiosko'
     | '/_authenticated/llevar'
     | '/_authenticated/mesas'
+    | '/_authenticated/pedidos-online'
     | '/_authenticated/pos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
@@ -400,6 +425,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedPosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pedidos-online': {
+      id: '/_authenticated/pedidos-online'
+      path: '/pedidos-online'
+      fullPath: '/pedidos-online'
+      preLoaderRoute: typeof AuthenticatedPedidosOnlineRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mesas': {
       id: '/_authenticated/mesas'
       path: '/mesas'
@@ -454,6 +486,13 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/crm': {
+      id: '/_authenticated/crm'
+      path: '/crm'
+      fullPath: '/crm'
+      preLoaderRoute: typeof AuthenticatedCrmRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clientes': {
@@ -520,6 +559,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAyudaRoute: typeof AuthenticatedAyudaRoute
   AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDomicilioRoute: typeof AuthenticatedDomicilioRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
@@ -528,6 +568,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKioskoRoute: typeof AuthenticatedKioskoRoute
   AuthenticatedLlevarRoute: typeof AuthenticatedLlevarRoute
   AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
+  AuthenticatedPedidosOnlineRoute: typeof AuthenticatedPedidosOnlineRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVentasRoute: typeof AuthenticatedVentasRoute
@@ -542,6 +583,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAyudaRoute: AuthenticatedAyudaRoute,
   AuthenticatedCajaRoute: AuthenticatedCajaRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDomicilioRoute: AuthenticatedDomicilioRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
@@ -550,6 +592,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKioskoRoute: AuthenticatedKioskoRoute,
   AuthenticatedLlevarRoute: AuthenticatedLlevarRoute,
   AuthenticatedMesasRoute: AuthenticatedMesasRoute,
+  AuthenticatedPedidosOnlineRoute: AuthenticatedPedidosOnlineRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVentasRoute: AuthenticatedVentasRoute,
