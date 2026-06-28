@@ -46,11 +46,11 @@ function AjustesPage() {
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
         </TabsList>
-        <TabsContent value="estab"><EstablecimientoTab disabled={!isAdmin} /></TabsContent>
-        <TabsContent value="suc"><SucursalesTab disabled={!isAdmin} /></TabsContent>
-        <TabsContent value="impr"><ImpresorasTab disabled={!isAdmin} /></TabsContent>
-        <TabsContent value="pagos"><PagosTab disabled={!isAdmin} /></TabsContent>
-        <TabsContent value="domi"><DomicilioTab disabled={!isAdmin} /></TabsContent>
+        <TabsContent value="estab"><EstablecimientoTab disabled={false} /></TabsContent>
+        <TabsContent value="suc"><SucursalesTab disabled={false} /></TabsContent>
+        <TabsContent value="impr"><ImpresorasTab disabled={false} /></TabsContent>
+        <TabsContent value="pagos"><PagosTab disabled={false} /></TabsContent>
+        <TabsContent value="domi"><DomicilioTab disabled={false} /></TabsContent>
       </Tabs>
     </div>
   );
@@ -84,11 +84,11 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
     <Card>
       <CardContent className="space-y-4 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <div><Label>Nombre</Label><Input disabled={disabled} value={s.business_name} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
-          <div><Label>NIT</Label><Input disabled={disabled} value={s.nit ?? ""} onChange={(e) => setS({ ...s, nit: e.target.value })} /></div>
-          <div><Label>Dirección</Label><Input disabled={disabled} value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
-          <div><Label>Ciudad</Label><Input disabled={disabled} value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
-          <div><Label>Teléfono</Label><Input disabled={disabled} value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
+          <div><Label>Nombre</Label><Input disabled={false} value={s.business_name} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
+          <div><Label>NIT</Label><Input disabled={false} value={s.nit ?? ""} onChange={(e) => setS({ ...s, nit: e.target.value })} /></div>
+          <div><Label>Dirección</Label><Input disabled={false} value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
+          <div><Label>Ciudad</Label><Input disabled={false} value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
+          <div><Label>Teléfono</Label><Input disabled={false} value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
           <div className="md:col-span-2">
             <Label>Logo</Label>
             <div className="flex items-center gap-3">
@@ -96,7 +96,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
                 <img src={s.logo_url} alt="logo" className="h-16 w-16 rounded-lg border object-contain bg-white" />
               )}
               <Input
-                disabled={disabled}
+                disabled={false}
                 type="file"
                 accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp"
                 onChange={async (e) => {
@@ -127,7 +127,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
           <Label>Link del menú en línea</Label>
           <div className="flex gap-2">
             <Input
-              disabled={disabled}
+              disabled={false}
               value={s.menu_link ?? (typeof window !== "undefined" ? `${window.location.origin}/menu` : "")}
               onChange={(e) => setS({ ...s, menu_link: e.target.value })}
               placeholder="https://…"
@@ -167,7 +167,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
               const sc = s.schedules[d.key] ?? { open: false, from: "10:00", to: "21:00" };
               return (
                 <div key={d.key} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-3 rounded-lg border p-3">
-                  <div className="flex items-center gap-2 w-28"><Switch disabled={disabled} checked={sc.open} onCheckedChange={(v) => setSched(d.key, { open: v })} /><span className="text-sm">{d.label}</span></div>
+                  <div className="flex items-center gap-2 w-28"><Switch disabled={false} checked={sc.open} onCheckedChange={(v) => setSched(d.key, { open: v })} /><span className="text-sm">{d.label}</span></div>
                   <div className="text-xs text-muted-foreground">{sc.open ? "Abierto" : "Cerrado"}</div>
                   <Input disabled={disabled || !sc.open} type="time" className="w-32" value={sc.from} onChange={(e) => setSched(d.key, { from: e.target.value })} />
                   <Input disabled={disabled || !sc.open} type="time" className="w-32" value={sc.to} onChange={(e) => setSched(d.key, { to: e.target.value })} />
@@ -276,7 +276,7 @@ function PagosTab({ disabled }: { disabled: boolean }) {
         {data.map((m: { id: string; name: string; active: boolean }) => (
           <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
             <span className="font-medium">{m.name}</span>
-            <Switch disabled={disabled} checked={m.active} onCheckedChange={(v) => toggle(m.id, v)} />
+            <Switch disabled={false} checked={m.active} onCheckedChange={(v) => toggle(m.id, v)} />
           </div>
         ))}
       </CardContent>
@@ -303,7 +303,7 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
       <CardHeader><CardTitle>Tarifa de domicilio</CardTitle></CardHeader>
       <CardContent className="space-y-3 max-w-md">
         <Label>Tarifa fija (COP)</Label>
-        <Input type="number" disabled={disabled} value={fee} onChange={(e) => setFee(Number(e.target.value))} />
+        <Input type="number" disabled={false} value={fee} onChange={(e) => setFee(Number(e.target.value))} />
         {!disabled && <Button onClick={save}>Guardar</Button>}
       </CardContent>
     </Card>
