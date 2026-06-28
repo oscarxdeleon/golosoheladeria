@@ -233,6 +233,19 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       const { error: e2 } = await supabase.from("sale_items").insert(items);
       if (e2) throw e2;
 
+      // Imprimir comanda automáticamente al guardar la venta
+      printComanda({
+        ticket: sale.ticket_number,
+        header,
+        items: cart,
+        customer,
+        notes,
+        address: orderType === "domicilio" ? address : "",
+        phone: orderType === "domicilio" ? phone : "",
+        user_name: profile?.full_name ?? user.email ?? "",
+        created_at: sale.created_at,
+      });
+
       // Liberar mesa al cobrar
       if (orderType === "mesa" && tableId) {
         await supabase
