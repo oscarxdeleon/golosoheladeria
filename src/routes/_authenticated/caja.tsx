@@ -93,7 +93,10 @@ function CajaPage() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_active_cash_session");
       if (error) throw error;
-      return (data as CashSession | null) ?? null;
+      const session = (data as CashSession | null) ?? null;
+      // Compositetype NULL puede llegar como objeto con campos null
+      if (!session || !session.id || session.status !== "open") return null;
+      return session;
     },
   });
 
@@ -226,15 +229,16 @@ function CajaPage() {
       if (!closed || closed.status !== "closed") {
         throw new Error("El cierre no devolvió el registro actualizado.");
       }
-      qc.setQueryData(["cash-session-open", user?.id], null);
+      // Limpia inmediatamente el estado "abierta" y fuerza refetch
+      qc.setQueryData(["cash-session-open", user.id], null);
+      qc.removeQueries({ queryKey: ["session-cash-sales"] });
       toast.success(`Caja cerrada. Diferencia ${formatMoney(closed.difference ?? 0)}`);
       setCloseDialog(false);
       setCountedAmount("");
       setClosingNotes("");
       await Promise.all([
-        qc.invalidateQueries({ queryKey: ["cash-session-open"] }),
-        qc.invalidateQueries({ queryKey: ["cash-sessions-history"] }),
-        qc.invalidateQueries({ queryKey: ["session-cash-sales"] }),
+        qc.refetchQueries({ queryKey: ["cash-session-open", user.id], exact: true }),
+        qc.refetchQueries({ queryKey: ["cash-sessions-history"] }),
       ]);
     } catch (e) {
       console.error("closeSession", e);
