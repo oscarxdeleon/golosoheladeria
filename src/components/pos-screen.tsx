@@ -452,8 +452,12 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       setNotes("");
       setAddress("");
       setPhone("");
+      setPendingSaleId(null);
       qc.invalidateQueries({ queryKey: ["dashboard-today"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      qc.invalidateQueries({ queryKey: ["kds-pending"] });
+
       toast.success(`Venta #${sale.ticket_number} registrada`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al cobrar");
