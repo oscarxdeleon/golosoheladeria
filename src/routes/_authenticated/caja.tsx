@@ -411,7 +411,7 @@ function CajaPage() {
             <Button variant="outline" onClick={() => setCloseDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={closeSession} disabled={saving || countedAmount === ""}>
+            <Button onClick={closeSession} disabled={saving || countedAmount === "" || occupiedTables.length > 0}>
               Cerrar caja
             </Button>
           </DialogFooter>
