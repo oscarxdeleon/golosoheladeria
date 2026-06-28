@@ -1,4 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
+import logoAsset from "@/assets/logo-goloso.png.asset.json";
+
 import {
   LayoutDashboard,
   ShoppingCart,
