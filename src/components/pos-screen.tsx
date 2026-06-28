@@ -533,18 +533,21 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      // Imprimir comanda en una ventana de impresión
-      printComanda({
-        ticket: sale.ticket_number,
-        header,
-        items: cart,
-        customer,
-        notes,
-        address: orderType === "domicilio" ? address : "",
-        phone: orderType === "domicilio" ? phone : "",
-        user_name: profile?.full_name ?? user.email ?? "",
-        created_at: sale.created_at,
-      });
+      // Imprimir comanda en segundo plano (no bloquea la UI)
+      const snap = cart.map((l) => ({ name: l.name, qty: l.qty }));
+      setTimeout(() => {
+        printComanda({
+          ticket: sale.ticket_number,
+          header,
+          items: snap,
+          customer,
+          notes,
+          address: orderType === "domicilio" ? address : "",
+          phone: orderType === "domicilio" ? phone : "",
+          user_name: profile?.full_name ?? user.email ?? "",
+          created_at: sale.created_at,
+        });
+      }, 0);
 
       // No vaciamos el carrito: queda visible para poder cobrar de inmediato
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
