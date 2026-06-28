@@ -85,6 +85,19 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       return data;
     },
   });
+  const { data: openSession } = useQuery({
+    queryKey: ["cash-session-open", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cash_sessions")
+        .select("id,opened_at")
+        .eq("user_id", user!.id)
+        .eq("status", "open")
+        .maybeSingle();
+      return data;
+    },
+  });
   const { data: mesa } = useQuery({
     queryKey: ["restaurant_tables", tableId],
     enabled: !!tableId,
