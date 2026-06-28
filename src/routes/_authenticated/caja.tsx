@@ -153,30 +153,57 @@ function CajaPage() {
 
 
   async function closeSession() {
-    if (!current) return;
+    if (!user) {
+      toast.error("Debes iniciar sesión para cerrar caja.");
+      return;
+    }
+    if (!current) {
+      await qc.invalidateQueries({ queryKey: ["cash-session-open"] });
+      toast.error("No hay una caja abierta activa para cerrar.");
+      return;
+    }
     if (occupiedTables.length > 0) {
       toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar. Cobra o libera antes de cerrar caja.`);
       return;
     }
+    const counted = Number(countedAmount);
+    if (countedAmount.trim() === "" || !Number.isFinite(counted) || counted < 0) {
+      toast.error("Ingresa un monto contado válido para cerrar caja.");
+      return;
+    }
     setSaving(true);
     try {
-      const counted = Number(countedAmount) || 0;
+      const { data: activeSession, error: activeError } = await supabase.rpc("get_active_cash_session");
+      if (activeError) throw activeError;
+      if (!activeSession) {
+        qc.setQueryData(["cash-session-open", user.id], null);
+        toast.error("La caja ya no está abierta. Actualicé el estado de la pantalla.");
+        setCloseDialog(false);
+        return;
+      }
+
       // cerrarCaja: actualiza el registro activo y guarda monto final
       const { data, error } = await supabase.rpc("close_cash_session", {
         _counted_amount: counted,
         _closing_notes: closingNotes || undefined,
       });
       if (error) throw error;
+      const closed = data as CashSession | null;
+      if (!closed || closed.status !== "closed") {
+        throw new Error("El cierre no devolvió el registro actualizado.");
+      }
       qc.setQueryData(["cash-session-open", user?.id], null);
-      toast.success(`Caja cerrada. Diferencia ${formatMoney((data as CashSession)?.difference ?? 0)}`);
+      toast.success(`Caja cerrada. Diferencia ${formatMoney(closed.difference ?? 0)}`);
       setCloseDialog(false);
       setCountedAmount("");
       setClosingNotes("");
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["cash-session-open"] }),
         qc.invalidateQueries({ queryKey: ["cash-sessions-history"] }),
+        qc.invalidateQueries({ queryKey: ["session-cash-sales"] }),
       ]);
     } catch (e) {
+      console.error("closeSession", e);
       toast.error(e instanceof Error ? e.message : "Error al cerrar caja");
     } finally {
       setSaving(false);
