@@ -361,6 +361,20 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         user_name: profile?.full_name ?? user.email ?? "",
         created_at: sale.created_at,
       });
+      // Imprimir ticket final automáticamente
+      printTicketFinal({
+        ticket: sale.ticket_number,
+        header,
+        items: cart,
+        subtotal,
+        deliveryFee,
+        total: Number(sale.total),
+        payment_method: sale.payment_method,
+        customer,
+        user_name: profile?.full_name ?? user.email ?? "",
+        created_at: sale.created_at,
+      });
+
       setCart([]);
       setCustomer("");
       setNotes("");
