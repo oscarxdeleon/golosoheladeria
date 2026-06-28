@@ -87,6 +87,102 @@ function printComanda(o: {
   }, 250);
 }
 
+function printHTML(html: string) {
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) return;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.error("print error", e);
+    }
+    setTimeout(() => iframe.remove(), 1000);
+  }, 250);
+}
+
+function printPrecuenta(o: {
+  header: string;
+  items: { name: string; qty: number; unit_price: number }[];
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  customer: string;
+  user_name: string;
+}) {
+  const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const rows = o.items
+    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
+    .join("");
+  const html = `<!doctype html><html><head><title>Precuenta</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  <body>
+    <h1>PRECUENTA</h1>
+    <div class="muted" style="text-align:center">${new Date().toLocaleString("es-CO")}</div>
+    <hr/>
+    <h2>${o.header}</h2>
+    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    <div class="muted">Cajero: ${o.user_name}</div>
+    <hr/>
+    <table>${rows}</table>
+    <hr/>
+    <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <hr/>
+    <div class="muted" style="text-align:center">Documento no fiscal</div>
+  </body></html>`;
+  printHTML(html);
+}
+
+function printTicketFinal(o: {
+  ticket: number;
+  header: string;
+  items: { name: string; qty: number; unit_price: number }[];
+  subtotal: number;
+  deliveryFee: number;
+  total: number;
+  payment_method: string;
+  customer: string;
+  user_name: string;
+  created_at: string;
+}) {
+  const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const rows = o.items
+    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
+    .join("");
+  const html = `<!doctype html><html><head><title>Ticket #${o.ticket}</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  <body>
+    <h1>Heladería Goloso</h1>
+    <div class="muted" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <div class="muted" style="text-align:center">Ticket #${o.ticket} · ${o.header}</div>
+    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    <div class="muted">Cajero: ${o.user_name}</div>
+    <hr/>
+    <table>${rows}</table>
+    <hr/>
+    <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <div class="row"><span>Pago</span><span>${o.payment_method}</span></div>
+    <hr/>
+    <div style="text-align:center">¡Gracias por tu compra!</div>
+  </body></html>`;
+  printHTML(html);
+}
+
 
 interface Props {
   orderType: OrderType;
