@@ -523,6 +523,8 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             user_id: user.id,
             user_name: profile?.full_name ?? user.email,
             subtotal,
+            tax,
+
             total,
             payment_method: "Pendiente",
             status: "pending",
