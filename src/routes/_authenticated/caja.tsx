@@ -17,7 +17,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
+
 import { TicketPreview } from "@/components/ticket-preview";
 
 export const Route = createFileRoute("/_authenticated/caja")({
