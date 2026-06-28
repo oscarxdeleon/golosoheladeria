@@ -139,6 +139,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   async function pay(method: string) {
     if (!user) return;
+    if (!openSession) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (orderType === "domicilio" && (!address || !phone)) {
       return toast.error("Dirección y teléfono requeridos para domicilio");
