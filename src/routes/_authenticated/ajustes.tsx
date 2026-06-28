@@ -69,7 +69,8 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
     if (!s) return;
     const { error } = await supabase.from("settings").update({
       business_name: s.business_name, nit: s.nit, address: s.address, city: s.city,
-      phone: s.phone, logo_url: s.logo_url, menu_link: s.menu_link, schedules: s.schedules,
+      phone: s.phone, logo_url: s.logo_url, menu_link: s.menu_link,
+      schedules: s.schedules as unknown as never,
     }).eq("id", 1);
     if (error) return toast.error(error.message);
     toast.success("Guardado");
