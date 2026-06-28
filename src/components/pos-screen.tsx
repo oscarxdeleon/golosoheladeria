@@ -685,8 +685,14 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             <h2 className="font-display text-xl">Pedido</h2>
+            {pendingSaleId && (
+              <Badge variant="secondary" className="bg-success/15 text-success border-success/30">
+                En cocina
+              </Badge>
+            )}
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
+
 
           <div className="max-h-[40vh] space-y-2 overflow-auto">
             {cart.length === 0 && (
