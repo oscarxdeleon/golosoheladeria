@@ -353,6 +353,12 @@ function CajaPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {occupiedTables.length > 0 && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <strong>No puedes cerrar:</strong> hay {occupiedTables.length} mesa(s) ocupada(s) sin cobrar:{" "}
+                {occupiedTables.map((t: { number: number; label: string | null }) => t.label ?? `Mesa ${t.number}`).join(", ")}.
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3 text-sm">
               <div>
                 <div className="text-muted-foreground">Inicial</div>
