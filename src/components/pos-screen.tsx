@@ -454,7 +454,9 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         header,
         items: cart,
         subtotal,
+        tax,
         deliveryFee,
+
         total: Number(sale.total),
         payment_method: sale.payment_method,
         customer,
