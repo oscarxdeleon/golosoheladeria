@@ -201,13 +201,16 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [paying, setPaying] = useState(false);
+  const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [lastSale, setLastSale] = useState<{ id: string; ticket_number: number; total: number; payment_method: string; lines: CartLine[]; customer: string; user_name: string; created_at: string } | null>(null);
 
   useEffect(() => {
     setCart([]);
     setCustomer("");
     setNotes("");
+    setPendingSaleId(null);
   }, [orderType, tableId]);
+
 
   const { data: cats = [] } = useQuery({
     queryKey: ["categories"],
@@ -259,6 +262,48 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     },
   });
 
+  // Cargar pedido pendiente existente (mesa) para permitir cobro directo
+  const { data: pendingSale } = useQuery({
+    queryKey: ["pending-sale", orderType, tableId],
+    enabled: orderType === "mesa" && !!tableId,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sales")
+        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .eq("table_id", tableId!)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as null | {
+        id: string;
+        ticket_number: number;
+        customer_name: string | null;
+        notes: string | null;
+        created_at: string;
+        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
+      };
+    },
+  });
+
+  useEffect(() => {
+    if (!pendingSale) return;
+    setPendingSaleId(pendingSale.id);
+    setCustomer(pendingSale.customer_name ?? "");
+    setNotes(pendingSale.notes ?? "");
+    setCart(
+      (pendingSale.sale_items ?? []).map((i) => ({
+        key: i.product_id,
+        product_id: i.product_id,
+        name: i.product_name,
+        unit_price: Number(i.unit_price),
+        qty: Number(i.qty),
+      })),
+    );
+  }, [pendingSale]);
+
+
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
@@ -298,36 +343,63 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     }
     setPaying(true);
     try {
-      const { data: sale, error } = await supabase
-        .from("sales")
-        .insert({
-          user_id: user.id,
-          user_name: profile?.full_name ?? user.email,
-          subtotal,
-          total,
-          payment_method: method,
-          customer_name: customer || null,
-          notes: notes || null,
-          order_type: orderType,
-          table_id: tableId ?? null,
-          delivery_address: orderType === "domicilio" ? address : null,
-          delivery_phone: orderType === "domicilio" ? phone : null,
-          delivery_fee: deliveryFee,
-        })
-        .select("id,ticket_number,total,payment_method,created_at")
-        .single();
-      if (error) throw error;
-      const items = cart.map((l) => ({
-        sale_id: sale.id,
-        product_id: l.product_id,
-        product_name: l.name,
-        qty: l.qty,
-        unit_price: l.unit_price,
-        subtotal: l.unit_price * l.qty,
-        modifiers: [],
-      }));
-      const { error: e2 } = await supabase.from("sale_items").insert(items);
-      if (e2) throw e2;
+      let sale: { id: string; ticket_number: number; total: number; payment_method: string; created_at: string };
+      if (pendingSaleId) {
+        // Cobrar pedido existente: actualizar totales y método de pago
+        const { data, error } = await supabase
+          .from("sales")
+          .update({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            payment_method: method,
+            status: "completed",
+            customer_name: customer || null,
+            notes: notes || null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+          })
+          .eq("id", pendingSaleId)
+          .select("id,ticket_number,total,payment_method,created_at")
+          .single();
+        if (error) throw error;
+        sale = data;
+      } else {
+        const { data, error } = await supabase
+          .from("sales")
+          .insert({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            payment_method: method,
+            customer_name: customer || null,
+            notes: notes || null,
+            order_type: orderType,
+            table_id: tableId ?? null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+          })
+          .select("id,ticket_number,total,payment_method,created_at")
+          .single();
+        if (error) throw error;
+        sale = data;
+        const items = cart.map((l) => ({
+          sale_id: sale.id,
+          product_id: l.product_id,
+          product_name: l.name,
+          qty: l.qty,
+          unit_price: l.unit_price,
+          subtotal: l.unit_price * l.qty,
+          modifiers: [],
+        }));
+        const { error: e2 } = await supabase.from("sale_items").insert(items);
+        if (e2) throw e2;
+      }
+
 
       // Imprimir comanda automáticamente al guardar la venta
       printComanda({
@@ -380,8 +452,12 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       setNotes("");
       setAddress("");
       setPhone("");
+      setPendingSaleId(null);
       qc.invalidateQueries({ queryKey: ["dashboard-today"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      qc.invalidateQueries({ queryKey: ["kds-pending"] });
+
       toast.success(`Venta #${sale.ticket_number} registrada`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al cobrar");
@@ -398,31 +474,59 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     }
     setPaying(true);
     try {
-      const { data: sale, error } = await supabase
-        .from("sales")
-        .insert({
-          user_id: user.id,
-          user_name: profile?.full_name ?? user.email,
-          subtotal,
-          total,
-          payment_method: "Pendiente",
-          status: "pending",
-          source: "pos",
-          printed_at: new Date().toISOString(),
-          customer_name: customer || null,
-          notes: notes || null,
-          order_type: orderType,
-          table_id: tableId ?? null,
-          delivery_address: orderType === "domicilio" ? address : null,
-          delivery_phone: orderType === "domicilio" ? phone : null,
-          delivery_fee: deliveryFee,
-        })
-        .select("id,ticket_number,created_at")
-        .single();
-      if (error) {
-        console.error("save sale error", error);
-        throw new Error(error.message || "No se pudo guardar el pedido");
+      let sale: { id: string; ticket_number: number; created_at: string };
+      if (pendingSaleId) {
+        // Actualizar pedido pendiente existente y reemplazar items
+        const { data, error } = await supabase
+          .from("sales")
+          .update({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            customer_name: customer || null,
+            notes: notes || null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+            printed_at: new Date().toISOString(),
+          })
+          .eq("id", pendingSaleId)
+          .select("id,ticket_number,created_at")
+          .single();
+        if (error) throw new Error(error.message || "No se pudo actualizar el pedido");
+        sale = data;
+        await supabase.from("sale_items").delete().eq("sale_id", pendingSaleId);
+      } else {
+        const { data, error } = await supabase
+          .from("sales")
+          .insert({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            payment_method: "Pendiente",
+            status: "pending",
+            source: "pos",
+            printed_at: new Date().toISOString(),
+            customer_name: customer || null,
+            notes: notes || null,
+            order_type: orderType,
+            table_id: tableId ?? null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+          })
+          .select("id,ticket_number,created_at")
+          .single();
+        if (error) {
+          console.error("save sale error", error);
+          throw new Error(error.message || "No se pudo guardar el pedido");
+        }
+        sale = data;
+        setPendingSaleId(sale.id);
       }
+
       const items = cart.map((l) => ({
         sale_id: sale.id,
         product_id: l.product_id,
@@ -460,14 +564,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         created_at: sale.created_at,
       });
 
-      setCart([]);
-      setCustomer("");
-      setNotes("");
-      setAddress("");
-      setPhone("");
+      // No vaciamos el carrito: queda visible para poder cobrar de inmediato
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
-      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS · ya puedes cobrar`);
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
@@ -475,6 +576,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       setPaying(false);
     }
   }
+
 
   function handlePrecuenta() {
     if (cart.length === 0) return toast.error("Carrito vacío");
@@ -583,8 +685,14 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             <h2 className="font-display text-xl">Pedido</h2>
+            {pendingSaleId && (
+              <Badge variant="secondary" className="bg-success/15 text-success border-success/30">
+                En cocina
+              </Badge>
+            )}
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
+
 
           <div className="max-h-[40vh] space-y-2 overflow-auto">
             {cart.length === 0 && (
