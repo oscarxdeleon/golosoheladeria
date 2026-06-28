@@ -1,0 +1,1 @@
+ALTER TABLE public.printers ALTER COLUMN ip DROP NOT NULL;
