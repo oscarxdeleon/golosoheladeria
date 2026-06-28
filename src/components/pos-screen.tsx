@@ -807,6 +807,19 @@ export function PosScreen({ orderType, tableId, title }: Props) {
                 </Button>
               ))}
             </div>
+            <div className="grid grid-cols-3 gap-2">
+              {[1000, 2000, 5000].map((v) => (
+                <Button
+                  key={v}
+                  variant="secondary"
+                  size="sm"
+                  onClick={() => setCashReceived(String((Number(cashReceived) || 0) + v))}
+                >
+                  +{formatMoney(v)}
+                </Button>
+              ))}
+            </div>
+
             {cashReceived !== "" && (
               <div className={`rounded-lg p-3 text-sm flex justify-between items-center ${Number(cashReceived) < total ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
                 <span>Cambio</span>
