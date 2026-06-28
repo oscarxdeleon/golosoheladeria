@@ -500,6 +500,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          cash_session_id: string | null
           created_at: string
           customer_id: string | null
           customer_name: string | null
@@ -517,12 +518,14 @@ export type Database = {
           status: string
           subtotal: number
           table_id: string | null
+          tax: number
           ticket_number: number
           total: number
           user_id: string | null
           user_name: string | null
         }
         Insert: {
+          cash_session_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
@@ -540,12 +543,14 @@ export type Database = {
           status?: string
           subtotal?: number
           table_id?: string | null
+          tax?: number
           ticket_number?: number
           total?: number
           user_id?: string | null
           user_name?: string | null
         }
         Update: {
+          cash_session_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
@@ -563,12 +568,20 @@ export type Database = {
           status?: string
           subtotal?: number
           table_id?: string | null
+          tax?: number
           ticket_number?: number
           total?: number
           user_id?: string | null
           user_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_customer_id_fkey"
             columns: ["customer_id"]
@@ -597,6 +610,7 @@ export type Database = {
           nit: string | null
           phone: string | null
           schedules: Json
+          tax_rate: number
           updated_at: string
         }
         Insert: {
@@ -610,6 +624,7 @@ export type Database = {
           nit?: string | null
           phone?: string | null
           schedules?: Json
+          tax_rate?: number
           updated_at?: string
         }
         Update: {
@@ -623,6 +638,7 @@ export type Database = {
           nit?: string | null
           phone?: string | null
           schedules?: Json
+          tax_rate?: number
           updated_at?: string
         }
         Relationships: []

@@ -116,6 +116,7 @@ function printPrecuenta(o: {
   header: string;
   items: { name: string; qty: number; unit_price: number }[];
   subtotal: number;
+  tax: number;
   deliveryFee: number;
   total: number;
   customer: string;
@@ -138,6 +139,7 @@ function printPrecuenta(o: {
     <table>${rows}</table>
     <hr/>
     <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
     <hr/>
@@ -151,6 +153,7 @@ function printTicketFinal(o: {
   header: string;
   items: { name: string; qty: number; unit_price: number }[];
   subtotal: number;
+  tax: number;
   deliveryFee: number;
   total: number;
   payment_method: string;
@@ -174,6 +177,7 @@ function printTicketFinal(o: {
     <table>${rows}</table>
     <hr/>
     <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
     <div class="row"><span>Pago</span><span>${o.payment_method}</span></div>
@@ -182,6 +186,7 @@ function printTicketFinal(o: {
   </body></html>`;
   printHTML(html);
 }
+
 
 
 interface Props {
@@ -236,10 +241,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("settings").select("delivery_fee").maybeSingle();
-      return data;
+      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate").maybeSingle();
+      return data as { delivery_fee: number; tax_rate: number } | null;
     },
   });
+
   const { data: openSession } = useQuery({
     queryKey: ["cash-session-open", user?.id],
     enabled: !!user,
@@ -314,7 +320,10 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
-  const total = subtotal + deliveryFee;
+  const taxRate = Number(settings?.tax_rate ?? 0);
+  const tax = Math.round((subtotal * taxRate) / 100);
+  const total = subtotal + tax + deliveryFee;
+
 
   function add(p: Product) {
     setCart((prev) => {
@@ -352,9 +361,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             user_id: user.id,
             user_name: profile?.full_name ?? user.email,
             subtotal,
+            tax,
             total,
             payment_method: method,
-            status: "completed",
+            status: "paid",
+            cash_session_id: openSession.id,
             customer_name: customer || null,
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
@@ -373,8 +384,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             user_id: user.id,
             user_name: profile?.full_name ?? user.email,
             subtotal,
+            tax,
             total,
             payment_method: method,
+            status: "paid",
+            cash_session_id: openSession.id,
             customer_name: customer || null,
             notes: notes || null,
             order_type: orderType,
@@ -399,6 +413,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         const { error: e2 } = await supabase.from("sale_items").insert(items);
         if (e2) throw e2;
       }
+
 
 
       // Imprimir comanda automáticamente al guardar la venta
@@ -439,7 +454,9 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         header,
         items: cart,
         subtotal,
+        tax,
         deliveryFee,
+
         total: Number(sale.total),
         payment_method: sale.payment_method,
         customer,
@@ -483,6 +500,8 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             user_id: user.id,
             user_name: profile?.full_name ?? user.email,
             subtotal,
+            tax,
+
             total,
             customer_name: customer || null,
             notes: notes || null,
@@ -504,6 +523,8 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             user_id: user.id,
             user_name: profile?.full_name ?? user.email,
             subtotal,
+            tax,
+
             total,
             payment_method: "Pendiente",
             status: "pending",
@@ -578,14 +599,33 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   }
 
 
-  function handlePrecuenta() {
-    if (cart.length === 0) return toast.error("Carrito vacío");
+  async function handlePrecuenta() {
+    // Si el pedido ya está guardado, recargar items desde la base para garantizar el monto correcto
+    let items = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
+    let sub = subtotal;
+    let tx = tax;
+    let tot = total;
+    if (pendingSaleId) {
+      const { data } = await supabase
+        .from("sales")
+        .select("subtotal,tax,total,delivery_fee,sale_items(product_name,qty,unit_price)")
+        .eq("id", pendingSaleId)
+        .maybeSingle();
+      if (data) {
+        items = (data.sale_items ?? []).map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) }));
+        sub = Number(data.subtotal);
+        tx = Number(data.tax ?? 0);
+        tot = Number(data.total);
+      }
+    }
+    if (items.length === 0) return toast.error("Carrito vacío");
     printPrecuenta({
       header,
-      items: cart,
-      subtotal,
+      items,
+      subtotal: sub,
+      tax: tx,
       deliveryFee,
-      total,
+      total: tot,
       customer,
       user_name: profile?.full_name ?? user?.email ?? "",
     });
@@ -593,12 +633,14 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   function reprintTicket() {
     if (!lastSale) return;
+    const sub = lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0);
     printTicketFinal({
       ticket: lastSale.ticket_number,
       header,
       items: lastSale.lines,
-      subtotal: lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0),
-      deliveryFee: Math.max(0, lastSale.total - lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0)),
+      subtotal: sub,
+      tax: 0,
+      deliveryFee: Math.max(0, lastSale.total - sub),
       total: lastSale.total,
       payment_method: lastSale.payment_method,
       customer: lastSale.customer,
@@ -606,6 +648,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       created_at: lastSale.created_at,
     });
   }
+
 
 
 
