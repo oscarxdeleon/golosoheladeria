@@ -262,6 +262,48 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     },
   });
 
+  // Cargar pedido pendiente existente (mesa) para permitir cobro directo
+  const { data: pendingSale } = useQuery({
+    queryKey: ["pending-sale", orderType, tableId],
+    enabled: orderType === "mesa" && !!tableId,
+    refetchOnWindowFocus: true,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sales")
+        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .eq("table_id", tableId!)
+        .eq("status", "pending")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      return data as null | {
+        id: string;
+        ticket_number: number;
+        customer_name: string | null;
+        notes: string | null;
+        created_at: string;
+        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
+      };
+    },
+  });
+
+  useEffect(() => {
+    if (!pendingSale) return;
+    setPendingSaleId(pendingSale.id);
+    setCustomer(pendingSale.customer_name ?? "");
+    setNotes(pendingSale.notes ?? "");
+    setCart(
+      (pendingSale.sale_items ?? []).map((i) => ({
+        key: i.product_id,
+        product_id: i.product_id,
+        name: i.product_name,
+        unit_price: Number(i.unit_price),
+        qty: Number(i.qty),
+      })),
+    );
+  }, [pendingSale]);
+
+
   const filtered = useMemo(() => {
     return products.filter((p) => {
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
