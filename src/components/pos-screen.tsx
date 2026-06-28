@@ -85,6 +85,19 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       return data;
     },
   });
+  const { data: openSession } = useQuery({
+    queryKey: ["cash-session-open", user?.id],
+    enabled: !!user,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("cash_sessions")
+        .select("id,opened_at")
+        .eq("user_id", user!.id)
+        .eq("status", "open")
+        .maybeSingle();
+      return data;
+    },
+  });
   const { data: mesa } = useQuery({
     queryKey: ["restaurant_tables", tableId],
     enabled: !!tableId,
@@ -126,6 +139,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   async function pay(method: string) {
     if (!user) return;
+    if (!openSession) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (orderType === "domicilio" && (!address || !phone)) {
       return toast.error("Dirección y teléfono requeridos para domicilio");
@@ -203,6 +217,16 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr,420px]">
+      {!openSession && (
+        <div className="lg:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
+          <span>
+            <strong>Caja cerrada.</strong> Debes abrir caja antes de cobrar ventas.
+          </span>
+          <a href="/caja" className="rounded-md bg-amber-500 px-3 py-1 text-white text-xs font-medium hover:bg-amber-600">
+            Ir a Caja
+          </a>
+        </div>
+      )}
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
@@ -304,7 +328,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
           <div className="grid grid-cols-2 gap-2">
             {methods.map((m: { id: string; name: string }) => (
-              <Button key={m.id} disabled={paying || cart.length === 0} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
+              <Button key={m.id} disabled={paying || cart.length === 0 || !openSession} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
                 {m.name}
               </Button>
             ))}

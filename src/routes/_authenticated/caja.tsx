@@ -93,6 +93,20 @@ function CajaPage() {
     },
   });
 
+  // Mesas ocupadas (pedidos sin cobrar)
+  const { data: occupiedTables = [] } = useQuery({
+    queryKey: ["occupied-tables"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("restaurant_tables")
+        .select("id,number,label")
+        .eq("active", true)
+        .eq("status", "occupied");
+      return data ?? [];
+    },
+    refetchInterval: 10000,
+  });
+
   const expected = useMemo(
     () => (current ? Number(current.opening_amount) + Number(cashSales) : 0),
     [current, cashSales],
@@ -125,6 +139,10 @@ function CajaPage() {
 
   async function closeSession() {
     if (!current) return;
+    if (occupiedTables.length > 0) {
+      toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar. Cobra o libera antes de cerrar caja.`);
+      return;
+    }
     setSaving(true);
     try {
       const counted = Number(countedAmount) || 0;
@@ -335,6 +353,12 @@ function CajaPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {occupiedTables.length > 0 && (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <strong>No puedes cerrar:</strong> hay {occupiedTables.length} mesa(s) ocupada(s) sin cobrar:{" "}
+                {occupiedTables.map((t: { number: number; label: string | null }) => t.label ?? `Mesa ${t.number}`).join(", ")}.
+              </div>
+            )}
             <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/40 p-3 text-sm">
               <div>
                 <div className="text-muted-foreground">Inicial</div>
@@ -387,7 +411,7 @@ function CajaPage() {
             <Button variant="outline" onClick={() => setCloseDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={closeSession} disabled={saving || countedAmount === ""}>
+            <Button onClick={closeSession} disabled={saving || countedAmount === "" || occupiedTables.length > 0}>
               Cerrar caja
             </Button>
           </DialogFooter>
