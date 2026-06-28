@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2, Utensils, ShoppingBag, Bike, Monitor } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, CheckCircle2, Utensils, ShoppingBag, Bike, Monitor, Save } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import {
