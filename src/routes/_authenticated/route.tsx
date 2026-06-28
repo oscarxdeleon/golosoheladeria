@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
+import { OnlineOrdersNotifier } from "@/components/online-orders-notifier";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -40,6 +41,7 @@ function AuthedLayout() {
           <main className="flex-1 p-4 md:p-6">
             <Outlet />
           </main>
+          <OnlineOrdersNotifier />
         </div>
       </div>
     </SidebarProvider>

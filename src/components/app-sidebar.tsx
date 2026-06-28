@@ -19,6 +19,8 @@ import {
   LogOut,
   Banknote,
   ShoppingBag,
+  BellRing,
+  Contact2,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -54,8 +56,10 @@ const orden = [
   { to: "/llevar", label: "Para llevar", icon: ShoppingBag },
   { to: "/domicilio", label: "A domicilio", icon: Bike },
   { to: "/kiosko", label: "Kiosko", icon: Monitor },
+  { to: "/pedidos-online", label: "Pedidos en línea", icon: BellRing },
   { to: "/kds", label: "KDS", icon: Monitor },
   { to: "/clientes", label: "Clientes", icon: Users },
+  { to: "/crm", label: "CRM", icon: Contact2 },
 ];
 
 const menu = [
