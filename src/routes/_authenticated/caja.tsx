@@ -130,7 +130,7 @@ function CajaPage() {
       const { data, error } = await supabase
         .rpc("open_cash_session", {
           _opening_amount: amount,
-          _opening_notes: openingNotes || null,
+          _opening_notes: openingNotes || undefined,
           _user_name: profile?.full_name ?? user.email ?? "Cajero",
         });
       if (error) throw error;
