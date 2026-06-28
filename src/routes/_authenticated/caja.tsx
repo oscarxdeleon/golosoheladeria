@@ -352,8 +352,8 @@ function CajaPage() {
             <Button variant="outline" onClick={() => setOpenDialog(false)}>
               Cancelar
             </Button>
-            <Button onClick={openSession} disabled={saving}>
-              Abrir caja
+            <Button onClick={openSession} disabled={saving || authLoading || !user}>
+              {saving ? "Abriendo…" : "Abrir caja"}
             </Button>
           </DialogFooter>
         </DialogContent>
