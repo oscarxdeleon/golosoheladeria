@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Users, Trash2, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { formatDateTime } from "@/lib/format";
+import { formatDate } from "@/lib/format";
 import tableFree from "@/assets/table-free.png";
 import tableOccupied from "@/assets/table-occupied.png";
 
@@ -235,7 +235,7 @@ function MesasPage() {
                 </Badge>
                 {selected.occupied_at && (
                   <div className="mt-1 text-xs">
-                    Ocupada desde {formatDateTime(selected.occupied_at)}
+                    Ocupada desde {formatDate(selected.occupied_at)}
                   </div>
                 )}
               </div>

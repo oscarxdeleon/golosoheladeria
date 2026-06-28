@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Banknote, LockOpen, LockKeyhole, TrendingUp, TrendingDown, History } from "lucide-react";
-import { formatMoney, formatDateTime } from "@/lib/format";
+import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/caja")({
@@ -173,7 +173,7 @@ function CajaPage() {
                 <div>
                   <CardTitle className="font-display text-2xl">Caja abierta</CardTitle>
                   <CardDescription>
-                    Desde {formatDateTime(current.opened_at)} · {current.user_name}
+                    Desde {formatDate(current.opened_at)} · {current.user_name}
                   </CardDescription>
                 </div>
               </div>
@@ -239,9 +239,9 @@ function CajaPage() {
               {history.map((s) => (
                 <TableRow key={s.id}>
                   <TableCell>{s.user_name}</TableCell>
-                  <TableCell className="text-xs">{formatDateTime(s.opened_at)}</TableCell>
+                  <TableCell className="text-xs">{formatDate(s.opened_at)}</TableCell>
                   <TableCell className="text-xs">
-                    {s.closed_at ? formatDateTime(s.closed_at) : "—"}
+                    {s.closed_at ? formatDate(s.closed_at) : "—"}
                   </TableCell>
                   <TableCell className="text-right">{formatMoney(s.opening_amount)}</TableCell>
                   <TableCell className="text-right">
