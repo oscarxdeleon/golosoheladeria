@@ -595,14 +595,33 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   }
 
 
-  function handlePrecuenta() {
-    if (cart.length === 0) return toast.error("Carrito vacío");
+  async function handlePrecuenta() {
+    // Si el pedido ya está guardado, recargar items desde la base para garantizar el monto correcto
+    let items = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
+    let sub = subtotal;
+    let tx = tax;
+    let tot = total;
+    if (pendingSaleId) {
+      const { data } = await supabase
+        .from("sales")
+        .select("subtotal,tax,total,delivery_fee,sale_items(product_name,qty,unit_price)")
+        .eq("id", pendingSaleId)
+        .maybeSingle();
+      if (data) {
+        items = (data.sale_items ?? []).map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) }));
+        sub = Number(data.subtotal);
+        tx = Number(data.tax ?? 0);
+        tot = Number(data.total);
+      }
+    }
+    if (items.length === 0) return toast.error("Carrito vacío");
     printPrecuenta({
       header,
-      items: cart,
-      subtotal,
+      items,
+      subtotal: sub,
+      tax: tx,
       deliveryFee,
-      total,
+      total: tot,
       customer,
       user_name: profile?.full_name ?? user?.email ?? "",
     });
@@ -610,12 +629,14 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   function reprintTicket() {
     if (!lastSale) return;
+    const sub = lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0);
     printTicketFinal({
       ticket: lastSale.ticket_number,
       header,
       items: lastSale.lines,
-      subtotal: lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0),
-      deliveryFee: Math.max(0, lastSale.total - lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0)),
+      subtotal: sub,
+      tax: 0,
+      deliveryFee: Math.max(0, lastSale.total - sub),
       total: lastSale.total,
       payment_method: lastSale.payment_method,
       customer: lastSale.customer,
@@ -623,6 +644,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       created_at: lastSale.created_at,
     });
   }
+
 
 
 
