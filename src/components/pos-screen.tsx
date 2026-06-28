@@ -20,6 +20,12 @@ interface Product { id: string; name: string; price: number; category_id: string
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
 
 const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color: string }> = {
+  mesa: { label: "Mesa", icon: Utensils, color: "bg-primary text-primary-foreground" },
+  llevar: { label: "Para llevar", icon: ShoppingBag, color: "bg-amber-500 text-white" },
+  domicilio: { label: "A domicilio", icon: Bike, color: "bg-blue-500 text-white" },
+  kiosko: { label: "Kiosko", icon: Monitor, color: "bg-purple-500 text-white" },
+};
+
 function comandaHTML(o: {
   ticket: number; header: string; items: { name: string; qty: number }[];
   customer: string; notes: string; address: string; phone: string;
