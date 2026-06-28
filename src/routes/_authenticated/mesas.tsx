@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus, Users, Trash2 } from "lucide-react";
+import { Plus, Users, Trash2, QrCode, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
 import tableFree from "@/assets/table-free.png";
 import tableOccupied from "@/assets/table-occupied.png";
