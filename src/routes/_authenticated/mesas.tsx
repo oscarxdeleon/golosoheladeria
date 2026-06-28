@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -13,8 +14,9 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus, Users, Trash2 } from "lucide-react";
+import { Plus, Users, Trash2, QrCode, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
 import tableFree from "@/assets/table-free.png";
 import tableOccupied from "@/assets/table-occupied.png";
@@ -49,6 +51,8 @@ function MesasPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newNumber, setNewNumber] = useState("");
   const [newSeats, setNewSeats] = useState("4");
+  const [qrMesa, setQrMesa] = useState<Mesa | null>(null);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
     queryKey: ["restaurant_tables"],
@@ -193,6 +197,15 @@ function MesasPage() {
                       Liberar
                     </span>
                   )}
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); setQrMesa(m); }}
+                    className="absolute bottom-2 right-2 rounded-md bg-background/80 p-1 text-foreground hover:bg-background"
+                    aria-label="QR de la mesa"
+                    title="QR para pedir desde el teléfono"
+                  >
+                    <QrCode className="h-3.5 w-3.5" />
+                  </span>
                   {isAdmin && (
                     <span
                       role="button"
@@ -244,6 +257,56 @@ function MesasPage() {
             </Button>
             <Button onClick={createMesa}>Crear</Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!qrMesa} onOpenChange={(o) => !o && setQrMesa(null)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>QR · {qrMesa?.label ?? `Mesa ${qrMesa?.number}`}</DialogTitle>
+            <DialogDescription>
+              El cliente escanea con su teléfono y pide directamente desde la mesa.
+            </DialogDescription>
+          </DialogHeader>
+          {qrMesa && (
+            <div className="flex flex-col items-center gap-3">
+              <div id={`mesa-qr-${qrMesa.number}`} className="rounded-xl border bg-white p-4">
+                <QRCodeCanvas value={`${origin}/t/${qrMesa.number}`} size={220} level="M" />
+              </div>
+              <div className="text-xs text-muted-foreground break-all text-center font-mono">
+                {origin}/t/{qrMesa.number}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`${origin}/t/${qrMesa.number}`);
+                    toast.success("Link copiado");
+                  }}
+                >
+                  <Copy className="h-4 w-4" /> Copiar link
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    const canvas = document.querySelector<HTMLCanvasElement>(`#mesa-qr-${qrMesa.number} canvas`);
+                    if (!canvas) return;
+                    const a = document.createElement("a");
+                    a.href = canvas.toDataURL("image/png");
+                    a.download = `mesa-${qrMesa.number}-qr.png`;
+                    a.click();
+                  }}
+                >
+                  <Download className="h-4 w-4" /> Descargar
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center px-2">
+                Imprime el QR y pégalo sobre la mesa. Imprime una etiqueta resistente al agua.
+              </p>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
     </div>

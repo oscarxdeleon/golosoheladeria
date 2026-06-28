@@ -397,6 +397,7 @@ export type Database = {
         Row: {
           created_at: string
           customer_name: string | null
+          customer_phone: string | null
           delivery_address: string | null
           delivery_fee: number
           delivery_phone: string | null
@@ -406,17 +407,19 @@ export type Database = {
           order_type: string
           payment_method: string
           printed_at: string | null
+          source: string
           status: string
           subtotal: number
           table_id: string | null
           ticket_number: number
           total: number
-          user_id: string
+          user_id: string | null
           user_name: string | null
         }
         Insert: {
           created_at?: string
           customer_name?: string | null
+          customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number
           delivery_phone?: string | null
@@ -426,17 +429,19 @@ export type Database = {
           order_type?: string
           payment_method: string
           printed_at?: string | null
+          source?: string
           status?: string
           subtotal?: number
           table_id?: string | null
           ticket_number?: number
           total?: number
-          user_id: string
+          user_id?: string | null
           user_name?: string | null
         }
         Update: {
           created_at?: string
           customer_name?: string | null
+          customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number
           delivery_phone?: string | null
@@ -446,12 +451,13 @@ export type Database = {
           order_type?: string
           payment_method?: string
           printed_at?: string | null
+          source?: string
           status?: string
           subtotal?: number
           table_id?: string | null
           ticket_number?: number
           total?: number
-          user_id?: string
+          user_id?: string | null
           user_name?: string | null
         }
         Relationships: [

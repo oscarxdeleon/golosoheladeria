@@ -126,10 +126,38 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
         <div>
           <Label>Link del menú en línea</Label>
           <div className="flex gap-2">
-            <Input disabled={disabled} value={s.menu_link ?? ""} onChange={(e) => setS({ ...s, menu_link: e.target.value })} placeholder="https://…" />
-            <Button type="button" variant="outline" size="icon" onClick={() => { if (s.menu_link) { navigator.clipboard.writeText(s.menu_link); toast.success("Copiado"); } }}><Copy className="h-4 w-4" /></Button>
-            <Button type="button" variant="outline" size="icon" onClick={() => s.menu_link && window.open(s.menu_link, "_blank")}><ExternalLink className="h-4 w-4" /></Button>
+            <Input
+              disabled={disabled}
+              value={s.menu_link ?? (typeof window !== "undefined" ? `${window.location.origin}/menu` : "")}
+              onChange={(e) => setS({ ...s, menu_link: e.target.value })}
+              placeholder="https://…"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const url = s.menu_link || (typeof window !== "undefined" ? `${window.location.origin}/menu` : "");
+                if (url) { navigator.clipboard.writeText(url); toast.success("Copiado"); }
+              }}
+            >
+              <Copy className="h-4 w-4" />
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon"
+              onClick={() => {
+                const url = s.menu_link || (typeof window !== "undefined" ? `${window.location.origin}/menu` : "");
+                if (url) window.open(url, "_blank");
+              }}
+            >
+              <ExternalLink className="h-4 w-4" />
+            </Button>
           </div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Por defecto usa <span className="font-mono">/menu</span> de tu sitio publicado. Comparte este link en redes o WhatsApp.
+          </p>
         </div>
 
         <div>
