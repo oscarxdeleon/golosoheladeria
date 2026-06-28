@@ -255,8 +255,6 @@ function CajaPage() {
         </DialogContent>
       </Dialog>
 
-      <input type="hidden" aria-hidden value={notes || ""} />
-      <Label htmlFor="dummy" className="sr-only">x</Label>
     </div>
   );
 }
