@@ -416,7 +416,16 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
 
-      toast.success(`Venta #${sale.ticket_number} registrada`);
+      toast.success(`Venta #${sale.ticket_number} registrada · imprimiendo…`);
+
+      // Volver al panel principal según el canal, sin bloquear con modal
+      if (orderType === "mesa") {
+        navigate({ to: "/mesas" });
+      } else if (orderType === "llevar") {
+        navigate({ to: "/llevar" });
+      } else if (orderType === "domicilio") {
+        navigate({ to: "/domicilio" });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al cobrar");
     } finally {
