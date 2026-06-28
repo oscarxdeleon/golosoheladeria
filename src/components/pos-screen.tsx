@@ -371,20 +371,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
 
 
-      // Imprimir comanda automáticamente al guardar la venta
-      printComanda({
-        ticket: sale.ticket_number,
-        header,
-        items: cart,
-        customer,
-        notes,
-        address: orderType === "domicilio" ? address : "",
-        phone: orderType === "domicilio" ? phone : "",
-        user_name: profile?.full_name ?? user.email ?? "",
-        created_at: sale.created_at,
-      });
-
-      // Liberar mesa al cobrar
+      // 1) Pago ya registrado arriba. 2) Liberar mesa
       if (orderType === "mesa" && tableId) {
         await supabase
           .from("restaurant_tables")
@@ -393,22 +380,12 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      // Imprimir ticket final automáticamente
-      printTicketFinal({
-        ticket: sale.ticket_number,
-        header,
-        items: cart,
-        subtotal,
-        tax,
-        deliveryFee,
-
-        total: Number(sale.total),
-        payment_method: sale.payment_method,
-        customer,
-        user_name: profile?.full_name ?? user.email ?? "",
-        created_at: sale.created_at,
-      });
-
+      // 3) Limpiar estado de la pantalla
+      const snapshotItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
+      const snapshotCustomer = customer;
+      const snapshotNotes = notes;
+      const snapshotAddress = address;
+      const snapshotPhone = phone;
       setCart([]);
       setCustomer("");
       setNotes("");
@@ -422,7 +399,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
       toast.success(`Venta #${sale.ticket_number} registrada · imprimiendo…`);
 
-      // Volver al panel principal según el canal, sin bloquear con modal
+      // 4) Redireccionar inmediatamente al panel principal
       if (orderType === "mesa") {
         navigate({ to: "/mesas" });
       } else if (orderType === "llevar") {
@@ -430,6 +407,36 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       } else if (orderType === "domicilio") {
         navigate({ to: "/domicilio" });
       }
+
+      // 5) Disparar impresión en segundo plano (no bloquea la navegación)
+      setTimeout(() => {
+        printComanda({
+          ticket: sale.ticket_number,
+          header,
+          items: snapshotItems,
+          customer: snapshotCustomer,
+          notes: snapshotNotes,
+          address: orderType === "domicilio" ? snapshotAddress : "",
+          phone: orderType === "domicilio" ? snapshotPhone : "",
+          user_name: profile?.full_name ?? user.email ?? "",
+          created_at: sale.created_at,
+        });
+        setTimeout(() => {
+          printTicketFinal({
+            ticket: sale.ticket_number,
+            header,
+            items: snapshotItems,
+            subtotal,
+            tax,
+            deliveryFee,
+            total: Number(sale.total),
+            payment_method: sale.payment_method,
+            customer: snapshotCustomer,
+            user_name: profile?.full_name ?? user.email ?? "",
+            created_at: sale.created_at,
+          });
+        }, 400);
+      }, 0);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al cobrar");
     } finally {
