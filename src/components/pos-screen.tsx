@@ -389,16 +389,6 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      setLastSale({
-        id: sale.id,
-        ticket_number: sale.ticket_number,
-        total: Number(sale.total),
-        payment_method: sale.payment_method,
-        lines: cart,
-        customer,
-        user_name: profile?.full_name ?? user.email ?? "",
-        created_at: sale.created_at,
-      });
       // Imprimir ticket final automáticamente
       printTicketFinal({
         ticket: sale.ticket_number,
