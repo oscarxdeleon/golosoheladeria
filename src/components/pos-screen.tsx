@@ -20,25 +20,13 @@ interface Product { id: string; name: string; price: number; category_id: string
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
 
 const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color: string }> = {
-  mesa: { label: "Mesa", icon: Utensils, color: "bg-primary text-primary-foreground" },
-  llevar: { label: "Para llevar", icon: ShoppingBag, color: "bg-amber-500 text-white" },
-  domicilio: { label: "A domicilio", icon: Bike, color: "bg-blue-500 text-white" },
-  kiosko: { label: "Kiosko", icon: Monitor, color: "bg-purple-500 text-white" },
-};
-
-function printComanda(o: {
-  ticket: number;
-  header: string;
-  items: { name: string; qty: number }[];
-  customer: string;
-  notes: string;
-  address: string;
-  phone: string;
-  user_name: string;
-  created_at: string;
+function comandaHTML(o: {
+  ticket: number; header: string; items: { name: string; qty: number }[];
+  customer: string; notes: string; address: string; phone: string;
+  user_name: string; created_at: string;
 }) {
   const rows = o.items.map((i) => `<tr><td style="padding:4px 0">${i.qty} ×</td><td style="padding:4px 0">${i.name}</td></tr>`).join("");
-  const html = `<!doctype html><html><head><title>Comanda #${o.ticket}</title>
+  return `<!doctype html><html><head><title>Comanda #${o.ticket}</title>
   <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}</style></head>
   <body>
     <h1>COMANDA #${o.ticket}</h1>
@@ -55,111 +43,19 @@ function printComanda(o: {
     ${o.notes ? `<div><b>Notas:</b> ${o.notes}</div>` : ""}
     <div class="muted" style="margin-top:8px">*** ENVIAR A COCINA ***</div>
   </body></html>`;
-
-  // Use hidden iframe to avoid popup blockers
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!doc) return;
-  doc.open();
-  doc.write(html);
-  doc.close();
-  setTimeout(() => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch (e) {
-      console.error("print error", e);
-    }
-    setTimeout(() => iframe.remove(), 1000);
-  }, 250);
 }
 
-function printHTML(html: string) {
-  const iframe = document.createElement("iframe");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  document.body.appendChild(iframe);
-  const doc = iframe.contentDocument || iframe.contentWindow?.document;
-  if (!doc) return;
-  doc.open();
-  doc.write(html);
-  doc.close();
-  setTimeout(() => {
-    try {
-      iframe.contentWindow?.focus();
-      iframe.contentWindow?.print();
-    } catch (e) {
-      console.error("print error", e);
-    }
-    setTimeout(() => iframe.remove(), 1000);
-  }, 250);
-}
-
-function printPrecuenta(o: {
-  header: string;
+function ticketHTML(o: {
+  ticket: number; header: string;
   items: { name: string; qty: number; unit_price: number }[];
-  subtotal: number;
-  tax: number;
-  deliveryFee: number;
-  total: number;
-  customer: string;
-  user_name: string;
+  subtotal: number; tax: number; deliveryFee: number; total: number;
+  payment_method: string; customer: string; user_name: string; created_at: string;
 }) {
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
   const rows = o.items
     .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
-  const html = `<!doctype html><html><head><title>Precuenta</title>
-  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
-  <body>
-    <h1>PRECUENTA</h1>
-    <div class="muted" style="text-align:center">${new Date().toLocaleString("es-CO")}</div>
-    <hr/>
-    <h2>${o.header}</h2>
-    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
-    <div class="muted">Cajero: ${o.user_name}</div>
-    <hr/>
-    <table>${rows}</table>
-    <hr/>
-    <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
-    ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
-    ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
-    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
-    <hr/>
-    <div class="muted" style="text-align:center">Documento no fiscal</div>
-  </body></html>`;
-  printHTML(html);
-}
-
-function printTicketFinal(o: {
-  ticket: number;
-  header: string;
-  items: { name: string; qty: number; unit_price: number }[];
-  subtotal: number;
-  tax: number;
-  deliveryFee: number;
-  total: number;
-  payment_method: string;
-  customer: string;
-  user_name: string;
-  created_at: string;
-}) {
-  const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
-  const rows = o.items
-    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
-    .join("");
-  const html = `<!doctype html><html><head><title>Ticket #${o.ticket}</title>
+  return `<!doctype html><html><head><title>Ticket #${o.ticket}</title>
   <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
   <body>
     <h1>Heladería Goloso</h1>
@@ -178,7 +74,62 @@ function printTicketFinal(o: {
     <hr/>
     <div style="text-align:center">¡Gracias por tu compra!</div>
   </body></html>`;
-  printHTML(html);
+}
+
+function precuentaHTML(o: {
+  header: string; items: { name: string; qty: number; unit_price: number }[];
+  subtotal: number; tax: number; deliveryFee: number; total: number;
+  customer: string; user_name: string;
+}) {
+  const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const rows = o.items
+    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
+    .join("");
+  return `<!doctype html><html><head><title>Precuenta</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  <body>
+    <h1>PRECUENTA</h1>
+    <div class="muted" style="text-align:center">${new Date().toLocaleString("es-CO")}</div>
+    <hr/>
+    <h2>${o.header}</h2>
+    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    <div class="muted">Cajero: ${o.user_name}</div>
+    <hr/>
+    <table>${rows}</table>
+    <hr/>
+    <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
+    ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <hr/>
+    <div class="muted" style="text-align:center">Documento no fiscal</div>
+  </body></html>`;
+}
+
+function printComanda(o: Parameters<typeof comandaHTML>[0]) {
+  const payload: PrintPayload = {
+    type: "comanda", ticket: o.ticket, header: o.header,
+    items: o.items, customer: o.customer, notes: o.notes,
+    address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
+  };
+  printSilent(payload, comandaHTML(o));
+}
+function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
+  const payload: PrintPayload = {
+    type: "ticket", ticket: o.ticket, header: o.header, items: o.items,
+    subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
+    payment_method: o.payment_method, customer: o.customer,
+    user_name: o.user_name, created_at: o.created_at,
+  };
+  printSilent(payload, ticketHTML(o));
+}
+function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
+  const payload: PrintPayload = {
+    type: "precuenta", header: o.header, items: o.items,
+    subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
+    customer: o.customer, user_name: o.user_name,
+  };
+  printSilent(payload, precuentaHTML(o));
 }
 
 
