@@ -43,11 +43,9 @@ function printComanda(o: {
   user_name: string;
   created_at: string;
 }) {
-  const w = window.open("", "_blank", "width=380,height=600");
-  if (!w) return;
   const rows = o.items.map((i) => `<tr><td style="padding:4px 0">${i.qty} ×</td><td style="padding:4px 0">${i.name}</td></tr>`).join("");
-  w.document.write(`<!doctype html><html><head><title>Comanda #${o.ticket}</title>
-  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px}h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}</style></head>
+  const html = `<!doctype html><html><head><title>Comanda #${o.ticket}</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}</style></head>
   <body>
     <h1>COMANDA #${o.ticket}</h1>
     <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
@@ -62,10 +60,33 @@ function printComanda(o: {
     <hr/>
     ${o.notes ? `<div><b>Notas:</b> ${o.notes}</div>` : ""}
     <div class="muted" style="margin-top:8px">*** ENVIAR A COCINA ***</div>
-    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}</script>
-  </body></html>`);
-  w.document.close();
+  </body></html>`;
+
+  // Use hidden iframe to avoid popup blockers
+  const iframe = document.createElement("iframe");
+  iframe.style.position = "fixed";
+  iframe.style.right = "0";
+  iframe.style.bottom = "0";
+  iframe.style.width = "0";
+  iframe.style.height = "0";
+  iframe.style.border = "0";
+  document.body.appendChild(iframe);
+  const doc = iframe.contentDocument || iframe.contentWindow?.document;
+  if (!doc) return;
+  doc.open();
+  doc.write(html);
+  doc.close();
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.error("print error", e);
+    }
+    setTimeout(() => iframe.remove(), 1000);
+  }, 250);
 }
+
 
 interface Props {
   orderType: OrderType;
@@ -361,10 +382,21 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             <button
               key={p.id}
               onClick={() => add(p)}
-              className="group rounded-xl border bg-card p-4 text-left transition hover:border-primary hover:shadow-md active:scale-[0.98]"
+              className="group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98]"
             >
-              <div className="font-medium leading-tight">{p.name}</div>
-              <div className="mt-2 font-display text-lg text-primary">{formatMoney(p.price)}</div>
+              <div className="aspect-square w-full overflow-hidden bg-gradient-to-br from-secondary/30 to-accent/20">
+                {p.image_url ? (
+                  <img src={p.image_url} alt={p.name} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center text-3xl font-display text-primary/40">
+                    {p.name.charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
+              <div className="p-3">
+                <div className="font-medium leading-tight line-clamp-2 text-sm">{p.name}</div>
+                <div className="mt-1 font-display text-lg text-primary">{formatMoney(p.price)}</div>
+              </div>
             </button>
           ))}
           {filtered.length === 0 && (
@@ -373,6 +405,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             </p>
           )}
         </div>
+
       </div>
 
       <Card className="h-fit lg:sticky lg:top-20">
