@@ -801,13 +801,9 @@ export function PosScreen({ orderType, tableId, title }: Props) {
               />
             </div>
             <div className="grid grid-cols-4 gap-2">
-              {[total, 20000, 50000, 100000].map((v, i) => (
-                <Button key={i} variant="outline" size="sm" onClick={() => setCashReceived(String(Math.max(total, v)))}>
-                  {i === 0 ? "Exacto" : formatMoney(v)}
-                </Button>
-              ))}
-            </div>
-            <div className="grid grid-cols-3 gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCashReceived(String(total))}>
+                Exacto
+              </Button>
               {[1000, 2000, 5000].map((v) => (
                 <Button
                   key={v}
@@ -818,7 +814,13 @@ export function PosScreen({ orderType, tableId, title }: Props) {
                   +{formatMoney(v)}
                 </Button>
               ))}
+              {[20000, 50000, 100000].map((v) => (
+                <Button key={v} variant="outline" size="sm" onClick={() => setCashReceived(String(Math.max(total, v)))}>
+                  {formatMoney(v)}
+                </Button>
+              ))}
             </div>
+
 
             {cashReceived !== "" && (
               <div className={`rounded-lg p-3 text-sm flex justify-between items-center ${Number(cashReceived) < total ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
