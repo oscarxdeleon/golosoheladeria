@@ -687,6 +687,34 @@ export type Database = {
         }
         Returns: boolean
       }
+      open_cash_session: {
+        Args: {
+          _opening_amount: number
+          _opening_notes?: string
+          _user_name?: string
+        }
+        Returns: {
+          closed_at: string | null
+          closing_notes: string | null
+          counted_amount: number | null
+          created_at: string
+          difference: number | null
+          expected_amount: number | null
+          id: string
+          opened_at: string
+          opening_amount: number
+          opening_notes: string | null
+          status: string
+          user_id: string
+          user_name: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       app_role: "admin" | "cajero"

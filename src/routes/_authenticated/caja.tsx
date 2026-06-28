@@ -118,32 +118,30 @@ function CajaPage() {
       toast.error("Esperando sesión de usuario… intenta de nuevo en un momento.");
       return;
     }
+
+    const amount = Number(openingAmount);
+    if (openingAmount.trim() === "" || !Number.isFinite(amount) || amount < 0) {
+      toast.error("Ingresa un monto inicial válido para abrir caja.");
+      return;
+    }
+
     setSaving(true);
     try {
-      // Cierra cualquier sesión abierta previa de este usuario (defensivo).
-      await supabase
-        .from("cash_sessions")
-        .update({ status: "closed", closed_at: new Date().toISOString(), closing_notes: "[auto-cerrada al reabrir]" })
-        .eq("user_id", user.id)
-        .eq("status", "open");
-
       const { data, error } = await supabase
-        .from("cash_sessions")
-        .insert({
-          user_id: user.id,
-          user_name: profile?.full_name ?? user.email ?? "Cajero",
-          opening_amount: Number(openingAmount) || 0,
-          opening_notes: openingNotes || null,
-        })
-        .select()
-        .single();
+        .rpc("open_cash_session", {
+          _opening_amount: amount,
+          _opening_notes: openingNotes || undefined,
+          _user_name: profile?.full_name ?? user.email ?? "Cajero",
+        });
       if (error) throw error;
+
+      qc.setQueryData(["cash-session-open", user.id], data as CashSession);
       toast.success(`Caja abierta con ${formatMoney(data.opening_amount)}`);
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
-      await qc.refetchQueries({ queryKey: ["cash-session-open"] });
-      await qc.refetchQueries({ queryKey: ["cash-sessions-history"] });
+      await qc.invalidateQueries({ queryKey: ["cash-session-open"] });
+      await qc.invalidateQueries({ queryKey: ["cash-sessions-history"] });
     } catch (e) {
       console.error("openSession", e);
       toast.error(e instanceof Error ? e.message : "Error al abrir caja");
