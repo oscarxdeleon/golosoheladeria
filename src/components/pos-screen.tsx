@@ -768,23 +768,6 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           </div>
         </CardContent>
       </Card>
-
-      <Dialog open={!!lastSale} onOpenChange={(o) => !o && setLastSale(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <CheckCircle2 className="h-5 w-5 text-success" />
-              Venta registrada
-            </DialogTitle>
-          </DialogHeader>
-          {lastSale && <TicketPreview sale={lastSale} />}
-          <DialogFooter className="no-print">
-            <Button variant="outline" onClick={() => setLastSale(null)}>Cerrar</Button>
-            <Button onClick={reprintTicket}>Imprimir ticket</Button>
-          </DialogFooter>
-
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
