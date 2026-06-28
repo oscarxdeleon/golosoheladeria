@@ -17,7 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Banknote, LockOpen, LockKeyhole, TrendingUp, TrendingDown, History } from "lucide-react";
+import { AlertTriangle, Banknote, LockOpen, LockKeyhole, TrendingUp, TrendingDown, History } from "lucide-react";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -41,6 +41,38 @@ interface CashSession {
   closing_notes: string | null;
 }
 
+interface UiError {
+  title: string;
+  description?: string;
+}
+
+function getErrorDetails(error: unknown, fallback: string): UiError {
+  if (error instanceof Error) {
+    return { title: error.message || fallback };
+  }
+
+  if (typeof error === "object" && error !== null) {
+    const record = error as Record<string, unknown>;
+    const title =
+      typeof record.message === "string" && record.message.trim() !== ""
+        ? record.message
+        : fallback;
+    const descriptionParts = [record.details, record.hint, record.code]
+      .filter((value): value is string => typeof value === "string" && value.trim() !== "");
+
+    return {
+      title,
+      description: descriptionParts.length > 0 ? descriptionParts.join(" · ") : undefined,
+    };
+  }
+
+  if (typeof error === "string" && error.trim() !== "") {
+    return { title: error };
+  }
+
+  return { title: fallback };
+}
+
 function CajaPage() {
   const qc = useQueryClient();
   const { user, profile, isAdmin, loading: authLoading } = useAuth();
@@ -50,6 +82,7 @@ function CajaPage() {
   const [openingNotes, setOpeningNotes] = useState("");
   const [countedAmount, setCountedAmount] = useState("");
   const [closingNotes, setClosingNotes] = useState("");
+  const [closeError, setCloseError] = useState<UiError | null>(null);
   const [saving, setSaving] = useState(false);
 
   // verificarEstadoCaja: consulta la caja abierta del usuario actual
@@ -153,6 +186,7 @@ function CajaPage() {
 
 
   async function closeSession() {
+    setCloseError(null);
     if (!user) {
       toast.error("Debes iniciar sesión para cerrar caja.");
       return;
@@ -204,7 +238,9 @@ function CajaPage() {
       ]);
     } catch (e) {
       console.error("closeSession", e);
-      toast.error(e instanceof Error ? e.message : "Error al cerrar caja");
+      const errorDetails = getErrorDetails(e, "Error al cerrar caja");
+      setCloseError(errorDetails);
+      toast.error(errorDetails.title, errorDetails.description ? { description: errorDetails.description } : undefined);
     } finally {
       setSaving(false);
     }
@@ -383,7 +419,13 @@ function CajaPage() {
       </Dialog>
 
       {/* Cerrar caja */}
-      <Dialog open={closeDialog} onOpenChange={setCloseDialog}>
+      <Dialog
+        open={closeDialog}
+        onOpenChange={(open) => {
+          setCloseDialog(open);
+          if (open) setCloseError(null);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cerrar caja</DialogTitle>
@@ -392,6 +434,15 @@ function CajaPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {closeError && (
+              <div className="flex gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
+                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
+                <div className="space-y-1">
+                  <div className="font-semibold">{closeError.title}</div>
+                  {closeError.description && <div className="text-xs opacity-90">{closeError.description}</div>}
+                </div>
+              </div>
+            )}
             {occupiedTables.length > 0 && (
               <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
                 <strong>No puedes cerrar:</strong> hay {occupiedTables.length} mesa(s) ocupada(s) sin cobrar:{" "}
