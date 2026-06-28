@@ -770,6 +770,68 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={cashDialogOpen} onOpenChange={(open) => { if (!paying) setCashDialogOpen(open); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-primary" /> Pago en efectivo
+            </DialogTitle>
+            <DialogDescription>Ingresa el monto recibido del cliente para calcular el cambio.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Total a cobrar</span><span className="font-display text-xl text-primary">{formatMoney(total)}</span></div>
+            </div>
+            <div>
+              <label className="text-sm font-medium">Recibido</label>
+              <Input
+                autoFocus
+                type="number"
+                inputMode="decimal"
+                placeholder="0"
+                value={cashReceived}
+                onChange={(e) => setCashReceived(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && Number(cashReceived) >= total && !paying) {
+                    pay("Efectivo");
+                    setCashDialogOpen(false);
+                  }
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              {[total, 20000, 50000, 100000].map((v, i) => (
+                <Button key={i} variant="outline" size="sm" onClick={() => setCashReceived(String(Math.max(total, v)))}>
+                  {i === 0 ? "Exacto" : formatMoney(v)}
+                </Button>
+              ))}
+            </div>
+            {cashReceived !== "" && (
+              <div className={`rounded-lg p-3 text-sm flex justify-between items-center ${Number(cashReceived) < total ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
+                <span>Cambio</span>
+                <span className="font-display text-2xl">{formatMoney(Math.max(0, Number(cashReceived) - total))}</span>
+              </div>
+            )}
+            {cashReceived !== "" && Number(cashReceived) < total && (
+              <div className="text-xs text-destructive">Faltan {formatMoney(total - Number(cashReceived))}</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCashDialogOpen(false)} disabled={paying}>Cancelar</Button>
+            <Button
+              disabled={paying || cashReceived === "" || Number(cashReceived) < total}
+              onClick={async () => {
+                await pay("Efectivo");
+                setCashDialogOpen(false);
+                setCashReceived("");
+              }}
+            >
+              {paying ? "Cobrando…" : "Confirmar cobro"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
