@@ -343,36 +343,63 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     }
     setPaying(true);
     try {
-      const { data: sale, error } = await supabase
-        .from("sales")
-        .insert({
-          user_id: user.id,
-          user_name: profile?.full_name ?? user.email,
-          subtotal,
-          total,
-          payment_method: method,
-          customer_name: customer || null,
-          notes: notes || null,
-          order_type: orderType,
-          table_id: tableId ?? null,
-          delivery_address: orderType === "domicilio" ? address : null,
-          delivery_phone: orderType === "domicilio" ? phone : null,
-          delivery_fee: deliveryFee,
-        })
-        .select("id,ticket_number,total,payment_method,created_at")
-        .single();
-      if (error) throw error;
-      const items = cart.map((l) => ({
-        sale_id: sale.id,
-        product_id: l.product_id,
-        product_name: l.name,
-        qty: l.qty,
-        unit_price: l.unit_price,
-        subtotal: l.unit_price * l.qty,
-        modifiers: [],
-      }));
-      const { error: e2 } = await supabase.from("sale_items").insert(items);
-      if (e2) throw e2;
+      let sale: { id: string; ticket_number: number; total: number; payment_method: string; created_at: string };
+      if (pendingSaleId) {
+        // Cobrar pedido existente: actualizar totales y método de pago
+        const { data, error } = await supabase
+          .from("sales")
+          .update({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            payment_method: method,
+            status: "completed",
+            customer_name: customer || null,
+            notes: notes || null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+          })
+          .eq("id", pendingSaleId)
+          .select("id,ticket_number,total,payment_method,created_at")
+          .single();
+        if (error) throw error;
+        sale = data;
+      } else {
+        const { data, error } = await supabase
+          .from("sales")
+          .insert({
+            user_id: user.id,
+            user_name: profile?.full_name ?? user.email,
+            subtotal,
+            total,
+            payment_method: method,
+            customer_name: customer || null,
+            notes: notes || null,
+            order_type: orderType,
+            table_id: tableId ?? null,
+            delivery_address: orderType === "domicilio" ? address : null,
+            delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_fee: deliveryFee,
+          })
+          .select("id,ticket_number,total,payment_method,created_at")
+          .single();
+        if (error) throw error;
+        sale = data;
+        const items = cart.map((l) => ({
+          sale_id: sale.id,
+          product_id: l.product_id,
+          product_name: l.name,
+          qty: l.qty,
+          unit_price: l.unit_price,
+          subtotal: l.unit_price * l.qty,
+          modifiers: [],
+        }));
+        const { error: e2 } = await supabase.from("sale_items").insert(items);
+        if (e2) throw e2;
+      }
+
 
       // Imprimir comanda automáticamente al guardar la venta
       printComanda({
