@@ -226,7 +226,7 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const { data } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
   });
   const [fee, setFee] = useState<number>(0);
   useEffect(() => { if (data) setFee(Number(data.delivery_fee)); }, [data]);
