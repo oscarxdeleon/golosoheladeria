@@ -51,6 +51,8 @@ function MesasPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newNumber, setNewNumber] = useState("");
   const [newSeats, setNewSeats] = useState("4");
+  const [qrMesa, setQrMesa] = useState<Mesa | null>(null);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
     queryKey: ["restaurant_tables"],
