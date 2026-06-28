@@ -21,8 +21,8 @@ import {
 import { TicketPreview } from "@/components/ticket-preview";
 
 export const Route = createFileRoute("/_authenticated/pos")({
-  head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
-  component: CajaPage,
+  head: () => ({ meta: [{ title: "Punto de venta · Goloso POS" }] }),
+  component: POSPage,
 });
 
 interface Category { id: string; name: string; sort_order: number; }
@@ -153,7 +153,7 @@ function POSPage() {
       {/* Catalog */}
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <h1 className="font-display text-2xl">Caja</h1>
+          <h1 className="font-display text-2xl">Punto de venta</h1>
           <div className="relative ml-auto w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input placeholder="Buscar producto…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
