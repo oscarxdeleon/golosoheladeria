@@ -308,7 +308,22 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
         )}
       </CardHeader>
       <CardContent className="p-0">
+        <div className="border-b p-4 space-y-3 bg-muted/30">
+          <div className="font-medium text-sm">Impresión silenciosa (sin diálogo del navegador)</div>
+          <p className="text-xs text-muted-foreground">
+            Para evitar que aparezca la ventana de impresión de Chrome, ejecuta el servidor local <code className="bg-background px-1 rounded">print-server</code> en la PC con la térmica e ingresa su URL aquí. Si lo dejas vacío, el sistema usa el diálogo del navegador como respaldo.
+          </p>
+          <div className="flex gap-2">
+            <Input value={localUrl} onChange={(e) => setLocalUrl(e.target.value)} placeholder="http://localhost:3001/print" />
+            <Button variant="outline" onClick={testLocal}>Probar</Button>
+            <Button onClick={saveLocalUrl}>Guardar</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Alternativa sin servidor: abre Chrome con <code className="bg-background px-1 rounded">--kiosk-printing</code> y configura la térmica como impresora predeterminada del sistema.
+          </p>
+        </div>
         <Table>
+
           <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>IP:Puerto</TableHead><TableHead>Plataforma</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
             {data.map((p) => (
