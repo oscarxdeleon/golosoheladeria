@@ -315,7 +315,10 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
   const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
-  const total = subtotal + deliveryFee;
+  const taxRate = Number(settings?.tax_rate ?? 0);
+  const tax = Math.round((subtotal * taxRate) / 100);
+  const total = subtotal + tax + deliveryFee;
+
 
   function add(p: Product) {
     setCart((prev) => {
