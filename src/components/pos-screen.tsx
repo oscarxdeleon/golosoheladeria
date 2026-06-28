@@ -572,23 +572,6 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     });
   }
 
-  function reprintTicket() {
-    if (!lastSale) return;
-    const sub = lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0);
-    printTicketFinal({
-      ticket: lastSale.ticket_number,
-      header,
-      items: lastSale.lines,
-      subtotal: sub,
-      tax: 0,
-      deliveryFee: Math.max(0, lastSale.total - sub),
-      total: lastSale.total,
-      payment_method: lastSale.payment_method,
-      customer: lastSale.customer,
-      user_name: lastSale.user_name,
-      created_at: lastSale.created_at,
-    });
-  }
 
 
 
