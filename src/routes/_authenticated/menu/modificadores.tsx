@@ -9,6 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Plus, Trash2, Pencil } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
@@ -146,11 +148,40 @@ function ModPage() {
 
       <Dialog open={!!modEdit} onOpenChange={(o) => !o && setModEdit(null)}>
         <DialogContent>
-          <DialogHeader><DialogTitle>{modEdit?.id ? "Editar" : "Nuevo"} modificador</DialogTitle></DialogHeader>
-          <div className="space-y-3">
-            <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
-            <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
-          </div>
+          <DialogHeader><DialogTitle>{modEdit?.id ? "Editar" : "Agregar"} modificador</DialogTitle></DialogHeader>
+          {modEdit?.id ? (
+            <div className="space-y-3">
+              <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
+              <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
+            </div>
+          ) : (
+            <Tabs defaultValue="custom">
+              <TabsList className="w-full">
+                <TabsTrigger value="custom" className="flex-1">Personalizado</TabsTrigger>
+                <TabsTrigger value="reuse" className="flex-1">Reutilizar existente</TabsTrigger>
+              </TabsList>
+              <TabsContent value="custom" className="space-y-3 pt-3">
+                <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
+                <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
+              </TabsContent>
+              <TabsContent value="reuse" className="space-y-3 pt-3">
+                <p className="text-xs text-muted-foreground">Copia un modificador existente a este grupo (mantiene nombre y precio).</p>
+                <Label>Modificador existente</Label>
+                <Select onValueChange={(v) => { const src = mods.find((m) => m.id === v); if (src) setModEdit({ ...modEdit, name: src.name, price: src.price }); }}>
+                  <SelectTrigger><SelectValue placeholder="Seleccionar…" /></SelectTrigger>
+                  <SelectContent>
+                    {Array.from(new Map(mods.map((m) => [`${m.name}|${m.price}`, m])).values()).map((m) => (
+                      <SelectItem key={m.id} value={m.id}>{m.name} · {formatMoney(m.price)}</SelectItem>
+                    ))}
+                    {mods.length === 0 && <SelectItem value="none" disabled>Aún no hay modificadores</SelectItem>}
+                  </SelectContent>
+                </Select>
+                {modEdit?.name && (
+                  <div className="rounded-md bg-muted/50 p-2 text-sm">Se agregará: <strong>{modEdit.name}</strong> · {formatMoney(modEdit.price ?? 0)}</div>
+                )}
+              </TabsContent>
+            </Tabs>
+          )}
           <DialogFooter><Button variant="outline" onClick={() => setModEdit(null)}>Cancelar</Button><Button onClick={saveMod}>Guardar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
