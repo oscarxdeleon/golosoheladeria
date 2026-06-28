@@ -52,17 +52,15 @@ function CajaPage() {
   const [closingNotes, setClosingNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // verificarEstadoCaja: consulta la caja abierta del usuario actual
   const { data: current } = useQuery({
     queryKey: ["cash-session-open", user?.id],
     enabled: !!user,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("cash_sessions")
-        .select("*")
-        .eq("user_id", user!.id)
-        .eq("status", "open")
-        .maybeSingle();
-      return data as CashSession | null;
+      const { data, error } = await supabase.rpc("get_active_cash_session");
+      if (error) throw error;
+      return (data as CashSession | null) ?? null;
     },
   });
 
