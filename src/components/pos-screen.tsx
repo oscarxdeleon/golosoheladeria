@@ -664,8 +664,9 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           {lastSale && <TicketPreview sale={lastSale} />}
           <DialogFooter className="no-print">
             <Button variant="outline" onClick={() => setLastSale(null)}>Cerrar</Button>
-            <Button onClick={() => window.print()}>Imprimir</Button>
+            <Button onClick={reprintTicket}>Imprimir ticket</Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
     </div>
