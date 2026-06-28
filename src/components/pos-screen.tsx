@@ -278,6 +278,9 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     } finally {
       setPaying(false);
     }
+  }
+
+
 
   const meta = TYPE_META[orderType];
   const Icon = meta.icon;
