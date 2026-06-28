@@ -356,9 +356,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             user_id: user.id,
             user_name: profile?.full_name ?? user.email,
             subtotal,
+            tax,
             total,
             payment_method: method,
-            status: "completed",
+            status: "paid",
+            cash_session_id: openSession.id,
             customer_name: customer || null,
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
@@ -377,8 +379,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             user_id: user.id,
             user_name: profile?.full_name ?? user.email,
             subtotal,
+            tax,
             total,
             payment_method: method,
+            status: "paid",
+            cash_session_id: openSession.id,
             customer_name: customer || null,
             notes: notes || null,
             order_type: orderType,
@@ -403,6 +408,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         const { error: e2 } = await supabase.from("sale_items").insert(items);
         if (e2) throw e2;
       }
+
 
 
       // Imprimir comanda automáticamente al guardar la venta
