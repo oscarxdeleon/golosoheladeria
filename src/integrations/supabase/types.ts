@@ -307,7 +307,7 @@ export type Database = {
           area: string
           created_at: string
           id: string
-          ip: string
+          ip: string | null
           name: string
           platform: string
           port: number
@@ -317,7 +317,7 @@ export type Database = {
           area?: string
           created_at?: string
           id?: string
-          ip: string
+          ip?: string | null
           name: string
           platform?: string
           port?: number
@@ -327,7 +327,7 @@ export type Database = {
           area?: string
           created_at?: string
           id?: string
-          ip?: string
+          ip?: string | null
           name?: string
           platform?: string
           port?: number

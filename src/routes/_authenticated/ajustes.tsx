@@ -197,7 +197,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   );
 }
 
-interface Printer { id: string; name: string; ip: string; port: number; platform: string; area: string; active: boolean; }
+interface Printer { id: string; name: string; ip: string | null; port: number; platform: string; area: string; active: boolean; }
 function ImpresorasTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const [edit, setEdit] = useState<Partial<Printer> | null>(null);
@@ -207,9 +207,8 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
   });
   async function save() {
     const name = edit?.name?.trim();
-    const ip = edit?.ip?.trim();
     if (!name) return toast.error("El nombre es obligatorio");
-    if (!ip) return toast.error("La IP es obligatoria");
+    const ip = edit?.ip?.trim() || null;
     const payload = {
       name,
       ip,
