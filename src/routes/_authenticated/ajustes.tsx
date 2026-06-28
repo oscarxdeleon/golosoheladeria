@@ -235,11 +235,38 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
     }
   }
   async function remove(id: string) { await supabase.from("printers").delete().eq("id", id); qc.invalidateQueries({ queryKey: ["printers"] }); }
+  const [localUrl, setLocalUrl] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try { return window.localStorage.getItem("LOCAL_PRINT_URL") ?? ""; } catch { return ""; }
+  });
+  function saveLocalUrl() {
+    try {
+      if (localUrl.trim()) window.localStorage.setItem("LOCAL_PRINT_URL", localUrl.trim());
+      else window.localStorage.removeItem("LOCAL_PRINT_URL");
+      toast.success(localUrl.trim() ? "Impresión silenciosa activada" : "Impresión silenciosa desactivada");
+    } catch { toast.error("No se pudo guardar"); }
+  }
+  async function testLocal() {
+    const url = localUrl.trim();
+    if (!url) return toast.error("Ingresa la URL primero");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "comanda", header: "PRUEBA", items: [{ name: "Test", qty: 1 }] }),
+      });
+      if (res.ok) toast.success("Servidor de impresión OK");
+      else toast.error(`Servidor respondió ${res.status}`);
+    } catch (e) {
+      toast.error("No se pudo conectar al servidor local");
+    }
+  }
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Impresoras térmicas</CardTitle>
         {!disabled && (
+
           <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
             <DialogTrigger asChild><Button onClick={() => setEdit({ port: 9100, platform: "Windows", area: "caja", active: true })}><Plus className="h-4 w-4 mr-1" /> Agregar</Button></DialogTrigger>
             <DialogContent>
