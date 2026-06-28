@@ -116,6 +116,7 @@ function printPrecuenta(o: {
   header: string;
   items: { name: string; qty: number; unit_price: number }[];
   subtotal: number;
+  tax: number;
   deliveryFee: number;
   total: number;
   customer: string;
@@ -138,6 +139,7 @@ function printPrecuenta(o: {
     <table>${rows}</table>
     <hr/>
     <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
     <hr/>
@@ -151,6 +153,7 @@ function printTicketFinal(o: {
   header: string;
   items: { name: string; qty: number; unit_price: number }[];
   subtotal: number;
+  tax: number;
   deliveryFee: number;
   total: number;
   payment_method: string;
@@ -174,6 +177,7 @@ function printTicketFinal(o: {
     <table>${rows}</table>
     <hr/>
     <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
+    ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
     <div class="row"><span>Pago</span><span>${o.payment_method}</span></div>
@@ -182,6 +186,7 @@ function printTicketFinal(o: {
   </body></html>`;
   printHTML(html);
 }
+
 
 
 interface Props {
