@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,9 +14,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Plus, Users, Trash2, Pencil } from "lucide-react";
+import { Plus, Users, Trash2 } from "lucide-react";
 import { toast } from "sonner";
-import { formatDate } from "@/lib/format";
 import tableFree from "@/assets/table-free.png";
 import tableOccupied from "@/assets/table-occupied.png";
 
@@ -45,10 +44,8 @@ const STATUS_LABEL: Record<Status, string> = {
 
 function MesasPage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { isAdmin } = useAuth();
-  const [selected, setSelected] = useState<Mesa | null>(null);
-  const [guests, setGuests] = useState("");
-  const [notes, setNotes] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [newNumber, setNewNumber] = useState("");
   const [newSeats, setNewSeats] = useState("4");
@@ -73,36 +70,38 @@ function MesasPage() {
     { free: 0, occupied: 0, reserved: 0 } as Record<Status, number>,
   );
 
-  function openMesa(m: Mesa) {
-    setSelected(m);
-    setGuests(m.current_guests?.toString() ?? "");
-    setNotes(m.notes ?? "");
+  async function openMesa(m: Mesa) {
+    // Marca como ocupada si está libre
+    if (m.status === "free") {
+      await supabase
+        .from("restaurant_tables")
+        .update({
+          status: "occupied",
+          current_guests: m.seats,
+          occupied_at: new Date().toISOString(),
+        })
+        .eq("id", m.id);
+      qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+    }
+    navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
   }
 
-  async function updateStatus(status: Status) {
-    if (!selected) return;
-    const patch: Partial<Mesa> & { occupied_at?: string | null } = {
-      status,
-      notes: notes || null,
-    };
-    if (status === "occupied") {
-      patch.current_guests = Number(guests) || selected.seats;
-      patch.occupied_at = new Date().toISOString();
-    } else {
-      patch.current_guests = null;
-      patch.occupied_at = null;
-    }
-    const { error } = await supabase
+  async function liberar(m: Mesa, e: React.MouseEvent) {
+    e.stopPropagation();
+    await supabase
       .from("restaurant_tables")
-      .update(patch)
-      .eq("id", selected.id);
-    if (error) {
-      toast.error(error.message);
-      return;
-    }
-    toast.success(`Mesa ${selected.number} marcada como ${STATUS_LABEL[status].toLowerCase()}`);
-    setSelected(null);
+      .update({ status: "free", current_guests: null, occupied_at: null })
+      .eq("id", m.id);
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+    toast.success(`Mesa ${m.number} liberada`);
+  }
+
+  async function eliminar(m: Mesa, e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!confirm(`¿Eliminar Mesa ${m.number}?`)) return;
+    await supabase.from("restaurant_tables").update({ active: false }).eq("id", m.id);
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+    toast.success("Mesa eliminada");
   }
 
   async function createMesa() {
@@ -123,25 +122,13 @@ function MesasPage() {
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
   }
 
-  async function deleteMesa() {
-    if (!selected) return;
-    const { error } = await supabase
-      .from("restaurant_tables")
-      .update({ active: false })
-      .eq("id", selected.id);
-    if (error) return toast.error(error.message);
-    toast.success("Mesa eliminada");
-    setSelected(null);
-    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-  }
-
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl">Mapa de mesas</h1>
           <p className="text-sm text-muted-foreground">
-            Toca una mesa para cambiar su estado
+            Toca una mesa para abrir el menú y tomar el pedido
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -197,6 +184,25 @@ function MesasPage() {
                   >
                     {STATUS_LABEL[m.status]}
                   </Badge>
+                  {occupied && (
+                    <span
+                      role="button"
+                      onClick={(e) => liberar(m, e)}
+                      className="absolute top-2 right-2 rounded-md bg-background/80 px-2 py-0.5 text-[10px] font-medium hover:bg-background"
+                    >
+                      Liberar
+                    </span>
+                  )}
+                  {isAdmin && (
+                    <span
+                      role="button"
+                      onClick={(e) => eliminar(m, e)}
+                      className="absolute top-2 left-2 rounded-md bg-background/80 p-1 text-destructive opacity-0 group-hover:opacity-100"
+                      aria-label="Eliminar"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -209,75 +215,6 @@ function MesasPage() {
         </CardContent>
       </Card>
 
-      {/* Edit mesa */}
-      <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Pencil className="h-4 w-4" />
-              {selected?.label ?? `Mesa ${selected?.number}`}
-            </DialogTitle>
-          </DialogHeader>
-          {selected && (
-            <div className="space-y-3">
-              <div className="text-sm text-muted-foreground">
-                Capacidad: {selected.seats} puestos · Estado actual:{" "}
-                <Badge
-                  variant={
-                    selected.status === "occupied"
-                      ? "destructive"
-                      : selected.status === "reserved"
-                        ? "outline"
-                        : "secondary"
-                  }
-                >
-                  {STATUS_LABEL[selected.status]}
-                </Badge>
-                {selected.occupied_at && (
-                  <div className="mt-1 text-xs">
-                    Ocupada desde {formatDate(selected.occupied_at)}
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="text-sm font-medium">Número de comensales</label>
-                <Input
-                  type="number"
-                  placeholder={`${selected.seats}`}
-                  value={guests}
-                  onChange={(e) => setGuests(e.target.value)}
-                />
-              </div>
-              <div>
-                <label className="text-sm font-medium">Notas</label>
-                <Input
-                  placeholder="Ej. nombre de cliente, alergia, etc."
-                  value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
-                />
-              </div>
-            </div>
-          )}
-          <DialogFooter className="flex-wrap gap-2">
-            {isAdmin && (
-              <Button variant="outline" className="text-destructive" onClick={deleteMesa}>
-                <Trash2 className="h-4 w-4" /> Eliminar
-              </Button>
-            )}
-            <div className="ml-auto flex gap-2">
-              <Button variant="secondary" onClick={() => updateStatus("free")}>
-                Liberar
-              </Button>
-              <Button variant="outline" onClick={() => updateStatus("reserved")}>
-                Reservar
-              </Button>
-              <Button onClick={() => updateStatus("occupied")}>Ocupar</Button>
-            </div>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Create mesa */}
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
           <DialogHeader>

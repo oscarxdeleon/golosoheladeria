@@ -16,6 +16,7 @@ import {
   Receipt,
   LogOut,
   Banknote,
+  ShoppingBag,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -44,9 +45,14 @@ const main = [
   { to: "/pos", label: "Punto de venta", icon: ShoppingCart },
   { to: "/caja", label: "Caja", icon: Banknote },
   { to: "/ventas", label: "Ventas", icon: Receipt },
+];
+
+const orden = [
   { to: "/mesas", label: "Mesas", icon: Utensils },
+  { to: "/llevar", label: "Para llevar", icon: ShoppingBag },
+  { to: "/domicilio", label: "A domicilio", icon: Bike },
+  { to: "/kiosko", label: "Kiosko", icon: Monitor },
   { to: "/kds", label: "KDS", icon: Monitor },
-  { to: "/domicilios", label: "Domicilios", icon: Bike },
   { to: "/clientes", label: "Clientes", icon: Users },
 ];
 
@@ -104,6 +110,26 @@ export function AppSidebar() {
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Pedidos</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {orden.map((i) => (
+                <SidebarMenuItem key={i.to}>
+                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                    <Link to={i.to}>
+                      <i.icon />
+                      <span>{i.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+
 
         <Collapsible defaultOpen={menuOpenDefault} className="group/collapsible">
           <SidebarGroup>
