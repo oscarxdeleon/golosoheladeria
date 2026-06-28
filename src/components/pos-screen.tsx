@@ -160,6 +160,9 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const [phone, setPhone] = useState("");
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
+  const [cashDialogOpen, setCashDialogOpen] = useState(false);
+  const [cashReceived, setCashReceived] = useState("");
+
 
   useEffect(() => {
     setCart([]);
