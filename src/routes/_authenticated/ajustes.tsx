@@ -118,6 +118,9 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
             </div>
             <p className="text-xs text-muted-foreground mt-1">PNG o BMP recomendado. Se guarda al pulsar "Guardar cambios".</p>
           </div>
+        </div>
+
+
 
         <div>
           <Label>Link del menú en línea</Label>
