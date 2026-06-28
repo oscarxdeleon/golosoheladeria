@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, ImagePlus } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -20,7 +20,8 @@ export const Route = createFileRoute("/_authenticated/menu/productos")({
   component: ProductosPage,
 });
 
-interface Product { id: string; name: string; price: number; category_id: string | null; sku: string | null; active: boolean; }
+interface Product { id: string; name: string; price: number; category_id: string | null; sku: string | null; active: boolean; image_url: string | null; }
+
 interface Category { id: string; name: string; }
 
 function ProductosPage() {
@@ -52,6 +53,7 @@ function ProductosPage() {
       category_id: editing.category_id ?? null,
       sku: editing.sku ?? null,
       active: editing.active ?? true,
+      image_url: editing.image_url ?? null,
     };
     const { error } = editing.id
       ? await supabase.from("products").update(payload).eq("id", editing.id)
@@ -62,6 +64,27 @@ function ProductosPage() {
     qc.invalidateQueries({ queryKey: ["products-all"] });
     qc.invalidateQueries({ queryKey: ["products"] });
   }
+
+  async function uploadImage(file: File) {
+    const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
+    const path = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+    const up = await supabase.storage.from("products").upload(path, file, {
+      upsert: true,
+      contentType: file.type || `image/${ext}`,
+    });
+    if (up.error) {
+      toast.error(up.error.message);
+      return;
+    }
+    const { data: signed } = await supabase.storage
+      .from("products")
+      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signed?.signedUrl) {
+      setEditing((prev) => ({ ...(prev ?? {}), image_url: signed.signedUrl }));
+      toast.success("Foto subida");
+    }
+  }
+
   async function remove(id: string) {
     if (!confirm("¿Eliminar producto?")) return;
     const { error } = await supabase.from("products").delete().eq("id", id);
