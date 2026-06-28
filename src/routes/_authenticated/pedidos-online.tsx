@@ -1,0 +1,194 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { MessageCircle, RefreshCw, Phone, Clock, CheckCircle2 } from "lucide-react";
+import { formatMoney } from "@/lib/format";
+import { toast } from "sonner";
+
+export const Route = createFileRoute("/_authenticated/pedidos-online")({
+  head: () => ({ meta: [{ title: "Pedidos en línea · Goloso POS" }] }),
+  component: OnlineOrdersPage,
+});
+
+interface SaleRow {
+  id: string;
+  ticket_number: number;
+  customer_name: string | null;
+  customer_phone: string | null;
+  notes: string | null;
+  total: number;
+  subtotal: number;
+  status: string;
+  source: string;
+  order_type: string | null;
+  created_at: string;
+}
+interface ItemRow { id: string; sale_id: string; product_name: string; qty: number; unit_price: number; }
+
+function waLink(phone: string, msg: string) {
+  const clean = phone.replace(/[^\d]/g, "");
+  const num = clean.startsWith("57") || clean.length > 10 ? clean : `57${clean}`;
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
+}
+
+function OnlineOrdersPage() {
+  const qc = useQueryClient();
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings-one"],
+    queryFn: async () => (await supabase.from("settings").select("*").maybeSingle()).data,
+  });
+
+  const { data: orders = [], isLoading, refetch } = useQuery<SaleRow[]>({
+    queryKey: ["online-orders"],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("*")
+        .eq("source", "online_menu")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as SaleRow[];
+    },
+  });
+
+  const ids = orders.map((o) => o.id);
+  const { data: items = [] } = useQuery<ItemRow[]>({
+    queryKey: ["online-orders-items", ids.join(",")],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const { data, error } = await supabase.from("sale_items").select("*").in("sale_id", ids);
+      if (error) throw error;
+      return (data ?? []) as ItemRow[];
+    },
+  });
+
+  useEffect(() => {
+    const ch = supabase
+      .channel("po-page")
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: "source=eq.online_menu" },
+        () => qc.invalidateQueries({ queryKey: ["online-orders"] }))
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [qc]);
+
+  async function markAccepted(id: string) {
+    const { error } = await supabase.from("sales").update({ status: "paid", payment_method: "Pendiente · Aceptado" }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Pedido aceptado");
+    qc.invalidateQueries({ queryKey: ["online-orders"] });
+  }
+  async function reject(id: string) {
+    if (!confirm("¿Cancelar este pedido?")) return;
+    const { error } = await supabase.from("sales").update({ status: "cancelled" }).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Pedido cancelado");
+    qc.invalidateQueries({ queryKey: ["online-orders"] });
+  }
+
+  function buildMsg(o: SaleRow, its: ItemRow[]) {
+    const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
+    return [
+      `🍦 *Nuevo pedido en línea #${o.ticket_number}*`,
+      `Cliente: ${o.customer_name ?? "—"}`,
+      o.customer_phone ? `Tel: ${o.customer_phone}` : null,
+      o.notes ? `Notas: ${o.notes}` : null,
+      "",
+      lines,
+      "",
+      `*TOTAL: ${formatMoney(o.total)}*`,
+    ].filter(Boolean).join("\n");
+  }
+
+  const pending = orders.filter((o) => o.status === "pending");
+  const history = orders.filter((o) => o.status !== "pending");
+  const sedePhone: string | null = (settings as { phone?: string | null } | null | undefined)?.phone ?? null;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="font-display text-3xl">Pedidos en línea</h1>
+          <p className="text-sm text-muted-foreground">
+            Recibe automáticamente los pedidos del <Link to="/menu" className="underline">Menú en línea</Link>.
+            {sedePhone ? <> WhatsApp de la sede: <b>{sedePhone}</b></> : <> · <Link to="/ajustes" className="underline">Configura el WhatsApp en Ajustes</Link></>}
+          </p>
+        </div>
+        <Button variant="outline" onClick={() => refetch()}><RefreshCw className="h-4 w-4 mr-1" />Actualizar</Button>
+      </div>
+
+      <Card>
+        <CardHeader><CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5 text-primary" /> Pendientes ({pending.length})</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          {isLoading && <div className="text-muted-foreground text-sm">Cargando…</div>}
+          {!isLoading && pending.length === 0 && <div className="text-muted-foreground text-sm py-8 text-center">Sin pedidos pendientes</div>}
+          {pending.map((o) => {
+            const its = items.filter((i) => i.sale_id === o.id);
+            const msg = buildMsg(o, its);
+            return (
+              <div key={o.id} className="rounded-lg border p-3 sm:p-4 space-y-3">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <div className="font-display text-lg">#{o.ticket_number} · {o.customer_name ?? "Cliente"}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {new Date(o.created_at).toLocaleString("es-CO")}
+                      {o.customer_phone && <> · <Phone className="inline h-3 w-3" /> {o.customer_phone}</>}
+                    </div>
+                  </div>
+                  <Badge variant="secondary">{formatMoney(o.total)}</Badge>
+                </div>
+                <ul className="text-sm space-y-0.5">
+                  {its.map((i) => (
+                    <li key={i.id}>{i.qty} × {i.product_name} <span className="text-muted-foreground">— {formatMoney(i.unit_price * i.qty)}</span></li>
+                  ))}
+                </ul>
+                {o.notes && <div className="text-xs bg-muted rounded p-2"><b>Notas:</b> {o.notes}</div>}
+                <div className="flex flex-wrap gap-2">
+                  {sedePhone && (
+                    <Button asChild variant="default" size="sm">
+                      <a href={waLink(sedePhone, msg)} target="_blank" rel="noreferrer">
+                        <MessageCircle className="h-4 w-4 mr-1" /> Avisar a la sede
+                      </a>
+                    </Button>
+                  )}
+                  {o.customer_phone && (
+                    <Button asChild variant="outline" size="sm">
+                      <a href={waLink(o.customer_phone, `Hola ${o.customer_name ?? ""}, recibimos tu pedido #${o.ticket_number}. ¡Lo estamos preparando!`)} target="_blank" rel="noreferrer">
+                        <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp cliente
+                      </a>
+                    </Button>
+                  )}
+                  <Button size="sm" variant="outline" onClick={() => markAccepted(o.id)}>
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar aceptado
+                  </Button>
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(o.id)}>Cancelar</Button>
+                </div>
+              </div>
+            );
+          })}
+        </CardContent>
+      </Card>
+
+      {history.length > 0 && (
+        <Card>
+          <CardHeader><CardTitle>Historial reciente</CardTitle></CardHeader>
+          <CardContent>
+            <ul className="divide-y text-sm">
+              {history.slice(0, 20).map((o) => (
+                <li key={o.id} className="py-2 flex justify-between">
+                  <span>#{o.ticket_number} · {o.customer_name ?? "Cliente"} · <span className="text-muted-foreground">{new Date(o.created_at).toLocaleString("es-CO")}</span></span>
+                  <span className="flex items-center gap-2"><Badge variant={o.status === "cancelled" ? "destructive" : "secondary"}>{o.status}</Badge>{formatMoney(o.total)}</span>
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
