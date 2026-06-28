@@ -88,8 +88,36 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
           <div><Label>Dirección</Label><Input disabled={disabled} value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
           <div><Label>Ciudad</Label><Input disabled={disabled} value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
           <div><Label>Teléfono</Label><Input disabled={disabled} value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
-          <div><Label>URL del logo</Label><Input disabled={disabled} value={s.logo_url ?? ""} onChange={(e) => setS({ ...s, logo_url: e.target.value })} placeholder="https://…/logo.png" /></div>
-        </div>
+          <div className="md:col-span-2">
+            <Label>Logo</Label>
+            <div className="flex items-center gap-3">
+              {s.logo_url && (
+                <img src={s.logo_url} alt="logo" className="h-16 w-16 rounded-lg border object-contain bg-white" />
+              )}
+              <Input
+                disabled={disabled}
+                type="file"
+                accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp"
+                onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+                  const path = `logo-${Date.now()}.${ext}`;
+                  const up = await supabase.storage.from("logos").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
+                  if (up.error) return toast.error(up.error.message);
+                  const { data: signed } = await supabase.storage.from("logos").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+                  if (signed?.signedUrl) setS({ ...s, logo_url: signed.signedUrl });
+                  toast.success("Logo subido");
+                }}
+              />
+              {s.logo_url && (
+                <Button type="button" variant="outline" size="sm" onClick={() => setS({ ...s, logo_url: null })}>
+                  Quitar
+                </Button>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">PNG o BMP recomendado. Se guarda al pulsar "Guardar cambios".</p>
+          </div>
 
         <div>
           <Label>Link del menú en línea</Label>
