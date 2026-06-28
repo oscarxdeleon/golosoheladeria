@@ -20,6 +20,7 @@ import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kd
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
 import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
@@ -81,6 +82,11 @@ const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   path: '/clientes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedCajaRoute = AuthenticatedCajaRouteImport.update({
+  id: '/caja',
+  path: '/caja',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAyudaRoute = AuthenticatedAyudaRouteImport.update({
   id: '/ayuda',
   path: '/ayuda',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
+  '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -139,6 +146,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
+  '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -159,6 +167,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
+  '/_authenticated/caja': typeof AuthenticatedCajaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -179,6 +188,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/ajustes'
     | '/ayuda'
+    | '/caja'
     | '/clientes'
     | '/dashboard'
     | '/domicilios'
@@ -197,6 +207,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/ajustes'
     | '/ayuda'
+    | '/caja'
     | '/clientes'
     | '/dashboard'
     | '/domicilios'
@@ -216,6 +227,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/ajustes'
     | '/_authenticated/ayuda'
+    | '/_authenticated/caja'
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
     | '/_authenticated/domicilios'
@@ -315,6 +327,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/caja': {
+      id: '/_authenticated/caja'
+      path: '/caja'
+      fullPath: '/caja'
+      preLoaderRoute: typeof AuthenticatedCajaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ayuda': {
       id: '/_authenticated/ayuda'
       path: '/ayuda'
@@ -363,6 +382,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAjustesRoute: typeof AuthenticatedAjustesRoute
   AuthenticatedAyudaRoute: typeof AuthenticatedAyudaRoute
+  AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
@@ -380,6 +400,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAjustesRoute: AuthenticatedAjustesRoute,
   AuthenticatedAyudaRoute: AuthenticatedAyudaRoute,
+  AuthenticatedCajaRoute: AuthenticatedCajaRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
