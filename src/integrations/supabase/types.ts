@@ -14,6 +14,54 @@ export type Database = {
   }
   public: {
     Tables: {
+      cash_sessions: {
+        Row: {
+          closed_at: string | null
+          closing_notes: string | null
+          counted_amount: number | null
+          created_at: string
+          difference: number | null
+          expected_amount: number | null
+          id: string
+          opened_at: string
+          opening_amount: number
+          opening_notes: string | null
+          status: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          closed_at?: string | null
+          closing_notes?: string | null
+          counted_amount?: number | null
+          created_at?: string
+          difference?: number | null
+          expected_amount?: number | null
+          id?: string
+          opened_at?: string
+          opening_amount?: number
+          opening_notes?: string | null
+          status?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          closed_at?: string | null
+          closing_notes?: string | null
+          counted_amount?: number | null
+          created_at?: string
+          difference?: number | null
+          expected_amount?: number | null
+          id?: string
+          opened_at?: string
+          opening_amount?: number
+          opening_notes?: string | null
+          status?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           active: boolean
@@ -210,6 +258,54 @@ export type Database = {
           created_at?: string
           full_name?: string
           id?: string
+        }
+        Relationships: []
+      }
+      restaurant_tables: {
+        Row: {
+          active: boolean
+          created_at: string
+          current_guests: number | null
+          id: string
+          label: string | null
+          notes: string | null
+          number: number
+          occupied_at: string | null
+          pos_x: number
+          pos_y: number
+          seats: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          current_guests?: number | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          number: number
+          occupied_at?: string | null
+          pos_x?: number
+          pos_y?: number
+          seats?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          current_guests?: number | null
+          id?: string
+          label?: string | null
+          notes?: string | null
+          number?: number
+          occupied_at?: string | null
+          pos_x?: number
+          pos_y?: number
+          seats?: number
+          status?: string
+          updated_at?: string
         }
         Relationships: []
       }
