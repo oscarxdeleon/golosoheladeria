@@ -15,6 +15,7 @@ import {
   Layers,
   Receipt,
   LogOut,
+  Banknote,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -28,9 +29,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarMenuSub,
-  SidebarMenuSubButton,
-  SidebarMenuSubItem,
   useSidebar,
 } from "@/components/ui/sidebar";
 import {
@@ -43,7 +41,8 @@ import { Button } from "@/components/ui/button";
 
 const main = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard },
-  { to: "/caja", label: "Caja", icon: ShoppingCart },
+  { to: "/pos", label: "Punto de venta", icon: ShoppingCart },
+  { to: "/caja", label: "Caja", icon: Banknote },
   { to: "/ventas", label: "Ventas", icon: Receipt },
   { to: "/mesas", label: "Mesas", icon: Utensils },
   { to: "/kds", label: "KDS", icon: Monitor },

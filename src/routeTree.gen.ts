@@ -14,6 +14,7 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
+import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
 import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kds'
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
@@ -49,6 +50,11 @@ const AuthenticatedVentasRoute = AuthenticatedVentasRouteImport.update({
 const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
   id: '/usuarios',
   path: '/usuarios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedPosRoute = AuthenticatedPosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMesasRoute = AuthenticatedMesasRouteImport.update({
@@ -127,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
@@ -145,6 +152,7 @@ export interface FileRoutesByTo {
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
@@ -165,6 +173,7 @@ export interface FileRoutesById {
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
   '/_authenticated/kds': typeof AuthenticatedKdsRoute
   '/_authenticated/mesas': typeof AuthenticatedMesasRoute
+  '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
   '/_authenticated/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
@@ -185,6 +194,7 @@ export interface FileRouteTypes {
     | '/domicilios'
     | '/kds'
     | '/mesas'
+    | '/pos'
     | '/usuarios'
     | '/ventas'
     | '/menu/categorias'
@@ -203,6 +213,7 @@ export interface FileRouteTypes {
     | '/domicilios'
     | '/kds'
     | '/mesas'
+    | '/pos'
     | '/usuarios'
     | '/ventas'
     | '/menu/categorias'
@@ -222,6 +233,7 @@ export interface FileRouteTypes {
     | '/_authenticated/domicilios'
     | '/_authenticated/kds'
     | '/_authenticated/mesas'
+    | '/_authenticated/pos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
     | '/_authenticated/menu/categorias'
@@ -271,6 +283,13 @@ declare module '@tanstack/react-router' {
       path: '/usuarios'
       fullPath: '/usuarios'
       preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pos': {
+      id: '/_authenticated/pos'
+      path: '/pos'
+      fullPath: '/pos'
+      preLoaderRoute: typeof AuthenticatedPosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mesas': {
@@ -369,6 +388,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
   AuthenticatedKdsRoute: typeof AuthenticatedKdsRoute
   AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
+  AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVentasRoute: typeof AuthenticatedVentasRoute
   AuthenticatedMenuCategoriasRoute: typeof AuthenticatedMenuCategoriasRoute
@@ -386,6 +406,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
   AuthenticatedKdsRoute: AuthenticatedKdsRoute,
   AuthenticatedMesasRoute: AuthenticatedMesasRoute,
+  AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVentasRoute: AuthenticatedVentasRoute,
   AuthenticatedMenuCategoriasRoute: AuthenticatedMenuCategoriasRoute,
