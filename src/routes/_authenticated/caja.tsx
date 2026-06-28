@@ -117,9 +117,22 @@ function CajaPage() {
     if (!user) return;
     setSaving(true);
     try {
+      // Re-check for existing open session to avoid unique-constraint surprise
+      const { data: existing } = await supabase
+        .from("cash_sessions")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("status", "open")
+        .maybeSingle();
+      if (existing) {
+        toast.info("Ya tenías una caja abierta — se recargó tu sesión.");
+        setOpenDialog(false);
+        qc.invalidateQueries({ queryKey: ["cash-session-open"] });
+        return;
+      }
       const { error } = await supabase.from("cash_sessions").insert({
         user_id: user.id,
-        user_name: profile?.full_name ?? user.email ?? "",
+        user_name: profile?.full_name ?? user.email ?? "Cajero",
         opening_amount: Number(openingAmount) || 0,
         opening_notes: openingNotes || null,
       });
@@ -131,11 +144,13 @@ function CajaPage() {
       qc.invalidateQueries({ queryKey: ["cash-session-open"] });
       qc.invalidateQueries({ queryKey: ["cash-sessions-history"] });
     } catch (e) {
+      console.error("openSession", e);
       toast.error(e instanceof Error ? e.message : "Error al abrir caja");
     } finally {
       setSaving(false);
     }
   }
+
 
   async function closeSession() {
     if (!current) return;
