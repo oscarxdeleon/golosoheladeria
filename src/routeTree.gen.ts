@@ -22,6 +22,7 @@ import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/
 import { Route as AuthenticatedLlevarRouteImport } from './routes/_authenticated/llevar'
 import { Route as AuthenticatedKioskoRouteImport } from './routes/_authenticated/kiosko'
 import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kds'
+import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
 import { Route as AuthenticatedDomicilioRouteImport } from './routes/_authenticated/domicilio'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
@@ -98,6 +99,11 @@ const AuthenticatedKdsRoute = AuthenticatedKdsRouteImport.update({
   path: '/kds',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedInventarioRoute = AuthenticatedInventarioRouteImport.update({
+  id: '/inventario',
+  path: '/inventario',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDomiciliosRoute = AuthenticatedDomiciliosRouteImport.update({
   id: '/domicilios',
   path: '/domicilios',
@@ -170,6 +176,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/inventario': typeof AuthenticatedInventarioRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
@@ -195,6 +202,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/inventario': typeof AuthenticatedInventarioRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/domicilio': typeof AuthenticatedDomicilioRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/kds': typeof AuthenticatedKdsRoute
   '/_authenticated/kiosko': typeof AuthenticatedKioskoRoute
   '/_authenticated/llevar': typeof AuthenticatedLlevarRoute
@@ -249,6 +258,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/domicilio'
     | '/domicilios'
+    | '/inventario'
     | '/kds'
     | '/kiosko'
     | '/llevar'
@@ -274,6 +284,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/domicilio'
     | '/domicilios'
+    | '/inventario'
     | '/kds'
     | '/kiosko'
     | '/llevar'
@@ -300,6 +311,7 @@ export interface FileRouteTypes {
     | '/_authenticated/dashboard'
     | '/_authenticated/domicilio'
     | '/_authenticated/domicilios'
+    | '/_authenticated/inventario'
     | '/_authenticated/kds'
     | '/_authenticated/kiosko'
     | '/_authenticated/llevar'
@@ -416,6 +428,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedKdsRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/inventario': {
+      id: '/_authenticated/inventario'
+      path: '/inventario'
+      fullPath: '/inventario'
+      preLoaderRoute: typeof AuthenticatedInventarioRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/domicilios': {
       id: '/_authenticated/domicilios'
       path: '/domicilios'
@@ -504,6 +523,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDomicilioRoute: typeof AuthenticatedDomicilioRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
+  AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedKdsRoute: typeof AuthenticatedKdsRoute
   AuthenticatedKioskoRoute: typeof AuthenticatedKioskoRoute
   AuthenticatedLlevarRoute: typeof AuthenticatedLlevarRoute
@@ -525,6 +545,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDomicilioRoute: AuthenticatedDomicilioRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
+  AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedKdsRoute: AuthenticatedKdsRoute,
   AuthenticatedKioskoRoute: AuthenticatedKioskoRoute,
   AuthenticatedLlevarRoute: AuthenticatedLlevarRoute,
