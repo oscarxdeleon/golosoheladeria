@@ -105,6 +105,27 @@ function ProductosPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
+                    {editing?.image_url ? (
+                      <img src={editing.image_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <ImagePlus className="h-6 w-6 text-muted-foreground" />
+                    )}
+                  </div>
+                  <div className="flex-1">
+                    <Label>Foto del producto</Label>
+                    <Input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/bmp"
+                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); }}
+                    />
+                    {editing?.image_url && (
+                      <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-destructive"
+                        onClick={() => setEditing({ ...editing, image_url: null })}>Quitar foto</Button>
+                    )}
+                  </div>
+                </div>
                 <div><Label>Nombre</Label><Input value={editing?.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Precio (COP)</Label><Input type="number" value={editing?.price ?? 0} onChange={(e) => setEditing({ ...editing, price: Number(e.target.value) })} /></div>
@@ -122,6 +143,7 @@ function ProductosPage() {
                 </div>
                 <div className="flex items-center gap-2"><Switch checked={editing?.active ?? true} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /><Label>Activo</Label></div>
               </div>
+
               <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
           </Dialog>
