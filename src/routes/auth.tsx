@@ -77,9 +77,8 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/15 via-background to-accent/15 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary text-primary-foreground">
-            <IceCream className="h-7 w-7" />
-          </div>
+          <img src={logoAsset.url} alt="Heladería Goloso" className="mx-auto h-28 w-auto object-contain" />
+
           <CardTitle className="font-display text-2xl">Heladería Goloso</CardTitle>
           <CardDescription>Sistema POS · Acceso de empleados</CardDescription>
         </CardHeader>

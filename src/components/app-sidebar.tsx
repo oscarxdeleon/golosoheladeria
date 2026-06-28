@@ -80,9 +80,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <IceCream className="h-5 w-5" />
-          </div>
+          <img src={logoAsset.url} alt="Goloso" className="h-9 w-9 shrink-0 object-contain" />
           {!collapsed && (
             <div className="leading-tight">
               <div className="font-display text-base font-semibold">Goloso</div>
@@ -90,6 +88,7 @@ export function AppSidebar() {
             </div>
           )}
         </div>
+
       </SidebarHeader>
 
       <SidebarContent>
