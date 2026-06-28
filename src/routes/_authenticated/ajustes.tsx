@@ -206,12 +206,34 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
     queryFn: async () => (await supabase.from("printers").select("*").order("name")).data ?? [],
   });
   async function save() {
-    if (!edit?.name?.trim() || !edit.ip) return toast.error("Nombre e IP requeridos");
-    const payload = { name: edit.name.trim(), ip: edit.ip, port: Number(edit.port ?? 9100), platform: edit.platform ?? "Windows", area: edit.area ?? "caja", active: edit.active ?? true };
-    const { error } = edit.id ? await supabase.from("printers").update(payload).eq("id", edit.id) : await supabase.from("printers").insert(payload);
-    if (error) return toast.error(error.message);
-    setEdit(null);
-    qc.invalidateQueries({ queryKey: ["printers"] });
+    const name = edit?.name?.trim();
+    const ip = edit?.ip?.trim();
+    if (!name) return toast.error("El nombre es obligatorio");
+    if (!ip) return toast.error("La IP es obligatoria");
+    const payload = {
+      name,
+      ip,
+      port: Number.isFinite(Number(edit?.port)) ? Number(edit?.port) : 9100,
+      platform: edit?.platform ?? "Windows",
+      area: edit?.area ?? "caja",
+      active: edit?.active ?? true,
+    };
+    try {
+      const res = edit?.id
+        ? await supabase.from("printers").update(payload).eq("id", edit.id).select().single()
+        : await supabase.from("printers").insert(payload).select().single();
+      if (res.error) {
+        console.error("printers save error", res.error);
+        return toast.error(res.error.message ?? "No se pudo guardar la impresora");
+      }
+      toast.success(edit?.id ? "Impresora actualizada" : "Impresora agregada");
+      setEdit(null);
+      await qc.invalidateQueries({ queryKey: ["printers"] });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error inesperado";
+      console.error(e);
+      toast.error(msg);
+    }
   }
   async function remove(id: string) { await supabase.from("printers").delete().eq("id", id); qc.invalidateQueries({ queryKey: ["printers"] }); }
   return (
