@@ -377,7 +377,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   }
 
   async function saveComanda() {
-    if (!user) return;
+    if (!user) return toast.error("Inicia sesión para guardar el pedido");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (orderType === "domicilio" && (!address || !phone)) {
       return toast.error("Dirección y teléfono requeridos para domicilio");
@@ -393,6 +393,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           total,
           payment_method: "Pendiente",
           status: "pending",
+          source: "pos",
           printed_at: new Date().toISOString(),
           customer_name: customer || null,
           notes: notes || null,
@@ -404,7 +405,10 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         })
         .select("id,ticket_number,created_at")
         .single();
-      if (error) throw error;
+      if (error) {
+        console.error("save sale error", error);
+        throw new Error(error.message || "No se pudo guardar el pedido");
+      }
       const items = cart.map((l) => ({
         sale_id: sale.id,
         product_id: l.product_id,
@@ -415,7 +419,19 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         modifiers: [],
       }));
       const { error: e2 } = await supabase.from("sale_items").insert(items);
-      if (e2) throw e2;
+      if (e2) {
+        console.error("save items error", e2);
+        throw new Error(e2.message || "No se pudieron guardar los productos");
+      }
+
+      // Marcar mesa como ocupada si aplica
+      if (orderType === "mesa" && tableId) {
+        await supabase
+          .from("restaurant_tables")
+          .update({ status: "occupied", occupied_at: new Date().toISOString() })
+          .eq("id", tableId);
+        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+      }
 
       // Imprimir comanda en una ventana de impresión
       printComanda({
@@ -439,11 +455,42 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       qc.invalidateQueries({ queryKey: ["sales"] });
       toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
     } catch (err) {
+      console.error(err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
     } finally {
       setPaying(false);
     }
   }
+
+  function handlePrecuenta() {
+    if (cart.length === 0) return toast.error("Carrito vacío");
+    printPrecuenta({
+      header,
+      items: cart,
+      subtotal,
+      deliveryFee,
+      total,
+      customer,
+      user_name: profile?.full_name ?? user?.email ?? "",
+    });
+  }
+
+  function reprintTicket() {
+    if (!lastSale) return;
+    printTicketFinal({
+      ticket: lastSale.ticket_number,
+      header,
+      items: lastSale.lines,
+      subtotal: lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0),
+      deliveryFee: Math.max(0, lastSale.total - lastSale.lines.reduce((s, l) => s + l.unit_price * l.qty, 0)),
+      total: lastSale.total,
+      payment_method: lastSale.payment_method,
+      customer: lastSale.customer,
+      user_name: lastSale.user_name,
+      created_at: lastSale.created_at,
+    });
+  }
+
 
 
 
