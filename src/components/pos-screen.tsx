@@ -201,13 +201,16 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
   const [paying, setPaying] = useState(false);
+  const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [lastSale, setLastSale] = useState<{ id: string; ticket_number: number; total: number; payment_method: string; lines: CartLine[]; customer: string; user_name: string; created_at: string } | null>(null);
 
   useEffect(() => {
     setCart([]);
     setCustomer("");
     setNotes("");
+    setPendingSaleId(null);
   }, [orderType, tableId]);
+
 
   const { data: cats = [] } = useQuery({
     queryKey: ["categories"],
