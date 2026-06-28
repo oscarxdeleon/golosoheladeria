@@ -240,9 +240,9 @@ function CajaPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setOpenDialog(true)}>
+            <Button onClick={() => setOpenDialog(true)} disabled={authLoading || !user}>
               <LockOpen className="h-4 w-4" />
-              Abrir caja
+              {authLoading ? "Cargando…" : "Abrir caja"}
             </Button>
           </CardContent>
         </Card>
