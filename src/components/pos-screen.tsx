@@ -328,7 +328,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
           <div className="grid grid-cols-2 gap-2">
             {methods.map((m: { id: string; name: string }) => (
-              <Button key={m.id} disabled={paying || cart.length === 0} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
+              <Button key={m.id} disabled={paying || cart.length === 0 || !openSession} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
                 {m.name}
               </Button>
             ))}
