@@ -9,9 +9,12 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as MenuRouteImport } from './routes/menu'
+import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
@@ -31,6 +34,16 @@ import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_au
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
 import { Route as AuthenticatedMenuCategoriasRouteImport } from './routes/_authenticated/menu/categorias'
 
+const MenuRoute = MenuRouteImport.update({
+  id: '/menu',
+  path: '/menu',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KioskRoute = KioskRouteImport.update({
+  id: '/kiosk',
+  path: '/kiosk',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
   path: '/auth',
@@ -43,6 +56,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TTableNumberRoute = TTableNumberRouteImport.update({
+  id: '/t/$tableNumber',
+  path: '/t/$tableNumber',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVentasRoute = AuthenticatedVentasRouteImport.update({
@@ -143,6 +161,8 @@ const AuthenticatedMenuCategoriasRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/kiosk': typeof KioskRoute
+  '/menu': typeof MenuRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
@@ -157,6 +177,7 @@ export interface FileRoutesByFullPath {
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
+  '/t/$tableNumber': typeof TTableNumberRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
@@ -165,6 +186,8 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/kiosk': typeof KioskRoute
+  '/menu': typeof MenuRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
@@ -179,6 +202,7 @@ export interface FileRoutesByTo {
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
+  '/t/$tableNumber': typeof TTableNumberRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
@@ -189,6 +213,8 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/kiosk': typeof KioskRoute
+  '/menu': typeof MenuRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
   '/_authenticated/caja': typeof AuthenticatedCajaRoute
@@ -203,6 +229,7 @@ export interface FileRoutesById {
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
+  '/t/$tableNumber': typeof TTableNumberRoute
   '/_authenticated/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/_authenticated/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
@@ -213,6 +240,8 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/kiosk'
+    | '/menu'
     | '/ajustes'
     | '/ayuda'
     | '/caja'
@@ -227,6 +256,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/usuarios'
     | '/ventas'
+    | '/t/$tableNumber'
     | '/menu/categorias'
     | '/menu/insumos'
     | '/menu/modificadores'
@@ -235,6 +265,8 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/kiosk'
+    | '/menu'
     | '/ajustes'
     | '/ayuda'
     | '/caja'
@@ -249,6 +281,7 @@ export interface FileRouteTypes {
     | '/pos'
     | '/usuarios'
     | '/ventas'
+    | '/t/$tableNumber'
     | '/menu/categorias'
     | '/menu/insumos'
     | '/menu/modificadores'
@@ -258,6 +291,8 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/kiosk'
+    | '/menu'
     | '/_authenticated/ajustes'
     | '/_authenticated/ayuda'
     | '/_authenticated/caja'
@@ -272,6 +307,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
+    | '/t/$tableNumber'
     | '/_authenticated/menu/categorias'
     | '/_authenticated/menu/insumos'
     | '/_authenticated/menu/modificadores'
@@ -282,10 +318,27 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  KioskRoute: typeof KioskRoute
+  MenuRoute: typeof MenuRoute
+  TTableNumberRoute: typeof TTableNumberRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/menu': {
+      id: '/menu'
+      path: '/menu'
+      fullPath: '/menu'
+      preLoaderRoute: typeof MenuRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kiosk': {
+      id: '/kiosk'
+      path: '/kiosk'
+      fullPath: '/kiosk'
+      preLoaderRoute: typeof KioskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/auth': {
       id: '/auth'
       path: '/auth'
@@ -305,6 +358,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/t/$tableNumber': {
+      id: '/t/$tableNumber'
+      path: '/t/$tableNumber'
+      fullPath: '/t/$tableNumber'
+      preLoaderRoute: typeof TTableNumberRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/ventas': {
@@ -485,6 +545,9 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  KioskRoute: KioskRoute,
+  MenuRoute: MenuRoute,
+  TTableNumberRoute: TTableNumberRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
