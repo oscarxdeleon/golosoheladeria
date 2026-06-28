@@ -148,6 +148,7 @@ interface Props {
 
 export function PosScreen({ orderType, tableId, title }: Props) {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const { user, profile } = useAuth();
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
@@ -158,7 +159,6 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const [phone, setPhone] = useState("");
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
-  const [lastSale, setLastSale] = useState<{ id: string; ticket_number: number; total: number; payment_method: string; lines: CartLine[]; customer: string; user_name: string; created_at: string } | null>(null);
 
   useEffect(() => {
     setCart([]);
