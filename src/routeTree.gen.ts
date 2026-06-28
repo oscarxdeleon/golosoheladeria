@@ -9,38 +9,249 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
+import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
+import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
+import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
+import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kds'
+import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
+import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
+import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
+import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
+import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
+import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
+import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
+import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_authenticated/menu/modificadores'
+import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
+import { Route as AuthenticatedMenuCategoriasRouteImport } from './routes/_authenticated/menu/categorias'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
+  id: '/_authenticated',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedVentasRoute = AuthenticatedVentasRouteImport.update({
+  id: '/ventas',
+  path: '/ventas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
+  id: '/usuarios',
+  path: '/usuarios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMesasRoute = AuthenticatedMesasRouteImport.update({
+  id: '/mesas',
+  path: '/mesas',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedKdsRoute = AuthenticatedKdsRouteImport.update({
+  id: '/kds',
+  path: '/kds',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDomiciliosRoute = AuthenticatedDomiciliosRouteImport.update({
+  id: '/domicilios',
+  path: '/domicilios',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
+  id: '/clientes',
+  path: '/clientes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedCajaRoute = AuthenticatedCajaRouteImport.update({
+  id: '/caja',
+  path: '/caja',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAyudaRoute = AuthenticatedAyudaRouteImport.update({
+  id: '/ayuda',
+  path: '/ayuda',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedAjustesRoute = AuthenticatedAjustesRouteImport.update({
+  id: '/ajustes',
+  path: '/ajustes',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMenuProductosRoute =
+  AuthenticatedMenuProductosRouteImport.update({
+    id: '/menu/productos',
+    path: '/menu/productos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMenuModificadoresRoute =
+  AuthenticatedMenuModificadoresRouteImport.update({
+    id: '/menu/modificadores',
+    path: '/menu/modificadores',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMenuInsumosRoute =
+  AuthenticatedMenuInsumosRouteImport.update({
+    id: '/menu/insumos',
+    path: '/menu/insumos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedMenuCategoriasRoute =
+  AuthenticatedMenuCategoriasRouteImport.update({
+    id: '/menu/categorias',
+    path: '/menu/categorias',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/ajustes': typeof AuthenticatedAjustesRoute
+  '/ayuda': typeof AuthenticatedAyudaRoute
+  '/caja': typeof AuthenticatedCajaRoute
+  '/clientes': typeof AuthenticatedClientesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/kds': typeof AuthenticatedKdsRoute
+  '/mesas': typeof AuthenticatedMesasRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/ventas': typeof AuthenticatedVentasRoute
+  '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
+  '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
+  '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
+  '/menu/productos': typeof AuthenticatedMenuProductosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/auth': typeof AuthRoute
+  '/ajustes': typeof AuthenticatedAjustesRoute
+  '/ayuda': typeof AuthenticatedAyudaRoute
+  '/caja': typeof AuthenticatedCajaRoute
+  '/clientes': typeof AuthenticatedClientesRoute
+  '/dashboard': typeof AuthenticatedDashboardRoute
+  '/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/kds': typeof AuthenticatedKdsRoute
+  '/mesas': typeof AuthenticatedMesasRoute
+  '/usuarios': typeof AuthenticatedUsuariosRoute
+  '/ventas': typeof AuthenticatedVentasRoute
+  '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
+  '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
+  '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
+  '/menu/productos': typeof AuthenticatedMenuProductosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
+  '/auth': typeof AuthRoute
+  '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
+  '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
+  '/_authenticated/caja': typeof AuthenticatedCajaRoute
+  '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/_authenticated/kds': typeof AuthenticatedKdsRoute
+  '/_authenticated/mesas': typeof AuthenticatedMesasRoute
+  '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
+  '/_authenticated/ventas': typeof AuthenticatedVentasRoute
+  '/_authenticated/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
+  '/_authenticated/menu/insumos': typeof AuthenticatedMenuInsumosRoute
+  '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
+  '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/ajustes'
+    | '/ayuda'
+    | '/caja'
+    | '/clientes'
+    | '/dashboard'
+    | '/domicilios'
+    | '/kds'
+    | '/mesas'
+    | '/usuarios'
+    | '/ventas'
+    | '/menu/categorias'
+    | '/menu/insumos'
+    | '/menu/modificadores'
+    | '/menu/productos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/ajustes'
+    | '/ayuda'
+    | '/caja'
+    | '/clientes'
+    | '/dashboard'
+    | '/domicilios'
+    | '/kds'
+    | '/mesas'
+    | '/usuarios'
+    | '/ventas'
+    | '/menu/categorias'
+    | '/menu/insumos'
+    | '/menu/modificadores'
+    | '/menu/productos'
+  id:
+    | '__root__'
+    | '/'
+    | '/_authenticated'
+    | '/auth'
+    | '/_authenticated/ajustes'
+    | '/_authenticated/ayuda'
+    | '/_authenticated/caja'
+    | '/_authenticated/clientes'
+    | '/_authenticated/dashboard'
+    | '/_authenticated/domicilios'
+    | '/_authenticated/kds'
+    | '/_authenticated/mesas'
+    | '/_authenticated/usuarios'
+    | '/_authenticated/ventas'
+    | '/_authenticated/menu/categorias'
+    | '/_authenticated/menu/insumos'
+    | '/_authenticated/menu/modificadores'
+    | '/_authenticated/menu/productos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
+  AuthRoute: typeof AuthRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_authenticated': {
+      id: '/_authenticated'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof AuthenticatedRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
@@ -48,22 +259,149 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/ventas': {
+      id: '/_authenticated/ventas'
+      path: '/ventas'
+      fullPath: '/ventas'
+      preLoaderRoute: typeof AuthenticatedVentasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/usuarios': {
+      id: '/_authenticated/usuarios'
+      path: '/usuarios'
+      fullPath: '/usuarios'
+      preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mesas': {
+      id: '/_authenticated/mesas'
+      path: '/mesas'
+      fullPath: '/mesas'
+      preLoaderRoute: typeof AuthenticatedMesasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/kds': {
+      id: '/_authenticated/kds'
+      path: '/kds'
+      fullPath: '/kds'
+      preLoaderRoute: typeof AuthenticatedKdsRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/domicilios': {
+      id: '/_authenticated/domicilios'
+      path: '/domicilios'
+      fullPath: '/domicilios'
+      preLoaderRoute: typeof AuthenticatedDomiciliosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/dashboard': {
+      id: '/_authenticated/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AuthenticatedDashboardRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/clientes': {
+      id: '/_authenticated/clientes'
+      path: '/clientes'
+      fullPath: '/clientes'
+      preLoaderRoute: typeof AuthenticatedClientesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/caja': {
+      id: '/_authenticated/caja'
+      path: '/caja'
+      fullPath: '/caja'
+      preLoaderRoute: typeof AuthenticatedCajaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ayuda': {
+      id: '/_authenticated/ayuda'
+      path: '/ayuda'
+      fullPath: '/ayuda'
+      preLoaderRoute: typeof AuthenticatedAyudaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/ajustes': {
+      id: '/_authenticated/ajustes'
+      path: '/ajustes'
+      fullPath: '/ajustes'
+      preLoaderRoute: typeof AuthenticatedAjustesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/menu/productos': {
+      id: '/_authenticated/menu/productos'
+      path: '/menu/productos'
+      fullPath: '/menu/productos'
+      preLoaderRoute: typeof AuthenticatedMenuProductosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/menu/modificadores': {
+      id: '/_authenticated/menu/modificadores'
+      path: '/menu/modificadores'
+      fullPath: '/menu/modificadores'
+      preLoaderRoute: typeof AuthenticatedMenuModificadoresRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/menu/insumos': {
+      id: '/_authenticated/menu/insumos'
+      path: '/menu/insumos'
+      fullPath: '/menu/insumos'
+      preLoaderRoute: typeof AuthenticatedMenuInsumosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/menu/categorias': {
+      id: '/_authenticated/menu/categorias'
+      path: '/menu/categorias'
+      fullPath: '/menu/categorias'
+      preLoaderRoute: typeof AuthenticatedMenuCategoriasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
   }
 }
 
+interface AuthenticatedRouteRouteChildren {
+  AuthenticatedAjustesRoute: typeof AuthenticatedAjustesRoute
+  AuthenticatedAyudaRoute: typeof AuthenticatedAyudaRoute
+  AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
+  AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
+  AuthenticatedKdsRoute: typeof AuthenticatedKdsRoute
+  AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
+  AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
+  AuthenticatedVentasRoute: typeof AuthenticatedVentasRoute
+  AuthenticatedMenuCategoriasRoute: typeof AuthenticatedMenuCategoriasRoute
+  AuthenticatedMenuInsumosRoute: typeof AuthenticatedMenuInsumosRoute
+  AuthenticatedMenuModificadoresRoute: typeof AuthenticatedMenuModificadoresRoute
+  AuthenticatedMenuProductosRoute: typeof AuthenticatedMenuProductosRoute
+}
+
+const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
+  AuthenticatedAjustesRoute: AuthenticatedAjustesRoute,
+  AuthenticatedAyudaRoute: AuthenticatedAyudaRoute,
+  AuthenticatedCajaRoute: AuthenticatedCajaRoute,
+  AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
+  AuthenticatedKdsRoute: AuthenticatedKdsRoute,
+  AuthenticatedMesasRoute: AuthenticatedMesasRoute,
+  AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
+  AuthenticatedVentasRoute: AuthenticatedVentasRoute,
+  AuthenticatedMenuCategoriasRoute: AuthenticatedMenuCategoriasRoute,
+  AuthenticatedMenuInsumosRoute: AuthenticatedMenuInsumosRoute,
+  AuthenticatedMenuModificadoresRoute: AuthenticatedMenuModificadoresRoute,
+  AuthenticatedMenuProductosRoute: AuthenticatedMenuProductosRoute,
+}
+
+const AuthenticatedRouteRouteWithChildren =
+  AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
+  AuthRoute: AuthRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
