@@ -32,6 +32,41 @@ const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color
   kiosko: { label: "Kiosko", icon: Monitor, color: "bg-purple-500 text-white" },
 };
 
+function printComanda(o: {
+  ticket: number;
+  header: string;
+  items: { name: string; qty: number }[];
+  customer: string;
+  notes: string;
+  address: string;
+  phone: string;
+  user_name: string;
+  created_at: string;
+}) {
+  const w = window.open("", "_blank", "width=380,height=600");
+  if (!w) return;
+  const rows = o.items.map((i) => `<tr><td style="padding:4px 0">${i.qty} ×</td><td style="padding:4px 0">${i.name}</td></tr>`).join("");
+  w.document.write(`<!doctype html><html><head><title>Comanda #${o.ticket}</title>
+  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px}h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}</style></head>
+  <body>
+    <h1>COMANDA #${o.ticket}</h1>
+    <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <div class="muted">Cajero: ${o.user_name}</div>
+    <hr/>
+    <h2>${o.header}</h2>
+    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    ${o.address ? `<div>Dir: ${o.address}</div>` : ""}
+    ${o.phone ? `<div>Tel: ${o.phone}</div>` : ""}
+    <hr/>
+    <table>${rows}</table>
+    <hr/>
+    ${o.notes ? `<div><b>Notas:</b> ${o.notes}</div>` : ""}
+    <div class="muted" style="margin-top:8px">*** ENVIAR A COCINA ***</div>
+    <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),300)}</script>
+  </body></html>`);
+  w.document.close();
+}
+
 interface Props {
   orderType: OrderType;
   tableId?: string | null;
