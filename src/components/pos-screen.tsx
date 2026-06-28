@@ -33,8 +33,8 @@ function comandaHTML(o: {
   user_name: string; created_at: string;
 }) {
   const rows = o.items.map((i) => `<tr><td style="padding:4px 0">${i.qty} ×</td><td style="padding:4px 0">${i.name}</td></tr>`).join("");
-  return `<!doctype html><html><head><title>Comanda #${o.ticket}</title>
-  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}</style></head>
+  return `<!doctype html><html><head><title> </title>
+  <style>@page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}html,body{width:80mm}body{font-family:monospace;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000}h1{font-size:16px;margin:0 0 4px}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:6px 0}.muted{color:#222;font-size:11px}</style></head>
   <body>
     <h1>COMANDA #${o.ticket}</h1>
     <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
@@ -62,8 +62,8 @@ function ticketHTML(o: {
   const rows = o.items
     .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
-  return `<!doctype html><html><head><title>Ticket #${o.ticket}</title>
-  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  return `<!doctype html><html><head><title> </title>
+  <style>@page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}html,body{width:80mm}body{font-family:monospace;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000}h1{font-size:15px;margin:0 0 4px;text-align:center}h2{font-size:13px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:6px 0}.muted{color:#222;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
   <body>
     <h1>Heladería Goloso</h1>
     <div class="muted" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
@@ -92,8 +92,8 @@ function precuentaHTML(o: {
   const rows = o.items
     .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
-  return `<!doctype html><html><head><title>Precuenta</title>
-  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:16px;margin:0 0 4px;text-align:center}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  return `<!doctype html><html><head><title> </title>
+  <style>@page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}html,body{width:80mm}body{font-family:monospace;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000}h1{font-size:15px;margin:0 0 4px;text-align:center}h2{font-size:13px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:6px 0}.muted{color:#222;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
   <body>
     <h1>PRECUENTA</h1>
     <div class="muted" style="text-align:center">${new Date().toLocaleString("es-CO")}</div>
@@ -371,20 +371,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
 
 
-      // Imprimir comanda automáticamente al guardar la venta
-      printComanda({
-        ticket: sale.ticket_number,
-        header,
-        items: cart,
-        customer,
-        notes,
-        address: orderType === "domicilio" ? address : "",
-        phone: orderType === "domicilio" ? phone : "",
-        user_name: profile?.full_name ?? user.email ?? "",
-        created_at: sale.created_at,
-      });
-
-      // Liberar mesa al cobrar
+      // 1) Pago ya registrado arriba. 2) Liberar mesa
       if (orderType === "mesa" && tableId) {
         await supabase
           .from("restaurant_tables")
@@ -393,22 +380,12 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      // Imprimir ticket final automáticamente
-      printTicketFinal({
-        ticket: sale.ticket_number,
-        header,
-        items: cart,
-        subtotal,
-        tax,
-        deliveryFee,
-
-        total: Number(sale.total),
-        payment_method: sale.payment_method,
-        customer,
-        user_name: profile?.full_name ?? user.email ?? "",
-        created_at: sale.created_at,
-      });
-
+      // 3) Limpiar estado de la pantalla
+      const snapshotItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
+      const snapshotCustomer = customer;
+      const snapshotNotes = notes;
+      const snapshotAddress = address;
+      const snapshotPhone = phone;
       setCart([]);
       setCustomer("");
       setNotes("");
@@ -422,7 +399,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
 
       toast.success(`Venta #${sale.ticket_number} registrada · imprimiendo…`);
 
-      // Volver al panel principal según el canal, sin bloquear con modal
+      // 4) Redireccionar inmediatamente al panel principal
       if (orderType === "mesa") {
         navigate({ to: "/mesas" });
       } else if (orderType === "llevar") {
@@ -430,6 +407,36 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       } else if (orderType === "domicilio") {
         navigate({ to: "/domicilio" });
       }
+
+      // 5) Disparar impresión en segundo plano (no bloquea la navegación)
+      setTimeout(() => {
+        printComanda({
+          ticket: sale.ticket_number,
+          header,
+          items: snapshotItems,
+          customer: snapshotCustomer,
+          notes: snapshotNotes,
+          address: orderType === "domicilio" ? snapshotAddress : "",
+          phone: orderType === "domicilio" ? snapshotPhone : "",
+          user_name: profile?.full_name ?? user.email ?? "",
+          created_at: sale.created_at,
+        });
+        setTimeout(() => {
+          printTicketFinal({
+            ticket: sale.ticket_number,
+            header,
+            items: snapshotItems,
+            subtotal,
+            tax,
+            deliveryFee,
+            total: Number(sale.total),
+            payment_method: sale.payment_method,
+            customer: snapshotCustomer,
+            user_name: profile?.full_name ?? user.email ?? "",
+            created_at: sale.created_at,
+          });
+        }, 400);
+      }, 0);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al cobrar");
     } finally {
@@ -526,18 +533,21 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      // Imprimir comanda en una ventana de impresión
-      printComanda({
-        ticket: sale.ticket_number,
-        header,
-        items: cart,
-        customer,
-        notes,
-        address: orderType === "domicilio" ? address : "",
-        phone: orderType === "domicilio" ? phone : "",
-        user_name: profile?.full_name ?? user.email ?? "",
-        created_at: sale.created_at,
-      });
+      // Imprimir comanda en segundo plano (no bloquea la UI)
+      const snap = cart.map((l) => ({ name: l.name, qty: l.qty }));
+      setTimeout(() => {
+        printComanda({
+          ticket: sale.ticket_number,
+          header,
+          items: snap,
+          customer,
+          notes,
+          address: orderType === "domicilio" ? address : "",
+          phone: orderType === "domicilio" ? phone : "",
+          user_name: profile?.full_name ?? user.email ?? "",
+          created_at: sale.created_at,
+        });
+      }, 0);
 
       // No vaciamos el carrito: queda visible para poder cobrar de inmediato
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
