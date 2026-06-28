@@ -235,11 +235,38 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
     }
   }
   async function remove(id: string) { await supabase.from("printers").delete().eq("id", id); qc.invalidateQueries({ queryKey: ["printers"] }); }
+  const [localUrl, setLocalUrl] = useState<string>(() => {
+    if (typeof window === "undefined") return "";
+    try { return window.localStorage.getItem("LOCAL_PRINT_URL") ?? ""; } catch { return ""; }
+  });
+  function saveLocalUrl() {
+    try {
+      if (localUrl.trim()) window.localStorage.setItem("LOCAL_PRINT_URL", localUrl.trim());
+      else window.localStorage.removeItem("LOCAL_PRINT_URL");
+      toast.success(localUrl.trim() ? "Impresión silenciosa activada" : "Impresión silenciosa desactivada");
+    } catch { toast.error("No se pudo guardar"); }
+  }
+  async function testLocal() {
+    const url = localUrl.trim();
+    if (!url) return toast.error("Ingresa la URL primero");
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "comanda", header: "PRUEBA", items: [{ name: "Test", qty: 1 }] }),
+      });
+      if (res.ok) toast.success("Servidor de impresión OK");
+      else toast.error(`Servidor respondió ${res.status}`);
+    } catch (e) {
+      toast.error("No se pudo conectar al servidor local");
+    }
+  }
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>Impresoras térmicas</CardTitle>
         {!disabled && (
+
           <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
             <DialogTrigger asChild><Button onClick={() => setEdit({ port: 9100, platform: "Windows", area: "caja", active: true })}><Plus className="h-4 w-4 mr-1" /> Agregar</Button></DialogTrigger>
             <DialogContent>
@@ -281,7 +308,22 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
         )}
       </CardHeader>
       <CardContent className="p-0">
+        <div className="border-b p-4 space-y-3 bg-muted/30">
+          <div className="font-medium text-sm">Impresión silenciosa (sin diálogo del navegador)</div>
+          <p className="text-xs text-muted-foreground">
+            Para evitar que aparezca la ventana de impresión de Chrome, ejecuta el servidor local <code className="bg-background px-1 rounded">print-server</code> en la PC con la térmica e ingresa su URL aquí. Si lo dejas vacío, el sistema usa el diálogo del navegador como respaldo.
+          </p>
+          <div className="flex gap-2">
+            <Input value={localUrl} onChange={(e) => setLocalUrl(e.target.value)} placeholder="http://localhost:3001/print" />
+            <Button variant="outline" onClick={testLocal}>Probar</Button>
+            <Button onClick={saveLocalUrl}>Guardar</Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Alternativa sin servidor: abre Chrome con <code className="bg-background px-1 rounded">--kiosk-printing</code> y configura la térmica como impresora predeterminada del sistema.
+          </p>
+        </div>
         <Table>
+
           <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>IP:Puerto</TableHead><TableHead>Plataforma</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
             {data.map((p) => (
