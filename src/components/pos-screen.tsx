@@ -745,11 +745,27 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           <div className="border-t pt-3">
             <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
             <div className="grid grid-cols-2 gap-2">
-              {methods.map((m: { id: string; name: string }) => (
-                <Button key={m.id} disabled={paying || cart.length === 0 || !openSession} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
-                  {m.name}
-                </Button>
-              ))}
+              {methods.map((m: { id: string; name: string }) => {
+                const isCash = m.name.toLowerCase().includes("efectivo");
+                return (
+                  <Button
+                    key={m.id}
+                    disabled={paying || cart.length === 0 || !openSession}
+                    onClick={() => {
+                      if (isCash) {
+                        setCashReceived("");
+                        setCashDialogOpen(true);
+                      } else {
+                        pay(m.name);
+                      }
+                    }}
+                    variant={isCash ? "default" : "secondary"}
+                  >
+                    {isCash && <Banknote className="h-4 w-4 mr-1" />}
+                    {m.name}
+                  </Button>
+                );
+              })}
             </div>
           </div>
         </CardContent>
