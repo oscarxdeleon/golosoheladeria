@@ -111,6 +111,26 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
+        <SidebarGroup>
+          <SidebarGroupLabel>Pedidos</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {orden.map((i) => (
+                <SidebarMenuItem key={i.to}>
+                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                    <Link to={i.to}>
+                      <i.icon />
+                      <span>{i.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+
+
         <Collapsible defaultOpen={menuOpenDefault} className="group/collapsible">
           <SidebarGroup>
             <CollapsibleTrigger asChild>
