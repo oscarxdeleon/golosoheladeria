@@ -1,15 +1,15 @@
 {
   "name": "goloso-print-server",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Servidor local de impresión silenciosa para la impresora térmica del POS Heladería Goloso",
   "type": "module",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "test-print": "node -e \"fetch('http://localhost:3001/test').then(r=>r.json()).then(console.log)\""
   },
-  "dependencies": {
+  "optionalDependencies": {
     "escpos": "^3.0.0-alpha.6",
-    "escpos-usb": "^3.0.0-alpha.4",
-    "escpos-network": "^3.0.0-alpha.4"
+    "escpos-usb": "^3.0.0-alpha.4"
   }
 }
