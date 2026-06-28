@@ -680,6 +680,54 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      close_cash_session: {
+        Args: { _closing_notes?: string; _counted_amount: number }
+        Returns: {
+          closed_at: string | null
+          closing_notes: string | null
+          counted_amount: number | null
+          created_at: string
+          difference: number | null
+          expected_amount: number | null
+          id: string
+          opened_at: string
+          opening_amount: number
+          opening_notes: string | null
+          status: string
+          user_id: string
+          user_name: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      get_active_cash_session: {
+        Args: never
+        Returns: {
+          closed_at: string | null
+          closing_notes: string | null
+          counted_amount: number | null
+          created_at: string
+          difference: number | null
+          expected_amount: number | null
+          id: string
+          opened_at: string
+          opening_amount: number
+          opening_notes: string | null
+          status: string
+          user_id: string
+          user_name: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]

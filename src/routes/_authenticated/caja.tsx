@@ -52,17 +52,15 @@ function CajaPage() {
   const [closingNotes, setClosingNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // verificarEstadoCaja: consulta la caja abierta del usuario actual
   const { data: current } = useQuery({
     queryKey: ["cash-session-open", user?.id],
     enabled: !!user,
+    refetchOnWindowFocus: true,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("cash_sessions")
-        .select("*")
-        .eq("user_id", user!.id)
-        .eq("status", "open")
-        .maybeSingle();
-      return data as CashSession | null;
+      const { data, error } = await supabase.rpc("get_active_cash_session");
+      if (error) throw error;
+      return (data as CashSession | null) ?? null;
     },
   });
 
@@ -127,21 +125,24 @@ function CajaPage() {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase
-        .rpc("open_cash_session", {
-          _opening_amount: amount,
-          _opening_notes: openingNotes || undefined,
-          _user_name: profile?.full_name ?? user.email ?? "Cajero",
-        });
+      // abrirCaja: la RPC valida que no haya otra abierta y devuelve el registro
+      const { data, error } = await supabase.rpc("open_cash_session", {
+        _opening_amount: amount,
+        _opening_notes: openingNotes || undefined,
+        _user_name: profile?.full_name ?? user.email ?? "Cajero",
+      });
       if (error) throw error;
+      const session = data as CashSession;
 
-      qc.setQueryData(["cash-session-open", user.id], data as CashSession);
-      toast.success(`Caja abierta con ${formatMoney(data.opening_amount)}`);
+      qc.setQueryData(["cash-session-open", user.id], session);
+      toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
-      await qc.invalidateQueries({ queryKey: ["cash-session-open"] });
-      await qc.invalidateQueries({ queryKey: ["cash-sessions-history"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["cash-session-open"] }),
+        qc.invalidateQueries({ queryKey: ["cash-sessions-history"] }),
+      ]);
     } catch (e) {
       console.error("openSession", e);
       toast.error(e instanceof Error ? e.message : "Error al abrir caja");
@@ -160,24 +161,21 @@ function CajaPage() {
     setSaving(true);
     try {
       const counted = Number(countedAmount) || 0;
-      const { error } = await supabase
-        .from("cash_sessions")
-        .update({
-          status: "closed",
-          closed_at: new Date().toISOString(),
-          counted_amount: counted,
-          expected_amount: expected,
-          difference: counted - expected,
-          closing_notes: closingNotes || null,
-        })
-        .eq("id", current.id);
+      // cerrarCaja: actualiza el registro activo y guarda monto final
+      const { data, error } = await supabase.rpc("close_cash_session", {
+        _counted_amount: counted,
+        _closing_notes: closingNotes || undefined,
+      });
       if (error) throw error;
-      toast.success("Caja cerrada");
+      qc.setQueryData(["cash-session-open", user?.id], null);
+      toast.success(`Caja cerrada. Diferencia ${formatMoney((data as CashSession)?.difference ?? 0)}`);
       setCloseDialog(false);
       setCountedAmount("");
       setClosingNotes("");
-      qc.invalidateQueries({ queryKey: ["cash-session-open"] });
-      qc.invalidateQueries({ queryKey: ["cash-sessions-history"] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["cash-session-open"] }),
+        qc.invalidateQueries({ queryKey: ["cash-sessions-history"] }),
+      ]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al cerrar caja");
     } finally {
