@@ -197,7 +197,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   );
 }
 
-interface Printer { id: string; name: string; ip: string; port: number; platform: string; area: string; active: boolean; }
+interface Printer { id: string; name: string; ip: string | null; port: number; platform: string; area: string; active: boolean; }
 function ImpresorasTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const [edit, setEdit] = useState<Partial<Printer> | null>(null);
