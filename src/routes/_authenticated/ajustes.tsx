@@ -57,7 +57,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
   });
   const [s, setS] = useState<Settings | null>(null);
   useEffect(() => { if (settings) setS(settings); }, [settings]);
