@@ -85,8 +85,6 @@ export function PublicOrder({
           table_id: tableId ?? null,
           subtotal,
           total: subtotal,
-          discount: 0,
-          tax: 0,
           delivery_fee: 0,
           payment_method: "Pendiente",
           customer_name: customerName || null,
@@ -99,10 +97,10 @@ export function PublicOrder({
       const items = cart.map((l) => ({
         sale_id: sale.id,
         product_id: l.product_id,
-        name: l.name,
+        product_name: l.name,
         unit_price: l.unit_price,
         qty: l.qty,
-        line_total: l.unit_price * l.qty,
+        subtotal: l.unit_price * l.qty,
       }));
       const ins = await supabase.from("sale_items").insert(items);
       if (ins.error) throw ins.error;
