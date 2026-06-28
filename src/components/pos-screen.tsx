@@ -33,8 +33,8 @@ function comandaHTML(o: {
   user_name: string; created_at: string;
 }) {
   const rows = o.items.map((i) => `<tr><td style="padding:4px 0">${i.qty} ×</td><td style="padding:4px 0">${i.name}</td></tr>`).join("");
-  return `<!doctype html><html><head><title>Comanda #${o.ticket}</title>
-  <style>body{font-family:monospace;font-size:13px;padding:10px;width:280px;margin:0}h1{font-size:18px;margin:0 0 4px}h2{font-size:15px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:8px 0}.muted{color:#444;font-size:11px}</style></head>
+  return `<!doctype html><html><head><title> </title>
+  <style>@page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}html,body{width:80mm}body{font-family:monospace;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000}h1{font-size:16px;margin:0 0 4px}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:6px 0}.muted{color:#222;font-size:11px}</style></head>
   <body>
     <h1>COMANDA #${o.ticket}</h1>
     <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
