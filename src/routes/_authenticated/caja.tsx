@@ -93,7 +93,10 @@ function CajaPage() {
     queryFn: async () => {
       const { data, error } = await supabase.rpc("get_active_cash_session");
       if (error) throw error;
-      return (data as CashSession | null) ?? null;
+      const session = (data as CashSession | null) ?? null;
+      // Compositetype NULL puede llegar como objeto con campos null
+      if (!session || !session.id || session.status !== "open") return null;
+      return session;
     },
   });
 
