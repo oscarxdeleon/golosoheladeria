@@ -432,12 +432,24 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            {methods.map((m: { id: string; name: string }) => (
-              <Button key={m.id} disabled={paying || cart.length === 0 || !openSession} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
-                {m.name}
-              </Button>
-            ))}
+          <Button
+            disabled={paying || cart.length === 0}
+            onClick={saveComanda}
+            variant="outline"
+            className="w-full border-primary text-primary hover:bg-primary/10"
+          >
+            <Save className="h-4 w-4 mr-1" /> Guardar y enviar a cocina / KDS
+          </Button>
+
+          <div className="border-t pt-3">
+            <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
+            <div className="grid grid-cols-2 gap-2">
+              {methods.map((m: { id: string; name: string }) => (
+                <Button key={m.id} disabled={paying || cart.length === 0 || !openSession} onClick={() => pay(m.name)} variant={m.name === "Efectivo" ? "default" : "secondary"}>
+                  {m.name}
+                </Button>
+              ))}
+            </div>
           </div>
         </CardContent>
       </Card>
