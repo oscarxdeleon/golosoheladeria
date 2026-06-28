@@ -14,12 +14,12 @@ import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
+import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
 import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kds'
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
-import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
 import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
@@ -51,6 +51,11 @@ const AuthenticatedUsuariosRoute = AuthenticatedUsuariosRouteImport.update({
   path: '/usuarios',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedPosRoute = AuthenticatedPosRouteImport.update({
+  id: '/pos',
+  path: '/pos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMesasRoute = AuthenticatedMesasRouteImport.update({
   id: '/mesas',
   path: '/mesas',
@@ -74,11 +79,6 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
   id: '/clientes',
   path: '/clientes',
-  getParentRoute: () => AuthenticatedRouteRoute,
-} as any)
-const AuthenticatedCajaRoute = AuthenticatedCajaRouteImport.update({
-  id: '/caja',
-  path: '/caja',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedAyudaRoute = AuthenticatedAyudaRouteImport.update({
@@ -121,12 +121,12 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
-  '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
@@ -139,12 +139,12 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
-  '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
@@ -159,12 +159,12 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
-  '/_authenticated/caja': typeof AuthenticatedCajaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
   '/_authenticated/kds': typeof AuthenticatedKdsRoute
   '/_authenticated/mesas': typeof AuthenticatedMesasRoute
+  '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
   '/_authenticated/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
@@ -179,12 +179,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/ajustes'
     | '/ayuda'
-    | '/caja'
     | '/clientes'
     | '/dashboard'
     | '/domicilios'
     | '/kds'
     | '/mesas'
+    | '/pos'
     | '/usuarios'
     | '/ventas'
     | '/menu/categorias'
@@ -197,12 +197,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/ajustes'
     | '/ayuda'
-    | '/caja'
     | '/clientes'
     | '/dashboard'
     | '/domicilios'
     | '/kds'
     | '/mesas'
+    | '/pos'
     | '/usuarios'
     | '/ventas'
     | '/menu/categorias'
@@ -216,12 +216,12 @@ export interface FileRouteTypes {
     | '/auth'
     | '/_authenticated/ajustes'
     | '/_authenticated/ayuda'
-    | '/_authenticated/caja'
     | '/_authenticated/clientes'
     | '/_authenticated/dashboard'
     | '/_authenticated/domicilios'
     | '/_authenticated/kds'
     | '/_authenticated/mesas'
+    | '/_authenticated/pos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
     | '/_authenticated/menu/categorias'
@@ -273,6 +273,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedUsuariosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/pos': {
+      id: '/_authenticated/pos'
+      path: '/pos'
+      fullPath: '/pos'
+      preLoaderRoute: typeof AuthenticatedPosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/mesas': {
       id: '/_authenticated/mesas'
       path: '/mesas'
@@ -306,13 +313,6 @@ declare module '@tanstack/react-router' {
       path: '/clientes'
       fullPath: '/clientes'
       preLoaderRoute: typeof AuthenticatedClientesRouteImport
-      parentRoute: typeof AuthenticatedRouteRoute
-    }
-    '/_authenticated/caja': {
-      id: '/_authenticated/caja'
-      path: '/caja'
-      fullPath: '/caja'
-      preLoaderRoute: typeof AuthenticatedCajaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/ayuda': {
@@ -363,12 +363,12 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAjustesRoute: typeof AuthenticatedAjustesRoute
   AuthenticatedAyudaRoute: typeof AuthenticatedAyudaRoute
-  AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
   AuthenticatedKdsRoute: typeof AuthenticatedKdsRoute
   AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
+  AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVentasRoute: typeof AuthenticatedVentasRoute
   AuthenticatedMenuCategoriasRoute: typeof AuthenticatedMenuCategoriasRoute
@@ -380,12 +380,12 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAjustesRoute: AuthenticatedAjustesRoute,
   AuthenticatedAyudaRoute: AuthenticatedAyudaRoute,
-  AuthenticatedCajaRoute: AuthenticatedCajaRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
   AuthenticatedKdsRoute: AuthenticatedKdsRoute,
   AuthenticatedMesasRoute: AuthenticatedMesasRoute,
+  AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVentasRoute: AuthenticatedVentasRoute,
   AuthenticatedMenuCategoriasRoute: AuthenticatedMenuCategoriasRoute,

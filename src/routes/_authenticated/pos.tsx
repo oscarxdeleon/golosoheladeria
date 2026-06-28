@@ -20,7 +20,7 @@ import {
 
 import { TicketPreview } from "@/components/ticket-preview";
 
-export const Route = createFileRoute("/_authenticated/caja")({
+export const Route = createFileRoute("/_authenticated/pos")({
   head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
   component: CajaPage,
 });
@@ -29,7 +29,7 @@ interface Category { id: string; name: string; sort_order: number; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
 
-function CajaPage() {
+function POSPage() {
   const qc = useQueryClient();
   const { user, profile } = useAuth();
   const [activeCat, setActiveCat] = useState<string>("all");
