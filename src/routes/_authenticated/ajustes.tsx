@@ -207,9 +207,8 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
   });
   async function save() {
     const name = edit?.name?.trim();
-    const ip = edit?.ip?.trim();
     if (!name) return toast.error("El nombre es obligatorio");
-    if (!ip) return toast.error("La IP es obligatoria");
+    const ip = edit?.ip?.trim() || null;
     const payload = {
       name,
       ip,
