@@ -361,10 +361,15 @@ export type Database = {
         Row: {
           created_at: string
           customer_name: string | null
+          delivery_address: string | null
+          delivery_fee: number
+          delivery_phone: string | null
           id: string
           notes: string | null
+          order_type: string
           payment_method: string
           subtotal: number
+          table_id: string | null
           ticket_number: number
           total: number
           user_id: string
@@ -373,10 +378,15 @@ export type Database = {
         Insert: {
           created_at?: string
           customer_name?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_phone?: string | null
           id?: string
           notes?: string | null
+          order_type?: string
           payment_method: string
           subtotal?: number
+          table_id?: string | null
           ticket_number?: number
           total?: number
           user_id: string
@@ -385,16 +395,29 @@ export type Database = {
         Update: {
           created_at?: string
           customer_name?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_phone?: string | null
           id?: string
           notes?: string | null
+          order_type?: string
           payment_method?: string
           subtotal?: number
+          table_id?: string | null
           ticket_number?: number
           total?: number
           user_id?: string
           user_name?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "sales_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       settings: {
         Row: {

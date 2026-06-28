@@ -1,0 +1,6 @@
+ALTER TABLE public.sales 
+  ADD COLUMN IF NOT EXISTS order_type TEXT NOT NULL DEFAULT 'mesa',
+  ADD COLUMN IF NOT EXISTS table_id UUID REFERENCES public.restaurant_tables(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS delivery_address TEXT,
+  ADD COLUMN IF NOT EXISTS delivery_phone TEXT,
+  ADD COLUMN IF NOT EXISTS delivery_fee NUMERIC NOT NULL DEFAULT 0;
