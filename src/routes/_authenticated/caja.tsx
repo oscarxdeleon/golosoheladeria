@@ -93,6 +93,20 @@ function CajaPage() {
     },
   });
 
+  // Mesas ocupadas (pedidos sin cobrar)
+  const { data: occupiedTables = [] } = useQuery({
+    queryKey: ["occupied-tables"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("restaurant_tables")
+        .select("id,number,label")
+        .eq("active", true)
+        .eq("status", "occupied");
+      return data ?? [];
+    },
+    refetchInterval: 10000,
+  });
+
   const expected = useMemo(
     () => (current ? Number(current.opening_amount) + Number(cashSales) : 0),
     [current, cashSales],
