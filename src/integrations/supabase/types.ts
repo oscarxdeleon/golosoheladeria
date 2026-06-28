@@ -125,6 +125,57 @@ export type Database = {
         }
         Relationships: []
       }
+      inventory_movements: {
+        Row: {
+          created_at: string
+          id: string
+          item_type: string
+          movement_type: string
+          product_id: string | null
+          quantity: number
+          reason: string | null
+          supply_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_type: string
+          movement_type: string
+          product_id?: string | null
+          quantity: number
+          reason?: string | null
+          supply_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_type?: string
+          movement_type?: string
+          product_id?: string | null
+          quantity?: number
+          reason?: string | null
+          supply_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inventory_movements_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inventory_movements_supply_id_fkey"
+            columns: ["supply_id"]
+            isOneToOne: false
+            referencedRelation: "supplies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modifier_groups: {
         Row: {
           created_at: string
@@ -245,9 +296,12 @@ export type Database = {
           created_at: string
           id: string
           image_url: string | null
+          min_stock: number
           name: string
           price: number
           sku: string | null
+          stock: number
+          track_stock: boolean
         }
         Insert: {
           active?: boolean
@@ -255,9 +309,12 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          min_stock?: number
           name: string
           price?: number
           sku?: string | null
+          stock?: number
+          track_stock?: boolean
         }
         Update: {
           active?: boolean
@@ -265,9 +322,12 @@ export type Database = {
           created_at?: string
           id?: string
           image_url?: string | null
+          min_stock?: number
           name?: string
           price?: number
           sku?: string | null
+          stock?: number
+          track_stock?: boolean
         }
         Relationships: [
           {

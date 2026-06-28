@@ -63,6 +63,7 @@ const menu = [
   { to: "/menu/productos", label: "Productos", icon: Package },
   { to: "/menu/insumos", label: "Insumos", icon: Boxes },
   { to: "/menu/modificadores", label: "Grupos de modificadores", icon: Layers },
+  { to: "/inventario", label: "Inventario y stock", icon: Boxes },
 ];
 
 const admin = [

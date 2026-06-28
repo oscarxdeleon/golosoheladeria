@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -13,7 +13,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
@@ -58,6 +58,8 @@ function AjustesPage() {
 
 function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
   const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
     queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
@@ -76,48 +78,60 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
       schedules: s.schedules as unknown as never,
     }).eq("id", 1);
     if (error) return toast.error(error.message);
-    toast.success("Guardado");
+    toast.success("Cambios guardados");
     qc.invalidateQueries({ queryKey: ["settings"] });
+  }
+
+  async function handleLogoFile(file: File) {
+    if (!s) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `logo-${Date.now()}.${ext}`;
+      const up = await supabase.storage.from("logos").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
+      if (up.error) { toast.error(up.error.message); return; }
+      const { data: signed } = await supabase.storage.from("logos").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+      if (signed?.signedUrl) setS({ ...s, logo_url: signed.signedUrl });
+      toast.success("Logo subido — recuerda guardar cambios");
+    } finally {
+      setUploading(false);
+    }
   }
 
   return (
     <Card>
       <CardContent className="space-y-4 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <div><Label>Nombre</Label><Input disabled={false} value={s.business_name} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
-          <div><Label>NIT</Label><Input disabled={false} value={s.nit ?? ""} onChange={(e) => setS({ ...s, nit: e.target.value })} /></div>
-          <div><Label>Dirección</Label><Input disabled={false} value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
-          <div><Label>Ciudad</Label><Input disabled={false} value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
-          <div><Label>Teléfono</Label><Input disabled={false} value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
+          <div><Label>Nombre</Label><Input value={s.business_name} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
+          <div><Label>NIT</Label><Input value={s.nit ?? ""} onChange={(e) => setS({ ...s, nit: e.target.value })} /></div>
+          <div><Label>Dirección</Label><Input value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
+          <div><Label>Ciudad</Label><Input value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
+          <div><Label>Teléfono</Label><Input value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
           <div className="md:col-span-2">
             <Label>Logo</Label>
             <div className="flex items-center gap-3">
-              {s.logo_url && (
+              {s.logo_url ? (
                 <img src={s.logo_url} alt="logo" className="h-16 w-16 rounded-lg border object-contain bg-white" />
+              ) : (
+                <div className="h-16 w-16 rounded-lg border bg-muted flex items-center justify-center text-xs text-muted-foreground">Sin logo</div>
               )}
-              <Input
-                disabled={false}
+              <input
+                ref={fileRef}
                 type="file"
-                accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp"
-                onChange={async (e) => {
-                  const file = e.target.files?.[0];
-                  if (!file) return;
-                  const ext = file.name.split(".").pop()?.toLowerCase() || "png";
-                  const path = `logo-${Date.now()}.${ext}`;
-                  const up = await supabase.storage.from("logos").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
-                  if (up.error) return toast.error(up.error.message);
-                  const { data: signed } = await supabase.storage.from("logos").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
-                  if (signed?.signedUrl) setS({ ...s, logo_url: signed.signedUrl });
-                  toast.success("Logo subido");
-                }}
+                accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp,.jpg,.jpeg,.webp"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ""; }}
               />
+              <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                <Upload className="h-4 w-4 mr-1" />{uploading ? "Subiendo…" : (s.logo_url ? "Cambiar logo" : "Subir logo")}
+              </Button>
               {s.logo_url && (
-                <Button type="button" variant="outline" size="sm" onClick={() => setS({ ...s, logo_url: null })}>
+                <Button type="button" variant="ghost" size="sm" onClick={() => setS({ ...s, logo_url: null })}>
                   Quitar
                 </Button>
               )}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">PNG o BMP recomendado. Se guarda al pulsar "Guardar cambios".</p>
+            <p className="text-xs text-muted-foreground mt-1">Formatos: PNG, BMP, JPG o WEBP. Recuerda pulsar "Guardar cambios".</p>
           </div>
         </div>
 
@@ -228,6 +242,16 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
                       <SelectContent><SelectItem value="caja">Caja</SelectItem><SelectItem value="cocina">Cocina</SelectItem><SelectItem value="barra">Barra</SelectItem></SelectContent>
                     </Select>
                   </div>
+                </div>
+                <div className="rounded-md bg-muted/50 border p-2 text-xs text-muted-foreground space-y-1">
+                  <div className="font-medium text-foreground">Compatibilidad de impresión</div>
+                  <div>• <b>Windows:</b> instala el driver de la térmica como impresora predeterminada del navegador y los tickets se envían por diálogo de impresión.</div>
+                  <div>• <b>Android:</b> usa una app puente (p.ej. RawBT) o asigna la térmica como impresora predeterminada del sistema; los tickets se envían vía hoja de impresión del navegador.</div>
+                  <div>• La IP/puerto se guarda para impresoras de red ESC/POS.</div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Switch checked={edit?.active ?? true} onCheckedChange={(v) => setEdit({ ...edit, active: v })} />
+                  <Label>Activa</Label>
                 </div>
               </div>
               <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
