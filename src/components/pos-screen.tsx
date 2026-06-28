@@ -621,14 +621,24 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             </div>
           </div>
 
-          <Button
-            disabled={paying || cart.length === 0}
-            onClick={saveComanda}
-            variant="outline"
-            className="w-full border-primary text-primary hover:bg-primary/10"
-          >
-            <Save className="h-4 w-4 mr-1" /> Guardar y enviar a cocina / KDS
-          </Button>
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              disabled={cart.length === 0}
+              onClick={handlePrecuenta}
+              variant="outline"
+            >
+              Precuenta
+            </Button>
+            <Button
+              disabled={paying || cart.length === 0}
+              onClick={saveComanda}
+              variant="outline"
+              className="border-primary text-primary hover:bg-primary/10"
+            >
+              <Save className="h-4 w-4 mr-1" /> Guardar / KDS
+            </Button>
+          </div>
+
 
           <div className="border-t pt-3">
             <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
