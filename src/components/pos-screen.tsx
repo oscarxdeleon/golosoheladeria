@@ -211,6 +211,74 @@ export function PosScreen({ orderType, tableId, title }: Props) {
     }
   }
 
+  async function saveComanda() {
+    if (!user) return;
+    if (cart.length === 0) return toast.error("Carrito vacío");
+    if (orderType === "domicilio" && (!address || !phone)) {
+      return toast.error("Dirección y teléfono requeridos para domicilio");
+    }
+    setPaying(true);
+    try {
+      const { data: sale, error } = await supabase
+        .from("sales")
+        .insert({
+          user_id: user.id,
+          user_name: profile?.full_name ?? user.email,
+          subtotal,
+          total,
+          payment_method: "Pendiente",
+          status: "pending",
+          printed_at: new Date().toISOString(),
+          customer_name: customer || null,
+          notes: notes || null,
+          order_type: orderType,
+          table_id: tableId ?? null,
+          delivery_address: orderType === "domicilio" ? address : null,
+          delivery_phone: orderType === "domicilio" ? phone : null,
+          delivery_fee: deliveryFee,
+        })
+        .select("id,ticket_number,created_at")
+        .single();
+      if (error) throw error;
+      const items = cart.map((l) => ({
+        sale_id: sale.id,
+        product_id: l.product_id,
+        product_name: l.name,
+        qty: l.qty,
+        unit_price: l.unit_price,
+        subtotal: l.unit_price * l.qty,
+        modifiers: [],
+      }));
+      const { error: e2 } = await supabase.from("sale_items").insert(items);
+      if (e2) throw e2;
+
+      // Imprimir comanda en una ventana de impresión
+      printComanda({
+        ticket: sale.ticket_number,
+        header,
+        items: cart,
+        customer,
+        notes,
+        address: orderType === "domicilio" ? address : "",
+        phone: orderType === "domicilio" ? phone : "",
+        user_name: profile?.full_name ?? user.email ?? "",
+        created_at: sale.created_at,
+      });
+
+      setCart([]);
+      setCustomer("");
+      setNotes("");
+      setAddress("");
+      setPhone("");
+      qc.invalidateQueries({ queryKey: ["kds-pending"] });
+      qc.invalidateQueries({ queryKey: ["sales"] });
+      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar");
+    } finally {
+      setPaying(false);
+    }
+
   const meta = TYPE_META[orderType];
   const Icon = meta.icon;
   const header = title ?? (mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
