@@ -152,10 +152,17 @@ function ProductosPage() {
       <Card>
         <CardContent className="p-0">
           <Table>
-            <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Categoría</TableHead><TableHead className="text-right">Precio</TableHead><TableHead>Estado</TableHead><TableHead></TableHead></TableRow></TableHeader>
+            <TableHeader><TableRow><TableHead className="w-16">Foto</TableHead><TableHead>Nombre</TableHead><TableHead>Categoría</TableHead><TableHead className="text-right">Precio</TableHead><TableHead>Estado</TableHead><TableHead></TableHead></TableRow></TableHeader>
             <TableBody>
               {products.map((p) => (
                 <TableRow key={p.id}>
+                  <TableCell>
+                    <div className="h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                      {p.image_url
+                        ? <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
+                        : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">{p.name.charAt(0)}</div>}
+                    </div>
+                  </TableCell>
                   <TableCell className="font-medium">{p.name}</TableCell>
                   <TableCell>{cats.find((c) => c.id === p.category_id)?.name ?? "—"}</TableCell>
                   <TableCell className="text-right">{formatMoney(p.price)}</TableCell>
@@ -170,7 +177,8 @@ function ProductosPage() {
                   </TableCell>
                 </TableRow>
               ))}
-              {products.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Sin productos</TableCell></TableRow>}
+              {products.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin productos</TableCell></TableRow>}
+
             </TableBody>
           </Table>
         </CardContent>
