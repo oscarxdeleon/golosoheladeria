@@ -150,7 +150,7 @@ export function PublicOrder({
             </div>
           )}
           <div className="flex-1 leading-tight">
-            <div className="font-display text-lg">{settings?.name ?? "Heladería Goloso"}</div>
+            <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}</div>
             <div className="text-xs text-muted-foreground">
               {source === "kiosk" && "Auto-pedido · Kiosko"}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
