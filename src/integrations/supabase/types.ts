@@ -714,21 +714,38 @@ export type Database = {
       }
       profiles: {
         Row: {
+          active: boolean
+          branch_id: string | null
           created_at: string
+          email: string | null
           full_name: string
           id: string
         }
         Insert: {
+          active?: boolean
+          branch_id?: string | null
           created_at?: string
+          email?: string | null
           full_name: string
           id: string
         }
         Update: {
+          active?: boolean
+          branch_id?: string | null
           created_at?: string
+          email?: string | null
           full_name?: string
           id?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       purchase_items: {
         Row: {
