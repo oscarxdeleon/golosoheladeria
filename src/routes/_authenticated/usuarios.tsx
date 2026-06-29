@@ -304,12 +304,23 @@ function UserForm({
         </div>
         <div className="space-y-2">
           <Label>{isEdit ? "Nueva contraseña (opcional)" : "Contraseña *"}</Label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={isEdit ? "Dejar vacío para no cambiar" : "Mínimo 6 caracteres"}
-          />
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={isEdit ? "Dejar vacío para no cambiar" : "Mínimo 6 caracteres"}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
