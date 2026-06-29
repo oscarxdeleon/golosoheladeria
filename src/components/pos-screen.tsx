@@ -729,7 +729,9 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
       total: tot,
       customer,
       user_name: profile?.full_name ?? user?.email ?? "",
+      branding,
     });
+
   }
 
 
