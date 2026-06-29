@@ -26,13 +26,16 @@ export function PublicOrder({
   source,
   tableId,
   tableLabel,
+  branchSlug,
   readOnly = false,
 }: {
   source: Source;
   tableId?: string;
   tableLabel?: string;
+  branchSlug?: string;
   readOnly?: boolean;
 }) {
+
   const qc = useQueryClient();
   const [activeCat, setActiveCat] = useState("all");
   const [cart, setCart] = useState<CartLine[]>([]);
