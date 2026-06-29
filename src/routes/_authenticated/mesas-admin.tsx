@@ -255,19 +255,44 @@ function TableDialog({
     const n = Number(number);
     if (!n || n < 1) return toast.error("Número de mesa inválido");
     setSaving(true);
+    const _branchId = branchId === "none" ? null : branchId;
+    const _roomId = roomId === "none" ? null : roomId;
+
+    // Pre-validar duplicado en la misma sede + sala
+    let dupQ = supabase
+      .from("restaurant_tables")
+      .select("id")
+      .eq("number", n)
+      .eq("active", true);
+    dupQ = _branchId ? dupQ.eq("branch_id", _branchId) : dupQ.is("branch_id", null);
+    dupQ = _roomId ? dupQ.eq("room_id", _roomId) : dupQ.is("room_id", null);
+    if (table) dupQ = dupQ.neq("id", table.id);
+    const { data: dup } = await dupQ.maybeSingle();
+    if (dup) {
+      setSaving(false);
+      return toast.error("Esta mesa ya existe en esta sala");
+    }
+
     const payload = {
       number: n,
       label: label.trim() || null,
       seats: Math.max(1, Number(seats) || 1),
-      room_id: roomId === "none" ? null : roomId,
-      branch_id: branchId === "none" ? null : branchId,
+      room_id: _roomId,
+      branch_id: _branchId,
     };
     const op = table
       ? supabase.from("restaurant_tables").update(payload).eq("id", table.id)
       : supabase.from("restaurant_tables").insert(payload);
     const { error } = await op;
     setSaving(false);
-    if (error) return toast.error(error.message);
+    if (error) {
+      if (error.code === "23505") return toast.error("Esta mesa ya existe en esta sala");
+      return toast.error(error.message);
+    }
+    toast.success(table ? "Mesa actualizada" : "Mesa creada");
+    setOpen(false);
+    onSaved();
+  }
     toast.success(table ? "Mesa actualizada" : "Mesa creada");
     setOpen(false);
     onSaved();
