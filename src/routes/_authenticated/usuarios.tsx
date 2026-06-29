@@ -264,6 +264,7 @@ function UserForm({
   const [branch_id, setBranchId] = useState<string | null>(initial?.branch_id ?? branches.find((b) => b.is_main)?.id ?? null);
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSave() {
     if (!full_name.trim()) return toast.error("El nombre es obligatorio");
