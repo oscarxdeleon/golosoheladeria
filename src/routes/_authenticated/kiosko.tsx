@@ -21,7 +21,6 @@ function KioskoAdmin() {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const link = `${origin}/kiosk`;
   const [copied, setCopied] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   const { data: orders = [] } = useQuery({
     queryKey: ["kiosk-orders"],
