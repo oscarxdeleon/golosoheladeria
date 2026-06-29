@@ -695,7 +695,18 @@ export function PublicOrder({
           </div>
         </div>
       )}
-
+      <ModifiersModal
+        product={
+          modalProduct
+            ? { id: modalProduct.id, name: modalProduct.name, price: Number(modalProduct.price), modifier_group_ids: modalProduct.modifier_group_ids ?? [] }
+            : null
+        }
+        onClose={() => setModalProduct(null)}
+        onConfirm={(mods, unitExtra) => {
+          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra);
+          setModalProduct(null);
+        }}
+      />
     </div>
   );
 }
