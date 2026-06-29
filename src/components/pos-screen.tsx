@@ -1122,14 +1122,23 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
           {!meseroMode && (
             <div className="border-t pt-3">
-              <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
+              <div className="text-xs text-muted-foreground mb-2">
+                Cobrar ahora:
+                {!effectiveSessionId && (
+                  <span className="ml-2 text-destructive">· Abre caja para cobrar</span>
+                )}
+                {effectiveSessionId && cart.length === 0 && (
+                  <span className="ml-2">· Agrega productos para activar</span>
+                )}
+              </div>
               <div className="grid grid-cols-2 gap-2">
                 {methods.map((m: { id: string; name: string }) => {
                   const isCash = m.name.toLowerCase().includes("efectivo");
+                  const isDisabled = paying || cart.length === 0 || !effectiveSessionId;
                   return (
                     <Button
                       key={m.id}
-                      disabled={paying || cart.length === 0 || !openSession}
+                      disabled={isDisabled}
                       onClick={() => {
                         if (isCash) {
                           setCashReceived("");
@@ -1139,6 +1148,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                         }
                       }}
                       variant={isCash ? "default" : "secondary"}
+                      className={isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
                     >
                       {isCash && <Banknote className="h-4 w-4 mr-1" />}
                       {m.name}
@@ -1148,6 +1158,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               </div>
             </div>
           )}
+
         </CardContent>
       </Card>
 
