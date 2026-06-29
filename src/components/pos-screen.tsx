@@ -403,6 +403,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       return data;
     },
   });
+  // Sesión de caja a nivel de SEDE (la usa la tablet de meseros para heredar el turno_id de la caja matriz)
+  const { session: branchSession } = useBranchCashSession(activeBranchId);
+  const effectiveSessionId = openSession?.id ?? branchSession?.id ?? null;
   const { data: mesa } = useQuery({
     queryKey: ["restaurant_tables", tableId],
     enabled: !!tableId,
