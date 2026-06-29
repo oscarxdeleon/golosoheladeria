@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
@@ -257,33 +257,36 @@ function precuentaHTML(o: {
   </body></html>`;
 }
 
-async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
-  let printerIp: string | undefined;
-  let printerPort: number | undefined;
+async function fetchCajaPrinter(): Promise<{ ip?: string; port?: number }> {
   try {
-    const { data: cajaPrinters } = await supabase
+    const { data } = await supabase
       .from("printers")
       .select("ip,port,active,area")
       .eq("area", "caja")
       .eq("active", true)
       .limit(1);
-    const p = cajaPrinters?.[0];
-    if (p) {
-      printerIp = p.ip ?? undefined;
-      printerPort = p.port ?? undefined;
-    }
+    const p = data?.[0];
+    return { ip: p?.ip ?? undefined, port: p?.port ?? undefined };
   } catch (e) {
-    console.warn("[print] no se pudo consultar impresora de caja para comanda", e);
+    console.warn("[print] no se pudo consultar impresora de caja", e);
+    return {};
   }
+}
+
+async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
+  const { ip, port } = await fetchCajaPrinter();
   const payload: PrintPayload = {
     type: "comanda", ticket: o.ticket, header: o.header,
     items: o.items, customer: o.customer, notes: o.notes,
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
-    printer_ip: printerIp, printer_port: printerPort,
+    printer_ip: ip, printer_port: port,
   };
-  // Silencioso: si no hay servidor local de impresión, NO abre el diálogo
-  // nativo del navegador para no interrumpir el flujo del mesero/cajero.
-  printSilent(payload, comandaHTML(o), { silent: true });
+  // Esperamos al envío al servidor local; si falla, NO abrimos diálogo del navegador.
+  const ok = await sendToLocalPrinter(payload);
+  if (!ok) {
+    console.warn("[print] comanda no enviada al servidor local — verifica LOCAL_PRINT_URL y print-server");
+  }
+  return ok;
 }
 async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
   // Impresión SILENCIOSA: intenta enviar el ticket al servidor local de
@@ -888,26 +891,41 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      // Imprimir comanda en segundo plano (no bloquea la UI)
-      const snap = cart.map((l) => ({ name: l.name, qty: l.qty }));
-      setTimeout(() => {
-        printComanda({
-          ticket: sale.ticket_number,
-          header,
-          items: snap,
-          customer,
-          notes,
-          address: orderType === "domicilio" ? address : "",
-          phone: orderType === "domicilio" ? phone : "",
-          user_name: profile?.full_name ?? user.email ?? "",
-          created_at: sale.created_at,
-        });
-      }, 0);
+      // Snapshot inmediato de los productos (con modificadores y notas) y
+      // datos de la orden — NO depende de estado de React que aún no se haya
+      // re-renderizado. Esto evita la race condition donde la primera
+      // impresión se disparaba sin payload completo.
+      const printSnapshot = {
+        ticket: sale.ticket_number,
+        header,
+        items: cart.map((l) => ({
+          name: l.name + (l.modifiers && l.modifiers.length
+            ? " (" + l.modifiers.map((m: { name: string; qty?: number }) => m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name).join(", ") + ")"
+            : ""),
+          qty: l.qty,
+        })),
+        customer,
+        notes,
+        address: orderType === "domicilio" ? address : "",
+        phone: orderType === "domicilio" ? phone : "",
+        user_name: profile?.full_name ?? user.email ?? "",
+        created_at: sale.created_at,
+      };
 
+      // 1º DB ya guardada · 2º KDS realtime (invalidate) · 3º Impresión física.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
-      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+
+      // Esperamos el envío a la impresora ANTES de limpiar el estado y
+      // navegar — así el primer clic siempre dispara la impresión.
+      const printed = await printComanda(printSnapshot);
+      if (printed) {
+        toast.success(`Comanda #${sale.ticket_number} enviada a cocina, KDS e impresora`);
+      } else {
+        toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+      }
+
 
       // Limpiar estado local y regresar al panel principal
       setCart([]);
@@ -1185,7 +1203,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               variant={meseroMode ? "default" : "outline"}
               className={meseroMode ? "h-14 text-lg" : "border-primary text-primary hover:bg-primary/10"}
             >
-              <Save className="h-4 w-4 mr-1" /> {meseroMode ? "Guardar y enviar a KDS" : "Guardar / KDS"}
+              <Save className="h-4 w-4 mr-1" /> {paying ? "Enviando…" : (meseroMode ? "Guardar y enviar a KDS" : "Guardar / KDS")}
             </Button>
           </div>
 
