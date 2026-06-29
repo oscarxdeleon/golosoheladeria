@@ -266,12 +266,30 @@ function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   // nativo del navegador para no interrumpir el flujo del cajero.
   printSilent(payload, comandaHTML(o), { silent: true });
 }
-function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
+async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
   // El ticket de venta se imprime SIEMPRE desde el HTML del POS para que el
   // físico sea idéntico al visual (logo, iconos, tipografías, totales).
   // Se evita el render ESC/POS genérico del servidor local de impresión.
   printHTMLFallback(ticketHTML(o));
+  // Apertura física del cajón monedero — SOLO en tickets de venta.
+  // Las comandas de cocina jamás disparan este pulso.
+  try {
+    const { data: cajaPrinters } = await supabase
+      .from("printers")
+      .select("ip,port,open_drawer_on_print,active,area")
+      .eq("area", "caja")
+      .eq("active", true)
+      .eq("open_drawer_on_print", true)
+      .limit(1);
+    const p = cajaPrinters?.[0];
+    if (p) {
+      void kickCashDrawer({ printer_ip: p.ip ?? undefined, printer_port: p.port ?? undefined });
+    }
+  } catch (e) {
+    console.warn("[drawer] no se pudo consultar config de impresora", e);
+  }
 }
+
 function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
   const payload: PrintPayload = {
     type: "precuenta", header: o.header, items: o.items,
