@@ -161,13 +161,19 @@ export function PublicOrder({
 
   function validate(): string | null {
     if (cart.length === 0) return "Agrega productos primero";
-    if (source === "online_menu") {
-      if (!customerName.trim()) return "Ingresa tu nombre";
-    }
+    const errs: typeof fieldErrors = {};
     if (isDelivery) {
-      if (!phone.trim()) return "El teléfono es obligatorio para domicilios";
-      if (!address.trim()) return "La dirección es obligatoria";
-      if (!neighborhood.trim()) return "El barrio es obligatorio";
+      if (!customerName.trim()) errs.name = true;
+      if (!phone.trim()) errs.phone = true;
+      if (!address.trim()) errs.address = true;
+      if (!neighborhood.trim()) errs.neighborhood = true;
+      setFieldErrors(errs);
+      if (errs.name || errs.phone || errs.address || errs.neighborhood) {
+        return "Este campo es obligatorio para envíos a domicilio";
+      }
+    } else {
+      setFieldErrors({});
+      if (source === "online_menu" && !customerName.trim()) return "Ingresa tu nombre";
     }
     if (payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
