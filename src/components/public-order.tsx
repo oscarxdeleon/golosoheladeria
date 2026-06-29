@@ -88,7 +88,7 @@ export function PublicOrder({
 
   function validate(): string | null {
     if (cart.length === 0) return "Agrega productos primero";
-    if (source !== "table_qr") {
+    if (source === "online_menu") {
       if (!customerName.trim()) return "Ingresa tu nombre";
     }
     if (isDelivery) {
