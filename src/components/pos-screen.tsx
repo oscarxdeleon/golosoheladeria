@@ -811,51 +811,55 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <Button
-              disabled={cart.length === 0}
-              onClick={handlePrecuenta}
-              variant="outline"
-            >
-              Precuenta
-            </Button>
+          <div className={meseroMode ? "grid grid-cols-1 gap-2" : "grid grid-cols-2 gap-2"}>
+            {!meseroMode && (
+              <Button
+                disabled={cart.length === 0}
+                onClick={handlePrecuenta}
+                variant="outline"
+              >
+                Precuenta
+              </Button>
+            )}
             <Button
               disabled={paying || cart.length === 0}
               onClick={saveComanda}
-              variant="outline"
-              className="border-primary text-primary hover:bg-primary/10"
+              variant={meseroMode ? "default" : "outline"}
+              className={meseroMode ? "h-14 text-lg" : "border-primary text-primary hover:bg-primary/10"}
             >
-              <Save className="h-4 w-4 mr-1" /> Guardar / KDS
+              <Save className="h-4 w-4 mr-1" /> {meseroMode ? "Guardar y enviar a KDS" : "Guardar / KDS"}
             </Button>
           </div>
 
 
-          <div className="border-t pt-3">
-            <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
-            <div className="grid grid-cols-2 gap-2">
-              {methods.map((m: { id: string; name: string }) => {
-                const isCash = m.name.toLowerCase().includes("efectivo");
-                return (
-                  <Button
-                    key={m.id}
-                    disabled={paying || cart.length === 0 || !openSession}
-                    onClick={() => {
-                      if (isCash) {
-                        setCashReceived("");
-                        setCashDialogOpen(true);
-                      } else {
-                        pay(m.name);
-                      }
-                    }}
-                    variant={isCash ? "default" : "secondary"}
-                  >
-                    {isCash && <Banknote className="h-4 w-4 mr-1" />}
-                    {m.name}
-                  </Button>
-                );
-              })}
+          {!meseroMode && (
+            <div className="border-t pt-3">
+              <div className="text-xs text-muted-foreground mb-2">Cobrar ahora:</div>
+              <div className="grid grid-cols-2 gap-2">
+                {methods.map((m: { id: string; name: string }) => {
+                  const isCash = m.name.toLowerCase().includes("efectivo");
+                  return (
+                    <Button
+                      key={m.id}
+                      disabled={paying || cart.length === 0 || !openSession}
+                      onClick={() => {
+                        if (isCash) {
+                          setCashReceived("");
+                          setCashDialogOpen(true);
+                        } else {
+                          pay(m.name);
+                        }
+                      }}
+                      variant={isCash ? "default" : "secondary"}
+                    >
+                      {isCash && <Banknote className="h-4 w-4 mr-1" />}
+                      {m.name}
+                    </Button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
         </CardContent>
       </Card>
 
