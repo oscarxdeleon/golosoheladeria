@@ -527,6 +527,7 @@ interface Branch {
   is_main: boolean; inherits_main_catalog: boolean;
   neighborhood?: string | null; nit?: string | null;
   ticket_header?: string | null; ticket_footer?: string | null;
+  report_email?: string | null;
 }
 
 
@@ -726,6 +727,7 @@ function EditarSedeTab() {
         nit: form.nit ?? null,
         ticket_header: form.ticket_header ?? null,
         ticket_footer: form.ticket_footer ?? null,
+        report_email: form.report_email ?? null,
       };
       const { error } = await supabase.from("branches").update(payload as never).eq("id", selectedId);
       if (error) {
@@ -789,7 +791,14 @@ function EditarSedeTab() {
               <div className="md:col-span-2">
                 <Label>Teléfono / Celular</Label>
                 <Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="311 448 6300" />
-              </div>
+            </div>
+
+            <div>
+              <Label>Correo Electrónico para Reportes</Label>
+              <p className="text-xs text-muted-foreground mb-2">A esta dirección se enviará automáticamente el reporte de cada cierre de caja de esta sede.</p>
+              <Input type="email" value={form.report_email ?? ""} onChange={(e) => setForm({ ...form, report_email: e.target.value })} placeholder="reportes@goloso.com" />
+            </div>
+
             </div>
 
             <div>
