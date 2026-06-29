@@ -192,32 +192,34 @@ function ticketHTML(o: {
     <div class="biz-meta">${SVG.idCard}<span>NIT: ${b.nit ?? "—"}</span></div>
     <div class="biz-meta">${SVG.pin}<span>${b.address ?? ""}</span></div>
     <div class="biz-meta">${SVG.phone}<span>${b.phone ?? ""}</span></div>
-    <hr class="divider"/>
-    <div class="ticket-no">TICKET DE VENTA <span class="num">No. ${ticketNo}</span></div>
-    <hr class="divider"/>
+    <div class="dots"></div>
+    <div class="ticket-no">TICKET DE VENTA<span class="num">No. ${ticketNo}</span></div>
     <div class="info">
       <div class="label">${SVG.cal} Fecha:</div><div class="val">${fmtDate(o.created_at)}</div>
       <div class="label">${SVG.user} Cliente:</div><div class="val">${o.customer || "Mostrador"}</div>
       ${o.address ? `<div class="label">${SVG.pin} Dirección:</div><div class="val">${o.address}</div>` : ""}
       ${o.phone ? `<div class="label">${SVG.phone} Teléfono:</div><div class="val">${o.phone}</div>` : ""}
-      <div class="label">${SVG.card} Forma de Pago:</div><div class="val">${o.payment_method}</div>
+      <div class="label">${SVG.card} F. Pago:</div><div class="val">${o.payment_method}</div>
     </div>
     <table class="tbl">
       <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="sub-row"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>
+    <div class="sub-row first"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>
     ${o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
-    <div class="total-row"><span class="lbl">TOTAL:</span><span class="val">${money(o.total)}</span></div>
+    <div class="total-row"><span class="lbl">TOTAL</span><span class="val">${money(o.total)}</span></div>
     <div class="cash">
-      <div class="blk">${SVG.bill}<b>Recibido:</b><span>${money(received)}</span></div>
-      <div class="blk"><b>Cambio:</b><span>${money(change)}</span></div>
+      <div class="ln"><span class="lf">${SVG.bill} Recibido:</span><span class="rv">${money(received)}</span></div>
+      <div class="ln"><span class="lf">${SVG.bill} Cambio:</span><span class="rv">${money(change)}</span></div>
     </div>
+    <div class="deco">🍦 · 🍧 · 🍨 · 🍦 · 🍧</div>
     <div class="thanks">${b.ticket_footer ? b.ticket_footer : "¡Gracias por Preferirnos!"}</div>
-    <div class="deco">♥ · 🍦 · ♥ · 🍧 · ♥ · 🍦 · ♥</div>
+    <div class="deco">♥ · 🍦 · ♥ · 🍧 · ♥</div>
+    <div class="deco-bot">— HELADERÍA GOLOSO —</div>
   </body></html>`;
 }
+
 
 
 function precuentaHTML(o: {
