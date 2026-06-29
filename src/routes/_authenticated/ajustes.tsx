@@ -523,11 +523,12 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
 }
 
 interface Branch {
-  id: string; name: string; address: string | null; phone: string | null; city: string | null;
+  id: string; name: string; slug?: string | null; address: string | null; phone: string | null; city: string | null;
   is_main: boolean; inherits_main_catalog: boolean;
   neighborhood?: string | null; nit?: string | null;
   ticket_header?: string | null; ticket_footer?: string | null;
 }
+
 
 function SucursalesTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
