@@ -78,6 +78,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "google", content: "notranslate" },
+      { httpEquiv: "Content-Language", content: "es" },
       { title: "Heladería Goloso POS — Punto de venta" },
       { name: "description", content: "Sistema POS para Heladería Goloso: catálogo, caja, tickets imprimibles, historial de ventas y gestión de empleados." },
       { name: "author", content: "Heladería Goloso" },
