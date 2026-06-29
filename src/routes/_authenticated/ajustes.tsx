@@ -580,6 +580,8 @@ interface Branch {
   ticket_header?: string | null; ticket_footer?: string | null;
   report_email?: string | null;
   online_menu_url?: string | null;
+  logo_url?: string | null;
+  email?: string | null;
 }
 
 
