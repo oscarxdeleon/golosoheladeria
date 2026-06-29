@@ -173,6 +173,57 @@ function ProductosPage() {
     setEditing({ ...editing, recipe: list });
   }
 
+  function openDuplicate(p: Product) {
+    setDuplicating(p);
+    setDupName(`${p.name} - Copia`);
+    setDupCopyModsRecipe(true);
+    const ids = p.available_branch_ids;
+    const main = branches.find((b) => b.is_main);
+    const sub = branches.find((b) => !b.is_main);
+    setDupMain(main ? (!ids || ids.length === 0 || ids.includes(main.id)) : false);
+    setDupBranch(sub ? (!ids || ids.length === 0 || ids.includes(sub.id)) : false);
+  }
+
+  async function confirmDuplicate() {
+    if (!duplicating) return;
+    if (!dupName.trim()) return toast.error("Nombre requerido");
+    const targetBranchIds: string[] = [];
+    const main = branches.find((b) => b.is_main);
+    const sub = branches.find((b) => !b.is_main);
+    if (dupMain && main) targetBranchIds.push(main.id);
+    if (dupBranch && sub) targetBranchIds.push(sub.id);
+    if (branches.length > 0 && targetBranchIds.length === 0) {
+      return toast.error("Selecciona al menos una sede destino");
+    }
+    setDupSaving(true);
+    const src = duplicating;
+    const payload = {
+      name: dupName.trim(),
+      price: src.price,
+      category_id: src.category_id ?? null,
+      sku: null,
+      active: src.active ?? true,
+      image_url: src.image_url ?? null,
+      allow_negative_stock: !!src.allow_negative_stock,
+      sold_by_weight: !!src.sold_by_weight,
+      show_in_online: src.show_in_online ?? true,
+      is_favorite: !!src.is_favorite,
+      available_branch_ids: targetBranchIds.length > 0 ? targetBranchIds : null,
+      modifier_group_ids: dupCopyModsRecipe ? (src.modifier_group_ids ?? null) : null,
+      recipe: dupCopyModsRecipe ? (src.recipe ?? []) : [],
+    };
+    const { error } = await supabase.from("products").insert(payload as never);
+    setDupSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Producto duplicado correctamente");
+    setDuplicating(null);
+    qc.invalidateQueries({ queryKey: ["products-all"] });
+    qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["public-products"] });
+  }
+
+
+
   const branchSelected = (bid: string) => {
     const ids = editing?.available_branch_ids;
     if (!ids || ids.length === 0) return true; // null = todas
