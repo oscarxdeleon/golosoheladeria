@@ -149,6 +149,7 @@ function TabletShell() {
         <Link to="/" className="underline">Acceso completo</Link>
       </footer>
     </div>
+    </BranchCashGuard>
   );
 }
 
