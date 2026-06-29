@@ -145,7 +145,7 @@ function reciboDomicilioHTML(o: { ticket: number; customer: string; address: str
 
 function OnlineOrdersPage() {
   const qc = useQueryClient();
-  const { activeBranchId } = useBranch();
+  const { activeBranchId, activeBranch } = useBranch();
   const { session: cashSession } = useBranchCashSession(activeBranchId);
   const [payOrder, setPayOrder] = useState<SaleRow | null>(null);
   const [paying, setPaying] = useState(false);
@@ -213,7 +213,7 @@ function OnlineOrdersPage() {
       customer: o.customer_name ?? "", notes: o.notes ?? "",
       address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
       created_at: o.created_at,
-    }));
+    }), { silent: true });
 
     // 2) Recibo para el domiciliario (solo si es domicilio o hay dirección)
     if (o.order_type === "domicilio" || o.delivery_address) {
@@ -243,7 +243,7 @@ function OnlineOrdersPage() {
           total: Number(o.total ?? 0),
           payment_method: o.payment_method ?? "Pendiente",
           created_at: o.created_at,
-        }));
+        }), { silent: true });
       }, 600);
     }
 
@@ -312,12 +312,17 @@ function OnlineOrdersPage() {
     setPaying(false);
     if (error) return toast.error(error.message);
 
-    // Ticket de venta digital → WhatsApp del cliente
+    // Ticket de venta digital → WhatsApp del cliente (nombre tomado de la sede activa)
     if (payOrder.customer_phone) {
-      const negocio = (settings as { business_name?: string } | null | undefined)?.business_name ?? "Heladería Goloso";
+      const baseName = (settings as { business_name?: string } | null | undefined)?.business_name ?? "Heladería Goloso";
+      const sedeName = activeBranch?.name ?? "";
+      const negocio = sedeName ? `${baseName} - ${sedeName}` : baseName;
+      const sedeAddr = activeBranch?.address ? `\n${activeBranch.address}` : "";
+      const sedePhoneTxt = activeBranch?.phone ? `\nTel: ${activeBranch.phone}` : "";
       const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
       const msg = [
-        `🍦 *${negocio}*`,
+        `🍦 *${negocio}*${sedeAddr}${sedePhoneTxt}`,
+        ``,
         `Ticket de venta #${payOrder.ticket_number}`,
         new Date().toLocaleString("es-CO"),
         "",
