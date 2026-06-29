@@ -163,6 +163,7 @@ function ModPage() {
                   {isAdmin && (
                     <div className="flex gap-1">
                       <Button size="sm" variant="outline" onClick={() => setModEdit({ group_id: g.id, active: true })}><Plus className="h-3 w-3 mr-1" /> Mod</Button>
+                      <Button size="icon" variant="ghost" title="Duplicar" onClick={() => openDuplicate(g)}><Copy className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setGroupEdit(g)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className="text-destructive" onClick={() => removeGroup(g.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
