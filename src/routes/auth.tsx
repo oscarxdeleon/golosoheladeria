@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import logoAsset from "@/assets/logo-goloso.png.asset.json";
 
 import { useEffect, useState } from "react";
