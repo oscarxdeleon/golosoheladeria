@@ -36,7 +36,9 @@ const BOLD_OFF = ESC + "E\x00";
 const ALIGN_L = ESC + "a\x00";
 const ALIGN_C = ESC + "a\x01";
 const SIZE_NORMAL = GS + "!" + "\x00";
-const SIZE_DOUBLE = GS + "!" + "\x11";
+const SIZE_DOUBLE_H = GS + "!" + "\x01"; // doble alto
+const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
+const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 const CUT = GS + "V\x00";
 const FEED = (n) => "\n".repeat(n);
 const LINE = "-".repeat(42) + "\n";
@@ -50,24 +52,59 @@ function row(left, right, width = 42) {
 
 function buildRaw(p) {
   let out = INIT;
-  const title =
-    p.type === "comanda"
-      ? `COMANDA #${p.ticket ?? ""}`
-      : p.type === "precuenta"
-        ? "PRECUENTA"
-        : p.type === "comprobante"
-          ? `PEDIDO #${p.ticket ?? ""}`
-          : "Heladería Goloso";
 
-  out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + title + "\n" + BOLD_OFF + SIZE_NORMAL;
+  if (p.type === "comanda") {
+    // ===== COMANDA: letras grandes, negrita, alta legibilidad =====
+    out += ALIGN_C + BOLD_ON;
+    if (p.business_name) out += SIZE_DOUBLE + p.business_name.toUpperCase() + "\n" + SIZE_NORMAL;
+    out += SIZE_TRIPLE + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
+    out += SIZE_NORMAL + new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
+    if (p.user_name) out += `Cajero: ${p.user_name}\n`;
+    out += BOLD_OFF + ALIGN_L + LINE;
+    if (p.header) out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + `*** ${p.header.toUpperCase()} ***\n` + BOLD_OFF + SIZE_NORMAL + ALIGN_L;
+    out += BOLD_ON;
+    if (p.customer) out += SIZE_DOUBLE_H + `Cliente: ${p.customer}\n` + SIZE_NORMAL;
+    if (p.address) out += SIZE_DOUBLE_H + `Dir: ${p.address}\n` + SIZE_NORMAL;
+    if (p.phone) out += SIZE_DOUBLE_H + `Tel: ${p.phone}\n` + SIZE_NORMAL;
+    out += BOLD_OFF + LINE;
+    for (const i of p.items || []) {
+      out += BOLD_ON + SIZE_DOUBLE + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
+      out += "-".repeat(42) + "\n";
+    }
+    if (p.notes) {
+      out += "\n" + BOLD_ON + SIZE_DOUBLE_H + "OBSERVACION:\n" + SIZE_NORMAL + BOLD_OFF;
+      out += BOLD_ON + SIZE_DOUBLE_H + String(p.notes).toUpperCase() + "\n" + SIZE_NORMAL + BOLD_OFF;
+    }
+    out += "\n" + ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "*** ENVIAR A COCINA ***\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
+    out += FEED(4) + CUT;
+    return Buffer.from(out, "binary");
+  }
+
+  const title =
+    p.type === "precuenta"
+      ? "PRECUENTA"
+      : p.type === "comprobante"
+        ? `PEDIDO #${p.ticket ?? ""}`
+        : (p.business_name || "Heladería Goloso");
+
+  out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + title.toUpperCase() + "\n" + BOLD_OFF + SIZE_NORMAL;
+  if (p.nit) out += `NIT: ${p.nit}\n`;
+  if (p.address_biz) out += `${p.address_biz}\n`;
+  if (p.phone_biz) out += `Tel: ${p.phone_biz}\n`;
+  if (p.email_biz) out += `${p.email_biz}\n`;
+  out += LINE;
+  if (p.type !== "precuenta") {
+    out += ALIGN_C + BOLD_ON + `TICKET DE VENTA  No. TV-${String(p.ticket ?? 0).padStart(6, "0")}\n` + BOLD_OFF + ALIGN_L;
+    out += LINE;
+  }
   out += new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
-  if (p.ticket && p.type !== "comanda" && p.type !== "comprobante") out += `Ticket #${p.ticket}\n`;
   if (p.user_name) out += `Cajero: ${p.user_name}\n`;
-  out += ALIGN_L + LINE;
   if (p.header) out += BOLD_ON + p.header + "\n" + BOLD_OFF;
   if (p.customer) out += `Cliente: ${p.customer}\n`;
   if (p.address) out += `Dir: ${p.address}\n`;
   if (p.phone) out += `Tel: ${p.phone}\n`;
+  out += LINE;
+  out += BOLD_ON + row("CANT  DETALLE", "TOTAL") + BOLD_OFF;
   out += LINE;
 
   for (const i of p.items || []) {
