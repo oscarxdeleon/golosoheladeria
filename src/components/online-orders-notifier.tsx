@@ -5,19 +5,22 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { sendToLocalPrinter } from "@/lib/print-client";
 
-function beep() {
+function beep(times = 1) {
   try {
     const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
     const ctx = new AC();
-    const o = ctx.createOscillator();
-    const g = ctx.createGain();
-    o.connect(g); g.connect(ctx.destination);
-    o.type = "sine"; o.frequency.value = 880;
-    g.gain.setValueAtTime(0.001, ctx.currentTime);
-    g.gain.exponentialRampToValueAtTime(0.25, ctx.currentTime + 0.02);
-    g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.5);
-    o.start(); o.stop(ctx.currentTime + 0.55);
-    setTimeout(() => ctx.close(), 800);
+    for (let i = 0; i < times; i++) {
+      const start = ctx.currentTime + i * 0.35;
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.connect(g); g.connect(ctx.destination);
+      o.type = "square"; o.frequency.value = 1040;
+      g.gain.setValueAtTime(0.0001, start);
+      g.gain.exponentialRampToValueAtTime(0.35, start + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, start + 0.28);
+      o.start(start); o.stop(start + 0.3);
+    }
+    setTimeout(() => ctx.close(), 1500 + times * 350);
   } catch { /* noop */ }
 }
 
@@ -33,11 +36,11 @@ type IncomingSale = {
 };
 
 async function autoPrintKioskOrder(saleId: string) {
-  // Cargar items + datos de impresora de caja desde la base
-  const [{ data: sale }, { data: items }, { data: settings }] = await Promise.all([
+  // Cargar venta + items. El comprobante y la comanda se envían a la MISMA
+  // impresora por defecto del POS (sin override de IP).
+  const [{ data: sale }, { data: items }] = await Promise.all([
     supabase.from("sales").select("ticket_number, subtotal, total, delivery_fee, customer_name, notes, created_at").eq("id", saleId).maybeSingle(),
     supabase.from("sale_items").select("product_name, qty, unit_price").eq("sale_id", saleId),
-    supabase.from("settings").select("cashier_printer_ip, cashier_printer_port, business_name").maybeSingle(),
   ]);
   if (!sale || !items?.length) return;
 
@@ -54,24 +57,19 @@ async function autoPrintKioskOrder(saleId: string) {
     created_at: sale.created_at ?? undefined,
   });
 
-  // 2) Comprobante de pago al cliente — segunda impresora de caja por IP
-  const s = settings as { cashier_printer_ip?: string | null; cashier_printer_port?: number | null } | null;
-  if (s?.cashier_printer_ip) {
-    void sendToLocalPrinter({
-      type: "comprobante",
-      ticket: sale.ticket_number,
-      header: "COMPROBANTE DE PEDIDO",
-      items: printItems,
-      subtotal: Number(sale.subtotal ?? 0),
-      deliveryFee: Number(sale.delivery_fee ?? 0),
-      total: Number(sale.total ?? 0),
-      customer: sale.customer_name ?? undefined,
-      created_at: sale.created_at ?? undefined,
-      printer_ip: s.cashier_printer_ip,
-      printer_port: Number(s.cashier_printer_port ?? 9100),
-      cashierMessage: "Conserve este comprobante.\nGracias por su compra.",
-    });
-  }
+  // 2) Comprobante de pago — MISMA impresora del POS (sin printer_ip)
+  void sendToLocalPrinter({
+    type: "comprobante",
+    ticket: sale.ticket_number,
+    header: "COMPROBANTE DE PEDIDO",
+    items: printItems,
+    subtotal: Number(sale.subtotal ?? 0),
+    deliveryFee: Number(sale.delivery_fee ?? 0),
+    total: Number(sale.total ?? 0),
+    customer: sale.customer_name ?? undefined,
+    created_at: sale.created_at ?? undefined,
+    cashierMessage: "Conserve este comprobante.\nGracias por su compra.",
+  });
 }
 
 export function OnlineOrdersNotifier() {
