@@ -18,8 +18,10 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Users, Trash2, QrCode, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
-import tableFree from "@/assets/table-free.png";
-import tableOccupied from "@/assets/table-occupied.png";
+import tableFreeAsset from "@/assets/mesa_libre.png.asset.json";
+import tableOccupiedAsset from "@/assets/mesa_ocupada.png.asset.json";
+const tableFree = tableFreeAsset.url;
+const tableOccupied = tableOccupiedAsset.url;
 
 export const Route = createFileRoute("/_authenticated/mesas")({
   head: () => ({ meta: [{ title: "Mesas · Goloso POS" }] }),
