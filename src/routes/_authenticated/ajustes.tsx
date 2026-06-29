@@ -195,6 +195,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
       business_name: s.business_name, nit: s.nit, address: s.address, city: s.city,
       phone: s.phone, logo_url: s.logo_url, menu_link: s.menu_link,
       schedules: s.schedules as unknown as never,
+      nequi_number: s.nequi_number, bancolombia_account: s.bancolombia_account,
     }).eq("id", 1);
     if (error) return toast.error(error.message);
     toast.success("Cambios guardados");
