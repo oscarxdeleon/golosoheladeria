@@ -213,7 +213,7 @@ function OnlineOrdersPage() {
       customer: o.customer_name ?? "", notes: o.notes ?? "",
       address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
       created_at: o.created_at,
-    }));
+    }), { silent: true });
 
     // 2) Recibo para el domiciliario (solo si es domicilio o hay dirección)
     if (o.order_type === "domicilio" || o.delivery_address) {
@@ -243,7 +243,7 @@ function OnlineOrdersPage() {
           total: Number(o.total ?? 0),
           payment_method: o.payment_method ?? "Pendiente",
           created_at: o.created_at,
-        }));
+        }), { silent: true });
       }, 600);
     }
 
