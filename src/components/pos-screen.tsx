@@ -268,26 +268,53 @@ function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   printSilent(payload, comandaHTML(o), { silent: true });
 }
 async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
-  // El ticket de venta se imprime SIEMPRE desde el HTML del POS para que el
-  // físico sea idéntico al visual (logo, iconos, tipografías, totales).
-  // Se evita el render ESC/POS genérico del servidor local de impresión.
-  printHTMLFallback(ticketHTML(o));
-  // Apertura física del cajón monedero — SOLO en tickets de venta.
-  // Las comandas de cocina jamás disparan este pulso.
+  // Impresión SILENCIOSA: intenta enviar el ticket al servidor local de
+  // impresión térmica configurado en el POS. Si no hay servidor local
+  // configurado, recurre al render HTML por iframe (último recurso).
+  // Esto evita que aparezca el diálogo de impresión del navegador cuando
+  // el cajero ya tiene su impresora térmica configurada.
+  let printerIp: string | undefined;
+  let printerPort: number | undefined;
+  let openDrawer = false;
   try {
     const { data: cajaPrinters } = await supabase
       .from("printers")
       .select("ip,port,open_drawer_on_print,active,area")
       .eq("area", "caja")
       .eq("active", true)
-      .eq("open_drawer_on_print", true)
       .limit(1);
     const p = cajaPrinters?.[0];
     if (p) {
-      void kickCashDrawer({ printer_ip: p.ip ?? undefined, printer_port: p.port ?? undefined });
+      printerIp = p.ip ?? undefined;
+      printerPort = p.port ?? undefined;
+      openDrawer = !!p.open_drawer_on_print;
     }
   } catch (e) {
-    console.warn("[drawer] no se pudo consultar config de impresora", e);
+    console.warn("[print] no se pudo consultar config de impresora", e);
+  }
+  const payload: PrintPayload = {
+    type: "ticket",
+    ticket: o.ticket,
+    header: o.header,
+    items: o.items,
+    subtotal: o.subtotal,
+    tax: o.tax,
+    deliveryFee: o.deliveryFee,
+    total: o.total,
+    payment_method: o.payment_method,
+    customer: o.customer,
+    user_name: o.user_name,
+    created_at: o.created_at,
+    printer_ip: printerIp,
+    printer_port: printerPort,
+    open_drawer: openDrawer,
+  };
+  // Si hay servidor local → impresión silenciosa directa a la térmica.
+  // Si NO hay servidor local → fallback HTML (diálogo del navegador).
+  printSilent(payload, ticketHTML(o));
+  // Apertura del cajón monedero solo si está activada en la impresora de caja.
+  if (openDrawer) {
+    void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
   }
 }
 
