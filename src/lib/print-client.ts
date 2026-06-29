@@ -116,10 +116,28 @@ export function printHTMLFallback(html: string) {
 /**
  * Intenta imprimir vía servidor local; si falla, usa el fallback HTML.
  * Es fire-and-forget: no bloquea la UI.
+ *
+ * Opciones:
+ *   silent: si es true y no hay servidor local configurado, NO abre el
+ *           diálogo nativo del navegador (evita interrumpir el flujo del
+ *           cajero). Solo muestra un aviso en consola. Recomendado para
+ *           comandas de cocina enviadas automáticamente.
  */
-export function printSilent(payload: PrintPayload, fallbackHTML: string) {
+export function printSilent(
+  payload: PrintPayload,
+  fallbackHTML: string,
+  opts: { silent?: boolean } = {},
+) {
   void (async () => {
     const ok = await sendToLocalPrinter(payload);
-    if (!ok) printHTMLFallback(fallbackHTML);
+    if (ok) return;
+    if (opts.silent) {
+      console.warn(
+        "[print] servidor local no configurado; comanda no impresa. " +
+          'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
+      );
+      return;
+    }
+    printHTMLFallback(fallbackHTML);
   })();
 }

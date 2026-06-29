@@ -187,7 +187,9 @@ function printComanda(o: Parameters<typeof comandaHTML>[0]) {
     items: o.items, customer: o.customer, notes: o.notes,
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
   };
-  printSilent(payload, comandaHTML(o));
+  // Silencioso: si no hay servidor local de impresión, NO abre el diálogo
+  // nativo del navegador para no interrumpir el flujo del cajero.
+  printSilent(payload, comandaHTML(o), { silent: true });
 }
 function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
   const payload: PrintPayload = {
