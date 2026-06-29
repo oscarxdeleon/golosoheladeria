@@ -557,6 +557,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
+      qc.invalidateQueries({ queryKey: ["kiosk-pending"] });
+      qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
 
       toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
 
