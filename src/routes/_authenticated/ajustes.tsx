@@ -81,15 +81,15 @@ function AjustesPage() {
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
           <TabsTrigger value="roles">Roles</TabsTrigger>
         </TabsList>
-        <TabsContent value="estab"><EstablecimientoTab disabled={false} /></TabsContent>
-        <TabsContent value="ticket"><TicketTab /></TabsContent>
-        <TabsContent value="suc"><SucursalesTab disabled={false} /></TabsContent>
-        <TabsContent value="sede-edit"><EditarSedeTab /></TabsContent>
-        <TabsContent value="kiosko-link"><KioskoLinkTab /></TabsContent>
-        <TabsContent value="impr"><ImpresorasTab disabled={false} /></TabsContent>
-        <TabsContent value="pagos"><PagosTab disabled={false} /></TabsContent>
-        <TabsContent value="domi"><DomicilioTab disabled={false} /></TabsContent>
-        <TabsContent value="roles"><RolesTab /></TabsContent>
+        <TabsContent value="estab"><SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="ticket"><SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="suc"><SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="sede-edit"><SectionErrorBoundary label="Editar sede"><EditarSedeTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="kiosko-link"><SectionErrorBoundary label="Link de Kiosko"><KioskoLinkTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="impr"><SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="pagos"><SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="domi"><SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="roles"><SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary></TabsContent>
       </Tabs>
     </div>
   );
