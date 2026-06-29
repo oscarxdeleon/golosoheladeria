@@ -82,19 +82,22 @@ export function OnlineOrdersNotifier() {
       const row = payload.new;
       if (seen.current.has(row.id)) return;
       seen.current.add(row.id);
-      beep();
 
       const isKiosk = row.source === "kiosk";
+      // Kiosko: triple beep para que el cajero lo escuche con claridad
+      beep(isKiosk ? 3 : 1);
+
       const title = isKiosk
-        ? `¡Nuevo Pedido desde el Kiosko! #${row.ticket_number}`
+        ? `🛎️ ¡NUEVO PEDIDO DESDE EL KIOSKO! #${row.ticket_number}`
         : `¡Nuevo pedido recibido! #${row.ticket_number}`;
 
       toast.success(title, {
         description: `${row.customer_name ?? (isKiosk ? "Kiosko" : "Cliente")} · $${Math.round(Number(row.total ?? 0)).toLocaleString("es-CO")}`,
         duration: Infinity,
+        className: isKiosk ? "border-2 border-primary shadow-2xl" : undefined,
         action: {
-          label: isKiosk ? "Ver pedidos" : "Ver y confirmar",
-          onClick: () => navigate({ to: "/pedidos-online" }),
+          label: isKiosk ? "Ver Kiosko" : "Ver y confirmar",
+          onClick: () => navigate({ to: isKiosk ? "/kiosko" : "/pedidos-online" }),
         },
       });
 
