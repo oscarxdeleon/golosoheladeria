@@ -112,38 +112,43 @@ const SVG = {
 };
 
 const TICKET_STYLES = `@page{size:80mm auto;margin:0}
-@media print{html,body{width:80mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.logo{filter:grayscale(100%) contrast(1.2)}}
+@media print{html,body{width:80mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.logo{filter:grayscale(100%) contrast(1.25)}}
 html,body{width:80mm}
 *{box-sizing:border-box}
 body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000;line-height:1.4}
-.logo-wrap{text-align:center;margin:0 0 4px}
-.logo{max-width:55mm;max-height:22mm;object-fit:contain;display:inline-block}
-.biz-name{font-size:20px;margin:4px 0 6px;text-align:center;font-weight:900;letter-spacing:.5px;text-transform:uppercase;font-family:'Arial Black','Helvetica',sans-serif}
+.logo-wrap{text-align:center;margin:0 0 6px}
+.logo{max-width:70mm;max-height:34mm;object-fit:contain;display:inline-block}
+.biz-name{font-size:26px;margin:6px 0 8px;text-align:center;font-weight:900;letter-spacing:1.2px;text-transform:uppercase;font-family:'Arial Black','Helvetica',sans-serif;line-height:1.05}
 .biz-meta{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;line-height:1.35;margin:2px 0}
 .biz-meta svg{flex-shrink:0}
-.divider{border:none;border-top:1.5px dashed #000;margin:8px 0}
-.ticket-no{text-align:center;font-weight:900;font-size:14px;letter-spacing:.5px;font-family:'Arial Black',sans-serif;text-transform:uppercase;margin:2px 0}
-.ticket-no .num{font-weight:900;font-size:14px;margin-left:2px}
-.info{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:5px;font-size:12px;margin:4px 0}
-.info .label{display:flex;align-items:center;gap:5px;font-weight:900;white-space:nowrap}
+.dots{height:8px;background-image:radial-gradient(circle, #000 1.1px, transparent 1.3px);background-size:8px 8px;background-repeat:repeat-x;background-position:0 50%;margin:8px 0}
+.ticket-no{text-align:center;font-weight:900;font-size:18px;letter-spacing:2.5px;font-family:'Impact','Oswald','Arial Black',sans-serif;text-transform:uppercase;margin:4px 0;padding:6px 0;border-top:3px double #000;border-bottom:3px double #000;line-height:1.1}
+.ticket-no .num{font-weight:900;font-size:18px;display:block;margin-top:2px;letter-spacing:3px}
+.info{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:6px;font-size:12px;margin:8px 0 4px}
+.info .label{display:flex;align-items:center;gap:5px;font-weight:900;white-space:nowrap;text-transform:uppercase;font-size:11px;letter-spacing:.3px}
 .info .val{text-align:left;word-break:break-word}
-.tbl{width:100%;border-collapse:collapse;margin-top:2px}
-.tbl thead th{font-size:11px;font-weight:900;text-transform:uppercase;padding:5px 0;border-top:1.5px solid #000;border-bottom:1.5px solid #000;font-family:'Arial Black',sans-serif}
+.tbl{width:100%;border-collapse:collapse;margin-top:4px}
+.tbl thead th{font-size:11px;font-weight:900;text-transform:uppercase;padding:6px 0;border-top:2px solid #000;border-bottom:2px solid #000;font-family:'Arial Black',sans-serif;letter-spacing:.5px}
 .tbl th.qty,.tbl td.qty{width:18%;text-align:left}
 .tbl th.det,.tbl td.det{text-align:left;padding-left:4px}
-.tbl th.tot,.tbl td.tot{width:28%;text-align:right;white-space:nowrap}
-.tbl td{padding:5px 0;font-size:12px;vertical-align:top}
-.tbl tbody tr+tr td{border-top:1px dotted #999}
-.sub-row{display:flex;justify-content:flex-end;gap:12px;font-size:12px;padding:6px 0 2px;border-top:1.5px dashed #000;margin-top:4px}
+.tbl th.tot,.tbl td.tot{width:30%;text-align:right;white-space:nowrap}
+.tbl td{padding:6px 0;font-size:12px;vertical-align:top;font-weight:700}
+.tbl td.qty{font-weight:900;font-size:13px}
+.tbl tbody tr+tr td{border-top:1px dotted #777}
+.sub-row{display:flex;justify-content:space-between;font-size:12px;padding:4px 0}
+.sub-row.first{border-top:2px dashed #000;padding-top:6px;margin-top:4px}
 .sub-row .lbl{font-weight:700;text-transform:uppercase;letter-spacing:.4px}
-.total-row{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 6px}
-.total-row .lbl{font-family:'Arial Black',sans-serif;font-weight:900;font-size:22px;letter-spacing:.5px}
-.total-row .val{font-family:'Arial Black',sans-serif;font-weight:900;font-size:26px}
-.cash{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-top:1.5px dashed #000;border-bottom:1.5px dashed #000}
-.cash .blk{display:flex;align-items:center;gap:6px}
-.cash .blk b{font-weight:900}
-.thanks{text-align:center;font-family:'Brush Script MT','Lucida Handwriting',cursive;font-style:italic;font-weight:700;font-size:18px;margin:10px 0 6px;white-space:pre-line}
-.deco{text-align:center;font-size:10px;letter-spacing:6px;margin-top:6px}`;
+.total-row{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0;padding:8px 6px;background:#000;color:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.total-row .lbl{font-family:'Arial Black',sans-serif;font-weight:900;font-size:24px;letter-spacing:1px}
+.total-row .val{font-family:'Arial Black',sans-serif;font-weight:900;font-size:30px}
+.cash{display:flex;flex-direction:column;gap:4px;font-size:13px;padding:8px 0;border-top:2px dashed #000;border-bottom:2px dashed #000;margin-top:4px}
+.cash .ln{display:flex;justify-content:space-between;align-items:center;gap:6px}
+.cash .ln .lf{display:flex;align-items:center;gap:6px;font-weight:900;text-transform:uppercase;font-size:12px;letter-spacing:.4px}
+.cash .ln .rv{font-weight:900;font-size:14px}
+.thanks{text-align:center;font-family:'Brush Script MT','Lucida Handwriting','Segoe Script',cursive;font-style:italic;font-weight:700;font-size:24px;margin:12px 0 4px;white-space:pre-line;line-height:1.15}
+.deco{text-align:center;font-size:14px;letter-spacing:4px;margin:4px 0 2px}
+.deco-bot{text-align:center;font-size:9px;letter-spacing:3px;margin-top:6px;text-transform:uppercase;font-weight:700;color:#000}`;
+
 
 function ticketHTML(o: {
   ticket: number; header: string;
@@ -187,32 +192,34 @@ function ticketHTML(o: {
     <div class="biz-meta">${SVG.idCard}<span>NIT: ${b.nit ?? "—"}</span></div>
     <div class="biz-meta">${SVG.pin}<span>${b.address ?? ""}</span></div>
     <div class="biz-meta">${SVG.phone}<span>${b.phone ?? ""}</span></div>
-    <hr class="divider"/>
-    <div class="ticket-no">TICKET DE VENTA <span class="num">No. ${ticketNo}</span></div>
-    <hr class="divider"/>
+    <div class="dots"></div>
+    <div class="ticket-no">TICKET DE VENTA<span class="num">No. ${ticketNo}</span></div>
     <div class="info">
       <div class="label">${SVG.cal} Fecha:</div><div class="val">${fmtDate(o.created_at)}</div>
       <div class="label">${SVG.user} Cliente:</div><div class="val">${o.customer || "Mostrador"}</div>
       ${o.address ? `<div class="label">${SVG.pin} Dirección:</div><div class="val">${o.address}</div>` : ""}
       ${o.phone ? `<div class="label">${SVG.phone} Teléfono:</div><div class="val">${o.phone}</div>` : ""}
-      <div class="label">${SVG.card} Forma de Pago:</div><div class="val">${o.payment_method}</div>
+      <div class="label">${SVG.card} F. Pago:</div><div class="val">${o.payment_method}</div>
     </div>
     <table class="tbl">
       <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
-    <div class="sub-row"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>
+    <div class="sub-row first"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>
     ${o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
-    <div class="total-row"><span class="lbl">TOTAL:</span><span class="val">${money(o.total)}</span></div>
+    <div class="total-row"><span class="lbl">TOTAL</span><span class="val">${money(o.total)}</span></div>
     <div class="cash">
-      <div class="blk">${SVG.bill}<b>Recibido:</b><span>${money(received)}</span></div>
-      <div class="blk"><b>Cambio:</b><span>${money(change)}</span></div>
+      <div class="ln"><span class="lf">${SVG.bill} Recibido:</span><span class="rv">${money(received)}</span></div>
+      <div class="ln"><span class="lf">${SVG.bill} Cambio:</span><span class="rv">${money(change)}</span></div>
     </div>
+    <div class="deco">🍦 · 🍧 · 🍨 · 🍦 · 🍧</div>
     <div class="thanks">${b.ticket_footer ? b.ticket_footer : "¡Gracias por Preferirnos!"}</div>
-    <div class="deco">♥ · 🍦 · ♥ · 🍧 · ♥ · 🍦 · ♥</div>
+    <div class="deco">♥ · 🍦 · ♥ · 🍧 · ♥</div>
+    <div class="deco-bot">— HELADERÍA GOLOSO —</div>
   </body></html>`;
 }
+
 
 
 function precuentaHTML(o: {
