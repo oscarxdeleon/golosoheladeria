@@ -233,6 +233,55 @@ function ModPage() {
           <DialogFooter><Button variant="outline" onClick={() => setModEdit(null)}>Cancelar</Button><Button onClick={saveMod}>Guardar</Button></DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!dupSource} onOpenChange={(o) => { if (!o) { setDupSource(null); setDupItems([]); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Duplicar Grupo de Modificadores: {dupSource?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nuevo nombre del grupo</Label>
+              <Input value={dupName} onChange={(e) => setDupName(e.target.value)} />
+            </div>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <Label>Opciones a clonar ({dupItems.length})</Label>
+                <Button size="sm" variant="outline" onClick={() => setDupItems([...dupItems, { name: "", price: 0 }])}>
+                  <Plus className="h-3 w-3 mr-1" /> Opción
+                </Button>
+              </div>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {dupItems.length === 0 && <p className="text-xs text-muted-foreground">El grupo original no tiene opciones.</p>}
+                {dupItems.map((it, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      placeholder="Nombre"
+                      value={it.name}
+                      onChange={(e) => setDupItems(dupItems.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
+                    />
+                    <Input
+                      className="w-28"
+                      type="number"
+                      placeholder="Precio"
+                      value={it.price}
+                      onChange={(e) => setDupItems(dupItems.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) } : x))}
+                    />
+                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDupItems(dupItems.filter((_, i) => i !== idx))}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDupSource(null); setDupItems([]); }} disabled={dupSaving}>Cancelar</Button>
+            <Button onClick={confirmDuplicate} disabled={dupSaving}>{dupSaving ? "Duplicando…" : "Confirmar duplicado"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
