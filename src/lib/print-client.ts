@@ -144,6 +144,9 @@ export function printSilent(
           'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
       );
       return;
+    }
+    printHTMLFallback(fallbackHTML);
+  })();
 }
 
 /**
@@ -167,6 +170,5 @@ export async function kickCashDrawer(opts: { printer_ip?: string; printer_port?:
   });
 }
 
-    printHTMLFallback(fallbackHTML);
   })();
 }
