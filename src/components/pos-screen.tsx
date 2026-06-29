@@ -752,6 +752,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   async function saveComanda() {
     if (!user) return toast.error("Inicia sesión para guardar el pedido");
+    if (!effectiveSessionId) return toast.error("No hay caja abierta en esta sede");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (!validateDelivery()) return;
     setPaying(true);
