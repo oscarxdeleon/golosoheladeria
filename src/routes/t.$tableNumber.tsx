@@ -19,19 +19,30 @@ export const Route = createFileRoute("/t/$tableNumber")({
 
 function TableOrderPage() {
   const { tableNumber } = Route.useParams();
-  const { sala } = Route.useSearch();
+  const { sede, sala } = Route.useSearch();
 
   const { data: table, isLoading } = useQuery({
-    queryKey: ["public-table", tableNumber],
+    queryKey: ["public-table", tableNumber, sede ?? null],
     queryFn: async () => {
       const n = Number(tableNumber);
       if (!n) return null;
-      const { data } = await supabase
+      // Resolver branch por slug
+      let branchId: string | null = null;
+      if (sede) {
+        const { data: b } = await supabase
+          .from("branches")
+          .select("id")
+          .eq("slug", sede)
+          .maybeSingle();
+        branchId = b?.id ?? null;
+      }
+      let q = supabase
         .from("restaurant_tables")
-        .select("id,number,label,room_id")
+        .select("id,number,label,room_id,branch_id")
         .eq("number", n)
-        .eq("active", true)
-        .maybeSingle();
+        .eq("active", true);
+      if (branchId) q = q.eq("branch_id", branchId);
+      const { data } = await q.maybeSingle();
       return data;
     },
   });
@@ -53,6 +64,7 @@ function TableOrderPage() {
       source="table_qr"
       tableId={table.id}
       tableLabel={`${baseLabel}${roomSuffix}`}
+      branchSlug={sede}
     />
   );
 }
