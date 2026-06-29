@@ -12,6 +12,7 @@ import { Label } from "@/components/ui/label";
 import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Smartphone, Landmark, ShoppingBag, Utensils, ArrowLeft } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { ModifiersModal } from "@/components/modifiers-modal";
 
 type KioskService = "llevar" | "comer_aqui";
 
