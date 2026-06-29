@@ -36,6 +36,7 @@ export function useAuth() {
   }, []);
 
   useEffect(() => {
+    if (loading) return;
     if (!user) {
       setProfile(null);
       setRoles([]);
@@ -51,13 +52,14 @@ export function useAuth() {
       ]);
       if (!alive) return;
       setProfile(p as AppProfile | null);
-      setRoles((r ?? []).map((x: { role: AppRole }) => x.role));
+      const loadedRoles = (r ?? []).map((x: { role: AppRole }) => x.role);
+      setRoles(loadedRoles.includes("admin") ? ["admin", ...loadedRoles.filter((role) => role !== "admin")] : loadedRoles);
       setRolesLoading(false);
     })();
     return () => {
       alive = false;
     };
-  }, [user]);
+  }, [user, loading]);
 
   const isAdmin = roles.includes("admin");
   const primaryRole: AppRole = roles[0] ?? "cajero";
