@@ -368,12 +368,15 @@ export type Database = {
           address: string | null
           created_at: string
           email: string | null
+          frequent_channel: string | null
           id: string
+          last_order_at: string | null
           name: string
           neighborhood: string | null
           notes: string | null
           phone: string | null
           points: number
+          total_orders: number
           total_spent: number
           updated_at: string
           visits: number
@@ -382,12 +385,15 @@ export type Database = {
           address?: string | null
           created_at?: string
           email?: string | null
+          frequent_channel?: string | null
           id?: string
+          last_order_at?: string | null
           name: string
           neighborhood?: string | null
           notes?: string | null
           phone?: string | null
           points?: number
+          total_orders?: number
           total_spent?: number
           updated_at?: string
           visits?: number
@@ -396,12 +402,15 @@ export type Database = {
           address?: string | null
           created_at?: string
           email?: string | null
+          frequent_channel?: string | null
           id?: string
+          last_order_at?: string | null
           name?: string
           neighborhood?: string | null
           notes?: string | null
           phone?: string | null
           points?: number
+          total_orders?: number
           total_spent?: number
           updated_at?: string
           visits?: number
