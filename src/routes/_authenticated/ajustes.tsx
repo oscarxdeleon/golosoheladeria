@@ -531,6 +531,7 @@ interface Branch {
   neighborhood?: string | null; nit?: string | null;
   ticket_header?: string | null; ticket_footer?: string | null;
   report_email?: string | null;
+  online_menu_url?: string | null;
 }
 
 
