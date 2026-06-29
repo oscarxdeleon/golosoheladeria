@@ -111,8 +111,8 @@ function ProductosPage() {
       recipe,
     };
     const { error } = editing.id
-      ? await supabase.from("products").update(payload).eq("id", editing.id)
-      : await supabase.from("products").insert(payload);
+      ? await supabase.from("products").update(payload as never).eq("id", editing.id)
+      : await supabase.from("products").insert(payload as never);
     if (error) return toast.error(error.message);
     toast.success("Guardado");
     setEditing(null);
