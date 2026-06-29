@@ -226,6 +226,74 @@ function OnlineOrdersPage() {
     qc.invalidateQueries({ queryKey: ["online-orders"] });
   }
 
+  async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
+    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
+    // 1) Comanda de cocina
+    const comandaPayload: PrintPayload = {
+      type: "comanda",
+      ticket: o.ticket_number,
+      header,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      customer: o.customer_name ?? "",
+      notes: o.notes ?? "",
+      address: o.delivery_address ?? "",
+      phone: o.customer_phone ?? "",
+      user_name: "En línea",
+      created_at: o.created_at,
+    };
+    printSilent(comandaPayload, comandaHTML({
+      ticket: o.ticket_number, header,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      customer: o.customer_name ?? "", notes: o.notes ?? "",
+      address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
+      created_at: o.created_at,
+    }));
+
+    // 2) Recibo para el domiciliario (solo si es domicilio o hay dirección)
+    if (o.order_type === "domicilio" || o.delivery_address) {
+      const reciboPayload: PrintPayload = {
+        type: "comprobante",
+        ticket: o.ticket_number,
+        header: `DOMICILIO #${o.ticket_number}`,
+        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
+        subtotal: Number(o.subtotal ?? 0),
+        deliveryFee: Number(o.delivery_fee ?? 0),
+        total: Number(o.total ?? 0),
+        customer: o.customer_name ?? "",
+        address: o.delivery_address ?? "",
+        phone: o.customer_phone ?? "",
+        payment_method: o.payment_method ?? "Pendiente",
+        created_at: o.created_at,
+        cashierMessage: "RECIBO DE DOMICILIO · Paga con: ____  Cambio: ____",
+      };
+      // Pequeño retraso para evitar colisión con la comanda en la cola del servidor
+      setTimeout(() => {
+        printSilent(reciboPayload, reciboDomicilioHTML({
+          ticket: o.ticket_number,
+          customer: o.customer_name ?? "",
+          address: o.delivery_address ?? "",
+          neighborhood: o.delivery_neighborhood ?? "",
+          phone: o.customer_phone ?? "",
+          total: Number(o.total ?? 0),
+          payment_method: o.payment_method ?? "Pendiente",
+          created_at: o.created_at,
+        }));
+      }, 600);
+    }
+
+    // Estado intermedio: confirmado, listo para cobro
+    const { error } = await supabase
+      .from("sales")
+      .update({
+        status: "confirmed",
+        printed_at: new Date().toISOString(),
+        kds_ack_at: new Date().toISOString(),
+      })
+      .eq("id", o.id);
+    if (error) return toast.error(error.message);
+    qc.invalidateQueries({ queryKey: ["online-orders"] });
+  }
+
   function printPreCuenta(o: SaleRow, its: ItemRow[]) {
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
     const payload: PrintPayload = {
