@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
@@ -21,7 +21,7 @@ import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
 interface Category { id: string; name: string; sort_order: number; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; modifier_group_ids?: string[] | null; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; modifier_group_ids?: string[] | null; }
 interface SaleModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; }
 
@@ -545,10 +545,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
 
   const filtered = useMemo(() => {
-    return products.filter((p) => {
+    const q = search.trim().toLowerCase();
+    const base = products.filter((p) => {
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
-      if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (q && !p.name.toLowerCase().includes(q)) return false;
       return true;
+    });
+    // Cuando hay búsqueda activa, mostrar coincidencias en orden natural (alfabético del query).
+    if (q) {
+      return [...base].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    }
+    // Favoritos primero (alfabético), luego el resto (alfabético).
+    return [...base].sort((a, b) => {
+      const af = a.is_favorite ? 1 : 0;
+      const bf = b.is_favorite ? 1 : 0;
+      if (af !== bf) return bf - af;
+      return a.name.localeCompare(b.name, "es");
     });
   }, [products, activeCat, search]);
 
@@ -1064,8 +1076,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             <button
               key={p.id}
               onClick={() => add(p)}
-              className="group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98]"
+              className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98] ${
+                p.is_favorite ? "border-yellow-400 ring-2 ring-yellow-300/60 shadow-md" : ""
+              }`}
             >
+              {p.is_favorite && (
+                <span
+                  aria-label="Producto destacado"
+                  className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white shadow-lg ring-2 ring-white"
+                >
+                  <Star className="h-4 w-4 fill-white" strokeWidth={2.5} />
+                </span>
+              )}
               <div className="aspect-square w-full overflow-hidden bg-white p-2 flex items-center justify-center">
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.name} className="max-h-full max-w-full object-contain transition group-hover:scale-105" loading="lazy" />
@@ -1076,8 +1098,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 )}
               </div>
               <div className="p-3">
-                <div className="font-medium leading-tight line-clamp-2 text-sm">{p.name}</div>
-                <div className="mt-1 font-display text-lg text-primary">{formatMoney(p.price)}</div>
+                <div className={`leading-tight line-clamp-2 text-sm ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
+                <div className={`mt-1 font-display text-lg text-primary ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
             </button>
           ))}
