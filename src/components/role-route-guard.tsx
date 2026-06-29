@@ -18,7 +18,7 @@ export function RoleRouteGuard() {
     if (!canPath(pathname)) {
       const clean = pathname.replace(/^\//, "");
       if (clean === "usuarios" || clean.startsWith("usuarios/")) {
-        toast.error("Acceso denegado: Solo el administrador puede gestionar los usuarios del sistema.");
+        return;
       } else {
         toast.error("No tienes permisos para acceder a esta sección");
       }
