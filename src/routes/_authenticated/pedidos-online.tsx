@@ -312,12 +312,17 @@ function OnlineOrdersPage() {
     setPaying(false);
     if (error) return toast.error(error.message);
 
-    // Ticket de venta digital → WhatsApp del cliente
+    // Ticket de venta digital → WhatsApp del cliente (nombre tomado de la sede activa)
     if (payOrder.customer_phone) {
-      const negocio = (settings as { business_name?: string } | null | undefined)?.business_name ?? "Heladería Goloso";
+      const baseName = (settings as { business_name?: string } | null | undefined)?.business_name ?? "Heladería Goloso";
+      const sedeName = activeBranch?.name ?? "";
+      const negocio = sedeName ? `${baseName} - ${sedeName}` : baseName;
+      const sedeAddr = activeBranch?.address ? `\n${activeBranch.address}` : "";
+      const sedePhoneTxt = activeBranch?.phone ? `\nTel: ${activeBranch.phone}` : "";
       const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
       const msg = [
-        `🍦 *${negocio}*`,
+        `🍦 *${negocio}*${sedeAddr}${sedePhoneTxt}`,
+        ``,
         `Ticket de venta #${payOrder.ticket_number}`,
         new Date().toLocaleString("es-CO"),
         "",
