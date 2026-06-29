@@ -205,7 +205,9 @@ export function PublicOrder({
           customer_phone: phone || null,
           delivery_address: isDelivery ? address : null,
           delivery_neighborhood: isDelivery ? neighborhood : null,
-          notes: notes || null,
+          notes: source === "kiosk" && kioskService
+            ? `[${kioskService === "llevar" ? "PARA LLEVAR" : "COMER AQUÍ"}]${notes ? " " + notes : ""}`
+            : notes || null,
           payment_method: payMethod,
           payment_details,
           items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty })),
