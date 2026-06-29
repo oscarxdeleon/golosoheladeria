@@ -260,7 +260,7 @@ export function PublicOrder({
             {source !== "table_qr" && (
               <div className="space-y-2">
                 <Input
-                  placeholder={`Nombre ${source !== "table_qr" ? "*" : ""}`}
+                  placeholder="Nombre *"
                   value={customerName}
                   onChange={(e) => setCustomerName(e.target.value)}
                   required
