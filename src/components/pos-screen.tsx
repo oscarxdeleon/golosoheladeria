@@ -936,8 +936,23 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const header = title
     ?? (kioskSale ? `Kiosko · Pedido #${kioskSale.ticket_number}` : mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
 
+  // Guard: no intentar dibujar la pantalla hasta que estén listos el usuario
+  // y la sede activa. Esto evita TypeError por dereferenciar `user`/`activeBranch`
+  // en el primer render (causa típica del crash "This page didn't load").
+  if (!user || !activeBranchId) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center text-muted-foreground">
+        <div className="flex flex-col items-center gap-3">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
+          <p className="text-sm">Cargando POS…</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr,420px]">
+
       {!meseroMode && !openSession && (
         <div className="lg:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
           <span>
