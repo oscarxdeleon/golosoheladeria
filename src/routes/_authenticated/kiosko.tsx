@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Monitor, Copy, ExternalLink, Download, Smartphone } from "lucide-react";
+import { Monitor, Copy, ExternalLink, Download, Smartphone, Banknote } from "lucide-react";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
