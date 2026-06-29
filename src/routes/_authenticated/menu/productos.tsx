@@ -81,7 +81,7 @@ function ProductosPage() {
   });
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["products-all"],
-    queryFn: async () => (await supabase.from("products").select("*").order("name")).data ?? [],
+    queryFn: async () => ((await supabase.from("products").select("*").order("name")).data ?? []) as unknown as Product[],
   });
 
   function openEditor(p: Partial<Product> | null) {
