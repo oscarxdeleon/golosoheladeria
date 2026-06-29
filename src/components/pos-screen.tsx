@@ -257,14 +257,32 @@ function precuentaHTML(o: {
   </body></html>`;
 }
 
-function printComanda(o: Parameters<typeof comandaHTML>[0]) {
+async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
+  let printerIp: string | undefined;
+  let printerPort: number | undefined;
+  try {
+    const { data: cajaPrinters } = await supabase
+      .from("printers")
+      .select("ip,port,active,area")
+      .eq("area", "caja")
+      .eq("active", true)
+      .limit(1);
+    const p = cajaPrinters?.[0];
+    if (p) {
+      printerIp = p.ip ?? undefined;
+      printerPort = p.port ?? undefined;
+    }
+  } catch (e) {
+    console.warn("[print] no se pudo consultar impresora de caja para comanda", e);
+  }
   const payload: PrintPayload = {
     type: "comanda", ticket: o.ticket, header: o.header,
     items: o.items, customer: o.customer, notes: o.notes,
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
+    printer_ip: printerIp, printer_port: printerPort,
   };
   // Silencioso: si no hay servidor local de impresión, NO abre el diálogo
-  // nativo del navegador para no interrumpir el flujo del cajero.
+  // nativo del navegador para no interrumpir el flujo del mesero/cajero.
   printSilent(payload, comandaHTML(o), { silent: true });
 }
 async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
