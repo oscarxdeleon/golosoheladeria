@@ -137,3 +137,15 @@
     image-rendering: -webkit-optimize-contrast;
   }
 }
+
+/* Ocultar badge "Made with Lovable" */
+#lovable-badge,
+a[href*="lovable.dev"],
+a[href*="lovable.app/badge"],
+[data-lovable-badge],
+iframe[src*="lovable.dev/badge"] {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
