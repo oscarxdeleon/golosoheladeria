@@ -177,6 +177,14 @@ function CajaPage() {
       if (error) throw error;
       const session = data as CashSession;
 
+      // Asociar la sesión recién abierta a la sede activa
+      if (activeBranchId) {
+        await supabase
+          .from("cash_sessions")
+          .update({ branch_id: activeBranchId })
+          .eq("id", session.id);
+      }
+
       qc.setQueryData(["cash-session-open", user.id], session);
       toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
       setOpenDialog(false);
