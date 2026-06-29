@@ -346,7 +346,9 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
       platform: edit?.platform ?? "Windows",
       area: edit?.area ?? "caja",
       active: edit?.active ?? true,
+      open_drawer_on_print: edit?.open_drawer_on_print ?? false,
     };
+
     try {
       const res = edit?.id
         ? await supabase.from("printers").update(payload).eq("id", edit.id).select().single()
