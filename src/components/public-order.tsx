@@ -355,7 +355,7 @@ export function PublicOrder({
           <div className="flex-1 leading-tight">
             <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}</div>
             <div className="text-xs text-muted-foreground">
-              {source === "kiosk" && "Auto-pedido · Kiosko"}
+              {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Kiosko"}`}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
               {source === "online_menu" && "Menú en línea · A domicilio"}
             </div>
