@@ -154,8 +154,8 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between gap-2">
         <IceCream className="h-10 w-10 text-pink-500" />
-        <div className="text-center font-bold italic text-lg" style={{ fontFamily: '"Brush Script MT", "Lucida Handwriting", cursive' }}>
-          ¡Gracias por Preferirnos!
+        <div className="text-center font-bold italic text-lg whitespace-pre-line" style={{ fontFamily: '"Brush Script MT", "Lucida Handwriting", cursive' }}>
+          {footerLines.join("\n")}
         </div>
         <IceCream className="h-10 w-10 text-pink-500" />
       </div>
