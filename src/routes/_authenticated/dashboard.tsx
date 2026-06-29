@@ -52,18 +52,35 @@ function DashboardPage() {
   const avg = sales.length ? total / sales.length : 0;
   const top = data?.topList ?? [];
 
+  const loadingDash = isLoading || isFetching;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl">Hola 👋</h1>
-        <p className="text-muted-foreground">Resumen de hoy</p>
+      <div className="flex flex-wrap items-end justify-between gap-2">
+        <div>
+          <h1 className="font-display text-3xl">Hola 👋</h1>
+          <p className="text-muted-foreground">
+            Resumen de hoy · <span className="font-medium text-foreground">{activeBranch?.name ?? "—"}</span>
+          </p>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={<DollarSign />} label="Ventas hoy" value={formatMoney(total)} />
-        <StatCard icon={<Receipt />} label="Tickets" value={sales.length.toString()} />
-        <StatCard icon={<TrendingUp />} label="Ticket promedio" value={formatMoney(avg)} />
-        <StatCard icon={<Package />} label="Productos vendidos" value={top.reduce((s, x) => s + x.qty, 0).toString()} />
+        {loadingDash ? (
+          <>
+            <Skeleton className="h-[88px] rounded-xl" />
+            <Skeleton className="h-[88px] rounded-xl" />
+            <Skeleton className="h-[88px] rounded-xl" />
+            <Skeleton className="h-[88px] rounded-xl" />
+          </>
+        ) : (
+          <>
+            <StatCard icon={<DollarSign />} label="Ventas hoy" value={formatMoney(total)} />
+            <StatCard icon={<Receipt />} label="Tickets" value={sales.length.toString()} />
+            <StatCard icon={<TrendingUp />} label="Ticket promedio" value={formatMoney(avg)} />
+            <StatCard icon={<Package />} label="Productos vendidos" value={top.reduce((s, x) => s + x.qty, 0).toString()} />
+          </>
+        )}
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
