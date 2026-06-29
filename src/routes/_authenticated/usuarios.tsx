@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, EyeOff } from "lucide-react";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createAppUser, updateAppUser, deleteAppUser } from "@/lib/admin-users.functions";
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
