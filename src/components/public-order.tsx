@@ -561,7 +561,7 @@ export function PublicOrder({
                 {cart.map((l) => (
                   <div key={l.key} className="flex items-center gap-2 text-sm">
                     <div className="flex-1">
-                      <div className="font-medium">{l.name}</div>
+                      <div className="font-medium whitespace-pre-line">{l.name}</div>
                       <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)}</div>
                     </div>
                     <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty - 1)}>
