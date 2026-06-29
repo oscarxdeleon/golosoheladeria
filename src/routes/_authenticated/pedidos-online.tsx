@@ -157,14 +157,16 @@ function OnlineOrdersPage() {
 
   const { data: orders = [], isLoading, refetch } = useQuery<SaleRow[]>({
     queryKey: ["online-orders", activeBranchId],
+    enabled: !!activeBranchId,
     queryFn: async () => {
+      if (!activeBranchId) return [];
       let q = supabase
         .from("sales")
         .select("*")
         .eq("source", "online_menu")
+        .eq("branch_id", activeBranchId)
         .order("created_at", { ascending: false })
         .limit(150);
-      if (activeBranchId) q = q.eq("branch_id", activeBranchId);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as SaleRow[];
@@ -183,16 +185,29 @@ function OnlineOrdersPage() {
   });
 
   useEffect(() => {
+    if (!activeBranchId) return;
     const ch = supabase
-      .channel("po-page")
+      .channel(`po-page-${activeBranchId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: "source=eq.online_menu" },
-        () => qc.invalidateQueries({ queryKey: ["online-orders"] }))
+        (payload) => {
+          const row = payload.new as { branch_id?: string | null } | null;
+          if (row?.branch_id && row.branch_id !== activeBranchId) return;
+          qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
+        })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [qc]);
+  }, [qc, activeBranchId]);
 
 
   async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
+    if (!activeBranchId || o.branch_id !== activeBranchId) {
+      toast.error("Este pedido pertenece a otra sede. Cambia a la sede correcta para procesarlo.");
+      return;
+    }
+    if (its.length === 0) {
+      toast.error("El pedido no tiene productos válidos");
+      return;
+    }
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
     // 1) Comanda de cocina
     const comandaPayload: PrintPayload = {
@@ -207,7 +222,7 @@ function OnlineOrdersPage() {
       user_name: "En línea",
       created_at: o.created_at,
     };
-    printSilent(comandaPayload, comandaHTML({
+    void printSilent(comandaPayload, comandaHTML({
       ticket: o.ticket_number, header,
       items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
       customer: o.customer_name ?? "", notes: o.notes ?? "",
@@ -234,7 +249,7 @@ function OnlineOrdersPage() {
       };
       // Pequeño retraso para evitar colisión con la comanda en la cola del servidor
       setTimeout(() => {
-        printSilent(reciboPayload, reciboDomicilioHTML({
+        void printSilent(reciboPayload, reciboDomicilioHTML({
           ticket: o.ticket_number,
           customer: o.customer_name ?? "",
           address: o.delivery_address ?? "",
@@ -255,9 +270,11 @@ function OnlineOrdersPage() {
         printed_at: new Date().toISOString(),
         kds_ack_at: new Date().toISOString(),
       })
-      .eq("id", o.id);
+      .eq("id", o.id)
+      .eq("branch_id", activeBranchId);
     if (error) return toast.error(error.message);
-    qc.invalidateQueries({ queryKey: ["online-orders"] });
+    toast.success(`Pedido #${o.ticket_number} confirmado. Ya puedes proceder con el pago.`);
+    qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
   }
 
   function printPreCuenta(o: SaleRow, its: ItemRow[]) {
@@ -290,11 +307,15 @@ function OnlineOrdersPage() {
     const { error } = await supabase.from("sales").update({ status: "cancelled" }).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Pedido cancelado");
-    qc.invalidateQueries({ queryKey: ["online-orders"] });
+    qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
   }
 
   async function processPayment(method: string) {
     if (!payOrder) return;
+    if (!activeBranchId || payOrder.branch_id !== activeBranchId) {
+      toast.error("Este pedido pertenece a otra sede. Cambia a la sede correcta para cobrarlo.");
+      return;
+    }
     if (!cashSession?.id) {
       toast.error("No hay caja abierta en esta sede");
       return;
@@ -308,7 +329,8 @@ function OnlineOrdersPage() {
         payment_method: method,
         cash_session_id: cashSession.id,
       })
-      .eq("id", payOrder.id);
+      .eq("id", payOrder.id)
+      .eq("branch_id", activeBranchId);
     setPaying(false);
     if (error) return toast.error(error.message);
 
@@ -338,7 +360,7 @@ function OnlineOrdersPage() {
 
     toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
     setPayOrder(null);
-    qc.invalidateQueries({ queryKey: ["online-orders"] });
+    qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
   }
 
   function buildMsg(o: SaleRow, its: ItemRow[]) {
@@ -358,7 +380,7 @@ function OnlineOrdersPage() {
   const pending = orders.filter((o) => o.status === "pending");
   const confirmed = orders.filter((o) => o.status === "confirmed" || o.status === "ready");
   const history = orders.filter((o) => !["pending", "confirmed", "ready"].includes(o.status));
-  const sedePhone: string | null = (settings as { phone?: string | null } | null | undefined)?.phone ?? null;
+  const sedePhone: string | null = activeBranch?.phone ?? (settings as { phone?: string | null } | null | undefined)?.phone ?? null;
 
   return (
     <div className="space-y-4">
@@ -366,7 +388,7 @@ function OnlineOrdersPage() {
         <div>
           <h1 className="font-display text-3xl">Pedidos en línea</h1>
           <p className="text-sm text-muted-foreground">
-            Recibe automáticamente los pedidos del <Link to="/menu" className="underline">Menú en línea</Link>.
+            Recibe automáticamente los pedidos del {activeBranch?.slug ? <a href={`/s/${activeBranch.slug}/menu`} className="underline">Menú en línea</a> : <Link to="/menu" className="underline">Menú en línea</Link>}.
             {sedePhone ? <> WhatsApp de la sede: <b>{sedePhone}</b></> : <> · <Link to="/ajustes" className="underline">Configura el WhatsApp en Ajustes</Link></>}
           </p>
         </div>
@@ -483,7 +505,7 @@ function OnlineOrdersPage() {
                     <Printer className="h-4 w-4 mr-1" /> Imprimir Pre-cuenta / Comanda
                   </Button>
                   <Button size="sm" onClick={() => setPayOrder(o)}>
-                    <Banknote className="h-4 w-4 mr-1" /> Procesar Pago / Finalizar
+                    <Banknote className="h-4 w-4 mr-1" /> Proceder con el pago
                   </Button>
                   <Button size="sm" variant="ghost" className="text-destructive ml-auto" onClick={() => reject(o.id)}>
                     Cancelar

@@ -141,7 +141,7 @@ export function OnlineOrdersNotifier() {
       const row = payload.new;
       if (seen.current.has(row.id)) return;
       // Filtro estricto por sede activa — pedidos de otra sucursal no alertan acá
-      if (row.branch_id && row.branch_id !== activeBranchId) return;
+      if (row.branch_id !== activeBranchId) return;
       seen.current.add(row.id);
 
       setPending((arr) => [
@@ -158,7 +158,7 @@ export function OnlineOrdersNotifier() {
 
       if (row.source === "kiosk") void autoPrintKioskOrder(row.id);
 
-      qc.invalidateQueries({ queryKey: ["online-orders"] });
+      qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
       qc.invalidateQueries({ queryKey: ["pending-sales"] });
       qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
     };

@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/kds")({
   head: () => ({ meta: [{ title: "KDS · Goloso POS" }] }),
@@ -31,6 +32,7 @@ interface Pending {
   table_id: string | null;
   delivery_address: string | null;
   status: string;
+  branch_id: string | null;
   sale_items: SaleItem[];
   restaurant_tables: { number: number; label: string | null } | null;
 }
@@ -52,15 +54,19 @@ function useTicker(intervalMs = 1000) {
 
 function KdsPage() {
   const qc = useQueryClient();
+  const { activeBranchId } = useBranch();
   useTicker(1000);
 
   const { data = [], isLoading } = useQuery({
-    queryKey: ["kds-pending"],
+    queryKey: ["kds-pending", activeBranchId],
+    enabled: !!activeBranchId,
     queryFn: async () => {
+      if (!activeBranchId) return [];
       const { data, error } = await supabase
         .from("sales")
-        .select("id,ticket_number,user_name,customer_name,notes,order_type,created_at,table_id,delivery_address,status,sale_items(id,product_name,qty,ready_at,modifiers),restaurant_tables(number,label)")
-        .eq("status", "pending")
+        .select("id,ticket_number,user_name,customer_name,notes,order_type,created_at,table_id,delivery_address,status,branch_id,sale_items(id,product_name,qty,ready_at,modifiers),restaurant_tables(number,label)")
+        .eq("branch_id", activeBranchId)
+        .in("status", ["pending", "confirmed"])
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as unknown as Pending[];
@@ -68,21 +74,24 @@ function KdsPage() {
   });
 
   useEffect(() => {
+    if (!activeBranchId) return;
     const ch = supabase
-      .channel("kds-realtime")
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, () => {
-        qc.invalidateQueries({ queryKey: ["kds-pending"] });
+      .channel(`kds-realtime-${activeBranchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales" }, (payload) => {
+        const row = payload.new as { branch_id?: string | null } | null;
+        if (row?.branch_id && row.branch_id !== activeBranchId) return;
+        qc.invalidateQueries({ queryKey: ["kds-pending", activeBranchId] });
       })
       .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, () => {
-        qc.invalidateQueries({ queryKey: ["kds-pending"] });
+        qc.invalidateQueries({ queryKey: ["kds-pending", activeBranchId] });
       })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
-  }, [qc]);
+  }, [qc, activeBranchId]);
 
   async function markItemReady(saleId: string, itemId: string) {
     // Optimistic update
-    qc.setQueryData<Pending[]>(["kds-pending"], (old) =>
+    qc.setQueryData<Pending[]>(["kds-pending", activeBranchId], (old) =>
       (old ?? []).map((s) =>
         s.id !== saleId ? s : { ...s, sale_items: s.sale_items.map((i) => i.id === itemId ? { ...i, ready_at: new Date().toISOString() } : i) }
       )
@@ -93,13 +102,17 @@ function KdsPage() {
       .eq("id", itemId);
     if (error) {
       toast.error("No se pudo marcar el ítem");
-      qc.invalidateQueries({ queryKey: ["kds-pending"] });
+      qc.invalidateQueries({ queryKey: ["kds-pending", activeBranchId] });
     }
   }
 
   async function markAllReady(saleId: string, items: SaleItem[]) {
+    if (!activeBranchId) {
+      toast.error("Selecciona una sede para actualizar la comanda");
+      return;
+    }
     const ids = items.filter((i) => !i.ready_at).map((i) => i.id);
-    qc.setQueryData<Pending[]>(["kds-pending"], (old) =>
+    qc.setQueryData<Pending[]>(["kds-pending", activeBranchId], (old) =>
       (old ?? []).map((s) =>
         s.id !== saleId ? s : { ...s, sale_items: s.sale_items.map((i) => ({ ...i, ready_at: i.ready_at ?? new Date().toISOString() })) }
       )
@@ -111,12 +124,12 @@ function KdsPage() {
         .in("id", ids);
       if (error) {
         toast.error("Error al despachar");
-        qc.invalidateQueries({ queryKey: ["kds-pending"] });
+        qc.invalidateQueries({ queryKey: ["kds-pending", activeBranchId] });
         return;
       }
     }
     // Trigger auto-updates sales.status, but force-set just in case all were already ready
-    await supabase.from("sales").update({ status: "ready", kds_ack_at: new Date().toISOString() }).eq("id", saleId);
+    await supabase.from("sales").update({ status: "ready", kds_ack_at: new Date().toISOString() }).eq("id", saleId).eq("branch_id", activeBranchId);
     toast.success("Pedido listo para servir");
   }
 
