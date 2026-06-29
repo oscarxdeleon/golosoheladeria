@@ -556,6 +556,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
           })
           .eq("id", pendingSaleId)
@@ -586,6 +587,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             branch_id: activeBranchId,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
           })
           .select("id,ticket_number,total,payment_method,created_at")
@@ -724,6 +726,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
             printed_at: new Date().toISOString(),
           })
@@ -754,6 +757,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             branch_id: activeBranchId,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
           })
           .select("id,ticket_number,created_at")
