@@ -568,11 +568,24 @@ export function PosScreen({ orderType, tableId, title }: Props) {
         });
       }, 0);
 
-      // No vaciamos el carrito: queda visible para poder cobrar de inmediato
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
-      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS · ya puedes cobrar`);
+      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+
+      // Limpiar estado local y regresar al panel principal
+      setCart([]);
+      setCustomer("");
+      setNotes("");
+      setAddress("");
+      setPhone("");
+      setPendingSaleId(null);
+
+      if (orderType === "mesa") navigate({ to: "/mesas" });
+      else if (orderType === "llevar") navigate({ to: "/llevar" });
+      else if (orderType === "domicilio") navigate({ to: "/domicilio" });
+      else if (orderType === "kiosko") navigate({ to: "/kiosko" });
+
     } catch (err) {
       console.error(err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
