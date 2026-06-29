@@ -1215,34 +1215,46 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 {!effectiveSessionId && (
                   <span className="ml-2 text-destructive">· Abre caja para cobrar</span>
                 )}
-                {effectiveSessionId && cart.length === 0 && (
+                {effectiveSessionId && total <= 0 && !pendingSaleId && (
                   <span className="ml-2">· Agrega productos para activar</span>
                 )}
               </div>
               <div className="grid grid-cols-2 gap-2">
                 {methods.map((m: { id: string; name: string }) => {
                   const isCash = m.name.toLowerCase().includes("efectivo");
-                  const isDisabled = paying || cart.length === 0 || !effectiveSessionId;
+                  const hasOrder = total > 0 || !!pendingSaleId;
+                  const isDisabled = paying || !hasOrder || !effectiveSessionId;
                   return (
                     <Button
                       key={m.id}
+                      type="button"
                       disabled={isDisabled}
                       onClick={() => {
-                        if (isCash) {
-                          setCashReceived("");
-                          setCashDialogOpen(true);
-                        } else {
-                          pay(m.name);
+                        try {
+                          if (isDisabled) return;
+                          if (isCash) {
+                            setCashReceived("");
+                            setCashDialogOpen(true);
+                          } else {
+                            void pay(m.name);
+                          }
+                        } catch (err) {
+                          console.error("[pos] payment click error", err);
+                          toast.error("No se pudo iniciar el cobro. Recarga la mesa e intenta de nuevo.");
                         }
                       }}
                       variant={isCash ? "default" : "secondary"}
-                      className={isDisabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer"}
                     >
                       {isCash && <Banknote className="h-4 w-4 mr-1" />}
                       {m.name}
                     </Button>
                   );
                 })}
+                {methods.length === 0 && (
+                  <div className="col-span-2 text-xs text-muted-foreground text-center py-2">
+                    No hay métodos de pago configurados.
+                  </div>
+                )}
               </div>
             </div>
           )}
