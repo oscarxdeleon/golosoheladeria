@@ -655,8 +655,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           customer: snapshotCustomer,
           user_name: snapshotUserName,
           created_at: sale.created_at,
+          address: snapshotAddress,
+          phone: snapshotPhone,
+          cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
           branding,
         },
+
 
       });
 
