@@ -162,6 +162,13 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
+  const [successDialog, setSuccessDialog] = useState<null | {
+    ticket: number;
+    method: string;
+    total: number;
+    printPayload: Parameters<typeof printTicketFinal>[0];
+    redirectTo: "/mesas" | "/llevar" | "/domicilio" | "/kiosko" | null;
+  }>(null);
 
 
   useEffect(() => {
