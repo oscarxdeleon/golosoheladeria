@@ -571,7 +571,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   async function pay(method: string) {
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
-    if (!openSession) return toast.error("Debes abrir caja antes de cobrar");
+    if (!effectiveSessionId) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (!validateDelivery()) return;
 
