@@ -8,7 +8,7 @@
 //   localStorage.removeItem("LOCAL_PRINT_URL")
 
 export type PrintPayload = {
-  type: "comanda" | "precuenta" | "ticket";
+  type: "comanda" | "precuenta" | "ticket" | "comprobante";
   ticket?: number;
   header: string;
   items: { name: string; qty: number; unit_price?: number }[];
@@ -23,6 +23,11 @@ export type PrintPayload = {
   phone?: string;
   user_name?: string;
   created_at?: string;
+  // Override del destino: si se indica, el servidor local enruta el ticket
+  // a esta IP/puerto (RAW 9100) en vez de a la impresora por defecto.
+  printer_ip?: string;
+  printer_port?: number;
+  cashierMessage?: string;
 };
 
 const LS_KEY = "LOCAL_PRINT_URL";
