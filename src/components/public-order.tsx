@@ -158,11 +158,25 @@ export function PublicOrder({
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
 
   function add(p: Product) {
+    if (p.modifier_group_ids && p.modifier_group_ids.length > 0) {
+      setModalProduct(p);
+      return;
+    }
     setCart((c) => {
-      const ex = c.find((l) => l.product_id === p.id);
+      const ex = c.find((l) => l.product_id === p.id && l.modifiers.length === 0);
       if (ex) return c.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l));
-      return [...c, { key: crypto.randomUUID(), product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1 }];
+      return [...c, { key: crypto.randomUUID(), product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
+    toast.success(`${p.name} agregado`, { duration: 1200 });
+  }
+  function addWithModifiers(p: Product, mods: CartModifier[], unitExtra: number) {
+    const label = mods.length
+      ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
+      : p.name;
+    setCart((c) => [
+      ...c,
+      { key: crypto.randomUUID(), product_id: p.id, name: label, unit_price: Number(p.price) + unitExtra, qty: 1, modifiers: mods },
+    ]);
     toast.success(`${p.name} agregado`, { duration: 1200 });
   }
   function setQty(key: string, qty: number) {
