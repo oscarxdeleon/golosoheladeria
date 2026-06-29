@@ -621,7 +621,7 @@ export function PublicOrder({
               <div className="rounded-lg border p-3 space-y-1 text-sm">
                 <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
                 {deliveryFee > 0 && (
-                  <div className="flex justify-between"><span>Domicilio</span><span>{formatMoney(deliveryFee)}</span></div>
+                  <div className="flex justify-between"><span>Tarifa de Domicilio</span><span>{formatMoney(deliveryFee)}</span></div>
                 )}
                 <div className="flex justify-between font-display text-lg pt-1 border-t"><span>Total</span><span>{formatMoney(total)}</span></div>
               </div>
