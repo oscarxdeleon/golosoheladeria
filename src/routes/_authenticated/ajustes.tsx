@@ -60,6 +60,120 @@ function AjustesPage() {
   );
 }
 
+function TicketTab() {
+  const qc = useQueryClient();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+  const { data: settings } = useQuery<Settings>({
+    queryKey: ["settings"],
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
+  });
+  const [s, setS] = useState<Settings | null>(null);
+  useEffect(() => { if (settings) setS(settings); }, [settings]);
+  if (!s) return null;
+
+  async function save() {
+    if (!s) return;
+    const { error } = await supabase.from("settings").update({
+      logo_url: s.logo_url,
+      ticket_header: s.ticket_header,
+      ticket_footer: s.ticket_footer,
+    } as never).eq("id", 1);
+    if (error) return toast.error(error.message);
+    toast.success("Personalización del ticket guardada");
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  }
+
+  async function handleLogoFile(file: File) {
+    if (!s) return;
+    setUploading(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `logo-${Date.now()}.${ext}`;
+      const up = await supabase.storage.from("logos").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
+      if (up.error) { toast.error(up.error.message); return; }
+      const { data: signed } = await supabase.storage.from("logos").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+      if (signed?.signedUrl) setS({ ...s, logo_url: signed.signedUrl });
+      toast.success("Logo subido — recuerda guardar cambios");
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  const defaultHeader = [
+    s.business_name,
+    s.nit ? `NIT: ${s.nit}` : null,
+    s.address,
+    s.phone ? `Tel: ${s.phone}` : null,
+  ].filter(Boolean).join("\n");
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> Personalización del Ticket de Venta</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-6 p-6 pt-0">
+        <div>
+          <Label>Logo del ticket</Label>
+          <p className="text-xs text-muted-foreground mb-2">Aparece centrado en la parte superior del ticket impreso. PNG, BMP, JPG o WEBP.</p>
+          <div className="flex items-center gap-3">
+            {s.logo_url ? (
+              <img src={s.logo_url} alt="logo" className="h-24 w-24 rounded-lg border object-contain bg-white" />
+            ) : (
+              <div className="h-24 w-24 rounded-lg border bg-muted flex items-center justify-center text-xs text-muted-foreground text-center px-2">Sin logo (se usa el predeterminado)</div>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp,.jpg,.jpeg,.webp"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ""; }}
+            />
+            <div className="flex flex-col gap-2">
+              <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                <Upload className="h-4 w-4 mr-1" />{uploading ? "Subiendo…" : (s.logo_url ? "Cambiar logo" : "Subir logo")}
+              </Button>
+              {s.logo_url && (
+                <Button type="button" variant="ghost" size="sm" onClick={() => setS({ ...s, logo_url: null })}>
+                  Quitar logo
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <Label>Encabezado del ticket</Label>
+          <p className="text-xs text-muted-foreground mb-2">Una línea por renglón. Suele incluir nombre del negocio, NIT/RUT, dirección y teléfono. Déjalo vacío para usar los datos del establecimiento.</p>
+          <Textarea
+            rows={5}
+            placeholder={defaultHeader || "HELADERIA GOLOSO\nNIT: 123456789-0\nCalle 6 # 10-46\nTel: 311 448 6300"}
+            value={s.ticket_header ?? ""}
+            onChange={(e) => setS({ ...s, ticket_header: e.target.value })}
+          />
+        </div>
+
+        <div>
+          <Label>Pie de página del ticket</Label>
+          <p className="text-xs text-muted-foreground mb-2">Mensaje final del ticket. Puedes agregar condiciones, redes sociales o un saludo. Una línea por renglón.</p>
+          <Textarea
+            rows={4}
+            placeholder="¡Gracias por su compra!&#10;@heladeriagoloso"
+            value={s.ticket_footer ?? ""}
+            onChange={(e) => setS({ ...s, ticket_footer: e.target.value })}
+          />
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={save}>Guardar cambios</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+
+
 function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const fileRef = useRef<HTMLInputElement>(null);
