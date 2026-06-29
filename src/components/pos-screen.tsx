@@ -78,7 +78,7 @@ function comandaHTML(o: {
     table{width:100%;border-collapse:collapse;margin-top:8px}
     td{vertical-align:top;padding:10px 0;border-bottom:2px dashed #000}
     td.qty{font-size:40px;font-weight:900;width:80px;text-align:right;padding-right:12px}
-    td.name{font-size:32px;font-weight:900;text-transform:uppercase;line-height:1.2}
+    td.name{font-size:32px;font-weight:900;text-transform:uppercase;line-height:1.2;white-space:pre-line}
     hr{border:none;border-top:3px dashed #000;margin:8px 0}
     .meta{font-size:22px;font-weight:900;margin:4px 0}
     .notes{margin-top:10px;font-size:24px;font-weight:900;border:3px solid #000;padding:8px;line-height:1.35}
