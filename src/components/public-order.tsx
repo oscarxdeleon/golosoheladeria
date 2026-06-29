@@ -53,6 +53,7 @@ export function PublicOrder({
   const [kioskService, setKioskService] = useState<KioskService | null>(null);
   const [resetCountdown, setResetCountdown] = useState(30);
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
 
   function resetKiosk() {
     if (resetTimerRef.current) {
@@ -160,13 +161,18 @@ export function PublicOrder({
 
   function validate(): string | null {
     if (cart.length === 0) return "Agrega productos primero";
-    if (source === "online_menu") {
-      if (!customerName.trim()) return "Ingresa tu nombre";
-    }
+    const errs: typeof fieldErrors = {};
     if (isDelivery) {
-      if (!phone.trim()) return "El teléfono es obligatorio para domicilios";
-      if (!address.trim()) return "La dirección es obligatoria";
-      if (!neighborhood.trim()) return "El barrio es obligatorio";
+      if (!customerName.trim()) errs.name = true;
+      if (!phone.trim()) errs.phone = true;
+      if (!address.trim()) errs.address = true;
+      if (!neighborhood.trim()) errs.neighborhood = true;
+      setFieldErrors(errs);
+      if (errs.name || errs.phone || errs.address || errs.neighborhood) {
+        return "Este campo es obligatorio para envíos a domicilio";
+      }
+    } else {
+      setFieldErrors({});
     }
     if (payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
@@ -512,22 +518,46 @@ export function PublicOrder({
 
               {source !== "table_qr" && (
                 <div className="space-y-2">
-                  <Input
-                    placeholder="Nombre *"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    required
-                  />
-                  <Input
-                    placeholder={`Teléfono ${isDelivery ? "*" : "(opcional)"}`}
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
+                  <div className="space-y-1">
+                    <Input
+                      placeholder={`Nombre ${isDelivery ? "del cliente *" : "*"}`}
+                      value={customerName}
+                      onChange={(e) => { setCustomerName(e.target.value); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: false }); }}
+                      className={fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
+                      required
+                    />
+                    {fieldErrors.name && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <Input
+                      placeholder={`Teléfono de contacto ${isDelivery ? "*" : "(opcional)"}`}
+                      inputMode="tel"
+                      value={phone}
+                      onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
+                      className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                    {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                  </div>
                   {isDelivery && (
                     <>
-                      <Input placeholder="Dirección de entrega *" value={address} onChange={(e) => setAddress(e.target.value)} />
-                      <Input placeholder="Barrio *" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Dirección completa *"
+                          value={address}
+                          onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                          className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                        />
+                        {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Barrio *"
+                          value={neighborhood}
+                          onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                          className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                        />
+                        {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                      </div>
                     </>
                   )}
                 </div>
@@ -591,7 +621,7 @@ export function PublicOrder({
               <div className="rounded-lg border p-3 space-y-1 text-sm">
                 <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
                 {deliveryFee > 0 && (
-                  <div className="flex justify-between"><span>Domicilio</span><span>{formatMoney(deliveryFee)}</span></div>
+                  <div className="flex justify-between"><span>Tarifa de Domicilio</span><span>{formatMoney(deliveryFee)}</span></div>
                 )}
                 <div className="flex justify-between font-display text-lg pt-1 border-t"><span>Total</span><span>{formatMoney(total)}</span></div>
               </div>

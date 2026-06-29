@@ -309,6 +309,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const [notes, setNotes] = useState("");
   const [address, setAddress] = useState("");
   const [phone, setPhone] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<{ customer?: boolean; address?: boolean; neighborhood?: boolean; phone?: boolean }>({});
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
@@ -503,14 +505,31 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     setCart((p) => p.filter((l) => l.key !== key));
   }
 
+  function validateDelivery(): boolean {
+    if (orderType !== "domicilio") {
+      setFieldErrors({});
+      return true;
+    }
+    const errs = {
+      customer: !customer.trim(),
+      address: !address.trim(),
+      neighborhood: !neighborhood.trim(),
+      phone: !phone.trim(),
+    };
+    setFieldErrors(errs);
+    if (errs.customer || errs.address || errs.neighborhood || errs.phone) {
+      toast.error("Este campo es obligatorio para envíos a domicilio");
+      return false;
+    }
+    return true;
+  }
+
   async function pay(method: string) {
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
     if (!openSession) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
-    if (orderType === "domicilio" && (!address || !phone)) {
-      return toast.error("Dirección y teléfono requeridos para domicilio");
-    }
+    if (!validateDelivery()) return;
 
     setPaying(true);
     console.log(`[pay] iniciando cobro · método=${method} · pendingSaleId=${pendingSaleId ?? "(nuevo)"}`);
@@ -537,6 +556,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
           })
           .eq("id", pendingSaleId)
@@ -567,6 +587,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             branch_id: activeBranchId,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
           })
           .select("id,ticket_number,total,payment_method,created_at")
@@ -621,6 +642,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       setNotes("");
       setAddress("");
       setPhone("");
+      setNeighborhood("");
+      setFieldErrors({});
       setPendingSaleId(null);
       setCashDialogOpen(false);
       setCashReceived("");
@@ -686,9 +709,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   async function saveComanda() {
     if (!user) return toast.error("Inicia sesión para guardar el pedido");
     if (cart.length === 0) return toast.error("Carrito vacío");
-    if (orderType === "domicilio" && (!address || !phone)) {
-      return toast.error("Dirección y teléfono requeridos para domicilio");
-    }
+    if (!validateDelivery()) return;
     setPaying(true);
     try {
       let sale: { id: string; ticket_number: number; created_at: string };
@@ -707,6 +728,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
             printed_at: new Date().toISOString(),
           })
@@ -737,6 +759,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             branch_id: activeBranchId,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
+            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
           })
           .select("id,ticket_number,created_at")
@@ -800,6 +823,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       setNotes("");
       setAddress("");
       setPhone("");
+      setNeighborhood("");
+      setFieldErrors({});
       setPendingSaleId(null);
 
       if (onSaved) {
@@ -966,11 +991,45 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </div>
 
           <div className="space-y-2 border-t pt-3">
-            <Input placeholder="Nombre cliente (opcional)" value={customer} onChange={(e) => setCustomer(e.target.value)} />
+            <div className="space-y-1">
+              <Input
+                placeholder={orderType === "domicilio" ? "Nombre del cliente *" : "Nombre cliente (opcional)"}
+                value={customer}
+                onChange={(e) => { setCustomer(e.target.value); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
+                className={fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {fieldErrors.customer && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+            </div>
             {orderType === "domicilio" && (
               <>
-                <Input placeholder="Dirección de entrega" value={address} onChange={(e) => setAddress(e.target.value)} />
-                <Input placeholder="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <div className="space-y-1">
+                  <Input
+                    placeholder="Dirección completa *"
+                    value={address}
+                    onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                    className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                  {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                </div>
+                <div className="space-y-1">
+                  <Input
+                    placeholder="Barrio *"
+                    value={neighborhood}
+                    onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                    className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                  {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                </div>
+                <div className="space-y-1">
+                  <Input
+                    placeholder="Teléfono de contacto *"
+                    inputMode="tel"
+                    value={phone}
+                    onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
+                    className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                  {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                </div>
               </>
             )}
             <Input placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -983,7 +1042,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             </div>
             {deliveryFee > 0 && (
               <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Domicilio</span>
+                <span>Tarifa de Domicilio</span>
                 <span>{formatMoney(deliveryFee)}</span>
               </div>
             )}
