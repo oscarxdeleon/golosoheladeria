@@ -218,10 +218,13 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
     queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
   const [s, setS] = useState<Settings | null>(null);
-  useEffect(() => { if (settings) setS(settings); }, [settings]);
+  useEffect(() => {
+    if (settings) setS({ ...settings, schedules: settings.schedules ?? {} });
+  }, [settings]);
   if (!s) return null;
-
-  const setSched = (day: string, patch: Partial<Schedule>) => setS({ ...s, schedules: { ...s.schedules, [day]: { ...s.schedules[day], ...patch } } });
+  const schedules = s.schedules ?? {};
+  const setSched = (day: string, patch: Partial<Schedule>) =>
+    setS({ ...s, schedules: { ...schedules, [day]: { ...(schedules[day] ?? { open: false, from: "10:00", to: "21:00" }), ...patch } } });
 
   async function save() {
     if (!s) return;
