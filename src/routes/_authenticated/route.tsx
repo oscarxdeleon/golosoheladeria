@@ -21,7 +21,11 @@ export const Route = createFileRoute("/_authenticated")({
 });
 
 function AuthedLayout() {
-  const { profile, user, isAdmin } = useAuth();
+  const { profile, user, roles } = useAuth();
+  const roleLabel = roles.includes("admin") ? "Administrador"
+    : roles.includes("mesero") ? "Mesero"
+    : roles.includes("domiciliario") ? "Domiciliario"
+    : "Cajero";
   return (
     <BranchProvider>
       <SidebarProvider>
@@ -36,9 +40,7 @@ function AuthedLayout() {
               <div className="ml-auto flex items-center gap-3 text-sm">
                 <div className="text-right leading-tight">
                   <div className="font-medium">{profile?.full_name ?? user?.email}</div>
-                  <div className="text-xs text-muted-foreground">
-                    {isAdmin ? "Administrador" : "Cajero"}
-                  </div>
+                  <div className="text-xs text-muted-foreground">{roleLabel}</div>
                 </div>
                 <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/15 text-primary font-semibold">
                   {(profile?.full_name ?? user?.email ?? "?").slice(0, 1).toUpperCase()}
@@ -46,6 +48,7 @@ function AuthedLayout() {
               </div>
             </header>
             <main className="flex-1 p-4 md:p-6">
+              <RoleRouteGuard />
               <Outlet />
             </main>
             <OnlineOrdersNotifier />
