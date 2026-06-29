@@ -15,6 +15,7 @@ export function useAuth() {
   const [profile, setProfile] = useState<AppProfile | null>(null);
   const [roles, setRoles] = useState<AppRole[]>([]);
   const [loading, setLoading] = useState(true);
+  const [rolesLoading, setRolesLoading] = useState(true);
 
   useEffect(() => {
     let alive = true;
@@ -38,9 +39,11 @@ export function useAuth() {
     if (!user) {
       setProfile(null);
       setRoles([]);
+      setRolesLoading(false);
       return;
     }
     let alive = true;
+    setRolesLoading(true);
     (async () => {
       const [{ data: p }, { data: r }] = await Promise.all([
         supabase.from("profiles").select("id,full_name").eq("id", user.id).maybeSingle(),
@@ -49,6 +52,7 @@ export function useAuth() {
       if (!alive) return;
       setProfile(p as AppProfile | null);
       setRoles((r ?? []).map((x: { role: AppRole }) => x.role));
+      setRolesLoading(false);
     })();
     return () => {
       alive = false;
@@ -57,5 +61,6 @@ export function useAuth() {
 
   const isAdmin = roles.includes("admin");
   const primaryRole: AppRole = roles[0] ?? "cajero";
-  return { session, user, profile, roles, isAdmin, primaryRole, loading };
+  return { session, user, profile, roles, isAdmin, primaryRole, loading, rolesLoading };
 }
+
