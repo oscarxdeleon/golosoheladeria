@@ -144,7 +144,29 @@ export function printSilent(
           'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
       );
       return;
-    }
+}
+
+/**
+ * Envía SOLO el pulso de apertura del cajón monedero al servidor local.
+ * Útil cuando el ticket se imprime por el diálogo del navegador (HTML)
+ * pero igualmente se desea abrir la gaveta mediante ESC/POS.
+ *
+ * Nunca llamar desde flujos de cocina/KDS — la gaveta debe permanecer
+ * cerrada al imprimir comandas.
+ */
+export async function kickCashDrawer(opts: { printer_ip?: string; printer_port?: number } = {}): Promise<boolean> {
+  const url = getLocalPrintUrl();
+  if (!url) return false;
+  return sendToLocalPrinter({
+    type: "drawer",
+    header: "DRAWER",
+    items: [],
+    open_drawer: true,
+    printer_ip: opts.printer_ip,
+    printer_port: opts.printer_port,
+  });
+}
+
     printHTMLFallback(fallbackHTML);
   })();
 }
