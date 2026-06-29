@@ -108,18 +108,11 @@ function buildRaw(p) {
   out += LINE;
 
   for (const i of p.items || []) {
-    if (p.type === "comanda") {
-      out += `${i.qty} x ${i.name}\n`;
-    } else {
-      out += row(`${i.qty} x ${i.name}`, money((i.unit_price || 0) * (i.qty || 0)));
-    }
+    out += row(`${i.qty} x ${i.name}`, money((i.unit_price || 0) * (i.qty || 0)));
   }
   out += LINE;
 
-  if (p.type === "comanda") {
-    if (p.notes) out += `Notas: ${p.notes}\n`;
-    out += ALIGN_C + "*** ENVIAR A COCINA ***\n";
-  } else if (p.type === "comprobante") {
+  if (p.type === "comprobante") {
     if (p.subtotal != null) out += row("Subtotal", money(p.subtotal));
     if (Number(p.deliveryFee) > 0) out += row("Domicilio", money(p.deliveryFee));
     out += BOLD_ON + row("TOTAL", money(p.total)) + BOLD_OFF + LINE;
@@ -134,9 +127,15 @@ function buildRaw(p) {
     if (p.subtotal != null) out += row("Subtotal", money(p.subtotal));
     if (Number(p.tax) > 0) out += row("Impuesto", money(p.tax));
     if (Number(p.deliveryFee) > 0) out += row("Domicilio", money(p.deliveryFee));
-    out += BOLD_ON + row("TOTAL", money(p.total)) + BOLD_OFF;
-    if (p.payment_method) out += `Pago: ${p.payment_method}\n`;
-    out += LINE + ALIGN_C + "¡Gracias por tu compra!\n";
+    out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + `TOTAL  ${money(p.total)}\n` + BOLD_OFF + SIZE_NORMAL + ALIGN_L;
+    if (p.payment_method) out += BOLD_ON + `Forma de Pago: ${p.payment_method}\n` + BOLD_OFF;
+    if (p.cash_received != null) {
+      const rec = Number(p.cash_received) || 0;
+      const change = Math.max(0, rec - Number(p.total || 0));
+      out += row("Recibido:", money(rec));
+      out += row("Cambio:", money(change));
+    }
+    out += LINE + ALIGN_C + BOLD_ON + (p.footer_text || "¡Gracias por Preferirnos!") + "\n" + BOLD_OFF + ALIGN_L;
   }
 
   out += FEED(4) + CUT;
