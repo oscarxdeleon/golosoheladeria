@@ -428,6 +428,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         name: i.product_name,
         unit_price: Number(i.unit_price),
         qty: Number(i.qty),
+        modifiers: [],
       })),
     );
   }, [pendingSale]);
