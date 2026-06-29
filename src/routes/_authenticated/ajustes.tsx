@@ -727,6 +727,7 @@ function EditarSedeTab() {
         nit: form.nit ?? null,
         ticket_header: form.ticket_header ?? null,
         ticket_footer: form.ticket_footer ?? null,
+        report_email: form.report_email ?? null,
       };
       const { error } = await supabase.from("branches").update(payload as never).eq("id", selectedId);
       if (error) {
