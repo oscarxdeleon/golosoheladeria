@@ -107,6 +107,10 @@ function KdsPage() {
   }
 
   async function markAllReady(saleId: string, items: SaleItem[]) {
+    if (!activeBranchId) {
+      toast.error("Selecciona una sede para actualizar la comanda");
+      return;
+    }
     const ids = items.filter((i) => !i.ready_at).map((i) => i.id);
     qc.setQueryData<Pending[]>(["kds-pending"], (old) =>
       (old ?? []).map((s) =>
