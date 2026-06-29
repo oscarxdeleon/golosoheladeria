@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { printSilent, printHTMLFallback, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
+import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
@@ -402,6 +403,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       return data;
     },
   });
+  // Sesión de caja a nivel de SEDE (la usa la tablet de meseros para heredar el turno_id de la caja matriz)
+  const { session: branchSession } = useBranchCashSession(activeBranchId);
+  const effectiveSessionId = openSession?.id ?? branchSession?.id ?? null;
   const { data: mesa } = useQuery({
     queryKey: ["restaurant_tables", tableId],
     enabled: !!tableId,
@@ -567,7 +571,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   async function pay(method: string) {
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
-    if (!openSession) return toast.error("Debes abrir caja antes de cobrar");
+    if (!effectiveSessionId) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (!validateDelivery()) return;
 
@@ -591,7 +595,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             total,
             payment_method: method,
             status: "paid",
-            cash_session_id: openSession.id,
+            cash_session_id: effectiveSessionId,
             customer_name: customer || null,
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
@@ -619,7 +623,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             total,
             payment_method: method,
             status: "paid",
-            cash_session_id: openSession.id,
+            cash_session_id: effectiveSessionId,
             customer_name: customer || null,
             notes: notes || null,
             order_type: orderType,
@@ -748,6 +752,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   async function saveComanda() {
     if (!user) return toast.error("Inicia sesión para guardar el pedido");
+    if (!effectiveSessionId) return toast.error("No hay caja abierta en esta sede");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (!validateDelivery()) return;
     setPaying(true);
@@ -770,6 +775,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
+            cash_session_id: effectiveSessionId,
             printed_at: new Date().toISOString(),
           })
           .eq("id", pendingSaleId)
@@ -801,6 +807,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
+            cash_session_id: effectiveSessionId,
           })
           .select("id,ticket_number,created_at")
           .single();

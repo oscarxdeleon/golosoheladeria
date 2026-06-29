@@ -19,6 +19,7 @@ import {
 import { Plus, Users, Trash2, QrCode, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
+import { BranchCashGuard } from "@/components/branch-cash-guard";
 import tableFreeAsset from "@/assets/mesa_libre.png.asset.json";
 import tableOccupiedAsset from "@/assets/mesa_ocupada.png.asset.json";
 const tableFree = tableFreeAsset.url;
@@ -135,6 +136,7 @@ function MesasPage() {
   }
 
   return (
+    <BranchCashGuard>
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
@@ -318,5 +320,6 @@ function MesasPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </BranchCashGuard>
   );
 }
