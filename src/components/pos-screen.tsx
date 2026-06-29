@@ -991,11 +991,45 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </div>
 
           <div className="space-y-2 border-t pt-3">
-            <Input placeholder="Nombre cliente (opcional)" value={customer} onChange={(e) => setCustomer(e.target.value)} />
+            <div className="space-y-1">
+              <Input
+                placeholder={orderType === "domicilio" ? "Nombre del cliente *" : "Nombre cliente (opcional)"}
+                value={customer}
+                onChange={(e) => { setCustomer(e.target.value); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
+                className={fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}
+              />
+              {fieldErrors.customer && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+            </div>
             {orderType === "domicilio" && (
               <>
-                <Input placeholder="Dirección de entrega" value={address} onChange={(e) => setAddress(e.target.value)} />
-                <Input placeholder="Teléfono" value={phone} onChange={(e) => setPhone(e.target.value)} />
+                <div className="space-y-1">
+                  <Input
+                    placeholder="Dirección completa *"
+                    value={address}
+                    onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                    className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                  {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                </div>
+                <div className="space-y-1">
+                  <Input
+                    placeholder="Barrio *"
+                    value={neighborhood}
+                    onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                    className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                  {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                </div>
+                <div className="space-y-1">
+                  <Input
+                    placeholder="Teléfono de contacto *"
+                    inputMode="tel"
+                    value={phone}
+                    onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
+                    className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                  />
+                  {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                </div>
               </>
             )}
             <Input placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -1008,7 +1042,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             </div>
             {deliveryFee > 0 && (
               <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>Domicilio</span>
+                <span>Tarifa de Domicilio</span>
                 <span>{formatMoney(deliveryFee)}</span>
               </div>
             )}
