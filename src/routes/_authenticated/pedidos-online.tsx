@@ -300,6 +300,7 @@ function OnlineOrdersPage() {
       return;
     }
     setPaying(true);
+    const its = items.filter((i) => i.sale_id === payOrder.id);
     const { error } = await supabase
       .from("sales")
       .update({
@@ -310,6 +311,26 @@ function OnlineOrdersPage() {
       .eq("id", payOrder.id);
     setPaying(false);
     if (error) return toast.error(error.message);
+
+    // Ticket de venta digital → WhatsApp del cliente
+    if (payOrder.customer_phone) {
+      const negocio = (settings as { business_name?: string } | null | undefined)?.business_name ?? "Heladería Goloso";
+      const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
+      const msg = [
+        `🍦 *${negocio}*`,
+        `Ticket de venta #${payOrder.ticket_number}`,
+        new Date().toLocaleString("es-CO"),
+        "",
+        lines,
+        "",
+        `*TOTAL: ${formatMoney(payOrder.total)}*`,
+        `Pago: ${method}`,
+        "",
+        "¡Gracias por tu compra! 💛",
+      ].join("\n");
+      window.open(waLink(payOrder.customer_phone, msg), "_blank", "noopener");
+    }
+
     toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
     setPayOrder(null);
     qc.invalidateQueries({ queryKey: ["online-orders"] });
