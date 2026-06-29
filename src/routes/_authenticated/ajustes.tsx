@@ -33,6 +33,7 @@ interface Settings {
   phone: string | null; logo_url: string | null; menu_link: string | null;
   schedules: Record<string, Schedule>; delivery_fee: number;
   ticket_header: string | null; ticket_footer: string | null;
+  nequi_number: string | null; bancolombia_account: string | null;
 }
 
 function AjustesPage() {
