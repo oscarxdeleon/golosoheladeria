@@ -162,7 +162,7 @@ export function TicketPreview({
           {lines.map((l, i) => (
             <tr key={i} className="align-top">
               <td className="py-1.5 text-left">{l.qty}</td>
-              <td className="py-1.5 pl-1 uppercase">{l.name}</td>
+              <td className="py-1.5 pl-1 uppercase whitespace-pre-line">{l.name}</td>
               <td className="py-1.5 text-right whitespace-nowrap">
                 {formatMoney(l.unit_price * l.qty)}
               </td>

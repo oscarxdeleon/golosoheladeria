@@ -14,13 +14,15 @@ import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
+import { ModifiersModal } from "@/components/modifiers-modal";
 
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
 interface Category { id: string; name: string; sort_order: number; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; }
-interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; modifier_group_ids?: string[] | null; }
+interface SaleModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
+interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; }
 
 const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color: string }> = {
   mesa: { label: "Mesa", icon: Utensils, color: "bg-primary text-primary-foreground" },
@@ -78,7 +80,7 @@ function comandaHTML(o: {
     table{width:100%;border-collapse:collapse;margin-top:8px}
     td{vertical-align:top;padding:10px 0;border-bottom:2px dashed #000}
     td.qty{font-size:40px;font-weight:900;width:80px;text-align:right;padding-right:12px}
-    td.name{font-size:32px;font-weight:900;text-transform:uppercase;line-height:1.2}
+    td.name{font-size:32px;font-weight:900;text-transform:uppercase;line-height:1.2;white-space:pre-line}
     hr{border:none;border-top:3px dashed #000;margin:8px 0}
     .meta{font-size:22px;font-weight:900;margin:4px 0}
     .notes{margin-top:10px;font-size:24px;font-weight:900;border:3px solid #000;padding:8px;line-height:1.35}
@@ -130,7 +132,7 @@ body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:12px;padding:4mm;
 .tbl{width:100%;border-collapse:collapse;margin-top:4px}
 .tbl thead th{font-size:11px;font-weight:900;text-transform:uppercase;padding:6px 0;border-top:2px solid #000;border-bottom:2px solid #000;font-family:'Arial Black',sans-serif;letter-spacing:.5px}
 .tbl th.qty,.tbl td.qty{width:18%;text-align:left}
-.tbl th.det,.tbl td.det{text-align:left;padding-left:4px}
+.tbl th.det,.tbl td.det{text-align:left;padding-left:4px;white-space:pre-line}
 .tbl th.tot,.tbl td.tot{width:30%;text-align:right;white-space:nowrap}
 .tbl td{padding:6px 0;font-size:12px;vertical-align:top;font-weight:700}
 .tbl td.qty{font-weight:900;font-size:13px}
@@ -231,7 +233,7 @@ function precuentaHTML(o: {
   const b = o.branding ?? DEFAULT_BRANDING;
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
   const rows = o.items
-    .map((i) => `<tr><td>${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap">${money(i.unit_price * i.qty)}</td></tr>`)
+    .map((i) => `<tr><td style="white-space:pre-line">${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap;vertical-align:top">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
   return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
@@ -310,6 +312,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const [fieldErrors, setFieldErrors] = useState<{ customer?: boolean; address?: boolean; neighborhood?: boolean; phone?: boolean }>({});
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
   const [successDialog, setSuccessDialog] = useState<null | {
@@ -427,6 +430,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         name: i.product_name,
         unit_price: Number(i.unit_price),
         qty: Number(i.qty),
+        modifiers: [],
       })),
     );
   }, [pendingSale]);
@@ -464,6 +468,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         name: i.product_name,
         unit_price: Number(i.unit_price),
         qty: Number(i.qty),
+        modifiers: [],
       })),
     );
   }, [kioskSale]);
@@ -485,15 +490,35 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
 
   function add(p: Product) {
+    if (p.modifier_group_ids && p.modifier_group_ids.length > 0) {
+      setModalProduct(p);
+      return;
+    }
     setCart((prev) => {
-      const idx = prev.findIndex((l) => l.key === p.id);
+      const idx = prev.findIndex((l) => l.key === p.id && l.modifiers.length === 0);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
         return next;
       }
-      return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1 }];
+      return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
+  }
+  function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number) {
+    const label = mods.length
+      ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
+      : p.name;
+    setCart((prev) => [
+      ...prev,
+      {
+        key: crypto.randomUUID(),
+        product_id: p.id,
+        name: label,
+        unit_price: Number(p.price) + unitExtra,
+        qty: 1,
+        modifiers: mods,
+      },
+    ]);
   }
   function dec(key: string) {
     setCart((p) => p.flatMap((l) => (l.key === key ? (l.qty <= 1 ? [] : [{ ...l, qty: l.qty - 1 }]) : [l])));
@@ -603,7 +628,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           qty: l.qty,
           unit_price: l.unit_price,
           subtotal: l.unit_price * l.qty,
-          modifiers: [],
+          modifiers: JSON.parse(JSON.stringify(l.modifiers ?? [])),
         }));
         const { error: e2 } = await supabase.from("sale_items").insert(items);
         if (e2) {
@@ -776,7 +801,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         qty: l.qty,
         unit_price: l.unit_price,
         subtotal: l.unit_price * l.qty,
-        modifiers: [],
+        modifiers: JSON.parse(JSON.stringify(l.modifiers ?? [])),
       }));
       const { error: e2 } = await supabase.from("sale_items").insert(items);
       if (e2) {
@@ -973,13 +998,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             {cart.map((l) => (
               <div key={l.key} className="flex items-center gap-2 rounded-lg bg-muted/50 p-2">
                 <div className="flex-1">
-                  <div className="font-medium text-sm">{l.name}</div>
+                <div className="font-medium text-sm whitespace-pre-line">{l.name}</div>
                   <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)} c/u</div>
                 </div>
                 <div className="flex items-center gap-1">
                   <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => dec(l.key)}><Minus className="h-3 w-3" /></Button>
                   <span className="w-6 text-center text-sm">{l.qty}</span>
-                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => add({ id: l.product_id, name: l.name, price: l.unit_price, category_id: null, image_url: null, active: true })}><Plus className="h-3 w-3" /></Button>
+                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setCart((p) => p.map((x) => x.key === l.key ? { ...x, qty: x.qty + 1 } : x))}><Plus className="h-3 w-3" /></Button>
                 </div>
                 <div className="w-20 text-right text-sm font-medium">{formatMoney(l.unit_price * l.qty)}</div>
                 <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(l.key)}><Trash2 className="h-3 w-3" /></Button>
@@ -1233,6 +1258,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ModifiersModal
+        product={
+          modalProduct
+            ? {
+                id: modalProduct.id,
+                name: modalProduct.name,
+                price: Number(modalProduct.price),
+                modifier_group_ids: modalProduct.modifier_group_ids ?? [],
+              }
+            : null
+        }
+        onClose={() => setModalProduct(null)}
+        onConfirm={(mods, unitExtra) => {
+          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra);
+          setModalProduct(null);
+        }}
+      />
     </div>
   );
 }

@@ -12,12 +12,14 @@ import { Label } from "@/components/ui/label";
 import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Smartphone, Landmark, ShoppingBag, Utensils, ArrowLeft } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { ModifiersModal } from "@/components/modifiers-modal";
 
 type KioskService = "llevar" | "comer_aqui";
 
 interface Category { id: string; name: string; sort_order: number; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; }
-interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; modifier_group_ids?: string[] | null; }
+interface CartModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
+interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: CartModifier[]; }
 
 type Source = "kiosk" | "table_qr" | "online_menu";
 type PayMethod = "Efectivo" | "Nequi" | "Bancolombia";
@@ -54,6 +56,7 @@ export function PublicOrder({
   const [resetCountdown, setResetCountdown] = useState(30);
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
   function resetKiosk() {
     if (resetTimerRef.current) {
@@ -157,11 +160,25 @@ export function PublicOrder({
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
 
   function add(p: Product) {
+    if (p.modifier_group_ids && p.modifier_group_ids.length > 0) {
+      setModalProduct(p);
+      return;
+    }
     setCart((c) => {
-      const ex = c.find((l) => l.product_id === p.id);
+      const ex = c.find((l) => l.product_id === p.id && l.modifiers.length === 0);
       if (ex) return c.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l));
-      return [...c, { key: crypto.randomUUID(), product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1 }];
+      return [...c, { key: crypto.randomUUID(), product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
+    toast.success(`${p.name} agregado`, { duration: 1200 });
+  }
+  function addWithModifiers(p: Product, mods: CartModifier[], unitExtra: number) {
+    const label = mods.length
+      ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
+      : p.name;
+    setCart((c) => [
+      ...c,
+      { key: crypto.randomUUID(), product_id: p.id, name: label, unit_price: Number(p.price) + unitExtra, qty: 1, modifiers: mods },
+    ]);
     toast.success(`${p.name} agregado`, { duration: 1200 });
   }
   function setQty(key: string, qty: number) {
@@ -236,26 +253,26 @@ export function PublicOrder({
 
 
 
+      const payload = {
+        source,
+        order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "domicilio",
+        table_id: tableId ?? null,
+        branch_id: branch?.id ?? null,
+        branch_slug: branchSlug ?? branch?.slug ?? null,
+        user_name: source === "kiosk" ? `Kiosko${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
+        customer_name: customerName || null,
+        customer_phone: phone || null,
+        delivery_address: isDelivery ? address : null,
+        delivery_neighborhood: isDelivery ? neighborhood : null,
+        notes: source === "kiosk" && kioskService
+          ? `[${kioskService === "llevar" ? "PARA LLEVAR" : "COMER AQUÍ"}]${notes ? " " + notes : ""}`
+          : notes || null,
+        payment_method: payMethod,
+        payment_details,
+        items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
+      };
       const { data, error } = await supabase.rpc("create_public_order", {
-        _payload: {
-          source,
-          order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "domicilio",
-          table_id: tableId ?? null,
-          branch_id: branch?.id ?? null,
-          branch_slug: branchSlug ?? branch?.slug ?? null,
-          user_name: source === "kiosk" ? `Kiosko${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
-
-          customer_name: customerName || null,
-          customer_phone: phone || null,
-          delivery_address: isDelivery ? address : null,
-          delivery_neighborhood: isDelivery ? neighborhood : null,
-          notes: source === "kiosk" && kioskService
-            ? `[${kioskService === "llevar" ? "PARA LLEVAR" : "COMER AQUÍ"}]${notes ? " " + notes : ""}`
-            : notes || null,
-          payment_method: payMethod,
-          payment_details,
-          items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty })),
-        },
+        _payload: JSON.parse(JSON.stringify(payload)),
       });
       if (error) throw error;
       const result = data as { ticket_number: number } | null;
@@ -544,7 +561,7 @@ export function PublicOrder({
                 {cart.map((l) => (
                   <div key={l.key} className="flex items-center gap-2 text-sm">
                     <div className="flex-1">
-                      <div className="font-medium">{l.name}</div>
+                      <div className="font-medium whitespace-pre-line">{l.name}</div>
                       <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)}</div>
                     </div>
                     <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty - 1)}>
@@ -678,7 +695,18 @@ export function PublicOrder({
           </div>
         </div>
       )}
-
+      <ModifiersModal
+        product={
+          modalProduct
+            ? { id: modalProduct.id, name: modalProduct.name, price: Number(modalProduct.price), modifier_group_ids: modalProduct.modifier_group_ids ?? [] }
+            : null
+        }
+        onClose={() => setModalProduct(null)}
+        onConfirm={(mods, unitExtra) => {
+          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra);
+          setModalProduct(null);
+        }}
+      />
     </div>
   );
 }
