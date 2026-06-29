@@ -53,6 +53,7 @@ function AjustesPage() {
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
+          <TabsTrigger value="roles">Roles</TabsTrigger>
         </TabsList>
         <TabsContent value="estab"><EstablecimientoTab disabled={false} /></TabsContent>
         <TabsContent value="ticket"><TicketTab /></TabsContent>
@@ -62,6 +63,7 @@ function AjustesPage() {
         <TabsContent value="impr"><ImpresorasTab disabled={false} /></TabsContent>
         <TabsContent value="pagos"><PagosTab disabled={false} /></TabsContent>
         <TabsContent value="domi"><DomicilioTab disabled={false} /></TabsContent>
+        <TabsContent value="roles"><RolesTab /></TabsContent>
       </Tabs>
     </div>
   );
