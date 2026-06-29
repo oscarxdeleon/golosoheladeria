@@ -320,5 +320,6 @@ function MesasPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </BranchCashGuard>
   );
 }
