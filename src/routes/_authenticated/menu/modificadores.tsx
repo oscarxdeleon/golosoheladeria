@@ -11,7 +11,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Trash2, Pencil } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -28,6 +28,53 @@ function ModPage() {
   const { isAdmin } = useAuth();
   const [groupEdit, setGroupEdit] = useState<Partial<Group> | null>(null);
   const [modEdit, setModEdit] = useState<Partial<Mod> | null>(null);
+  const [dupSource, setDupSource] = useState<Group | null>(null);
+  const [dupName, setDupName] = useState("");
+  const [dupItems, setDupItems] = useState<{ name: string; price: number }[]>([]);
+  const [dupSaving, setDupSaving] = useState(false);
+
+  function openDuplicate(g: Group) {
+    setDupSource(g);
+    setDupName(`${g.name} - Copia`);
+    setDupItems(mods.filter((m) => m.group_id === g.id).map((m) => ({ name: m.name, price: m.price })));
+  }
+
+  async function confirmDuplicate() {
+    if (!dupSource) return;
+    if (!dupName.trim()) return toast.error("Nombre requerido");
+    setDupSaving(true);
+    try {
+      const { data: newGroup, error } = await supabase
+        .from("modifier_groups")
+        .insert({
+          name: dupName.trim(),
+          min_select: dupSource.min_select,
+          max_select: dupSource.max_select,
+          required: dupSource.required,
+        })
+        .select("id")
+        .single();
+      if (error || !newGroup) throw new Error(error?.message || "No se pudo crear el grupo");
+      const items = dupItems
+        .filter((i) => i.name.trim())
+        .map((i) => ({ group_id: newGroup.id, name: i.name.trim(), price: Number(i.price) || 0, active: true }));
+      if (items.length > 0) {
+        const { error: e2 } = await supabase.from("modifiers").insert(items);
+        if (e2) throw new Error(e2.message);
+      }
+      toast.success("Grupo de modificadores duplicado y guardado correctamente");
+      setDupSource(null);
+      setDupName("");
+      setDupItems([]);
+      qc.invalidateQueries({ queryKey: ["mod-groups"] });
+      qc.invalidateQueries({ queryKey: ["mods"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al duplicar");
+    } finally {
+      setDupSaving(false);
+    }
+  }
+
 
   const { data: groups = [] } = useQuery<Group[]>({
     queryKey: ["mod-groups"],
@@ -116,6 +163,7 @@ function ModPage() {
                   {isAdmin && (
                     <div className="flex gap-1">
                       <Button size="sm" variant="outline" onClick={() => setModEdit({ group_id: g.id, active: true })}><Plus className="h-3 w-3 mr-1" /> Mod</Button>
+                      <Button size="icon" variant="ghost" title="Duplicar" onClick={() => openDuplicate(g)}><Copy className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" onClick={() => setGroupEdit(g)}><Pencil className="h-4 w-4" /></Button>
                       <Button size="icon" variant="ghost" className="text-destructive" onClick={() => removeGroup(g.id)}><Trash2 className="h-4 w-4" /></Button>
                     </div>
@@ -183,6 +231,55 @@ function ModPage() {
             </Tabs>
           )}
           <DialogFooter><Button variant="outline" onClick={() => setModEdit(null)}>Cancelar</Button><Button onClick={saveMod}>Guardar</Button></DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!dupSource} onOpenChange={(o) => { if (!o) { setDupSource(null); setDupItems([]); } }}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Duplicar Grupo de Modificadores: {dupSource?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nuevo nombre del grupo</Label>
+              <Input value={dupName} onChange={(e) => setDupName(e.target.value)} />
+            </div>
+            <div>
+              <div className="mb-2 flex items-center justify-between">
+                <Label>Opciones a clonar ({dupItems.length})</Label>
+                <Button size="sm" variant="outline" onClick={() => setDupItems([...dupItems, { name: "", price: 0 }])}>
+                  <Plus className="h-3 w-3 mr-1" /> Opción
+                </Button>
+              </div>
+              <div className="max-h-64 space-y-2 overflow-y-auto">
+                {dupItems.length === 0 && <p className="text-xs text-muted-foreground">El grupo original no tiene opciones.</p>}
+                {dupItems.map((it, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      className="flex-1"
+                      placeholder="Nombre"
+                      value={it.name}
+                      onChange={(e) => setDupItems(dupItems.map((x, i) => i === idx ? { ...x, name: e.target.value } : x))}
+                    />
+                    <Input
+                      className="w-28"
+                      type="number"
+                      placeholder="Precio"
+                      value={it.price}
+                      onChange={(e) => setDupItems(dupItems.map((x, i) => i === idx ? { ...x, price: Number(e.target.value) } : x))}
+                    />
+                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => setDupItems(dupItems.filter((_, i) => i !== idx))}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDupSource(null); setDupItems([]); }} disabled={dupSaving}>Cancelar</Button>
+            <Button onClick={confirmDuplicate} disabled={dupSaving}>{dupSaving ? "Duplicando…" : "Confirmar duplicado"}</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
