@@ -32,10 +32,10 @@ export const sendCashReport = createServerFn({ method: "POST" })
         .eq("id", session.branch_id)
         .single();
       if (br) {
-        branchName = br.name;
-        branchAddress = br.address;
-        // @ts-expect-error nuevo campo
-        reportEmail = br.report_email ?? null;
+        const b = br as { name: string; address: string | null; report_email?: string | null };
+        branchName = b.name;
+        branchAddress = b.address;
+        reportEmail = b.report_email ?? null;
       }
     }
 
