@@ -505,14 +505,31 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     setCart((p) => p.filter((l) => l.key !== key));
   }
 
+  function validateDelivery(): boolean {
+    if (orderType !== "domicilio") {
+      setFieldErrors({});
+      return true;
+    }
+    const errs = {
+      customer: !customer.trim(),
+      address: !address.trim(),
+      neighborhood: !neighborhood.trim(),
+      phone: !phone.trim(),
+    };
+    setFieldErrors(errs);
+    if (errs.customer || errs.address || errs.neighborhood || errs.phone) {
+      toast.error("Este campo es obligatorio para envíos a domicilio");
+      return false;
+    }
+    return true;
+  }
+
   async function pay(method: string) {
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
     if (!openSession) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
-    if (orderType === "domicilio" && (!address || !phone)) {
-      return toast.error("Dirección y teléfono requeridos para domicilio");
-    }
+    if (!validateDelivery()) return;
 
     setPaying(true);
     console.log(`[pay] iniciando cobro · método=${method} · pendingSaleId=${pendingSaleId ?? "(nuevo)"}`);
