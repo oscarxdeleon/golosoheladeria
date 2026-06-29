@@ -43,12 +43,14 @@ function AjustesPage() {
       <Tabs defaultValue="estab">
         <TabsList>
           <TabsTrigger value="estab">Establecimiento</TabsTrigger>
+          <TabsTrigger value="ticket">Ticket</TabsTrigger>
           <TabsTrigger value="suc">Sucursales</TabsTrigger>
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
         </TabsList>
         <TabsContent value="estab"><EstablecimientoTab disabled={false} /></TabsContent>
+        <TabsContent value="ticket"><TicketTab /></TabsContent>
         <TabsContent value="suc"><SucursalesTab disabled={false} /></TabsContent>
         <TabsContent value="impr"><ImpresorasTab disabled={false} /></TabsContent>
         <TabsContent value="pagos"><PagosTab disabled={false} /></TabsContent>
