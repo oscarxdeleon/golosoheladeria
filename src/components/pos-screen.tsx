@@ -1251,8 +1251,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               <div className="grid grid-cols-2 gap-2">
                 {methods.map((m: { id: string; name: string }) => {
                   const isCash = m.name.toLowerCase().includes("efectivo");
-                  const hasOrder = total > 0 || !!pendingSaleId;
-                  const isDisabled = paying || !hasOrder || !effectiveSessionId;
+                  const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
+                  // Solo bloqueamos mientras se procesa un cobro o no hay nada que cobrar.
+                  // La validación de caja abierta se maneja dentro de pay() con un toast claro,
+                  // así evitamos botones "muertos" por estados de carga o sincronización.
+                  const isDisabled = paying || !hasOrder;
                   return (
                     <Button
                       key={m.id}
