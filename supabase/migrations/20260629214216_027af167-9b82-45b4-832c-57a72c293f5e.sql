@@ -1,0 +1,1 @@
+DROP FUNCTION IF EXISTS public.close_cash_session_blind(numeric, numeric, numeric, text);
