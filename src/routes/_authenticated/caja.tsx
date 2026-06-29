@@ -181,7 +181,7 @@ function CajaPage() {
       });
       if (error) throw error;
       const closed = data as CashSession;
-      qc.setQueryData(["cash-session-open", user.id], null);
+      qc.setQueryData(["cash-session-open-branch", activeBranchId], null);
       toast.success("Caja cerrada correctamente");
 
       // Enviar reporte por correo en segundo plano
