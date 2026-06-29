@@ -46,6 +46,7 @@ function AjustesPage() {
           <TabsTrigger value="estab">Establecimiento</TabsTrigger>
           <TabsTrigger value="ticket">Ticket</TabsTrigger>
           <TabsTrigger value="suc">Sucursales</TabsTrigger>
+          <TabsTrigger value="sede-edit">Editar Sede</TabsTrigger>
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
@@ -53,6 +54,7 @@ function AjustesPage() {
         <TabsContent value="estab"><EstablecimientoTab disabled={false} /></TabsContent>
         <TabsContent value="ticket"><TicketTab /></TabsContent>
         <TabsContent value="suc"><SucursalesTab disabled={false} /></TabsContent>
+        <TabsContent value="sede-edit"><EditarSedeTab /></TabsContent>
         <TabsContent value="impr"><ImpresorasTab disabled={false} /></TabsContent>
         <TabsContent value="pagos"><PagosTab disabled={false} /></TabsContent>
         <TabsContent value="domi"><DomicilioTab disabled={false} /></TabsContent>
@@ -522,6 +524,8 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
 interface Branch {
   id: string; name: string; address: string | null; phone: string | null; city: string | null;
   is_main: boolean; inherits_main_catalog: boolean;
+  neighborhood?: string | null; nit?: string | null;
+  ticket_header?: string | null; ticket_footer?: string | null;
 }
 
 function SucursalesTab({ disabled }: { disabled: boolean }) {
@@ -630,4 +634,131 @@ function SucursalesTab({ disabled }: { disabled: boolean }) {
     </Card>
   );
 }
+
+function EditarSedeTab() {
+  const qc = useQueryClient();
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [form, setForm] = useState<Partial<Branch>>({});
+  const [saving, setSaving] = useState(false);
+
+  const { data: branches = [] } = useQuery<Branch[]>({
+    queryKey: ["branches"],
+    queryFn: async () =>
+      ((await supabase.from("branches").select("*").order("is_main", { ascending: false }).order("name")).data ?? []) as unknown as Branch[],
+  });
+
+  useEffect(() => {
+    if (!selectedId && branches.length) {
+      const main = branches.find((b) => b.is_main) ?? branches[0];
+      setSelectedId(main.id);
+    }
+  }, [branches, selectedId]);
+
+  useEffect(() => {
+    const b = branches.find((x) => x.id === selectedId);
+    if (b) setForm(b);
+  }, [selectedId, branches]);
+
+  async function save() {
+    if (!selectedId) return;
+    if (!form.name?.trim()) return toast.error("El nombre de la sede es obligatorio");
+    setSaving(true);
+    try {
+      const payload = {
+        name: form.name.trim(),
+        address: form.address ?? null,
+        neighborhood: form.neighborhood ?? null,
+        city: form.city ?? null,
+        phone: form.phone ?? null,
+        nit: form.nit ?? null,
+        ticket_header: form.ticket_header ?? null,
+        ticket_footer: form.ticket_footer ?? null,
+      };
+      const { error } = await supabase.from("branches").update(payload as never).eq("id", selectedId);
+      if (error) {
+        toast.error(`Error al guardar: ${error.message}`);
+        return;
+      }
+      toast.success("Información de la sede actualizada correctamente");
+      await qc.invalidateQueries({ queryKey: ["branches"] });
+      await qc.invalidateQueries({ queryKey: ["branches-all"] });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error inesperado";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><Building2 className="h-5 w-5" /> Editar información de la Sede</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5 p-6 pt-0">
+        <div className="max-w-md">
+          <Label>Seleccionar sede</Label>
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger><SelectValue placeholder="Selecciona una sede…" /></SelectTrigger>
+            <SelectContent>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>
+                  {b.name}{b.is_main ? " · Principal" : ""}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+
+        {selectedId && (
+          <>
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label>Nombre de la Sede</Label>
+                <Input value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} placeholder="Sede Santa" />
+              </div>
+              <div>
+                <Label>NIT / RUT</Label>
+                <Input value={form.nit ?? ""} onChange={(e) => setForm({ ...form, nit: e.target.value })} placeholder="900123456-7" />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Dirección completa</Label>
+                <Input value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} placeholder="Calle 6 # 10-46" />
+              </div>
+              <div>
+                <Label>Barrio / Zona</Label>
+                <Input value={form.neighborhood ?? ""} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} placeholder="Centro" />
+              </div>
+              <div>
+                <Label>Ciudad</Label>
+                <Input value={form.city ?? ""} onChange={(e) => setForm({ ...form, city: e.target.value })} placeholder="Cali" />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Teléfono / Celular</Label>
+                <Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} placeholder="311 448 6300" />
+              </div>
+            </div>
+
+            <div>
+              <Label>Encabezado del ticket (esta sede)</Label>
+              <p className="text-xs text-muted-foreground mb-2">Líneas extra que se imprimirán en el encabezado del ticket para esta sucursal.</p>
+              <Textarea rows={3} value={form.ticket_header ?? ""} onChange={(e) => setForm({ ...form, ticket_header: e.target.value })} placeholder="¡Bienvenido a Sede Santa!" />
+            </div>
+
+            <div>
+              <Label>Pie de página del ticket (esta sede)</Label>
+              <p className="text-xs text-muted-foreground mb-2">Mensaje final del ticket impreso para esta sucursal.</p>
+              <Textarea rows={3} value={form.ticket_footer ?? ""} onChange={(e) => setForm({ ...form, ticket_footer: e.target.value })} placeholder="¡Gracias por visitarnos!&#10;@heladeriagoloso" />
+            </div>
+
+            <div className="flex justify-end">
+              <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar cambios"}</Button>
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 

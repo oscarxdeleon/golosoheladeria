@@ -224,7 +224,7 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
-  const { activeBranchId } = useBranch();
+  const { activeBranchId, activeBranch } = useBranch();
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -282,13 +282,13 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
     },
   });
   const branding: Branding = {
-    business_name: settings?.business_name || "Heladería Goloso",
-    nit: settings?.nit ?? null,
-    address: settings?.address ?? null,
-    phone: settings?.phone ?? null,
+    business_name: activeBranch?.name || settings?.business_name || "Heladería Goloso",
+    nit: activeBranch?.nit ?? settings?.nit ?? null,
+    address: [activeBranch?.address, activeBranch?.neighborhood].filter(Boolean).join(" · ") || settings?.address || null,
+    phone: activeBranch?.phone ?? settings?.phone ?? null,
     logo_url: settings?.logo_url ?? null,
-    ticket_header: settings?.ticket_header ?? null,
-    ticket_footer: settings?.ticket_footer ?? null,
+    ticket_header: activeBranch?.ticket_header ?? settings?.ticket_header ?? null,
+    ticket_footer: activeBranch?.ticket_footer ?? settings?.ticket_footer ?? null,
   };
 
 

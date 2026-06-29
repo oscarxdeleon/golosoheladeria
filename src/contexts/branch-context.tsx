@@ -7,6 +7,12 @@ export interface Branch {
   name: string;
   is_main: boolean | null;
   city: string | null;
+  address?: string | null;
+  phone?: string | null;
+  neighborhood?: string | null;
+  nit?: string | null;
+  ticket_header?: string | null;
+  ticket_footer?: string | null;
 }
 
 interface BranchContextValue {
@@ -28,7 +34,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("branches")
-        .select("id,name,is_main,city")
+        .select("id,name,is_main,city,address,phone,neighborhood,nit,ticket_header,ticket_footer")
         .order("is_main", { ascending: false })
         .order("name");
       return (data ?? []) as Branch[];
