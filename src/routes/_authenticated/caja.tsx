@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertTriangle, Banknote, LockOpen, LockKeyhole, TrendingUp, TrendingDown, History } from "lucide-react";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/caja")({
   head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
@@ -76,6 +77,7 @@ function getErrorDetails(error: unknown, fallback: string): UiError {
 function CajaPage() {
   const qc = useQueryClient();
   const { user, profile, isAdmin, loading: authLoading } = useAuth();
+  const { activeBranchId, activeBranch } = useBranch();
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
   const [openingAmount, setOpeningAmount] = useState("");
