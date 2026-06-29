@@ -801,6 +801,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           created_at: sale.created_at,
           address: snapshotAddress,
           phone: snapshotPhone,
+          notes: snapshotNotes,
           cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
           branding,
         },
@@ -808,8 +809,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
       });
 
-      // Mantener referencia a snapshots no usados para evitar warnings
-      void snapshotNotes;
+
     } catch (err) {
       console.error("[pay] error fatal", err);
       const msg = err instanceof Error ? err.message : "Error al cobrar";
