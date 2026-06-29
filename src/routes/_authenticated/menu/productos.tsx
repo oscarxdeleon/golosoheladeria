@@ -62,6 +62,12 @@ function ProductosPage() {
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
   const [showRecipe, setShowRecipe] = useState(false);
   const [showMods, setShowMods] = useState(false);
+  const [duplicating, setDuplicating] = useState<Product | null>(null);
+  const [dupName, setDupName] = useState("");
+  const [dupMain, setDupMain] = useState(true);
+  const [dupBranch, setDupBranch] = useState(true);
+  const [dupCopyModsRecipe, setDupCopyModsRecipe] = useState(true);
+  const [dupSaving, setDupSaving] = useState(false);
 
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["categories"],
