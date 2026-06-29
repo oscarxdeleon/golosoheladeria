@@ -311,6 +311,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const [fieldErrors, setFieldErrors] = useState<{ customer?: boolean; address?: boolean; neighborhood?: boolean; phone?: boolean }>({});
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
   const [successDialog, setSuccessDialog] = useState<null | {
