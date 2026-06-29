@@ -350,7 +350,7 @@ async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
     address_biz: b.address ?? undefined,
     phone_biz: b.phone ?? undefined,
     email_biz: b.email ?? undefined,
-    footer_text: b.footer_text ?? undefined,
+    footer_text: b.ticket_footer ?? undefined,
     cash_received: o.cash_received,
     printer_ip: printerIp,
     printer_port: printerPort,
