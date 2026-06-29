@@ -72,6 +72,7 @@ const menu = [
 ];
 
 const admin = [
+  { to: "/mesas-admin", label: "Gestión de mesas", icon: LayoutGrid },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace },
   { to: "/usuarios", label: "Usuarios", icon: Users },
   { to: "/ajustes", label: "Ajustes", icon: Settings },
