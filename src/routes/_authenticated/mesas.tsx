@@ -140,7 +140,7 @@ function MesasPage() {
         <div>
           <h1 className="font-display text-3xl">Mapa de mesas</h1>
           <p className="text-sm text-muted-foreground">
-            Toca una mesa para abrir el menú y tomar el pedido
+            {activeBranch ? `${activeBranch.name} · ` : ""}Toca una mesa para abrir el menú y tomar el pedido
           </p>
         </div>
         <div className="flex items-center gap-2">
