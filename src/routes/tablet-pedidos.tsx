@@ -62,6 +62,7 @@ function TabletShell() {
   }
 
   return (
+    <BranchCashGuard allowLogout extraMessage="Tu tablet quedará disponible automáticamente cuando el cajero abra el turno.">
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
         <img src={logoAsset.url} alt="Goloso" className="h-10 w-10 object-contain" />
