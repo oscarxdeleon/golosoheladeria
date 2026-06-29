@@ -251,25 +251,95 @@ export function PublicOrder({
   }
 
   if (confirmOpen && ticketNumber) {
+    const isKiosk = source === "kiosk";
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
-        <CheckCircle2 className="h-20 w-20 text-success mb-4" />
-        <h1 className="font-display text-4xl">¡Pedido enviado!</h1>
-        <p className="text-muted-foreground mt-2">Tu número de pedido es</p>
-        <div className="font-display text-6xl text-primary mt-2">#{ticketNumber}</div>
-        <p className="text-muted-foreground mt-4 max-w-sm">
+      <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-primary/10 via-background to-secondary/10">
+        <CheckCircle2 className="h-24 w-24 text-success mb-4 animate-in zoom-in duration-500" />
+        <h1 className="font-display text-5xl">¡Pedido enviado!</h1>
+        <p className="text-muted-foreground mt-2 text-lg">Tu número de pedido es</p>
+        <div className="font-display text-7xl text-primary mt-2 drop-shadow-sm">#{ticketNumber}</div>
+        <p className="text-muted-foreground mt-4 max-w-md text-lg">
           {source === "table_qr"
             ? "Un mesero llegará pronto. Mantén esta pantalla visible."
             : isDelivery
             ? "Prepararemos tu pedido y lo enviaremos a tu dirección. Te contactaremos al teléfono registrado."
             : "Acércate a la caja con este número para pagar y recibir tu pedido."}
         </p>
-        <Button className="mt-8" size="lg" onClick={() => setConfirmOpen(false)}>
-          Hacer otro pedido
-        </Button>
+        {isKiosk && (
+          <>
+            <div className="mt-8 inline-flex items-center gap-3 rounded-full bg-primary/10 px-6 py-3 border border-primary/20">
+              <div className="relative h-10 w-10 flex items-center justify-center">
+                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-primary/20" />
+                  <circle
+                    cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3"
+                    strokeDasharray={`${(resetCountdown / 30) * 100.5} 100.5`}
+                    className="text-primary transition-all duration-1000 ease-linear"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="font-display text-sm font-bold text-primary">{resetCountdown}</span>
+              </div>
+              <span className="font-medium text-primary">
+                La pantalla se reiniciará en {resetCountdown} segundo{resetCountdown === 1 ? "" : "s"}...
+              </span>
+            </div>
+            <Button className="mt-6" size="lg" variant="outline" onClick={resetKiosk}>
+              <ArrowLeft className="h-5 w-5" /> Volver al inicio
+            </Button>
+          </>
+        )}
+        {!isKiosk && (
+          <Button className="mt-8" size="lg" onClick={() => setConfirmOpen(false)}>
+            Hacer otro pedido
+          </Button>
+        )}
       </div>
     );
   }
+
+  if (source === "kiosk" && !kioskService) {
+    return (
+      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-primary/15 via-background to-secondary/20 overflow-hidden">
+        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
+          {settings?.logo_url ? (
+            <img
+              src={settings.logo_url}
+              alt={settings?.business_name ?? "Heladería Goloso"}
+              className="max-h-[40vh] max-w-[80vw] object-contain drop-shadow-xl animate-in fade-in zoom-in duration-700"
+            />
+          ) : (
+            <div className="h-48 w-48 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
+              <IceCream className="h-24 w-24" />
+            </div>
+          )}
+          <h1 className="font-display text-4xl md:text-6xl mt-8 text-foreground">
+            {settings?.business_name ?? "Heladería Goloso"}
+          </h1>
+          <p className="text-muted-foreground text-lg md:text-2xl mt-3">Toca una opción para empezar tu pedido</p>
+        </div>
+        <div className="p-6 md:p-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl w-full mx-auto">
+          <button
+            onClick={() => setKioskService("llevar")}
+            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-10 md:p-14 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+          >
+            <ShoppingBag className="!h-20 !w-20 md:!h-28 md:!w-28 mx-auto mb-4 drop-shadow-lg transition-transform group-hover:scale-110" />
+            <div className="font-display text-3xl md:text-5xl font-bold">PARA LLEVAR</div>
+            <div className="text-base md:text-lg opacity-90 mt-2">Llévate tu pedido</div>
+          </button>
+          <button
+            onClick={() => setKioskService("comer_aqui")}
+            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent to-accent/80 text-accent-foreground p-10 md:p-14 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
+          >
+            <Utensils className="!h-20 !w-20 md:!h-28 md:!w-28 mx-auto mb-4 drop-shadow-lg transition-transform group-hover:scale-110" />
+            <div className="font-display text-3xl md:text-5xl font-bold">COMER AQUÍ</div>
+            <div className="text-base md:text-lg opacity-90 mt-2">Disfruta en el local</div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
 
   return (
     <div className="min-h-screen bg-muted/30 pb-32">
