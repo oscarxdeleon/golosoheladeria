@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Monitor, Copy, ExternalLink, Download, Smartphone } from "lucide-react";
+import { Monitor, Copy, ExternalLink, Download, Smartphone, Banknote } from "lucide-react";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/_authenticated/kiosko")({
 });
 
 function KioskoAdmin() {
+  const navigate = useNavigate();
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const link = `${origin}/kiosk`;
   const [copied, setCopied] = useState(false);
@@ -123,11 +124,20 @@ function KioskoAdmin() {
                     {o.sale_items.map((i) => `${i.qty}× ${i.product_name}`).join(" · ")}
                   </div>
                 </div>
-                <div className="text-right">
+                <div className="text-right space-y-1">
                   <Badge variant={o.status === "pending" ? "default" : o.status === "paid" ? "secondary" : "outline"}>
-                    {o.status === "pending" ? "Pendiente" : o.status === "paid" ? "Cobrado" : "Cancelado"}
+                    {o.status === "pending" ? "Pendiente de pago" : o.status === "paid" ? "Cobrado" : "Cancelado"}
                   </Badge>
-                  <div className="font-medium mt-1">{formatMoney(o.total)}</div>
+                  <div className="font-medium">{formatMoney(o.total)}</div>
+                  {o.status === "pending" && (
+                    <Button
+                      size="sm"
+                      className="mt-1"
+                      onClick={() => navigate({ to: "/pos", search: { type: "kiosko", kioskSaleId: o.id } })}
+                    >
+                      <Banknote className="h-4 w-4 mr-1" /> Cobrar en caja
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}

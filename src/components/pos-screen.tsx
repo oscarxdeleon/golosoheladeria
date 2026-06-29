@@ -14,6 +14,7 @@ import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
+import { KioskPendingPanel } from "@/components/kiosk-pending-panel";
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
@@ -215,6 +216,8 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
 interface Props {
   orderType: OrderType;
   tableId?: string | null;
+  /** ID de una venta pendiente del Kiosko a cargar para cobrar en caja. */
+  kioskSaleId?: string | null;
   title?: string;
   /** Modo mesero (tablet): oculta pagos, precuenta y caja. Solo Guardar/KDS. */
   meseroMode?: boolean;
@@ -222,7 +225,7 @@ interface Props {
   onSaved?: () => void;
 }
 
-export function PosScreen({ orderType, tableId, title, meseroMode = false, onSaved }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -356,6 +359,43 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
       })),
     );
   }, [pendingSale]);
+
+  // Cargar pedido pendiente del Kiosko (al ser seleccionado desde el panel)
+  const { data: kioskSale } = useQuery({
+    queryKey: ["kiosk-sale", kioskSaleId],
+    enabled: !!kioskSaleId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sales")
+        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .eq("id", kioskSaleId!)
+        .maybeSingle();
+      return data as null | {
+        id: string;
+        ticket_number: number;
+        customer_name: string | null;
+        notes: string | null;
+        created_at: string;
+        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
+      };
+    },
+  });
+
+  useEffect(() => {
+    if (!kioskSale) return;
+    setPendingSaleId(kioskSale.id);
+    setCustomer(kioskSale.customer_name ?? "");
+    setNotes(kioskSale.notes ?? "");
+    setCart(
+      (kioskSale.sale_items ?? []).map((i) => ({
+        key: i.product_id,
+        product_id: i.product_id,
+        name: i.product_name,
+        unit_price: Number(i.unit_price),
+        qty: Number(i.qty),
+      })),
+    );
+  }, [kioskSale]);
 
 
   const filtered = useMemo(() => {
@@ -517,6 +557,8 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
+      qc.invalidateQueries({ queryKey: ["kiosk-pending"] });
+      qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
 
       toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
 
@@ -743,7 +785,8 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
 
   const meta = TYPE_META[orderType];
   const Icon = meta.icon;
-  const header = title ?? (mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
+  const header = title
+    ?? (kioskSale ? `Kiosko · Pedido #${kioskSale.ticket_number}` : mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr,420px]">
@@ -755,6 +798,13 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
           <a href="/caja" className="rounded-md bg-amber-500 px-3 py-1 text-white text-xs font-medium hover:bg-amber-600">
             Ir a Caja
           </a>
+        </div>
+      )}
+      {!meseroMode && !kioskSaleId && (
+        <div className="lg:col-span-2">
+          <KioskPendingPanel
+            onSelect={(id) => navigate({ to: "/pos", search: { type: "kiosko", kioskSaleId: id } })}
+          />
         </div>
       )}
       <div className="space-y-4">

@@ -5,6 +5,7 @@ import { PosScreen, type OrderType } from "@/components/pos-screen";
 const searchSchema = z.object({
   type: z.enum(["mesa", "llevar", "domicilio", "kiosko"]).optional(),
   tableId: z.string().optional(),
+  kioskSaleId: z.string().optional(),
 });
 
 export const Route = createFileRoute("/_authenticated/pos")({
@@ -14,7 +15,7 @@ export const Route = createFileRoute("/_authenticated/pos")({
 });
 
 function POSRoute() {
-  const { type, tableId } = Route.useSearch();
-  const orderType: OrderType = type ?? (tableId ? "mesa" : "llevar");
-  return <PosScreen orderType={orderType} tableId={tableId ?? null} />;
+  const { type, tableId, kioskSaleId } = Route.useSearch();
+  const orderType: OrderType = type ?? (tableId ? "mesa" : kioskSaleId ? "kiosko" : "llevar");
+  return <PosScreen orderType={orderType} tableId={tableId ?? null} kioskSaleId={kioskSaleId ?? null} />;
 }
