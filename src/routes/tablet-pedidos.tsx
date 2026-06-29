@@ -310,6 +310,3 @@ function QuickStart({
     </Card>
   );
 }
-
-// silenciar import no usado de toast cuando aplique
-void toast;
