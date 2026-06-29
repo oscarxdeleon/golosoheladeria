@@ -111,7 +111,7 @@ export function PublicOrder({
       if (!branchSlug) {
         const { data } = await supabase
           .from("branches")
-          .select("id,name,slug")
+          .select("id,name,slug,phone")
           .eq("is_main", true)
           .order("created_at")
           .limit(1)
@@ -120,7 +120,7 @@ export function PublicOrder({
       }
       const { data } = await supabase
         .from("branches")
-        .select("id,name,slug")
+        .select("id,name,slug,phone")
         .eq("slug", branchSlug)
         .maybeSingle();
       return data;
@@ -295,7 +295,9 @@ export function PublicOrder({
 
       // WhatsApp redirect (only para domicilio / online_menu)
       if (source === "online_menu") {
-        const rawPhone = (settings as { phone?: string | null } | null | undefined)?.phone ?? "";
+        const rawPhone = (branch as { phone?: string | null } | null | undefined)?.phone
+          ?? (settings as { phone?: string | null } | null | undefined)?.phone
+          ?? "";
         const digits = rawPhone.replace(/[^\d]/g, "");
         if (digits) {
           const finalPhone = digits.length === 10 ? `57${digits}` : digits;
