@@ -366,61 +366,59 @@ export function PublicOrder({
 
   if (source === "kiosk" && !kioskService) {
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-primary/15 via-background to-secondary/20">
-        <div className="min-h-full flex flex-col items-center justify-between py-8 px-6 md:py-12 md:px-12">
-          {/* Encabezado: logo + sucursal + instrucción */}
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
+        <div className="min-h-full flex flex-col items-center justify-between py-10 px-6 md:py-16 md:px-12">
+          {/* Logo protagonista */}
           <div className="flex flex-col items-center text-center w-full">
             {settings?.logo_url ? (
               <img
                 src={settings.logo_url}
-                alt={settings?.business_name ?? "Heladería Goloso"}
-                className="max-h-[28vh] max-w-[70vw] object-contain drop-shadow-xl animate-in fade-in zoom-in duration-700"
+                alt="Heladería Goloso"
+                className="max-h-[38vh] max-w-[85vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite]"
               />
             ) : (
-              <div className="h-40 w-40 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
-                <IceCream className="h-20 w-20" />
+              <div className="h-48 w-48 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
+                <IceCream className="h-24 w-24" />
               </div>
             )}
-            <h1 className="font-display text-3xl md:text-5xl mt-6 text-foreground uppercase tracking-wide">
-              {settings?.business_name ?? "Heladería Goloso"}{branch?.name ? ` · ${branch.name}` : ""}
-            </h1>
-
-            <p className="text-muted-foreground text-base md:text-xl mt-2">
+            <p className="text-slate-600 text-lg md:text-2xl mt-6 font-medium">
               Toca una opción para empezar tu pedido
             </p>
           </div>
 
-          {/* Botones de tipo de pedido — apilados verticalmente */}
-          <div className="w-full max-w-2xl mx-auto mt-8 flex flex-col gap-5">
+          {/* Botones premium */}
+          <div className="w-full max-w-5xl mx-auto mt-10 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
             <button
               type="button"
-              onClick={() => setKioskService("llevar")}
-              className="group w-full flex items-center gap-6 rounded-3xl bg-primary text-primary-foreground px-8 py-7 md:py-9 shadow-xl ring-1 ring-primary/30 hover:shadow-2xl hover:brightness-110 transition-all duration-200 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 text-left"
+              onClick={() => setKioskService("comer_aqui")}
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 text-white px-8 py-12 md:py-16 shadow-2xl ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300"
             >
-              <div className="shrink-0 rounded-2xl bg-white/15 p-4 group-hover:scale-110 transition-transform">
-                <ShoppingBag className="!h-14 !w-14 md:!h-16 md:!w-16" strokeWidth={2.2} />
-              </div>
-              <div className="flex-1">
-                <div className="font-display text-3xl md:text-4xl font-extrabold leading-tight">
-                  PARA LLEVAR
+              <span className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-white/20 blur-2xl" />
+              <span className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-indigo-300/30 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-5">
+                <div className="rounded-3xl bg-white/20 backdrop-blur-sm p-6 shadow-inner group-hover:scale-110 group-active:scale-100 transition-transform duration-300">
+                  <Utensils className="!h-20 !w-20 md:!h-24 md:!w-24 drop-shadow-lg" strokeWidth={2.2} />
                 </div>
-                <div className="text-sm md:text-lg opacity-90 mt-1">Llévate tu pedido</div>
+                <div className="font-display font-black text-3xl md:text-4xl tracking-wide drop-shadow">
+                  COMER AQUÍ
+                </div>
               </div>
             </button>
 
             <button
               type="button"
-              onClick={() => setKioskService("comer_aqui")}
-              className="group w-full flex items-center gap-6 rounded-3xl bg-primary text-primary-foreground px-8 py-7 md:py-9 shadow-xl ring-1 ring-primary/30 hover:shadow-2xl hover:brightness-110 transition-all duration-200 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 text-left"
+              onClick={() => setKioskService("llevar")}
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-400 via-orange-500 to-fuchsia-600 text-white px-8 py-12 md:py-16 shadow-2xl ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-300"
             >
-              <div className="shrink-0 rounded-2xl bg-white/15 p-4 group-hover:scale-110 transition-transform">
-                <Utensils className="!h-14 !w-14 md:!h-16 md:!w-16" strokeWidth={2.2} />
-              </div>
-              <div className="flex-1">
-                <div className="font-display text-3xl md:text-4xl font-extrabold leading-tight">
-                  PARA COMER AQUÍ
+              <span className="pointer-events-none absolute -top-20 -left-20 h-56 w-56 rounded-full bg-white/20 blur-2xl" />
+              <span className="pointer-events-none absolute -bottom-24 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/30 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-5">
+                <div className="rounded-3xl bg-white/20 backdrop-blur-sm p-6 shadow-inner group-hover:scale-110 group-active:scale-100 transition-transform duration-300">
+                  <ShoppingBag className="!h-20 !w-20 md:!h-24 md:!w-24 drop-shadow-lg" strokeWidth={2.2} />
                 </div>
-                <div className="text-sm md:text-lg opacity-90 mt-1">Disfruta en nuestro local</div>
+                <div className="font-display font-black text-3xl md:text-4xl tracking-wide drop-shadow">
+                  PARA LLEVAR
+                </div>
               </div>
             </button>
           </div>
@@ -428,6 +426,7 @@ export function PublicOrder({
       </div>
     );
   }
+
 
 
 
