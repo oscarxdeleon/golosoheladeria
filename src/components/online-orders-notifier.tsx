@@ -158,7 +158,7 @@ export function OnlineOrdersNotifier() {
 
       if (row.source === "kiosk") void autoPrintKioskOrder(row.id);
 
-      qc.invalidateQueries({ queryKey: ["online-orders"] });
+      qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
       qc.invalidateQueries({ queryKey: ["pending-sales"] });
       qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
     };
