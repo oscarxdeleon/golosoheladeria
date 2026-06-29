@@ -832,10 +832,12 @@ function EditarSedeTab() {
                 </Button>
               </div>
             </div>
-
+            <div>
+              <Label>Encabezado del ticket (esta sede)</Label>
               <p className="text-xs text-muted-foreground mb-2">Líneas extra que se imprimirán en el encabezado del ticket para esta sucursal.</p>
               <Textarea rows={3} value={form.ticket_header ?? ""} onChange={(e) => setForm({ ...form, ticket_header: e.target.value })} placeholder="¡Bienvenido a Sede Santa!" />
             </div>
+
 
             <div>
               <Label>Pie de página del ticket (esta sede)</Label>
