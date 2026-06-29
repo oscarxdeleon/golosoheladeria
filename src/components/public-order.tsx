@@ -141,10 +141,12 @@ export function PublicOrder({
       const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
       const payment_details =
         payMethod === "Efectivo"
-          ? { cash_received: cashReceived, change: cashReceived - subtotal }
+          ? { cash_received: cashReceived, change: cashReceived - total }
           : payMethod === "Nequi"
           ? { nequi_number: nequiNum }
           : { bancolombia_account: bancoAcc };
+
+
 
       const { data, error } = await supabase.rpc("create_public_order", {
         _payload: {
