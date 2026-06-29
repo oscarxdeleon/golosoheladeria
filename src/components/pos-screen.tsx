@@ -488,15 +488,35 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
 
   function add(p: Product) {
+    if (p.modifier_group_ids && p.modifier_group_ids.length > 0) {
+      setModalProduct(p);
+      return;
+    }
     setCart((prev) => {
-      const idx = prev.findIndex((l) => l.key === p.id);
+      const idx = prev.findIndex((l) => l.key === p.id && l.modifiers.length === 0);
       if (idx >= 0) {
         const next = [...prev];
         next[idx] = { ...next[idx], qty: next[idx].qty + 1 };
         return next;
       }
-      return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1 }];
+      return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
+  }
+  function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number) {
+    const label = mods.length
+      ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
+      : p.name;
+    setCart((prev) => [
+      ...prev,
+      {
+        key: crypto.randomUUID(),
+        product_id: p.id,
+        name: label,
+        unit_price: Number(p.price) + unitExtra,
+        qty: 1,
+        modifiers: mods,
+      },
+    ]);
   }
   function dec(key: string) {
     setCart((p) => p.flatMap((l) => (l.key === key ? (l.qty <= 1 ? [] : [{ ...l, qty: l.qty - 1 }]) : [l])));
