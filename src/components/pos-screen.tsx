@@ -231,7 +231,7 @@ function precuentaHTML(o: {
   const b = o.branding ?? DEFAULT_BRANDING;
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
   const rows = o.items
-    .map((i) => `<tr><td>${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap">${money(i.unit_price * i.qty)}</td></tr>`)
+    .map((i) => `<tr><td style="white-space:pre-line">${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap;vertical-align:top">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
   return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
