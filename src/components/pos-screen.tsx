@@ -100,55 +100,120 @@ function comandaHTML(o: {
   </body></html>`;
 }
 
+/* SVG icons (Lucide) inlined for thermal-printer reliability */
+const SVG = {
+  idCard: `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M15 8h3M15 12h3M7 16h10"/></svg>`,
+  pin:    `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 7-8 12-8 12s-8-5-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>`,
+  phone:  `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92Z"/></svg>`,
+  cal:    `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>`,
+  user:   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
+  card:   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>`,
+  bill:   `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>`,
+};
+
 const TICKET_STYLES = `@page{size:80mm auto;margin:0}
-@media print{html,body{width:80mm;margin:0!important;padding:0!important}}
+@media print{html,body{width:80mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.logo{filter:grayscale(100%) contrast(1.2)}}
 html,body{width:80mm}
-body{font-family:'Helvetica','Arial',sans-serif;font-size:14px;padding:4mm;width:72mm;margin:0;color:#000;line-height:1.4}
-.logo-wrap{text-align:center;margin:0 0 6px}
-.logo{max-width:60mm;max-height:24mm;object-fit:contain;display:inline-block}
-.biz-name{font-size:22px;margin:2px 0 4px;text-align:center;font-weight:900;letter-spacing:1px;text-transform:uppercase}
-.biz-meta{font-size:12px;text-align:center;line-height:1.3}
-h2{font-size:16px;margin:6px 0;text-align:center;font-weight:bold}
-table{width:100%;border-collapse:collapse}
-td{padding:3px 0;font-size:14px;vertical-align:top}
-hr{border:none;border-top:1px dashed #000;margin:6px 0}
-.muted{color:#222;font-size:12px;text-align:center}
-.row{display:flex;justify-content:space-between;font-size:14px;padding:1px 0}
-.row.total{font-weight:900;font-size:20px;margin-top:6px;border-top:2px solid #000;padding-top:6px}
-.thanks{text-align:center;font-size:14px;font-weight:bold;margin-top:8px;line-height:1.4;white-space:pre-line}`;
+*{box-sizing:border-box}
+body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000;line-height:1.4}
+.logo-wrap{text-align:center;margin:0 0 4px}
+.logo{max-width:55mm;max-height:22mm;object-fit:contain;display:inline-block}
+.biz-name{font-size:20px;margin:4px 0 6px;text-align:center;font-weight:900;letter-spacing:.5px;text-transform:uppercase;font-family:'Arial Black','Helvetica',sans-serif}
+.biz-meta{display:flex;align-items:center;justify-content:center;gap:6px;font-size:12px;line-height:1.35;margin:2px 0}
+.biz-meta svg{flex-shrink:0}
+.divider{border:none;border-top:1.5px dashed #000;margin:8px 0}
+.ticket-no{text-align:center;font-weight:900;font-size:14px;letter-spacing:.5px;font-family:'Arial Black',sans-serif;text-transform:uppercase;margin:2px 0}
+.ticket-no .num{font-weight:900;font-size:14px;margin-left:2px}
+.info{display:grid;grid-template-columns:auto 1fr;column-gap:8px;row-gap:5px;font-size:12px;margin:4px 0}
+.info .label{display:flex;align-items:center;gap:5px;font-weight:900;white-space:nowrap}
+.info .val{text-align:left;word-break:break-word}
+.tbl{width:100%;border-collapse:collapse;margin-top:2px}
+.tbl thead th{font-size:11px;font-weight:900;text-transform:uppercase;padding:5px 0;border-top:1.5px solid #000;border-bottom:1.5px solid #000;font-family:'Arial Black',sans-serif}
+.tbl th.qty,.tbl td.qty{width:18%;text-align:left}
+.tbl th.det,.tbl td.det{text-align:left;padding-left:4px}
+.tbl th.tot,.tbl td.tot{width:28%;text-align:right;white-space:nowrap}
+.tbl td{padding:5px 0;font-size:12px;vertical-align:top}
+.tbl tbody tr+tr td{border-top:1px dotted #999}
+.sub-row{display:flex;justify-content:flex-end;gap:12px;font-size:12px;padding:6px 0 2px;border-top:1.5px dashed #000;margin-top:4px}
+.sub-row .lbl{font-weight:700;text-transform:uppercase;letter-spacing:.4px}
+.total-row{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 6px}
+.total-row .lbl{font-family:'Arial Black',sans-serif;font-weight:900;font-size:22px;letter-spacing:.5px}
+.total-row .val{font-family:'Arial Black',sans-serif;font-weight:900;font-size:26px}
+.cash{display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:6px 0;border-top:1.5px dashed #000;border-bottom:1.5px dashed #000}
+.cash .blk{display:flex;align-items:center;gap:6px}
+.cash .blk b{font-weight:900}
+.thanks{text-align:center;font-family:'Brush Script MT','Lucida Handwriting',cursive;font-style:italic;font-weight:700;font-size:18px;margin:10px 0 6px;white-space:pre-line}
+.deco{text-align:center;font-size:10px;letter-spacing:6px;margin-top:6px}`;
 
 function ticketHTML(o: {
   ticket: number; header: string;
   items: { name: string; qty: number; unit_price: number }[];
   subtotal: number; tax: number; deliveryFee: number; total: number;
   payment_method: string; customer: string; user_name: string; created_at: string;
+  address?: string; phone?: string; cash_received?: number;
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const fmtDate = (iso: string) => {
+    const d = new Date(iso);
+    const date = d.toISOString().slice(0, 10);
+    let h = d.getHours();
+    const m = d.getMinutes().toString().padStart(2, "0");
+    const s = d.getSeconds().toString().padStart(2, "0");
+    const ap = h >= 12 ? "PM" : "AM";
+    h = h % 12 || 12;
+    return `${date}&nbsp;&nbsp;${String(h).padStart(2, "0")}:${m}:${s}&nbsp;${ap}`;
+  };
+  const received = Number(o.cash_received ?? o.total);
+  const change = Math.max(0, received - o.total);
+  const ticketNo = `TV-${String(o.ticket).padStart(6, "0")}`;
+  const logoHTML = b.logo_url
+    ? `<div class="logo-wrap"><img src="${b.logo_url}" alt="logo" class="logo"/></div>`
+    : "";
   const rows = o.items
-    .map((i) => `<tr><td>${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap">${money(i.unit_price * i.qty)}</td></tr>`)
+    .map(
+      (i) => `<tr>
+        <td class="qty">${i.qty}</td>
+        <td class="det">${i.name.toUpperCase()}</td>
+        <td class="tot">${money(i.unit_price * i.qty)}</td>
+      </tr>`,
+    )
     .join("");
-  return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
+  return `<!doctype html><html><head><meta charset="utf-8"/><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
-    ${brandHeaderHTML(b)}
-    <hr/>
-    <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
-    <div class="muted">Ticket #${o.ticket} · ${o.header}</div>
-    ${o.customer ? `<div class="muted">Cliente: ${o.customer}</div>` : ""}
-    <div class="muted">Cajero: ${o.user_name}</div>
-    <hr/>
-    <table>${rows}</table>
-    <hr/>
-    <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
-    ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
-    ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
-    <div class="row total"><span>TOTAL</span><span>${money(o.total)}</span></div>
-    <div class="row"><span>Pago</span><span>${o.payment_method}</span></div>
-    <hr/>
-    <div class="thanks">${b.ticket_footer ? b.ticket_footer : "¡Gracias por tu compra!"}</div>
+    ${logoHTML}
+    <h1 class="biz-name">${(b.business_name || "Heladería Goloso").toUpperCase()}</h1>
+    <div class="biz-meta">${SVG.idCard}<span>NIT: ${b.nit ?? "—"}</span></div>
+    <div class="biz-meta">${SVG.pin}<span>${b.address ?? ""}</span></div>
+    <div class="biz-meta">${SVG.phone}<span>${b.phone ?? ""}</span></div>
+    <hr class="divider"/>
+    <div class="ticket-no">TICKET DE VENTA <span class="num">No. ${ticketNo}</span></div>
+    <hr class="divider"/>
+    <div class="info">
+      <div class="label">${SVG.cal} Fecha:</div><div class="val">${fmtDate(o.created_at)}</div>
+      <div class="label">${SVG.user} Cliente:</div><div class="val">${o.customer || "Mostrador"}</div>
+      ${o.address ? `<div class="label">${SVG.pin} Dirección:</div><div class="val">${o.address}</div>` : ""}
+      ${o.phone ? `<div class="label">${SVG.phone} Teléfono:</div><div class="val">${o.phone}</div>` : ""}
+      <div class="label">${SVG.card} Forma de Pago:</div><div class="val">${o.payment_method}</div>
+    </div>
+    <table class="tbl">
+      <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+    <div class="sub-row"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>
+    ${o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
+    ${o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    <div class="total-row"><span class="lbl">TOTAL:</span><span class="val">${money(o.total)}</span></div>
+    <div class="cash">
+      <div class="blk">${SVG.bill}<b>Recibido:</b><span>${money(received)}</span></div>
+      <div class="blk"><b>Cambio:</b><span>${money(change)}</span></div>
+    </div>
+    <div class="thanks">${b.ticket_footer ? b.ticket_footer : "¡Gracias por Preferirnos!"}</div>
+    <div class="deco">♥ · 🍦 · ♥ · 🍧 · ♥ · 🍦 · ♥</div>
   </body></html>`;
 }
+
 
 function precuentaHTML(o: {
   header: string; items: { name: string; qty: number; unit_price: number }[];
