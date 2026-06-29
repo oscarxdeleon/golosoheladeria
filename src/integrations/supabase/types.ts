@@ -832,6 +832,8 @@ export type Database = {
           address: string | null
           bancolombia_account: string | null
           business_name: string
+          cashier_printer_ip: string | null
+          cashier_printer_port: number | null
           city: string | null
           delivery_fee: number
           id: number
@@ -850,6 +852,8 @@ export type Database = {
           address?: string | null
           bancolombia_account?: string | null
           business_name?: string
+          cashier_printer_ip?: string | null
+          cashier_printer_port?: number | null
           city?: string | null
           delivery_fee?: number
           id?: number
@@ -868,6 +872,8 @@ export type Database = {
           address?: string | null
           bancolombia_account?: string | null
           business_name?: string
+          cashier_printer_ip?: string | null
+          cashier_printer_port?: number | null
           city?: string | null
           delivery_fee?: number
           id?: number

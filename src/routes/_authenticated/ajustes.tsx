@@ -446,6 +446,7 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
             Alternativa sin servidor: abre Chrome con <code className="bg-background px-1 rounded">--kiosk-printing</code> y configura la térmica como impresora predeterminada del sistema.
           </p>
         </div>
+        <CashierIpPrinterCard />
         <Table>
 
           <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>IP:Puerto</TableHead><TableHead>Plataforma</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
@@ -760,5 +761,94 @@ function EditarSedeTab() {
     </Card>
   );
 }
+
+function CashierIpPrinterCard() {
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["settings-cashier-printer"],
+    queryFn: async () =>
+      (await supabase.from("settings").select("cashier_printer_ip, cashier_printer_port").eq("id", 1).maybeSingle()).data as
+        | { cashier_printer_ip: string | null; cashier_printer_port: number | null }
+        | null,
+  });
+  const [ip, setIp] = useState("");
+  const [port, setPort] = useState<number>(9100);
+  const [testing, setTesting] = useState(false);
+  useEffect(() => {
+    if (data) {
+      setIp(data.cashier_printer_ip ?? "");
+      setPort(Number(data.cashier_printer_port ?? 9100));
+    }
+  }, [data]);
+
+  async function save() {
+    const { error } = await supabase
+      .from("settings")
+      .update({ cashier_printer_ip: ip.trim() || null, cashier_printer_port: Number(port) || 9100 } as never)
+      .eq("id", 1);
+    if (error) return toast.error(error.message);
+    toast.success("Impresora de caja guardada");
+    qc.invalidateQueries({ queryKey: ["settings-cashier-printer"] });
+  }
+
+  async function testPrint() {
+    if (!ip.trim()) return toast.error("Ingresa la IP primero");
+    setTesting(true);
+    try {
+      const url = (typeof window !== "undefined" && window.localStorage.getItem("LOCAL_PRINT_URL")) || "";
+      if (!url) {
+        toast.error("Configura primero el servidor local de impresión arriba");
+        return;
+      }
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          type: "comprobante",
+          ticket: 999,
+          header: "PRUEBA IMPRESORA CAJA",
+          items: [{ name: "Helado de prueba", qty: 1, unit_price: 5000 }],
+          subtotal: 5000,
+          total: 5000,
+          printer_ip: ip.trim(),
+          printer_port: Number(port) || 9100,
+          cashierMessage: "Prueba de impresora de caja.",
+        }),
+      });
+      if (res.ok) toast.success("Ticket de prueba enviado");
+      else toast.error(`Error del servidor (${res.status})`);
+    } catch {
+      toast.error("No se pudo conectar al servidor local");
+    } finally {
+      setTesting(false);
+    }
+  }
+
+  return (
+    <div className="border-b p-4 space-y-3 bg-muted/10">
+      <div className="font-medium text-sm">Impresora de Caja (Red IP)</div>
+      <p className="text-xs text-muted-foreground">
+        Segunda impresora térmica de red para imprimir el <b>comprobante de pago</b> de los pedidos del Kiosko.
+        Cuando un cliente envía un pedido desde la tablet, se imprime aquí un ticket con el detalle y el mensaje
+        "Favor pasar a caja a cancelar antes de recibir su pedido". Requiere el servidor local de impresión configurado arriba.
+      </p>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="sm:col-span-2">
+          <Label className="text-xs">Dirección IP</Label>
+          <Input value={ip} onChange={(e) => setIp(e.target.value)} placeholder="192.168.1.60" />
+        </div>
+        <div>
+          <Label className="text-xs">Puerto</Label>
+          <Input type="number" value={port} onChange={(e) => setPort(Number(e.target.value))} placeholder="9100" />
+        </div>
+      </div>
+      <div className="flex gap-2">
+        <Button variant="outline" onClick={testPrint} disabled={testing}>{testing ? "Enviando..." : "Probar"}</Button>
+        <Button onClick={save}>Guardar</Button>
+      </div>
+    </div>
+  );
+}
+
 
 
