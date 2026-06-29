@@ -216,6 +216,8 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
 interface Props {
   orderType: OrderType;
   tableId?: string | null;
+  /** ID de una venta pendiente del Kiosko a cargar para cobrar en caja. */
+  kioskSaleId?: string | null;
   title?: string;
   /** Modo mesero (tablet): oculta pagos, precuenta y caja. Solo Guardar/KDS. */
   meseroMode?: boolean;
@@ -223,7 +225,7 @@ interface Props {
   onSaved?: () => void;
 }
 
-export function PosScreen({ orderType, tableId, title, meseroMode = false, onSaved }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
