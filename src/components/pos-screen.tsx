@@ -28,6 +28,31 @@ const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color
   kiosko: { label: "Kiosko", icon: Monitor, color: "bg-purple-500 text-white" },
 };
 
+export interface Branding {
+  business_name: string;
+  nit?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  logo_url?: string | null;
+  ticket_header?: string | null;
+  ticket_footer?: string | null;
+}
+
+const DEFAULT_BRANDING: Branding = { business_name: "Heladería Goloso" };
+
+function brandHeaderHTML(b: Branding) {
+  const lines: string[] = [];
+  if (b.nit) lines.push(`NIT: ${b.nit}`);
+  if (b.address) lines.push(b.address);
+  if (b.phone) lines.push(`Tel: ${b.phone}`);
+  if (b.ticket_header) lines.push(b.ticket_header);
+  const meta = lines.map((l) => `<div class="biz-meta">${l}</div>`).join("");
+  const logo = b.logo_url
+    ? `<div class="logo-wrap"><img src="${b.logo_url}" alt="logo" class="logo"/></div>`
+    : "";
+  return `${logo}<h1 class="biz-name">${b.business_name || "Heladería Goloso"}</h1>${meta}`;
+}
+
 function comandaHTML(o: {
   ticket: number; header: string; items: { name: string; qty: number }[];
   customer: string; notes: string; address: string; phone: string;
@@ -46,22 +71,22 @@ function comandaHTML(o: {
     @page{size:80mm auto;margin:0}
     @media print{html,body{width:80mm;margin:0!important;padding:0!important}}
     html,body{width:80mm}
-    body{font-family:'Arial Black','Helvetica',monospace;font-size:18px;padding:4mm;width:72mm;margin:0;color:#000;font-weight:700;line-height:1.25}
-    h1{font-size:30px;margin:0 0 6px;text-align:center;font-weight:900;letter-spacing:1px}
-    h2{font-size:22px;margin:6px 0;font-weight:900;text-transform:uppercase}
-    table{width:100%;border-collapse:collapse;margin-top:4px}
-    td{vertical-align:top;padding:6px 0;border-bottom:1px dashed #000}
-    td.qty{font-size:28px;font-weight:900;width:54px;text-align:right;padding-right:8px}
-    td.name{font-size:22px;font-weight:900;text-transform:uppercase;line-height:1.2}
-    hr{border:none;border-top:2px dashed #000;margin:6px 0}
-    .meta{font-size:13px;font-weight:700}
-    .notes{margin-top:8px;font-size:16px;font-weight:700;border:2px solid #000;padding:6px;line-height:1.3}
-    .footer{margin-top:8px;text-align:center;font-size:14px;font-weight:900}
+    body{font-family:'Arial Black','Helvetica',sans-serif;font-size:26px;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.35}
+    h1{font-size:42px;margin:0 0 10px;text-align:center;font-weight:900;letter-spacing:2px}
+    h2{font-size:34px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:3px solid #000;padding:6px 0}
+    table{width:100%;border-collapse:collapse;margin-top:8px}
+    td{vertical-align:top;padding:10px 0;border-bottom:2px dashed #000}
+    td.qty{font-size:40px;font-weight:900;width:80px;text-align:right;padding-right:12px}
+    td.name{font-size:32px;font-weight:900;text-transform:uppercase;line-height:1.2}
+    hr{border:none;border-top:3px dashed #000;margin:8px 0}
+    .meta{font-size:22px;font-weight:900;margin:4px 0}
+    .notes{margin-top:10px;font-size:24px;font-weight:900;border:3px solid #000;padding:8px;line-height:1.35}
+    .footer{margin-top:12px;text-align:center;font-size:24px;font-weight:900}
   </style></head>
   <body>
     <h1>COMANDA #${o.ticket}</h1>
-    <div class="meta">${new Date(o.created_at).toLocaleString("es-CO")}</div>
-    <div class="meta">Cajero: ${o.user_name}</div>
+    <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <div class="meta" style="text-align:center">Cajero: ${o.user_name}</div>
     <hr/>
     <h2>${o.header}</h2>
     ${o.customer ? `<div class="meta">Cliente: ${o.customer}</div>` : ""}
@@ -69,28 +94,47 @@ function comandaHTML(o: {
     ${o.phone ? `<div class="meta">Tel: ${o.phone}</div>` : ""}
     <hr/>
     <table>${rows}</table>
-    ${o.notes ? `<div class="notes"><b>NOTAS:</b><br/>${o.notes}</div>` : ""}
+    ${o.notes ? `<div class="notes">NOTAS:<br/>${o.notes}</div>` : ""}
     <div class="footer">*** ENVIAR A COCINA ***</div>
   </body></html>`;
 }
+
+const TICKET_STYLES = `@page{size:80mm auto;margin:0}
+@media print{html,body{width:80mm;margin:0!important;padding:0!important}}
+html,body{width:80mm}
+body{font-family:'Helvetica','Arial',sans-serif;font-size:14px;padding:4mm;width:72mm;margin:0;color:#000;line-height:1.4}
+.logo-wrap{text-align:center;margin:0 0 6px}
+.logo{max-width:60mm;max-height:24mm;object-fit:contain;display:inline-block}
+.biz-name{font-size:22px;margin:2px 0 4px;text-align:center;font-weight:900;letter-spacing:1px;text-transform:uppercase}
+.biz-meta{font-size:12px;text-align:center;line-height:1.3}
+h2{font-size:16px;margin:6px 0;text-align:center;font-weight:bold}
+table{width:100%;border-collapse:collapse}
+td{padding:3px 0;font-size:14px;vertical-align:top}
+hr{border:none;border-top:1px dashed #000;margin:6px 0}
+.muted{color:#222;font-size:12px;text-align:center}
+.row{display:flex;justify-content:space-between;font-size:14px;padding:1px 0}
+.row.total{font-weight:900;font-size:20px;margin-top:6px;border-top:2px solid #000;padding-top:6px}
+.thanks{text-align:center;font-size:14px;font-weight:bold;margin-top:8px;line-height:1.4;white-space:pre-line}`;
 
 function ticketHTML(o: {
   ticket: number; header: string;
   items: { name: string; qty: number; unit_price: number }[];
   subtotal: number; tax: number; deliveryFee: number; total: number;
   payment_method: string; customer: string; user_name: string; created_at: string;
+  branding?: Branding;
 }) {
+  const b = o.branding ?? DEFAULT_BRANDING;
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
   const rows = o.items
-    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
+    .map((i) => `<tr><td>${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
-  return `<!doctype html><html><head><title> </title>
-  <style>@page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}html,body{width:80mm}body{font-family:monospace;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000}h1{font-size:15px;margin:0 0 4px;text-align:center}h2{font-size:13px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:6px 0}.muted{color:#222;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
-    <h1>Heladería Goloso</h1>
-    <div class="muted" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
-    <div class="muted" style="text-align:center">Ticket #${o.ticket} · ${o.header}</div>
-    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    ${brandHeaderHTML(b)}
+    <hr/>
+    <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <div class="muted">Ticket #${o.ticket} · ${o.header}</div>
+    ${o.customer ? `<div class="muted">Cliente: ${o.customer}</div>` : ""}
     <div class="muted">Cajero: ${o.user_name}</div>
     <hr/>
     <table>${rows}</table>
@@ -98,10 +142,10 @@ function ticketHTML(o: {
     <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
     ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
-    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <div class="row total"><span>TOTAL</span><span>${money(o.total)}</span></div>
     <div class="row"><span>Pago</span><span>${o.payment_method}</span></div>
     <hr/>
-    <div style="text-align:center">¡Gracias por tu compra!</div>
+    <div class="thanks">${b.ticket_footer ? b.ticket_footer : "¡Gracias por tu compra!"}</div>
   </body></html>`;
 }
 
@@ -109,19 +153,21 @@ function precuentaHTML(o: {
   header: string; items: { name: string; qty: number; unit_price: number }[];
   subtotal: number; tax: number; deliveryFee: number; total: number;
   customer: string; user_name: string;
+  branding?: Branding;
 }) {
+  const b = o.branding ?? DEFAULT_BRANDING;
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
   const rows = o.items
-    .map((i) => `<tr><td style="padding:2px 0">${i.qty} × ${i.name}</td><td style="padding:2px 0;text-align:right">${money(i.unit_price * i.qty)}</td></tr>`)
+    .map((i) => `<tr><td>${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
-  return `<!doctype html><html><head><title> </title>
-  <style>@page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}html,body{width:80mm}body{font-family:monospace;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000}h1{font-size:15px;margin:0 0 4px;text-align:center}h2{font-size:13px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:6px 0}.muted{color:#222;font-size:11px}.row{display:flex;justify-content:space-between}</style></head>
+  return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
-    <h1>PRECUENTA</h1>
-    <div class="muted" style="text-align:center">${new Date().toLocaleString("es-CO")}</div>
+    ${brandHeaderHTML(b)}
     <hr/>
-    <h2>${o.header}</h2>
-    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
+    <h2>PRECUENTA</h2>
+    <div class="muted">${new Date().toLocaleString("es-CO")}</div>
+    <div class="muted">${o.header}</div>
+    ${o.customer ? `<div class="muted">Cliente: ${o.customer}</div>` : ""}
     <div class="muted">Cajero: ${o.user_name}</div>
     <hr/>
     <table>${rows}</table>
@@ -129,9 +175,9 @@ function precuentaHTML(o: {
     <div class="row"><span>Subtotal</span><span>${money(o.subtotal)}</span></div>
     ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
-    <div class="row" style="font-weight:bold;font-size:15px;margin-top:4px"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    <div class="row total"><span>TOTAL</span><span>${money(o.total)}</span></div>
     <hr/>
-    <div class="muted" style="text-align:center">Documento no fiscal</div>
+    <div class="muted">Documento no fiscal</div>
   </body></html>`;
 }
 
@@ -160,6 +206,7 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
   };
   printSilent(payload, precuentaHTML(o));
 }
+
 
 
 
