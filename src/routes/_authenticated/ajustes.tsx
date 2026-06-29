@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
@@ -523,11 +523,12 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
 }
 
 interface Branch {
-  id: string; name: string; address: string | null; phone: string | null; city: string | null;
+  id: string; name: string; slug?: string | null; address: string | null; phone: string | null; city: string | null;
   is_main: boolean; inherits_main_catalog: boolean;
   neighborhood?: string | null; nit?: string | null;
   ticket_header?: string | null; ticket_footer?: string | null;
 }
+
 
 function SucursalesTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
@@ -632,9 +633,60 @@ function SucursalesTab({ disabled }: { disabled: boolean }) {
           </TableBody>
         </Table>
       </CardContent>
+      <BranchLinksCard branches={data} />
     </Card>
   );
 }
+
+function BranchLinksCard({ branches }: { branches: Branch[] }) {
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  function copy(url: string, label: string) {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(() => toast.success(`${label} copiado`));
+    }
+  }
+  if (branches.length === 0) return null;
+  return (
+    <div className="border-t p-4 space-y-4">
+      <div>
+        <div className="font-display text-lg flex items-center gap-2"><LinkIcon className="h-5 w-5" /> Enlaces independientes por sede</div>
+        <p className="text-xs text-muted-foreground">Cada sede tiene sus propios links de menú en línea, kiosko y QRs de mesa. Los pedidos llegan únicamente al POS de esa sede.</p>
+      </div>
+      {branches.map((b) => {
+        const sl = b.slug ?? "";
+        const menu = `${origin}/menu?sede=${sl}`;
+        const kiosk = `${origin}/kiosk?sede=${sl}`;
+        return (
+          <div key={b.id} className="rounded-lg border bg-muted/30 p-3 space-y-2">
+            <div className="flex items-center gap-2 font-medium">
+              <Building2 className="h-4 w-4 text-primary" /> {b.name}
+              {b.is_main && <Badge variant="secondary"><Star className="h-3 w-3 mr-1" />Principal</Badge>}
+              {!sl && <Badge variant="destructive" className="text-xs">Falta slug — guarda la sede</Badge>}
+            </div>
+            <div className="grid gap-2 md:grid-cols-2">
+              <div>
+                <Label className="text-xs">Menú en línea</Label>
+                <div className="flex gap-1">
+                  <Input readOnly value={menu} className="font-mono text-xs h-8" />
+                  <Button size="sm" variant="outline" onClick={() => copy(menu, "Link de menú")}>Copiar</Button>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Tablet Kiosko</Label>
+                <div className="flex gap-1">
+                  <Input readOnly value={kiosk} className="font-mono text-xs h-8" />
+                  <Button size="sm" variant="outline" onClick={() => copy(kiosk, "Link de kiosko")}>Copiar</Button>
+                </div>
+              </div>
+            </div>
+            <p className="text-xs text-muted-foreground">QR de mesas: genéralos en <span className="font-mono">Mesas → Administrar</span> con la sede seleccionada.</p>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 
 function EditarSedeTab() {
   const qc = useQueryClient();

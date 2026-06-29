@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 export interface Branch {
   id: string;
   name: string;
+  slug: string | null;
   is_main: boolean | null;
   city: string | null;
   address?: string | null;
@@ -34,12 +35,13 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     queryFn: async () => {
       const { data } = await supabase
         .from("branches")
-        .select("id,name,is_main,city,address,phone,neighborhood,nit,ticket_header,ticket_footer")
+        .select("id,name,slug,is_main,city,address,phone,neighborhood,nit,ticket_header,ticket_footer")
         .order("is_main", { ascending: false })
         .order("name");
       return (data ?? []) as Branch[];
     },
   });
+
 
   useEffect(() => {
     if (branches.length === 0) return;

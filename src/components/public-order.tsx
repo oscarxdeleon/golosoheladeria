@@ -26,13 +26,16 @@ export function PublicOrder({
   source,
   tableId,
   tableLabel,
+  branchSlug,
   readOnly = false,
 }: {
   source: Source;
   tableId?: string;
   tableLabel?: string;
+  branchSlug?: string;
   readOnly?: boolean;
 }) {
+
   const qc = useQueryClient();
   const [activeCat, setActiveCat] = useState("all");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -98,6 +101,27 @@ export function PublicOrder({
     queryKey: ["public-settings"],
     queryFn: async () => (await supabase.from("settings").select("*").maybeSingle()).data,
   });
+  const { data: branch } = useQuery({
+    queryKey: ["public-branch", branchSlug ?? null],
+    queryFn: async () => {
+      if (!branchSlug) {
+        const { data } = await supabase
+          .from("branches")
+          .select("id,name,slug")
+          .eq("is_main", true)
+          .order("created_at")
+          .limit(1)
+          .maybeSingle();
+        return data;
+      }
+      const { data } = await supabase
+        .from("branches")
+        .select("id,name,slug")
+        .eq("slug", branchSlug)
+        .maybeSingle();
+      return data;
+    },
+  });
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["public-cats"],
     queryFn: async () => (await supabase.from("categories").select("*").eq("active", true).order("sort_order")).data ?? [],
@@ -106,6 +130,7 @@ export function PublicOrder({
     queryKey: ["public-products"],
     queryFn: async () => (await supabase.from("products").select("*").eq("active", true).order("name")).data ?? [],
   });
+
 
   const filtered = useMemo(
     () => products.filter((p) => activeCat === "all" || p.category_id === activeCat),
@@ -200,7 +225,10 @@ export function PublicOrder({
           source,
           order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "domicilio",
           table_id: tableId ?? null,
-          user_name: source === "kiosk" ? "Kiosko" : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : "Menú en línea",
+          branch_id: branch?.id ?? null,
+          branch_slug: branchSlug ?? branch?.slug ?? null,
+          user_name: source === "kiosk" ? `Kiosko${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
+
           customer_name: customerName || null,
           customer_phone: phone || null,
           delivery_address: isDelivery ? address : null,
@@ -316,8 +344,9 @@ export function PublicOrder({
               </div>
             )}
             <h1 className="font-display text-3xl md:text-5xl mt-6 text-foreground uppercase tracking-wide">
-              {settings?.business_name ?? "Heladería Goloso"}
+              {settings?.business_name ?? "Heladería Goloso"}{branch?.name ? ` · ${branch.name}` : ""}
             </h1>
+
             <p className="text-muted-foreground text-base md:text-xl mt-2">
               Toca una opción para empezar tu pedido
             </p>
@@ -376,12 +405,13 @@ export function PublicOrder({
             </div>
           )}
           <div className="flex-1 leading-tight">
-            <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}</div>
+            <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}{branch?.name ? <span className="text-primary"> · {branch.name}</span> : null}</div>
             <div className="text-xs text-muted-foreground">
               {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Kiosko"}`}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
               {source === "online_menu" && "Menú en línea · A domicilio"}
             </div>
+
           </div>
           {source === "kiosk" && kioskService && (
             <Button size="sm" variant="ghost" onClick={resetKiosk} className="gap-1">

@@ -59,7 +59,7 @@ function MesasAdminPage() {
   );
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const branchSlug = activeBranch ? slug(activeBranch.name) : "";
+  const branchSlug = activeBranch?.slug ?? (activeBranch ? slug(activeBranch.name) : "");
 
   return (
     <div className="space-y-6">
