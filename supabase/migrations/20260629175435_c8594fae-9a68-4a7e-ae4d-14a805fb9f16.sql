@@ -1,0 +1,1 @@
+INSERT INTO public.role_permissions (role, route_key, allowed) VALUES ('mesero','pos',true) ON CONFLICT (role, route_key) DO UPDATE SET allowed=true;
