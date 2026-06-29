@@ -1,0 +1,1 @@
+ALTER TABLE public.branches ADD COLUMN IF NOT EXISTS online_menu_url text;
