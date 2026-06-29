@@ -446,6 +446,7 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
             Alternativa sin servidor: abre Chrome con <code className="bg-background px-1 rounded">--kiosk-printing</code> y configura la térmica como impresora predeterminada del sistema.
           </p>
         </div>
+        <CashierIpPrinterCard />
         <Table>
 
           <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>IP:Puerto</TableHead><TableHead>Plataforma</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
