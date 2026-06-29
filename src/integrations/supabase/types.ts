@@ -611,6 +611,8 @@ export type Database = {
           phone: string | null
           schedules: Json
           tax_rate: number
+          ticket_footer: string | null
+          ticket_header: string | null
           updated_at: string
         }
         Insert: {
@@ -625,6 +627,8 @@ export type Database = {
           phone?: string | null
           schedules?: Json
           tax_rate?: number
+          ticket_footer?: string | null
+          ticket_header?: string | null
           updated_at?: string
         }
         Update: {
@@ -639,6 +643,8 @@ export type Database = {
           phone?: string | null
           schedules?: Json
           tax_rate?: number
+          ticket_footer?: string | null
+          ticket_header?: string | null
           updated_at?: string
         }
         Relationships: []
