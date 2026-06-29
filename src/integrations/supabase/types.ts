@@ -14,6 +14,185 @@ export type Database = {
   }
   public: {
     Tables: {
+      attendance_employees: {
+        Row: {
+          active: boolean
+          branch_id: string | null
+          created_at: string
+          document_id: string | null
+          email: string | null
+          face_descriptor: Json | null
+          full_name: string
+          id: string
+          job_position: string | null
+          phone: string | null
+          photo_url: string | null
+          profile_id: string | null
+          schedule: Json | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          document_id?: string | null
+          email?: string | null
+          face_descriptor?: Json | null
+          full_name: string
+          id?: string
+          job_position?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          profile_id?: string | null
+          schedule?: Json | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          document_id?: string | null
+          email?: string | null
+          face_descriptor?: Json | null
+          full_name?: string
+          id?: string
+          job_position?: string | null
+          phone?: string | null
+          photo_url?: string | null
+          profile_id?: string | null
+          schedule?: Json | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_employees_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_employees_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_records: {
+        Row: {
+          address: string | null
+          created_at: string
+          device_info: Json | null
+          employee_id: string
+          face_match_score: number | null
+          id: string
+          lat: number | null
+          lng: number | null
+          notes: string | null
+          photo_url: string | null
+          record_type: string
+          recorded_at: string
+          terminal_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          device_info?: Json | null
+          employee_id: string
+          face_match_score?: number | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
+          photo_url?: string | null
+          record_type: string
+          recorded_at?: string
+          terminal_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          device_info?: Json | null
+          employee_id?: string
+          face_match_score?: number | null
+          id?: string
+          lat?: number | null
+          lng?: number | null
+          notes?: string | null
+          photo_url?: string | null
+          record_type?: string
+          recorded_at?: string
+          terminal_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_employees"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "attendance_records_terminal_id_fkey"
+            columns: ["terminal_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_terminals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_terminals: {
+        Row: {
+          active: boolean
+          address: string | null
+          authorized_lat: number | null
+          authorized_lng: number | null
+          authorized_radius_m: number | null
+          branch_id: string | null
+          created_at: string
+          id: string
+          name: string
+          slug: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          address?: string | null
+          authorized_lat?: number | null
+          authorized_lng?: number | null
+          authorized_radius_m?: number | null
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          slug: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          address?: string | null
+          authorized_lat?: number | null
+          authorized_lng?: number | null
+          authorized_radius_m?: number | null
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          slug?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_terminals_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branches: {
         Row: {
           address: string | null
@@ -797,6 +976,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_employee_current_state: {
+        Args: { _employee_id: string }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -833,6 +1016,20 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      terminal_list_employees: {
+        Args: { _slug: string }
+        Returns: {
+          branch_id: string
+          face_descriptor: Json
+          full_name: string
+          id: string
+          job_position: string
+          photo_url: string
+          terminal_id: string
+          terminal_name: string
+        }[]
+      }
+      terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
     }
     Enums: {
       app_role: "admin" | "cajero"
