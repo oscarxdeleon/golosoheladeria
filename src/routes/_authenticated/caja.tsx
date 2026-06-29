@@ -166,6 +166,7 @@ function CajaPage() {
   async function closeSession() {
     setCloseError(null);
     if (!user || !current) return;
+    if (!activeBranchId) return toast.error("Selecciona una sede antes de cerrar caja");
     if (occupiedTables.length > 0) {
       return toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar.`);
     }
