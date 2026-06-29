@@ -446,8 +446,9 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
                     onCheckedChange={(v) => setEdit({ ...edit, open_drawer_on_print: v })}
                   />
                 </div>
-
+              </div>
               <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
+
             </DialogContent>
           </Dialog>
         )}
