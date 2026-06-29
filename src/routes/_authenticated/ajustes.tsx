@@ -32,6 +32,7 @@ interface Settings {
   id: number; business_name: string; nit: string | null; address: string | null; city: string | null;
   phone: string | null; logo_url: string | null; menu_link: string | null;
   schedules: Record<string, Schedule>; delivery_fee: number;
+  ticket_header: string | null; ticket_footer: string | null;
 }
 
 function AjustesPage() {
