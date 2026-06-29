@@ -94,12 +94,12 @@ function UsuariosPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<UserRow | null>(null);
 
-  if (authLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
+  if (authLoading || permsLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
   if (!isAdmin) {
     return (
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
-          Solo los administradores pueden gestionar usuarios.
+          Acceso denegado: Solo el administrador puede gestionar los usuarios del sistema.
         </CardContent>
       </Card>
     );
