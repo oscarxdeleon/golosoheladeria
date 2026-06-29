@@ -67,6 +67,8 @@ export function PublicOrder({
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
   const isDelivery = source === "online_menu";
+  const deliveryFee = isDelivery ? Number((settings as { delivery_fee?: number | null } | null | undefined)?.delivery_fee ?? 0) : 0;
+  const total = subtotal + deliveryFee;
 
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
@@ -77,10 +79,12 @@ export function PublicOrder({
       if (ex) return c.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l));
       return [...c, { key: crypto.randomUUID(), product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1 }];
     });
+    toast.success(`${p.name} agregado`, { duration: 1200 });
   }
   function setQty(key: string, qty: number) {
     setCart((c) => (qty <= 0 ? c.filter((l) => l.key !== key) : c.map((l) => (l.key === key ? { ...l, qty } : l))));
   }
+
 
   function validate(): string | null {
     if (cart.length === 0) return "Agrega productos primero";
