@@ -905,6 +905,33 @@ export type Database = {
           },
         ]
       }
+      role_permissions: {
+        Row: {
+          allowed: boolean
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          route_key: string
+          updated_at: string
+        }
+        Insert: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          route_key: string
+          updated_at?: string
+        }
+        Update: {
+          allowed?: boolean
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          route_key?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       rooms: {
         Row: {
           active: boolean
@@ -1003,6 +1030,8 @@ export type Database = {
           delivery_fee: number
           delivery_neighborhood: string | null
           delivery_phone: string | null
+          delivery_status: string | null
+          delivery_user_id: string | null
           id: string
           kds_ack_at: string | null
           notes: string | null
@@ -1031,6 +1060,8 @@ export type Database = {
           delivery_fee?: number
           delivery_neighborhood?: string | null
           delivery_phone?: string | null
+          delivery_status?: string | null
+          delivery_user_id?: string | null
           id?: string
           kds_ack_at?: string | null
           notes?: string | null
@@ -1059,6 +1090,8 @@ export type Database = {
           delivery_fee?: number
           delivery_neighborhood?: string | null
           delivery_phone?: string | null
+          delivery_status?: string | null
+          delivery_user_id?: string | null
           id?: string
           kds_ack_at?: string | null
           notes?: string | null
@@ -1396,7 +1429,7 @@ export type Database = {
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
     }
     Enums: {
-      app_role: "admin" | "cajero"
+      app_role: "admin" | "cajero" | "mesero" | "domiciliario"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1524,7 +1557,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "cajero"],
+      app_role: ["admin", "cajero", "mesero", "domiciliario"],
     },
   },
 } as const
