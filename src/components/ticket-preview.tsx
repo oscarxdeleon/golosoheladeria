@@ -67,7 +67,7 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
     >
       {/* Logo */}
       <div className="flex justify-center mb-2">
-        <img src={logoAsset.url} alt="Heladería Goloso" className="w-48 h-auto" />
+        <img src={logoSrc} alt={settings?.business_name ?? "Logo"} className="w-48 h-auto object-contain" />
       </div>
 
       {/* Business name */}
@@ -75,12 +75,18 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
         {(settings?.business_name ?? "HELADERIA GOLOSO").toUpperCase()}
       </h1>
 
-      {/* Contact */}
-      <div className="space-y-1.5 text-[15px] flex flex-col items-center">
-        <div className="flex items-center gap-2"><IdCard className="h-4 w-4 shrink-0" /><span>NIT: {settings?.nit ?? "123456789-0"}</span></div>
-        <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /><span>{settings?.address ?? "Calle 6 # 10-46"}</span></div>
-        <div className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0" /><span>{settings?.phone ?? "311 448 6300"}</span></div>
-      </div>
+      {/* Custom header lines (overrides default contact block if present) */}
+      {headerLines.length > 0 ? (
+        <div className="space-y-1 text-[14px] flex flex-col items-center text-center whitespace-pre-line">
+          {headerLines.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      ) : (
+        <div className="space-y-1.5 text-[15px] flex flex-col items-center">
+          <div className="flex items-center gap-2"><IdCard className="h-4 w-4 shrink-0" /><span>NIT: {settings?.nit ?? "123456789-0"}</span></div>
+          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /><span>{settings?.address ?? "Calle 6 # 10-46"}</span></div>
+          <div className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0" /><span>{settings?.phone ?? "311 448 6300"}</span></div>
+        </div>
+      )}
 
       <Dashed />
 
