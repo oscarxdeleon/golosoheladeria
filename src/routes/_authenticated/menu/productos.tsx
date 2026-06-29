@@ -417,6 +417,48 @@ function ProductosPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!duplicating} onOpenChange={(o) => !o && setDuplicating(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Copy className="h-5 w-5 text-primary" /> Duplicar Producto: {duplicating?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nuevo Nombre</Label>
+              <Input value={dupName} onChange={(e) => setDupName(e.target.value)} autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Sedes destino del duplicado</Label>
+              <ToggleRow
+                label="Duplicar en Punto de Venta Principal"
+                hint="Sede Santa"
+                checked={dupMain}
+                onChange={setDupMain}
+              />
+              <ToggleRow
+                label="Duplicar en Punto de Venta Sucursal"
+                hint="Sede Parque"
+                checked={dupBranch}
+                onChange={setDupBranch}
+              />
+            </div>
+            <ToggleRow
+              label="Duplicar Modificadores y Recetas"
+              hint="Copia los toppings, sabores e insumos del producto original"
+              checked={dupCopyModsRecipe}
+              onChange={setDupCopyModsRecipe}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicating(null)} disabled={dupSaving}>Cancelar</Button>
+            <Button onClick={confirmDuplicate} disabled={dupSaving}>
+              <Copy className="h-4 w-4 mr-1" /> {dupSaving ? "Duplicando..." : "Confirmar Duplicado"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
