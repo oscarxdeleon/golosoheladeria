@@ -785,7 +785,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   const meta = TYPE_META[orderType];
   const Icon = meta.icon;
-  const header = title ?? (mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
+  const header = title
+    ?? (kioskSale ? `Kiosko · Pedido #${kioskSale.ticket_number}` : mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
 
   return (
     <div className="grid gap-4 lg:grid-cols-[1fr,420px]">
@@ -797,6 +798,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           <a href="/caja" className="rounded-md bg-amber-500 px-3 py-1 text-white text-xs font-medium hover:bg-amber-600">
             Ir a Caja
           </a>
+        </div>
+      )}
+      {!meseroMode && !kioskSaleId && (
+        <div className="lg:col-span-2">
+          <KioskPendingPanel
+            onSelect={(id) => navigate({ to: "/pos", search: { type: "kiosko", kioskSaleId: id } })}
+          />
         </div>
       )}
       <div className="space-y-4">
