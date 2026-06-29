@@ -343,6 +343,8 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          show_in_online_menu: boolean
+          show_in_pos: boolean
           sort_order: number
         }
         Insert: {
@@ -351,6 +353,8 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          show_in_online_menu?: boolean
+          show_in_pos?: boolean
           sort_order?: number
         }
         Update: {
@@ -359,6 +363,8 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          show_in_online_menu?: boolean
+          show_in_pos?: boolean
           sort_order?: number
         }
         Relationships: []
