@@ -21,7 +21,7 @@ import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
 interface Category { id: string; name: string; sort_order: number; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; modifier_group_ids?: string[] | null; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; modifier_group_ids?: string[] | null; }
 interface SaleModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; }
 
