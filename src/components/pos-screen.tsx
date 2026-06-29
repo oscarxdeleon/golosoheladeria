@@ -705,9 +705,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   async function saveComanda() {
     if (!user) return toast.error("Inicia sesión para guardar el pedido");
     if (cart.length === 0) return toast.error("Carrito vacío");
-    if (orderType === "domicilio" && (!address || !phone)) {
-      return toast.error("Dirección y teléfono requeridos para domicilio");
-    }
+    if (!validateDelivery()) return;
     setPaying(true);
     try {
       let sale: { id: string; ticket_number: number; created_at: string };
