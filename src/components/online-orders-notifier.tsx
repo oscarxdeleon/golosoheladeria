@@ -108,14 +108,18 @@ export function OnlineOrdersNotifier() {
       qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
     };
 
-    const channel = supabase
-      .channel("sales-public-orders")
-      .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.online_menu" },
-        handler as unknown as Parameters<typeof channel.on>[2])
-      .on("postgres_changes",
-        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.kiosk" },
-        handler as unknown as Parameters<typeof channel.on>[2])
+    const channel = supabase.channel("sales-public-orders");
+    channel
+      .on(
+        "postgres_changes" as never,
+        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.online_menu" } as never,
+        handler as never,
+      )
+      .on(
+        "postgres_changes" as never,
+        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.kiosk" } as never,
+        handler as never,
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [navigate, qc]);
