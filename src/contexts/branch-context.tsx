@@ -14,6 +14,8 @@ export interface Branch {
   nit?: string | null;
   ticket_header?: string | null;
   ticket_footer?: string | null;
+  logo_url?: string | null;
+  email?: string | null;
 }
 
 interface BranchContextValue {
