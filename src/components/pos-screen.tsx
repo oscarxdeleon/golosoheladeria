@@ -199,8 +199,9 @@ function ticketHTML(o: {
     ${logoHTML}
     <h1 class="biz-name">${(b.business_name || "Heladería Goloso").toUpperCase()}</h1>
     <div class="biz-meta">${SVG.idCard}<span>NIT: ${b.nit ?? "—"}</span></div>
-    <div class="biz-meta">${SVG.pin}<span>${b.address ?? ""}</span></div>
-    <div class="biz-meta">${SVG.phone}<span>${b.phone ?? ""}</span></div>
+    ${b.address ? `<div class="biz-meta">${SVG.pin}<span>${b.address}</span></div>` : ""}
+    ${b.phone ? `<div class="biz-meta">${SVG.phone}<span>${b.phone}</span></div>` : ""}
+    ${b.email ? `<div class="biz-meta">${SVG.mail}<span>${b.email}</span></div>` : ""}
     <hr class="dashed"/>
     <div class="ticket-no">TICKET DE VENTA<span class="num">No. ${ticketNo}</span></div>
     <hr class="dashed"/>
