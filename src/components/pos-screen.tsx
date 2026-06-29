@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -159,6 +160,7 @@ function ticketHTML(o: {
   subtotal: number; tax: number; deliveryFee: number; total: number;
   payment_method: string; customer: string; user_name: string; created_at: string;
   address?: string; phone?: string; cash_received?: number;
+  notes?: string;
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
@@ -212,6 +214,7 @@ function ticketHTML(o: {
     ${o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="total-row"><span class="lbl">TOTAL</span><span class="val">${money(o.total)}</span></div>
+    ${o.notes ? `<div style="margin-top:8px;padding:8px;border:2px dashed #000;font-size:13px;line-height:1.35"><div style="font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📝 Notas del pedido:</div><div style="white-space:pre-line;font-weight:700">${o.notes}</div></div>` : ""}
     <div class="cash">
       <div class="ln"><span class="lf">${SVG.bill} Recibido:</span><span class="rv">${money(received)}</span></div>
       <div class="ln"><span class="lf">${SVG.bill} Cambio:</span><span class="rv">${money(change)}</span></div>
@@ -798,6 +801,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           created_at: sale.created_at,
           address: snapshotAddress,
           phone: snapshotPhone,
+          notes: snapshotNotes,
           cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
           branding,
         },
@@ -805,8 +809,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
       });
 
-      // Mantener referencia a snapshots no usados para evitar warnings
-      void snapshotNotes;
+
     } catch (err) {
       console.error("[pay] error fatal", err);
       const msg = err instanceof Error ? err.message : "Error al cobrar";
@@ -1196,7 +1199,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 </div>
               </>
             )}
-            <Input placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <div className="space-y-1.5 rounded-xl border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 shadow-sm">
+              <label className="block text-sm font-bold text-foreground">
+                📝 Notas adicionales del pedido
+              </label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notas adicionales para el pedido (ej: Salsa aparte, sin cubiertos...)."
+                rows={2}
+                className="rounded-xl border-amber-300/70 bg-background/90 text-sm focus-visible:ring-amber-400"
+              />
+            </div>
           </div>
 
           <div className="space-y-1 border-t pt-3">

@@ -210,7 +210,12 @@ function KdsPage() {
                   })}
                 </ul>
 
-                {s.notes && <div className="rounded bg-amber-50 dark:bg-amber-950/20 p-2 text-sm"><b>Notas:</b> {s.notes}</div>}
+                {s.notes && (
+                  <div className="rounded-lg border-2 border-amber-500 bg-amber-100 dark:bg-amber-900/40 p-3 animate-pulse">
+                    <div className="text-xs font-extrabold uppercase tracking-wider text-amber-900 dark:text-amber-200 mb-1">⚠️ Notas del pedido</div>
+                    <div className="text-lg font-bold text-amber-950 dark:text-amber-100 whitespace-pre-line leading-snug">{s.notes}</div>
+                  </div>
+                )}
                 <div className="flex items-center justify-between text-xs text-muted-foreground">
                   <span>Cajero: {s.user_name ?? "—"}</span>
                   <span>{new Date(s.created_at).toLocaleTimeString("es-CO")}</span>
