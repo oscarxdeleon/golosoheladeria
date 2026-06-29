@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { useState, useEffect } from "react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -13,8 +13,9 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, EyeOff } from "lucide-react";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
+import { usePermissions } from "@/hooks/use-permissions";
 import { createAppUser, updateAppUser, deleteAppUser } from "@/lib/admin-users.functions";
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
@@ -43,10 +44,20 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 
 function UsuariosPage() {
   const { isAdmin, loading: authLoading } = useAuth();
+  const { home, loading: permsLoading } = usePermissions();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const createFn = useServerFn(createAppUser);
   const updateFn = useServerFn(updateAppUser);
   const deleteFn = useServerFn(deleteAppUser);
+
+  useEffect(() => {
+    if (authLoading || permsLoading) return;
+    if (!isAdmin) {
+      toast.error("Acceso denegado: Solo el administrador puede gestionar los usuarios del sistema.");
+      navigate({ to: home, replace: true });
+    }
+  }, [authLoading, permsLoading, isAdmin, home, navigate]);
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches-for-users"],
@@ -83,12 +94,12 @@ function UsuariosPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<UserRow | null>(null);
 
-  if (authLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
+  if (authLoading || permsLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
   if (!isAdmin) {
     return (
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
-          Solo los administradores pueden gestionar usuarios.
+          Acceso denegado: Solo el administrador puede gestionar los usuarios del sistema.
         </CardContent>
       </Card>
     );
@@ -253,6 +264,7 @@ function UserForm({
   const [branch_id, setBranchId] = useState<string | null>(initial?.branch_id ?? branches.find((b) => b.is_main)?.id ?? null);
   const [active, setActive] = useState<boolean>(initial?.active ?? true);
   const [saving, setSaving] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   async function handleSave() {
     if (!full_name.trim()) return toast.error("El nombre es obligatorio");
@@ -292,12 +304,23 @@ function UserForm({
         </div>
         <div className="space-y-2">
           <Label>{isEdit ? "Nueva contraseña (opcional)" : "Contraseña *"}</Label>
-          <Input
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            placeholder={isEdit ? "Dejar vacío para no cambiar" : "Mínimo 6 caracteres"}
-          />
+          <div className="relative">
+            <Input
+              type={showPassword ? "text" : "password"}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder={isEdit ? "Dejar vacío para no cambiar" : "Mínimo 6 caracteres"}
+              className="pr-10"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              aria-label={showPassword ? "Ocultar contraseña" : "Mostrar contraseña"}
+            >
+              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
