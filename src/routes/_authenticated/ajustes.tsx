@@ -226,7 +226,9 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
           <div><Label>NIT</Label><Input value={s.nit ?? ""} onChange={(e) => setS({ ...s, nit: e.target.value })} /></div>
           <div><Label>Dirección</Label><Input value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
           <div><Label>Ciudad</Label><Input value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
-          <div><Label>Teléfono</Label><Input value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
+          <div><Label>Teléfono (WhatsApp sede)</Label><Input value={s.phone ?? ""} onChange={(e) => setS({ ...s, phone: e.target.value })} /></div>
+          <div><Label>Número Nequi</Label><Input value={s.nequi_number ?? ""} onChange={(e) => setS({ ...s, nequi_number: e.target.value })} placeholder="3001234567" /></div>
+          <div><Label>Cuenta Bancolombia</Label><Input value={s.bancolombia_account ?? ""} onChange={(e) => setS({ ...s, bancolombia_account: e.target.value })} placeholder="123-456789-00" /></div>
           <div className="md:col-span-2">
             <Label>Logo</Label>
             <div className="flex items-center gap-3">
