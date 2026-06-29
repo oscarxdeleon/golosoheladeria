@@ -293,10 +293,6 @@ function TableDialog({
     setOpen(false);
     onSaved();
   }
-    toast.success(table ? "Mesa actualizada" : "Mesa creada");
-    setOpen(false);
-    onSaved();
-  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
