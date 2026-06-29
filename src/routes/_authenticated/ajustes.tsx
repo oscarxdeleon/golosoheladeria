@@ -337,7 +337,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
           <h3 className="font-medium mb-2">Horarios</h3>
           <div className="space-y-2">
             {DAYS.map((d) => {
-              const sc = s.schedules[d.key] ?? { open: false, from: "10:00", to: "21:00" };
+              const sc = schedules[d.key] ?? { open: false, from: "10:00", to: "21:00" };
               return (
                 <div key={d.key} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-3 rounded-lg border p-3">
                   <div className="flex items-center gap-2 w-28"><Switch disabled={false} checked={sc.open} onCheckedChange={(v) => setSched(d.key, { open: v })} /><span className="text-sm">{d.label}</span></div>
