@@ -21,6 +21,7 @@ import {
   ShoppingBag,
   BellRing,
   Contact2,
+  ScanFace,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -71,6 +72,7 @@ const menu = [
 ];
 
 const admin = [
+  { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace },
   { to: "/usuarios", label: "Usuarios", icon: Users },
   { to: "/ajustes", label: "Ajustes", icon: Settings },
   { to: "/ayuda", label: "Ayuda", icon: HelpCircle },

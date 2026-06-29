@@ -32,7 +32,9 @@ import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/cr
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
 import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
+import { Route as AuthenticatedAsistenciaRouteImport } from './routes/_authenticated/asistencia'
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
+import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
 import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_authenticated/menu/modificadores'
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
@@ -153,10 +155,20 @@ const AuthenticatedAyudaRoute = AuthenticatedAyudaRouteImport.update({
   path: '/ayuda',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAsistenciaRoute = AuthenticatedAsistenciaRouteImport.update({
+  id: '/asistencia',
+  path: '/asistencia',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAjustesRoute = AuthenticatedAjustesRouteImport.update({
   id: '/ajustes',
   path: '/ajustes',
   getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AsistenciaTerminalSlugRoute = AsistenciaTerminalSlugRouteImport.update({
+  id: '/asistencia/terminal/$slug',
+  path: '/asistencia/terminal/$slug',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedMenuProductosRoute =
   AuthenticatedMenuProductosRouteImport.update({
@@ -190,6 +202,7 @@ export interface FileRoutesByFullPath {
   '/menu': typeof MenuRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
+  '/asistencia': typeof AuthenticatedAsistenciaRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
@@ -211,6 +224,7 @@ export interface FileRoutesByFullPath {
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
+  '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -219,6 +233,7 @@ export interface FileRoutesByTo {
   '/menu': typeof MenuRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
+  '/asistencia': typeof AuthenticatedAsistenciaRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
@@ -240,6 +255,7 @@ export interface FileRoutesByTo {
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
+  '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -250,6 +266,7 @@ export interface FileRoutesById {
   '/menu': typeof MenuRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
+  '/_authenticated/asistencia': typeof AuthenticatedAsistenciaRoute
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
   '/_authenticated/caja': typeof AuthenticatedCajaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
@@ -271,6 +288,7 @@ export interface FileRoutesById {
   '/_authenticated/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
+  '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -281,6 +299,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/tablet-pedidos'
     | '/ajustes'
+    | '/asistencia'
     | '/ayuda'
     | '/caja'
     | '/clientes'
@@ -302,6 +321,7 @@ export interface FileRouteTypes {
     | '/menu/insumos'
     | '/menu/modificadores'
     | '/menu/productos'
+    | '/asistencia/terminal/$slug'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -310,6 +330,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/tablet-pedidos'
     | '/ajustes'
+    | '/asistencia'
     | '/ayuda'
     | '/caja'
     | '/clientes'
@@ -331,6 +352,7 @@ export interface FileRouteTypes {
     | '/menu/insumos'
     | '/menu/modificadores'
     | '/menu/productos'
+    | '/asistencia/terminal/$slug'
   id:
     | '__root__'
     | '/'
@@ -340,6 +362,7 @@ export interface FileRouteTypes {
     | '/menu'
     | '/tablet-pedidos'
     | '/_authenticated/ajustes'
+    | '/_authenticated/asistencia'
     | '/_authenticated/ayuda'
     | '/_authenticated/caja'
     | '/_authenticated/clientes'
@@ -361,6 +384,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu/insumos'
     | '/_authenticated/menu/modificadores'
     | '/_authenticated/menu/productos'
+    | '/asistencia/terminal/$slug'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -371,6 +395,7 @@ export interface RootRouteChildren {
   MenuRoute: typeof MenuRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
   TTableNumberRoute: typeof TTableNumberRoute
+  AsistenciaTerminalSlugRoute: typeof AsistenciaTerminalSlugRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -536,12 +561,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAyudaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/asistencia': {
+      id: '/_authenticated/asistencia'
+      path: '/asistencia'
+      fullPath: '/asistencia'
+      preLoaderRoute: typeof AuthenticatedAsistenciaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/ajustes': {
       id: '/_authenticated/ajustes'
       path: '/ajustes'
       fullPath: '/ajustes'
       preLoaderRoute: typeof AuthenticatedAjustesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/asistencia/terminal/$slug': {
+      id: '/asistencia/terminal/$slug'
+      path: '/asistencia/terminal/$slug'
+      fullPath: '/asistencia/terminal/$slug'
+      preLoaderRoute: typeof AsistenciaTerminalSlugRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/_authenticated/menu/productos': {
       id: '/_authenticated/menu/productos'
@@ -576,6 +615,7 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAjustesRoute: typeof AuthenticatedAjustesRoute
+  AuthenticatedAsistenciaRoute: typeof AuthenticatedAsistenciaRoute
   AuthenticatedAyudaRoute: typeof AuthenticatedAyudaRoute
   AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
@@ -600,6 +640,7 @@ interface AuthenticatedRouteRouteChildren {
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAjustesRoute: AuthenticatedAjustesRoute,
+  AuthenticatedAsistenciaRoute: AuthenticatedAsistenciaRoute,
   AuthenticatedAyudaRoute: AuthenticatedAyudaRoute,
   AuthenticatedCajaRoute: AuthenticatedCajaRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
@@ -633,6 +674,7 @@ const rootRouteChildren: RootRouteChildren = {
   MenuRoute: MenuRoute,
   TabletPedidosRoute: TabletPedidosRoute,
   TTableNumberRoute: TTableNumberRoute,
+  AsistenciaTerminalSlugRoute: AsistenciaTerminalSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
