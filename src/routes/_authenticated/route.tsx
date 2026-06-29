@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { OnlineOrdersNotifier } from "@/components/online-orders-notifier";
 import { BranchProvider } from "@/contexts/branch-context";
 import { BranchSelector } from "@/components/branch-selector";
+import { RoleRouteGuard } from "@/components/role-route-guard";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
