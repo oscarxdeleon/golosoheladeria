@@ -434,30 +434,36 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
 
       // ───────────────────────────────────────────────────────────────
-      // PASO 3: Redireccionar al panel principal (no bloqueante)
+      // PASO 3: Mostrar modal de confirmación post-venta
+      // (la impresión y la redirección quedan a cargo del cajero desde el modal)
       // ───────────────────────────────────────────────────────────────
-      if (orderType === "mesa") navigate({ to: "/mesas" });
-      else if (orderType === "llevar") navigate({ to: "/llevar" });
-      else if (orderType === "domicilio") navigate({ to: "/domicilio" });
+      const redirectTo: "/mesas" | "/llevar" | "/domicilio" | "/kiosko" | null =
+        orderType === "mesa" ? "/mesas"
+        : orderType === "llevar" ? "/llevar"
+        : orderType === "domicilio" ? "/domicilio"
+        : orderType === "kiosko" ? "/kiosko"
+        : null;
 
-      // ───────────────────────────────────────────────────────────────
-      // PASO 4: Imprimir ticket en segundo plano (sin bloquear UI)
-      // ───────────────────────────────────────────────────────────────
-      setTimeout(() => {
-        printTicketFinal({
-          ticket: sale!.ticket_number,
+      setSuccessDialog({
+        ticket: sale.ticket_number,
+        method: sale.payment_method,
+        total: Number(sale.total),
+        redirectTo,
+        printPayload: {
+          ticket: sale.ticket_number,
           header: snapshotHeader,
           items: snapshotItems,
           subtotal,
           tax,
           deliveryFee,
-          total: Number(sale!.total),
-          payment_method: sale!.payment_method,
+          total: Number(sale.total),
+          payment_method: sale.payment_method,
           customer: snapshotCustomer,
           user_name: snapshotUserName,
-          created_at: sale!.created_at,
-        });
-      }, 0);
+          created_at: sale.created_at,
+        },
+      });
+
       // Mantener referencia a snapshots no usados para evitar warnings
       void snapshotNotes; void snapshotAddress; void snapshotPhone;
     } catch (err) {
