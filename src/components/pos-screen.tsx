@@ -299,17 +299,24 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   }
 
   async function pay(method: string) {
-    if (!user) return;
+    // Validaciones previas — si fallan, NO se imprime ni se libera nada
+    if (!user) return toast.error("Inicia sesión para cobrar");
     if (!openSession) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (orderType === "domicilio" && (!address || !phone)) {
       return toast.error("Dirección y teléfono requeridos para domicilio");
     }
+
     setPaying(true);
+    console.log(`[pay] iniciando cobro · método=${method} · pendingSaleId=${pendingSaleId ?? "(nuevo)"}`);
+
     try {
-      let sale: { id: string; ticket_number: number; total: number; payment_method: string; created_at: string };
+      // ───────────────────────────────────────────────────────────────
+      // PASO 1: Registrar el pago / finalizar venta en base de datos
+      // ───────────────────────────────────────────────────────────────
+      let sale: { id: string; ticket_number: number; total: number; payment_method: string; created_at: string } | null = null;
+
       if (pendingSaleId) {
-        // Cobrar pedido existente: actualizar totales y método de pago
         const { data, error } = await supabase
           .from("sales")
           .update({
@@ -329,8 +336,12 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,total,payment_method,created_at")
-          .single();
-        if (error) throw error;
+          .maybeSingle();
+        if (error) {
+          console.error("[pay] update sale error", error);
+          throw new Error(error.message || "No se pudo actualizar la venta");
+        }
+        if (!data) throw new Error("La venta pendiente ya no existe o no tienes permisos para cobrarla");
         sale = data;
       } else {
         const { data, error } = await supabase
@@ -353,11 +364,16 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             delivery_fee: deliveryFee,
           })
           .select("id,ticket_number,total,payment_method,created_at")
-          .single();
-        if (error) throw error;
+          .maybeSingle();
+        if (error) {
+          console.error("[pay] insert sale error", error);
+          throw new Error(error.message || "No se pudo registrar la venta");
+        }
+        if (!data) throw new Error("No se pudo registrar la venta (respuesta vacía)");
         sale = data;
+
         const items = cart.map((l) => ({
-          sale_id: sale.id,
+          sale_id: sale!.id,
           product_id: l.product_id,
           product_name: l.name,
           qty: l.qty,
@@ -366,79 +382,82 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           modifiers: [],
         }));
         const { error: e2 } = await supabase.from("sale_items").insert(items);
-        if (e2) throw e2;
+        if (e2) {
+          console.error("[pay] insert items error", e2);
+          throw new Error(e2.message || "No se pudieron guardar los productos de la venta");
+        }
       }
 
+      console.log(`[pay] venta #${sale.ticket_number} registrada como ${method}`);
 
-
-      // 1) Pago ya registrado arriba. 2) Liberar mesa
+      // ───────────────────────────────────────────────────────────────
+      // PASO 2: Liberar mesa y limpiar estado local
+      // ───────────────────────────────────────────────────────────────
       if (orderType === "mesa" && tableId) {
-        await supabase
+        const { error: tErr } = await supabase
           .from("restaurant_tables")
           .update({ status: "free", current_guests: null, occupied_at: null })
           .eq("id", tableId);
+        if (tErr) console.warn("[pay] no se pudo liberar mesa", tErr);
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      // 3) Limpiar estado de la pantalla
       const snapshotItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
       const snapshotCustomer = customer;
       const snapshotNotes = notes;
       const snapshotAddress = address;
       const snapshotPhone = phone;
+      const snapshotHeader = header;
+      const snapshotUserName = profile?.full_name ?? user.email ?? "";
+
       setCart([]);
       setCustomer("");
       setNotes("");
       setAddress("");
       setPhone("");
       setPendingSaleId(null);
+      setCashDialogOpen(false);
+      setCashReceived("");
+
       qc.invalidateQueries({ queryKey: ["dashboard-today"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
 
-      toast.success(`Venta #${sale.ticket_number} registrada · imprimiendo…`);
+      toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
 
-      // 4) Redireccionar inmediatamente al panel principal
-      if (orderType === "mesa") {
-        navigate({ to: "/mesas" });
-      } else if (orderType === "llevar") {
-        navigate({ to: "/llevar" });
-      } else if (orderType === "domicilio") {
-        navigate({ to: "/domicilio" });
-      }
+      // ───────────────────────────────────────────────────────────────
+      // PASO 3: Redireccionar al panel principal (no bloqueante)
+      // ───────────────────────────────────────────────────────────────
+      if (orderType === "mesa") navigate({ to: "/mesas" });
+      else if (orderType === "llevar") navigate({ to: "/llevar" });
+      else if (orderType === "domicilio") navigate({ to: "/domicilio" });
 
-      // 5) Disparar impresión en segundo plano (no bloquea la navegación)
+      // ───────────────────────────────────────────────────────────────
+      // PASO 4: Imprimir ticket en segundo plano (sin bloquear UI)
+      // ───────────────────────────────────────────────────────────────
       setTimeout(() => {
-        printComanda({
-          ticket: sale.ticket_number,
-          header,
+        printTicketFinal({
+          ticket: sale!.ticket_number,
+          header: snapshotHeader,
           items: snapshotItems,
+          subtotal,
+          tax,
+          deliveryFee,
+          total: Number(sale!.total),
+          payment_method: sale!.payment_method,
           customer: snapshotCustomer,
-          notes: snapshotNotes,
-          address: orderType === "domicilio" ? snapshotAddress : "",
-          phone: orderType === "domicilio" ? snapshotPhone : "",
-          user_name: profile?.full_name ?? user.email ?? "",
-          created_at: sale.created_at,
+          user_name: snapshotUserName,
+          created_at: sale!.created_at,
         });
-        setTimeout(() => {
-          printTicketFinal({
-            ticket: sale.ticket_number,
-            header,
-            items: snapshotItems,
-            subtotal,
-            tax,
-            deliveryFee,
-            total: Number(sale.total),
-            payment_method: sale.payment_method,
-            customer: snapshotCustomer,
-            user_name: profile?.full_name ?? user.email ?? "",
-            created_at: sale.created_at,
-          });
-        }, 400);
       }, 0);
+      // Mantener referencia a snapshots no usados para evitar warnings
+      void snapshotNotes; void snapshotAddress; void snapshotPhone;
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error al cobrar");
+      console.error("[pay] error fatal", err);
+      const msg = err instanceof Error ? err.message : "Error al cobrar";
+      toast.error(`No se pudo cobrar: ${msg}`);
+      // NO se imprime nada porque la venta no quedó registrada
     } finally {
       setPaying(false);
     }
