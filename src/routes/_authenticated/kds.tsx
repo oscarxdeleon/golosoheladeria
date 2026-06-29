@@ -91,7 +91,7 @@ function KdsPage() {
 
   async function markItemReady(saleId: string, itemId: string) {
     // Optimistic update
-    qc.setQueryData<Pending[]>(["kds-pending"], (old) =>
+    qc.setQueryData<Pending[]>(["kds-pending", activeBranchId], (old) =>
       (old ?? []).map((s) =>
         s.id !== saleId ? s : { ...s, sale_items: s.sale_items.map((i) => i.id === itemId ? { ...i, ready_at: new Date().toISOString() } : i) }
       )
@@ -112,7 +112,7 @@ function KdsPage() {
       return;
     }
     const ids = items.filter((i) => !i.ready_at).map((i) => i.id);
-    qc.setQueryData<Pending[]>(["kds-pending"], (old) =>
+    qc.setQueryData<Pending[]>(["kds-pending", activeBranchId], (old) =>
       (old ?? []).map((s) =>
         s.id !== saleId ? s : { ...s, sale_items: s.sale_items.map((i) => ({ ...i, ready_at: i.ready_at ?? new Date().toISOString() })) }
       )
