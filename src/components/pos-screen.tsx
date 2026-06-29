@@ -550,7 +550,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const visibleCatIds = new Set(cats.map((c) => c.id));
     const base = products.filter((p) => {
+      // Si la categoría del producto está oculta en POS, descártalo
+      if (p.category_id && !visibleCatIds.has(p.category_id)) return false;
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
       if (q && !p.name.toLowerCase().includes(q)) return false;
       return true;
@@ -566,7 +569,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       if (af !== bf) return bf - af;
       return a.name.localeCompare(b.name, "es");
     });
-  }, [products, activeCat, search]);
+  }, [products, cats, activeCat, search]);
 
   const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
