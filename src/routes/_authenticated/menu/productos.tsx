@@ -404,8 +404,9 @@ function ProductosPage() {
                   <TableCell className="text-right">
                     {isAdmin && (
                       <>
-                        <Button size="icon" variant="ghost" onClick={() => openEditor(p)}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => openEditor(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-primary hover:bg-primary/10" onClick={() => openDuplicate(p)} title="Duplicar producto"><Copy className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)} title="Eliminar"><Trash2 className="h-4 w-4" /></Button>
                       </>
                     )}
                   </TableCell>
