@@ -160,6 +160,7 @@ function ticketHTML(o: {
   subtotal: number; tax: number; deliveryFee: number; total: number;
   payment_method: string; customer: string; user_name: string; created_at: string;
   address?: string; phone?: string; cash_received?: number;
+  notes?: string;
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
