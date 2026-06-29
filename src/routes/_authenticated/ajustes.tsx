@@ -259,7 +259,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
     <Card>
       <CardContent className="space-y-4 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <div><Label>Nombre</Label><Input value={s.business_name} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
+          <div><Label>Nombre</Label><Input value={s.business_name ?? ""} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
           <div><Label>NIT</Label><Input value={s.nit ?? ""} onChange={(e) => setS({ ...s, nit: e.target.value })} /></div>
           <div><Label>Dirección</Label><Input value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
           <div><Label>Ciudad</Label><Input value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
