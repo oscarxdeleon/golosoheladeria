@@ -360,6 +360,11 @@ export function PublicOrder({
               {source === "online_menu" && "Menú en línea · A domicilio"}
             </div>
           </div>
+          {source === "kiosk" && kioskService && (
+            <Button size="sm" variant="ghost" onClick={resetKiosk} className="gap-1">
+              <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Inicio</span>
+            </Button>
+          )}
           {!readOnly && itemCount > 0 && (
             <Button size="sm" onClick={() => setCartOpen(true)} className="gap-1">
               <ShoppingCart className="h-4 w-4" />
