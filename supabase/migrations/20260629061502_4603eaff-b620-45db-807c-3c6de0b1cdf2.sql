@@ -1,0 +1,1 @@
+ALTER TABLE public.restaurant_tables DROP CONSTRAINT IF EXISTS restaurant_tables_number_key;
