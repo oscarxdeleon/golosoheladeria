@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/format";
-import { IdCard, MapPin, Phone, Calendar, User, CreditCard, Banknote, Heart, IceCream, IceCream2 } from "lucide-react";
+import { IdCard, MapPin, Phone, Calendar, User, CreditCard, Banknote, IceCream } from "lucide-react";
 import logoAsset from "@/assets/logo-goloso.png.asset.json";
 
 interface SaleLine { name: string; qty: number; unit_price: number; }
@@ -16,8 +16,8 @@ interface BusinessSettings {
   ticket_footer: string | null;
 }
 
-function Dashed() {
-  return <div className="my-3 border-t-2 border-dashed border-black" />;
+function Dashed({ className = "" }: { className?: string }) {
+  return <div className={`my-3 border-t border-dashed border-black ${className}`} />;
 }
 
 function formatTicketDate(iso: string) {
@@ -31,7 +31,23 @@ function formatTicketDate(iso: string) {
   return `${date}   ${h.toString().padStart(2, "0")}:${m}:${s} ${ampm}`;
 }
 
-export function TicketPreview({ sale }: { sale: { id: string; ticket_number: number; total: number; payment_method: string; customer: string; user_name: string; created_at: string; lines: { name: string; qty: number; unit_price: number }[]; cash_received?: number } }) {
+export function TicketPreview({
+  sale,
+}: {
+  sale: {
+    id: string;
+    ticket_number: number;
+    total: number;
+    payment_method: string;
+    customer: string;
+    user_name: string;
+    created_at: string;
+    lines: { name: string; qty: number; unit_price: number }[];
+    cash_received?: number;
+    delivery_address?: string | null;
+    delivery_phone?: string | null;
+  };
+}) {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
 
   useEffect(() => {
@@ -43,14 +59,7 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
       .then(({ data }) => setSettings(data as unknown as BusinessSettings | null));
   }, []);
 
-  const headerLines = (settings?.ticket_header ?? "")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
-  const footerLines = (settings?.ticket_footer ?? "¡Gracias por Preferirnos!")
-    .split("\n")
-    .map((l) => l.trim())
-    .filter(Boolean);
+  const footerText = (settings?.ticket_footer ?? "¡Gracias por Preferirnos!").trim();
   const logoSrc = settings?.logo_url || logoAsset.url;
 
   const lines: SaleLine[] = sale.lines;
@@ -63,117 +72,154 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
   return (
     <div
       className="print-area mx-auto bg-white text-black px-5 py-6"
-      style={{ maxWidth: 360, fontFamily: '"Courier New", ui-monospace, monospace' }}
+      style={{ maxWidth: 360, fontFamily: '"Helvetica Neue", Arial, sans-serif', lineHeight: 1.4 }}
     >
-      {/* Logo */}
-      <div className="flex justify-center mb-2">
-        <img src={logoSrc} alt={settings?.business_name ?? "Logo"} className="ticket-logo w-48 h-auto object-contain" />
+      {/* Logo a color */}
+      <div className="flex justify-center mb-1">
+        <img
+          src={logoSrc}
+          alt={settings?.business_name ?? "Logo"}
+          className="ticket-logo w-44 h-auto object-contain"
+        />
       </div>
 
-      {/* Business name */}
-      <h1 className="text-center font-black text-2xl tracking-tight leading-tight mb-3" style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}>
+      {/* Nombre */}
+      <h1
+        className="text-center font-black text-2xl tracking-tight leading-tight mt-2 mb-3 uppercase"
+        style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
+      >
         {(settings?.business_name ?? "HELADERIA GOLOSO").toUpperCase()}
       </h1>
 
-      {/* Custom header lines (overrides default contact block if present) */}
-      {headerLines.length > 0 ? (
-        <div className="space-y-1 text-[14px] flex flex-col items-center text-center whitespace-pre-line">
-          {headerLines.map((l, i) => <div key={i}>{l}</div>)}
+      {/* Contacto centrado con iconos */}
+      <div className="flex flex-col items-center gap-1.5 text-[13px]">
+        <div className="flex items-center gap-2"><IdCard className="h-4 w-4 shrink-0" strokeWidth={2.5} /><span>NIT: {settings?.nit ?? "—"}</span></div>
+        <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" strokeWidth={2.5} /><span>{settings?.address ?? ""}</span></div>
+        <div className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0" strokeWidth={2.5} /><span>{settings?.phone ?? ""}</span></div>
+      </div>
+
+      <Dashed />
+
+      {/* Título del documento */}
+      <div
+        className="text-center font-black text-[15px] uppercase tracking-wide"
+        style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
+      >
+        TICKET DE VENTA <span className="font-black">No. {ticketNo}</span>
+      </div>
+
+      <Dashed />
+
+      {/* Datos del pedido */}
+      <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+        <div className="flex items-center gap-1.5 font-black whitespace-nowrap">
+          <Calendar className="h-4 w-4" strokeWidth={2.5} /> Fecha:
         </div>
-      ) : (
-        <div className="space-y-1.5 text-[15px] flex flex-col items-center">
-          <div className="flex items-center gap-2"><IdCard className="h-4 w-4 shrink-0" /><span>NIT: {settings?.nit ?? "123456789-0"}</span></div>
-          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /><span>{settings?.address ?? "Calle 6 # 10-46"}</span></div>
-          <div className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0" /><span>{settings?.phone ?? "311 448 6300"}</span></div>
+        <div>{formatTicketDate(sale.created_at)}</div>
+
+        <div className="flex items-center gap-1.5 font-black whitespace-nowrap">
+          <User className="h-4 w-4" strokeWidth={2.5} /> Cliente:
         </div>
-      )}
+        <div>{sale.customer || "Mostrador"}</div>
 
-      <Dashed />
+        {sale.delivery_address && (
+          <>
+            <div className="flex items-center gap-1.5 font-black whitespace-nowrap">
+              <MapPin className="h-4 w-4" strokeWidth={2.5} /> Dirección:
+            </div>
+            <div>{sale.delivery_address}</div>
+          </>
+        )}
 
-      {/* Ticket title */}
-      <div className="text-center font-black text-lg tracking-tight" style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}>
-        TICKET DE VENTA <span className="font-bold">No. {ticketNo}</span>
+        {sale.delivery_phone && (
+          <>
+            <div className="flex items-center gap-1.5 font-black whitespace-nowrap">
+              <Phone className="h-4 w-4" strokeWidth={2.5} /> Teléfono:
+            </div>
+            <div>{sale.delivery_phone}</div>
+          </>
+        )}
+
+        <div className="flex items-center gap-1.5 font-black whitespace-nowrap">
+          <CreditCard className="h-4 w-4" strokeWidth={2.5} /> Forma de Pago:
+        </div>
+        <div>{sale.payment_method}</div>
       </div>
 
-      <Dashed />
+      {/* Tabla con bordes sólidos */}
+      <table className="w-full mt-4 border-collapse">
+        <thead>
+          <tr
+            className="border-y-2 border-black text-[11px] uppercase"
+            style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
+          >
+            <th className="text-left py-1.5 w-[20%]">CANTIDAD</th>
+            <th className="text-left py-1.5 pl-1">DETALLE</th>
+            <th className="text-right py-1.5 w-[28%]">TOTAL</th>
+          </tr>
+        </thead>
+        <tbody>
+          {lines.map((l, i) => (
+            <tr key={i} className="align-top">
+              <td className="py-1.5 text-left">{l.qty}</td>
+              <td className="py-1.5 pl-1 uppercase">{l.name}</td>
+              <td className="py-1.5 text-right whitespace-nowrap">
+                {formatMoney(l.unit_price * l.qty)}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
 
-      {/* Details */}
-      <div className="space-y-2 text-[14px]">
-        <div className="flex items-start gap-2"><Calendar className="h-4 w-4 mt-0.5 shrink-0" /><span className="font-bold w-24">Fecha:</span><span>{formatTicketDate(sale.created_at)}</span></div>
-        <div className="flex items-start gap-2"><User className="h-4 w-4 mt-0.5 shrink-0" /><span className="font-bold w-24">Cliente:</span><span>{sale.customer || "Mostrador"}</span></div>
-        <div className="flex items-start gap-2"><MapPin className="h-4 w-4 mt-0.5 shrink-0" /><span className="font-bold w-24">Dirección:</span><span>{settings?.address ?? "Calle 6 # 10-46"}</span></div>
-        <div className="flex items-start gap-2"><Phone className="h-4 w-4 mt-0.5 shrink-0" /><span className="font-bold w-24">Teléfono:</span><span>{settings?.phone ?? "311 448 6300"}</span></div>
-        <div className="flex items-start gap-2"><CreditCard className="h-4 w-4 mt-0.5 shrink-0" /><span className="font-bold w-24">Forma de Pago:</span><span>{sale.payment_method}</span></div>
+      {/* Subtotal */}
+      <div className="flex justify-end gap-3 text-[13px] pt-2 border-t border-dashed border-black mt-1">
+        <span className="uppercase tracking-wide font-bold">Subtotal:</span>
+        <span>{formatMoney(subtotal)}</span>
       </div>
 
-      <Dashed />
-
-      {/* Items table */}
-      <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 text-[13px] font-black" style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}>
-        <div>CANTIDAD</div>
-        <div className="text-center">DETALLE</div>
-        <div className="text-right">TOTAL</div>
-      </div>
-      <div className="grid grid-cols-[auto_1fr_auto] gap-x-3 gap-y-1 text-[13px] mt-2">
-        {lines.map((l, i) => (
-          <div key={i} className="contents">
-            <div className="text-center">{l.qty}</div>
-            <div className="uppercase">{l.name}</div>
-            <div className="text-right">{formatMoney(l.unit_price * l.qty)}</div>
-          </div>
-        ))}
-      </div>
-
-      <Dashed />
-
-      {/* Totals */}
-      <div className="flex justify-between text-[14px]">
-        <span></span>
-        <div className="flex gap-6"><span className="font-bold">SUBTOTAL:</span><span>{formatMoney(subtotal)}</span></div>
-      </div>
+      {/* TOTAL grande */}
       <div className="flex justify-between items-baseline mt-2">
-        <span className="font-black text-2xl" style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}>TOTAL:</span>
-        <span className="font-black text-3xl" style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}>{formatMoney(total)}</span>
+        <span
+          className="font-black text-2xl tracking-tight"
+          style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
+        >
+          TOTAL:
+        </span>
+        <span
+          className="font-black text-3xl"
+          style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
+        >
+          {formatMoney(total)}
+        </span>
       </div>
 
-      <Dashed />
-
-      {/* Payment */}
-      <div className="flex items-center justify-between text-[13px]">
+      {/* Recibido / Cambio */}
+      <div className="flex items-center justify-between text-[13px] mt-3 py-2 border-y border-dashed border-black">
         <div className="flex items-center gap-2">
-          <Banknote className="h-5 w-5" />
-          <span className="font-bold">Recibido:</span>
+          <Banknote className="h-5 w-5" strokeWidth={2.5} />
+          <span className="font-black">Recibido:</span>
           <span>{formatMoney(received)}</span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="font-bold">Cambio:</span>
+          <span className="font-black">Cambio:</span>
           <span>{formatMoney(change)}</span>
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="mt-5 flex items-center justify-between gap-2">
-        <IceCream className="h-10 w-10 text-pink-500" />
-        <div className="text-center font-bold italic text-lg whitespace-pre-line" style={{ fontFamily: '"Brush Script MT", "Lucida Handwriting", cursive' }}>
-          {footerLines.join("\n")}
+      {/* Pie de página decorativo */}
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <IceCream className="h-9 w-9 text-pink-500" />
+        <div
+          className="text-center font-bold italic text-xl whitespace-pre-line leading-tight"
+          style={{ fontFamily: '"Brush Script MT", "Lucida Handwriting", cursive' }}
+        >
+          {footerText}
         </div>
-        <IceCream className="h-10 w-10 text-pink-500" />
+        <IceCream className="h-9 w-9 text-pink-500" />
       </div>
 
-      <div className="mt-3 flex items-center justify-center gap-2 text-black">
-        <Heart className="h-3 w-3 fill-current" />
-        <span>·</span>
-        <IceCream2 className="h-4 w-4" />
-        <span>·</span>
-        <Heart className="h-3 w-3 fill-current" />
-        <span>·</span>
-        <IceCream className="h-4 w-4" />
-        <span>·</span>
-        <Heart className="h-3 w-3 fill-current" />
-        <span>·</span>
-        <IceCream2 className="h-4 w-4" />
-        <span>·</span>
-        <Heart className="h-3 w-3 fill-current" />
+      <div className="mt-3 text-center tracking-[0.5em] text-xs select-none">
+        ♥ · 🍦 · ♥ · 🍧 · ♥ · 🍦 · ♥
       </div>
     </div>
   );
