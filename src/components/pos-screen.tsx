@@ -167,6 +167,10 @@ interface Props {
   orderType: OrderType;
   tableId?: string | null;
   title?: string;
+  /** Modo mesero (tablet): oculta pagos, precuenta y caja. Solo Guardar/KDS. */
+  meseroMode?: boolean;
+  /** Callback ejecutado después de guardar la comanda; si se provee, suplanta el redirect interno. */
+  onSaved?: () => void;
 }
 
 export function PosScreen({ orderType, tableId, title }: Props) {
