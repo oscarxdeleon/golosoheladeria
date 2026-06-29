@@ -322,14 +322,14 @@ function EmployeeDialog({ employee, branches, onSaved }: {
     setBusy(true);
     try {
       await loadFaceModels();
-      const desc = await getFaceDescriptor(video);
-      if (!desc) { toast.error("No se detectó un rostro. Acércate a la cámara."); return; }
+      const detection = await getFaceDescriptor(video);
+      if (!detection) { toast.error("No se detectó un rostro. Acércate a la cámara."); return; }
       // upload to storage
       const path = `employees/${crypto.randomUUID()}.jpg`;
       const { error: upErr } = await supabase.storage.from("attendance").upload(path, blob, { contentType: "image/jpeg" });
       if (upErr) throw upErr;
       const { data: signed } = await supabase.storage.from("attendance").createSignedUrl(path, 60 * 60 * 24 * 365);
-      setDescriptor(descriptorToArray(desc));
+      setDescriptor(descriptorToArray(detection.descriptor));
       setPhotoUrl(signed?.signedUrl ?? null);
       setShowCapture(false);
       toast.success("Rostro registrado correctamente");

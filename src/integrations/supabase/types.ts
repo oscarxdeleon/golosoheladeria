@@ -1455,6 +1455,7 @@ export type Database = {
         Args: { _slug: string }
         Returns: {
           branch_id: string
+          document_id: string
           face_descriptor: Json
           full_name: string
           id: string
