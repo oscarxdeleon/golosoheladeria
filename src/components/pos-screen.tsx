@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, type PrintPayload } from "@/lib/print-client";
+import { printSilent, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 
 
@@ -265,13 +265,10 @@ function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   printSilent(payload, comandaHTML(o), { silent: true });
 }
 function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
-  const payload: PrintPayload = {
-    type: "ticket", ticket: o.ticket, header: o.header, items: o.items,
-    subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
-    payment_method: o.payment_method, customer: o.customer,
-    user_name: o.user_name, created_at: o.created_at,
-  };
-  printSilent(payload, ticketHTML(o));
+  // El ticket de venta se imprime SIEMPRE desde el HTML del POS para que el
+  // físico sea idéntico al visual (logo, iconos, tipografías, totales).
+  // Se evita el render ESC/POS genérico del servidor local de impresión.
+  printHTMLFallback(ticketHTML(o));
 }
 function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
   const payload: PrintPayload = {
