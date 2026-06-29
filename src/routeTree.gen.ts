@@ -27,10 +27,13 @@ import { Route as AuthenticatedLlevarRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedKioskoRouteImport } from './routes/_authenticated/kiosko'
 import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kds'
 import { Route as AuthenticatedInventarioRouteImport } from './routes/_authenticated/inventario'
+import { Route as AuthenticatedGastosRouteImport } from './routes/_authenticated/gastos'
+import { Route as AuthenticatedEgresosRouteImport } from './routes/_authenticated/egresos'
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
 import { Route as AuthenticatedDomicilioRouteImport } from './routes/_authenticated/domicilio'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
+import { Route as AuthenticatedComprasRouteImport } from './routes/_authenticated/compras'
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
 import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
@@ -136,6 +139,16 @@ const AuthenticatedInventarioRoute = AuthenticatedInventarioRouteImport.update({
   path: '/inventario',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedGastosRoute = AuthenticatedGastosRouteImport.update({
+  id: '/gastos',
+  path: '/gastos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedEgresosRoute = AuthenticatedEgresosRouteImport.update({
+  id: '/egresos',
+  path: '/egresos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDomiciliosRoute = AuthenticatedDomiciliosRouteImport.update({
   id: '/domicilios',
   path: '/domicilios',
@@ -154,6 +167,11 @@ const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
 const AuthenticatedCrmRoute = AuthenticatedCrmRouteImport.update({
   id: '/crm',
   path: '/crm',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedComprasRoute = AuthenticatedComprasRouteImport.update({
+  id: '/compras',
+  path: '/compras',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedClientesRoute = AuthenticatedClientesRouteImport.update({
@@ -242,10 +260,13 @@ export interface FileRoutesByFullPath {
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/compras': typeof AuthenticatedComprasRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/egresos': typeof AuthenticatedEgresosRoute
+  '/gastos': typeof AuthenticatedGastosRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/kiosko': typeof AuthenticatedKioskoRoute
@@ -279,10 +300,13 @@ export interface FileRoutesByTo {
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
+  '/compras': typeof AuthenticatedComprasRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/egresos': typeof AuthenticatedEgresosRoute
+  '/gastos': typeof AuthenticatedGastosRoute
   '/inventario': typeof AuthenticatedInventarioRoute
   '/kds': typeof AuthenticatedKdsRoute
   '/kiosko': typeof AuthenticatedKioskoRoute
@@ -317,10 +341,13 @@ export interface FileRoutesById {
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
   '/_authenticated/caja': typeof AuthenticatedCajaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
+  '/_authenticated/compras': typeof AuthenticatedComprasRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
   '/_authenticated/domicilio': typeof AuthenticatedDomicilioRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
+  '/_authenticated/egresos': typeof AuthenticatedEgresosRoute
+  '/_authenticated/gastos': typeof AuthenticatedGastosRoute
   '/_authenticated/inventario': typeof AuthenticatedInventarioRoute
   '/_authenticated/kds': typeof AuthenticatedKdsRoute
   '/_authenticated/kiosko': typeof AuthenticatedKioskoRoute
@@ -356,10 +383,13 @@ export interface FileRouteTypes {
     | '/ayuda'
     | '/caja'
     | '/clientes'
+    | '/compras'
     | '/crm'
     | '/dashboard'
     | '/domicilio'
     | '/domicilios'
+    | '/egresos'
+    | '/gastos'
     | '/inventario'
     | '/kds'
     | '/kiosko'
@@ -393,10 +423,13 @@ export interface FileRouteTypes {
     | '/ayuda'
     | '/caja'
     | '/clientes'
+    | '/compras'
     | '/crm'
     | '/dashboard'
     | '/domicilio'
     | '/domicilios'
+    | '/egresos'
+    | '/gastos'
     | '/inventario'
     | '/kds'
     | '/kiosko'
@@ -430,10 +463,13 @@ export interface FileRouteTypes {
     | '/_authenticated/ayuda'
     | '/_authenticated/caja'
     | '/_authenticated/clientes'
+    | '/_authenticated/compras'
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
     | '/_authenticated/domicilio'
     | '/_authenticated/domicilios'
+    | '/_authenticated/egresos'
+    | '/_authenticated/gastos'
     | '/_authenticated/inventario'
     | '/_authenticated/kds'
     | '/_authenticated/kiosko'
@@ -597,6 +633,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedInventarioRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/gastos': {
+      id: '/_authenticated/gastos'
+      path: '/gastos'
+      fullPath: '/gastos'
+      preLoaderRoute: typeof AuthenticatedGastosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/egresos': {
+      id: '/_authenticated/egresos'
+      path: '/egresos'
+      fullPath: '/egresos'
+      preLoaderRoute: typeof AuthenticatedEgresosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/domicilios': {
       id: '/_authenticated/domicilios'
       path: '/domicilios'
@@ -623,6 +673,13 @@ declare module '@tanstack/react-router' {
       path: '/crm'
       fullPath: '/crm'
       preLoaderRoute: typeof AuthenticatedCrmRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/compras': {
+      id: '/_authenticated/compras'
+      path: '/compras'
+      fullPath: '/compras'
+      preLoaderRoute: typeof AuthenticatedComprasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/clientes': {
@@ -732,10 +789,13 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedAyudaRoute: typeof AuthenticatedAyudaRoute
   AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
+  AuthenticatedComprasRoute: typeof AuthenticatedComprasRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
   AuthenticatedDomicilioRoute: typeof AuthenticatedDomicilioRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
+  AuthenticatedEgresosRoute: typeof AuthenticatedEgresosRoute
+  AuthenticatedGastosRoute: typeof AuthenticatedGastosRoute
   AuthenticatedInventarioRoute: typeof AuthenticatedInventarioRoute
   AuthenticatedKdsRoute: typeof AuthenticatedKdsRoute
   AuthenticatedKioskoRoute: typeof AuthenticatedKioskoRoute
@@ -758,10 +818,13 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAyudaRoute: AuthenticatedAyudaRoute,
   AuthenticatedCajaRoute: AuthenticatedCajaRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
+  AuthenticatedComprasRoute: AuthenticatedComprasRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
   AuthenticatedDomicilioRoute: AuthenticatedDomicilioRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
+  AuthenticatedEgresosRoute: AuthenticatedEgresosRoute,
+  AuthenticatedGastosRoute: AuthenticatedGastosRoute,
   AuthenticatedInventarioRoute: AuthenticatedInventarioRoute,
   AuthenticatedKdsRoute: AuthenticatedKdsRoute,
   AuthenticatedKioskoRoute: AuthenticatedKioskoRoute,

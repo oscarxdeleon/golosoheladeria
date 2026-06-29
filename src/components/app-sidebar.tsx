@@ -176,6 +176,25 @@ export function AppSidebar() {
         </Collapsible>
 
         <SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel>Egresos</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {egresos.map((i) => (
+                <SidebarMenuItem key={i.to}>
+                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                    <Link to={i.to}>
+                      <i.icon />
+                      <span>{i.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+
+        <SidebarGroup>
           <SidebarGroupLabel>Administración</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
