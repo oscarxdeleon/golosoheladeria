@@ -902,6 +902,62 @@ export function PosScreen({ orderType, tableId, title }: Props) {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog
+        open={!!successDialog}
+        onOpenChange={(open) => {
+          if (!open && successDialog) {
+            const redirect = successDialog.redirectTo;
+            setSuccessDialog(null);
+            if (redirect) navigate({ to: redirect });
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+              <Check className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="text-center text-2xl">¡Venta realizada con éxito!</DialogTitle>
+            <DialogDescription className="text-center">
+              {successDialog && (
+                <>
+                  Ticket <b>#{successDialog.ticket}</b> · {successDialog.method} ·{" "}
+                  <b>{formatMoney(successDialog.total)}</b>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-center text-sm text-muted-foreground">
+            ¿Deseas imprimir el ticket para el cliente?
+          </p>
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const redirect = successDialog?.redirectTo ?? null;
+                setSuccessDialog(null);
+                if (redirect) navigate({ to: redirect });
+              }}
+            >
+              No imprimir
+            </Button>
+            <Button
+              onClick={() => {
+                const payload = successDialog?.printPayload;
+                const redirect = successDialog?.redirectTo ?? null;
+                setSuccessDialog(null);
+                if (payload) {
+                  setTimeout(() => printTicketFinal(payload), 0);
+                }
+                if (redirect) navigate({ to: redirect });
+              }}
+            >
+              <Printer className="h-4 w-4 mr-1" /> Imprimir Ticket
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
