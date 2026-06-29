@@ -7,11 +7,12 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, ImagePlus } from "lucide-react";
+import { Plus, Trash2, Pencil, ImagePlus, Star } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -20,33 +21,80 @@ export const Route = createFileRoute("/_authenticated/menu/productos")({
   component: ProductosPage,
 });
 
-interface Product { id: string; name: string; price: number; category_id: string | null; sku: string | null; active: boolean; image_url: string | null; }
+interface RecipeItem { supply_id: string; qty: number; }
+interface Product {
+  id: string;
+  name: string;
+  price: number;
+  category_id: string | null;
+  sku: string | null;
+  active: boolean;
+  image_url: string | null;
+  allow_negative_stock?: boolean;
+  sold_by_weight?: boolean;
+  show_in_online?: boolean;
+  is_favorite?: boolean;
+  available_branch_ids?: string[] | null;
+  modifier_group_ids?: string[] | null;
+  recipe?: RecipeItem[] | null;
+}
 
 interface Category { id: string; name: string; }
+interface Branch { id: string; name: string; is_main: boolean; }
+interface ModifierGroup { id: string; name: string; }
+interface Supply { id: string; name: string; unit: string; }
+
+function ToggleRow({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void; }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border bg-card p-3">
+      <div className="min-w-0">
+        <div className="text-sm font-medium leading-tight">{label}</div>
+        {hint && <div className="text-xs text-muted-foreground mt-0.5">{hint}</div>}
+      </div>
+      <Switch checked={checked} onCheckedChange={onChange} />
+    </div>
+  );
+}
 
 function ProductosPage() {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
+  const [showRecipe, setShowRecipe] = useState(false);
+  const [showMods, setShowMods] = useState(false);
 
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["categories"],
-    queryFn: async () => {
-      const { data } = await supabase.from("categories").select("id,name").order("sort_order");
-      return data ?? [];
-    },
+    queryFn: async () => (await supabase.from("categories").select("id,name").order("sort_order")).data ?? [],
+  });
+  const { data: branches = [] } = useQuery<Branch[]>({
+    queryKey: ["branches-all"],
+    queryFn: async () => (await supabase.from("branches").select("id,name,is_main").order("is_main", { ascending: false })).data ?? [],
+  });
+  const { data: groups = [] } = useQuery<ModifierGroup[]>({
+    queryKey: ["modifier-groups-all"],
+    queryFn: async () => (await supabase.from("modifier_groups").select("id,name").order("name")).data ?? [],
+  });
+  const { data: supplies = [] } = useQuery<Supply[]>({
+    queryKey: ["supplies-all"],
+    queryFn: async () => (await supabase.from("supplies").select("id,name,unit").order("name")).data ?? [],
   });
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["products-all"],
-    queryFn: async () => {
-      const { data } = await supabase.from("products").select("*").order("name");
-      return data ?? [];
-    },
+    queryFn: async () => (await supabase.from("products").select("*").order("name")).data ?? [],
   });
+
+  function openEditor(p: Partial<Product> | null) {
+    setEditing(p);
+    setShowRecipe(!!(p?.recipe && p.recipe.length > 0));
+    setShowMods(!!(p?.modifier_group_ids && p.modifier_group_ids.length > 0));
+  }
 
   async function save() {
     if (!editing) return;
     if (!editing.name?.trim()) return toast.error("Nombre requerido");
+    const recipe = showRecipe ? (editing.recipe ?? []).filter((r) => r.supply_id && Number(r.qty) > 0) : [];
+    const modifier_group_ids = showMods ? (editing.modifier_group_ids ?? []) : [];
     const payload = {
       name: editing.name.trim(),
       price: Number(editing.price ?? 0),
@@ -54,6 +102,13 @@ function ProductosPage() {
       sku: editing.sku ?? null,
       active: editing.active ?? true,
       image_url: editing.image_url ?? null,
+      allow_negative_stock: !!editing.allow_negative_stock,
+      sold_by_weight: !!editing.sold_by_weight,
+      show_in_online: editing.show_in_online ?? true,
+      is_favorite: !!editing.is_favorite,
+      available_branch_ids: editing.available_branch_ids && editing.available_branch_ids.length > 0 ? editing.available_branch_ids : null,
+      modifier_group_ids: modifier_group_ids.length > 0 ? modifier_group_ids : null,
+      recipe,
     };
     const { error } = editing.id
       ? await supabase.from("products").update(payload).eq("id", editing.id)
@@ -63,22 +118,15 @@ function ProductosPage() {
     setEditing(null);
     qc.invalidateQueries({ queryKey: ["products-all"] });
     qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["public-products"] });
   }
 
   async function uploadImage(file: File) {
     const ext = file.name.split(".").pop()?.toLowerCase() || "jpg";
     const path = `prod-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
-    const up = await supabase.storage.from("products").upload(path, file, {
-      upsert: true,
-      contentType: file.type || `image/${ext}`,
-    });
-    if (up.error) {
-      toast.error(up.error.message);
-      return;
-    }
-    const { data: signed } = await supabase.storage
-      .from("products")
-      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    const up = await supabase.storage.from("products").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
+    if (up.error) return toast.error(up.error.message);
+    const { data: signed } = await supabase.storage.from("products").createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
     if (signed?.signedUrl) {
       setEditing((prev) => ({ ...(prev ?? {}), image_url: signed.signedUrl }));
       toast.success("Foto subida");
@@ -92,6 +140,39 @@ function ProductosPage() {
     qc.invalidateQueries({ queryKey: ["products-all"] });
   }
 
+  function toggleBranch(branchId: string) {
+    const current = editing?.available_branch_ids ?? branches.map((b) => b.id);
+    const next = current.includes(branchId) ? current.filter((id) => id !== branchId) : [...current, branchId];
+    setEditing({ ...editing, available_branch_ids: next });
+  }
+
+  function toggleModGroup(gid: string) {
+    const current = editing?.modifier_group_ids ?? [];
+    const next = current.includes(gid) ? current.filter((id) => id !== gid) : [...current, gid];
+    setEditing({ ...editing, modifier_group_ids: next });
+  }
+
+  function updateRecipe(idx: number, patch: Partial<RecipeItem>) {
+    const list = [...(editing?.recipe ?? [])];
+    list[idx] = { ...list[idx], ...patch };
+    setEditing({ ...editing, recipe: list });
+  }
+  function addRecipeItem() {
+    const list = [...(editing?.recipe ?? []), { supply_id: "", qty: 1 }];
+    setEditing({ ...editing, recipe: list });
+  }
+  function removeRecipeItem(idx: number) {
+    const list = [...(editing?.recipe ?? [])];
+    list.splice(idx, 1);
+    setEditing({ ...editing, recipe: list });
+  }
+
+  const branchSelected = (bid: string) => {
+    const ids = editing?.available_branch_ids;
+    if (!ids || ids.length === 0) return true; // null = todas
+    return ids.includes(bid);
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
@@ -101,28 +182,20 @@ function ProductosPage() {
         </div>
         {isAdmin && (
           <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-            <DialogTrigger asChild><Button onClick={() => setEditing({ active: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
-            <DialogContent>
+            <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
+            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
-              <div className="space-y-3">
+              <div className="space-y-4">
+                {/* Datos básicos */}
                 <div className="flex items-center gap-3">
                   <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
-                    {editing?.image_url ? (
-                      <img src={editing.image_url} alt="" className="h-full w-full object-cover" />
-                    ) : (
-                      <ImagePlus className="h-6 w-6 text-muted-foreground" />
-                    )}
+                    {editing?.image_url ? <img src={editing.image_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
                   </div>
                   <div className="flex-1">
                     <Label>Foto del producto</Label>
-                    <Input
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/bmp"
-                      onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); }}
-                    />
+                    <Input type="file" accept="image/png,image/jpeg,image/webp,image/bmp" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
                     {editing?.image_url && (
-                      <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-destructive"
-                        onClick={() => setEditing({ ...editing, image_url: null })}>Quitar foto</Button>
+                      <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-destructive" onClick={() => setEditing({ ...editing, image_url: null })}>Quitar foto</Button>
                     )}
                   </div>
                 </div>
@@ -142,6 +215,107 @@ function ProductosPage() {
                   </Select>
                 </div>
                 <div className="flex items-center gap-2"><Switch checked={editing?.active ?? true} onCheckedChange={(v) => setEditing({ ...editing, active: v })} /><Label>Activo</Label></div>
+
+                {/* Configuraciones Avanzadas */}
+                <div className="border-t pt-4">
+                  <h3 className="font-display text-lg mb-3 flex items-center gap-2"><Star className="h-4 w-4 text-primary" /> Configuraciones Avanzadas</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <ToggleRow
+                      label="⭐ Favoritos"
+                      hint="Destácalo en el menú en línea y kiosko"
+                      checked={!!editing?.is_favorite}
+                      onChange={(v) => setEditing({ ...editing, is_favorite: v })}
+                    />
+                    <ToggleRow
+                      label="Vender sin stock"
+                      hint="Permite vender aunque el inventario esté en cero"
+                      checked={!!editing?.allow_negative_stock}
+                      onChange={(v) => setEditing({ ...editing, allow_negative_stock: v })}
+                    />
+                    <ToggleRow
+                      label="Al granel"
+                      hint="Vende por peso o volumen (acepta decimales)"
+                      checked={!!editing?.sold_by_weight}
+                      onChange={(v) => setEditing({ ...editing, sold_by_weight: v })}
+                    />
+                    <ToggleRow
+                      label="Mostrar en Menú en Línea"
+                      hint="Visible en el menú web y el kiosko de autoservicio"
+                      checked={editing?.show_in_online ?? true}
+                      onChange={(v) => setEditing({ ...editing, show_in_online: v })}
+                    />
+                  </div>
+
+                  {/* Canales por sede */}
+                  {branches.length > 0 && (
+                    <div className="mt-4">
+                      <Label className="mb-2 block">Canales de Venta Físicos (Sedes)</Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        {branches.map((b) => (
+                          <ToggleRow
+                            key={b.id}
+                            label={`Mostrar en ${b.is_main ? "Punto de Venta Principal" : "Punto de Venta Sucursal"}`}
+                            hint={b.name}
+                            checked={branchSelected(b.id)}
+                            onChange={() => toggleBranch(b.id)}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Recetas */}
+                  <div className="mt-4">
+                    <ToggleRow
+                      label="Insumos / Receta"
+                      hint="Descuento automático de materia prima por cada venta"
+                      checked={showRecipe}
+                      onChange={(v) => { setShowRecipe(v); if (!v) setEditing({ ...editing, recipe: [] }); }}
+                    />
+                    {showRecipe && (
+                      <div className="mt-2 space-y-2 rounded-lg border bg-muted/30 p-3">
+                        {(editing?.recipe ?? []).map((r, i) => (
+                          <div key={i} className="grid grid-cols-[1fr_100px_auto] gap-2 items-center">
+                            <Select value={r.supply_id} onValueChange={(v) => updateRecipe(i, { supply_id: v })}>
+                              <SelectTrigger><SelectValue placeholder="Insumo" /></SelectTrigger>
+                              <SelectContent>
+                                {supplies.map((s) => <SelectItem key={s.id} value={s.id}>{s.name} ({s.unit})</SelectItem>)}
+                              </SelectContent>
+                            </Select>
+                            <Input type="number" step="0.01" value={r.qty} onChange={(e) => updateRecipe(i, { qty: Number(e.target.value) })} />
+                            <Button type="button" size="icon" variant="ghost" className="text-destructive" onClick={() => removeRecipeItem(i)}><Trash2 className="h-4 w-4" /></Button>
+                          </div>
+                        ))}
+                        <Button type="button" variant="outline" size="sm" onClick={addRecipeItem}><Plus className="h-3 w-3 mr-1" /> Agregar insumo</Button>
+                        {supplies.length === 0 && <p className="text-xs text-muted-foreground">Aún no hay insumos creados.</p>}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Modificadores */}
+                  <div className="mt-4">
+                    <ToggleRow
+                      label="Modificadores"
+                      hint="Sabores, toppings, salsas a preguntar al ordenar"
+                      checked={showMods}
+                      onChange={(v) => { setShowMods(v); if (!v) setEditing({ ...editing, modifier_group_ids: [] }); }}
+                    />
+                    {showMods && (
+                      <div className="mt-2 rounded-lg border bg-muted/30 p-3 space-y-2">
+                        {groups.length === 0 && <p className="text-xs text-muted-foreground">Aún no hay grupos de modificadores.</p>}
+                        {groups.map((g) => {
+                          const checked = (editing?.modifier_group_ids ?? []).includes(g.id);
+                          return (
+                            <label key={g.id} className="flex items-center gap-2 cursor-pointer p-2 rounded hover:bg-background">
+                              <Checkbox checked={checked} onCheckedChange={() => toggleModGroup(g.id)} />
+                              <span className="text-sm">{g.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
 
               <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
@@ -158,19 +332,22 @@ function ProductosPage() {
                 <TableRow key={p.id}>
                   <TableCell>
                     <div className="h-10 w-10 overflow-hidden rounded-md border bg-muted">
-                      {p.image_url
-                        ? <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" />
-                        : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">{p.name.charAt(0)}</div>}
+                      {p.image_url ? <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">{p.name.charAt(0)}</div>}
                     </div>
                   </TableCell>
-                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <div className="flex items-center gap-1">
+                      {p.is_favorite && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+                      {p.name}
+                    </div>
+                  </TableCell>
                   <TableCell>{cats.find((c) => c.id === p.category_id)?.name ?? "—"}</TableCell>
                   <TableCell className="text-right">{formatMoney(p.price)}</TableCell>
                   <TableCell>{p.active ? "Activo" : "Inactivo"}</TableCell>
                   <TableCell className="text-right">
                     {isAdmin && (
                       <>
-                        <Button size="icon" variant="ghost" onClick={() => setEditing(p)}><Pencil className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => openEditor(p)}><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>
                       </>
                     )}
@@ -178,7 +355,6 @@ function ProductosPage() {
                 </TableRow>
               ))}
               {products.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin productos</TableCell></TableRow>}
-
             </TableBody>
           </Table>
         </CardContent>
