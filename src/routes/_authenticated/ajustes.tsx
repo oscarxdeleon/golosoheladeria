@@ -101,7 +101,7 @@ function TicketTab() {
   const [uploading, setUploading] = useState(false);
   const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
   const [s, setS] = useState<Settings | null>(null);
   useEffect(() => { if (settings) setS(settings); }, [settings]);
@@ -215,7 +215,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   const [uploading, setUploading] = useState(false);
   const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
   const [s, setS] = useState<Settings | null>(null);
   useEffect(() => { if (settings) setS(settings); }, [settings]);
@@ -548,7 +548,7 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const { data } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
   const [fee, setFee] = useState<number>(0);
   useEffect(() => { if (data) setFee(Number(data.delivery_fee)); }, [data]);
