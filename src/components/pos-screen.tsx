@@ -869,13 +869,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </a>
         </div>
       )}
-      {!meseroMode && !kioskSaleId && (
-        <div className="lg:col-span-2">
-          <KioskPendingPanel
-            onSelect={(id) => navigate({ to: "/pos", search: { type: "kiosko", kioskSaleId: id } })}
-          />
-        </div>
-      )}
       <div className="space-y-4">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
           <div className="flex items-center gap-2">
