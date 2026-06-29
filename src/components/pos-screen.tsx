@@ -63,7 +63,9 @@ function comandaHTML(o: {
   ticket: number; header: string; items: { name: string; qty: number }[];
   customer: string; notes: string; address: string; phone: string;
   user_name: string; created_at: string;
+  branding?: Branding;
 }) {
+  const b = o.branding ?? DEFAULT_BRANDING;
   const rows = o.items
     .map(
       (i) => `<tr>
@@ -72,35 +74,43 @@ function comandaHTML(o: {
       </tr>`,
     )
     .join("");
+  const logoHTML = b.logo_url
+    ? `<div style="text-align:center;margin:0 0 6px"><img src="${b.logo_url}" alt="logo" style="max-width:48mm;max-height:22mm;object-fit:contain;display:block;margin:0 auto"/></div>`
+    : "";
   return `<!doctype html><html><head><title> </title>
   <style>
     @page{size:80mm auto;margin:0}
     @media print{html,body{width:80mm;margin:0!important;padding:0!important}}
     html,body{width:80mm}
     body{font-family:'Arial Black','Helvetica',sans-serif;font-size:26px;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.35}
-    h1{font-size:42px;margin:0 0 10px;text-align:center;font-weight:900;letter-spacing:2px}
-    h2{font-size:34px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:3px solid #000;padding:6px 0}
+    h1{font-size:48px;margin:0 0 6px;text-align:center;font-weight:900;letter-spacing:2px}
+    .sede{font-size:22px;text-align:center;font-weight:900;text-transform:uppercase;margin:0 0 6px;letter-spacing:1px}
+    h2{font-size:36px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:4px solid #000;padding:8px 0;letter-spacing:1px}
     table{width:100%;border-collapse:collapse;margin-top:8px}
-    td{vertical-align:top;padding:10px 0;border-bottom:2px dashed #000}
-    td.qty{font-size:40px;font-weight:900;width:80px;text-align:right;padding-right:12px}
-    td.name{font-size:32px;font-weight:900;text-transform:uppercase;line-height:1.2;white-space:pre-line}
+    td{vertical-align:top;padding:12px 0;border-bottom:2px dashed #000}
+    td.qty{font-size:44px;font-weight:900;width:90px;text-align:right;padding-right:14px}
+    td.name{font-size:34px;font-weight:900;text-transform:uppercase;line-height:1.15;white-space:pre-line}
     hr{border:none;border-top:3px dashed #000;margin:8px 0}
-    .meta{font-size:22px;font-weight:900;margin:4px 0}
-    .notes{margin-top:10px;font-size:24px;font-weight:900;border:3px solid #000;padding:8px;line-height:1.35}
+    .meta{font-size:24px;font-weight:900;margin:4px 0}
+    .meta.big{font-size:28px}
+    .notes{margin-top:10px;font-size:30px;font-weight:900;border:4px solid #000;padding:10px;line-height:1.3;text-transform:uppercase}
+    .notes .lbl{font-size:24px;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px}
     .footer{margin-top:12px;text-align:center;font-size:24px;font-weight:900}
   </style></head>
   <body>
-    <h1>COMANDA #${o.ticket}</h1>
+    ${logoHTML}
+    <div class="sede">${b.business_name || "Heladería Goloso"}</div>
+    <h1>PEDIDO #${o.ticket}</h1>
     <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
     <div class="meta" style="text-align:center">Cajero: ${o.user_name}</div>
     <hr/>
     <h2>${o.header}</h2>
-    ${o.customer ? `<div class="meta">Cliente: ${o.customer}</div>` : ""}
-    ${o.address ? `<div class="meta">Dir: ${o.address}</div>` : ""}
-    ${o.phone ? `<div class="meta">Tel: ${o.phone}</div>` : ""}
+    ${o.customer ? `<div class="meta big">Cliente: ${o.customer}</div>` : ""}
+    ${o.address ? `<div class="meta big">Dir: ${o.address}</div>` : ""}
+    ${o.phone ? `<div class="meta big">Tel: ${o.phone}</div>` : ""}
     <hr/>
     <table>${rows}</table>
-    ${o.notes ? `<div class="notes">NOTAS:<br/>${o.notes}</div>` : ""}
+    ${o.notes ? `<div class="notes"><div class="lbl">OBSERVACIÓN:</div>${o.notes}</div>` : ""}
     <div class="footer">*** ENVIAR A COCINA ***</div>
   </body></html>`;
 }
