@@ -28,6 +28,53 @@ function ModPage() {
   const { isAdmin } = useAuth();
   const [groupEdit, setGroupEdit] = useState<Partial<Group> | null>(null);
   const [modEdit, setModEdit] = useState<Partial<Mod> | null>(null);
+  const [dupSource, setDupSource] = useState<Group | null>(null);
+  const [dupName, setDupName] = useState("");
+  const [dupItems, setDupItems] = useState<{ name: string; price: number }[]>([]);
+  const [dupSaving, setDupSaving] = useState(false);
+
+  function openDuplicate(g: Group) {
+    setDupSource(g);
+    setDupName(`${g.name} - Copia`);
+    setDupItems(mods.filter((m) => m.group_id === g.id).map((m) => ({ name: m.name, price: m.price })));
+  }
+
+  async function confirmDuplicate() {
+    if (!dupSource) return;
+    if (!dupName.trim()) return toast.error("Nombre requerido");
+    setDupSaving(true);
+    try {
+      const { data: newGroup, error } = await supabase
+        .from("modifier_groups")
+        .insert({
+          name: dupName.trim(),
+          min_select: dupSource.min_select,
+          max_select: dupSource.max_select,
+          required: dupSource.required,
+        })
+        .select("id")
+        .single();
+      if (error || !newGroup) throw new Error(error?.message || "No se pudo crear el grupo");
+      const items = dupItems
+        .filter((i) => i.name.trim())
+        .map((i) => ({ group_id: newGroup.id, name: i.name.trim(), price: Number(i.price) || 0, active: true }));
+      if (items.length > 0) {
+        const { error: e2 } = await supabase.from("modifiers").insert(items);
+        if (e2) throw new Error(e2.message);
+      }
+      toast.success("Grupo de modificadores duplicado y guardado correctamente");
+      setDupSource(null);
+      setDupName("");
+      setDupItems([]);
+      qc.invalidateQueries({ queryKey: ["mod-groups"] });
+      qc.invalidateQueries({ queryKey: ["mods"] });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al duplicar");
+    } finally {
+      setDupSaving(false);
+    }
+  }
+
 
   const { data: groups = [] } = useQuery<Group[]>({
     queryKey: ["mod-groups"],
