@@ -116,7 +116,7 @@ function DashboardTab() {
         .gte("recorded_at", today.toISOString())
         .order("recorded_at", { ascending: false });
       if (error) throw error;
-      return data as Record[];
+      return data as AttRecord[];
     },
     refetchInterval: 15000,
   });
@@ -136,7 +136,7 @@ function DashboardTab() {
   // Worked minutes today by pairing entradas/salidas per employee
   const horasTrabajadas = useMemo(() => {
     let totalMs = 0;
-    const byEmp = new Map<string, Record[]>();
+    const byEmp = new Map<string, AttRecord[]>();
     for (const r of [...records].reverse()) {
       if (!byEmp.has(r.employee_id)) byEmp.set(r.employee_id, []);
       byEmp.get(r.employee_id)!.push(r);
