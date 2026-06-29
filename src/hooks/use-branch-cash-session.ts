@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -18,7 +18,8 @@ export interface BranchCashSession {
  */
 export function useBranchCashSession(branchId: string | null | undefined) {
   const qc = useQueryClient();
-  const queryKey = ["branch-cash-session-open", branchId ?? null];
+  const queryKey = useMemo(() => ["branch-cash-session-open", branchId ?? null] as const, [branchId]);
+  const subscriptionRun = useRef(0);
 
   const query = useQuery({
     queryKey,
@@ -40,21 +41,40 @@ export function useBranchCashSession(branchId: string | null | undefined) {
 
   useEffect(() => {
     if (!branchId) return;
-    const channel = supabase
-      .channel(`cash-sessions-branch-${branchId}`)
-      .on(
-        "postgres_changes",
-        { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` },
-        () => {
-          qc.invalidateQueries({ queryKey });
-        },
-      )
-      .subscribe();
+
+    let mounted = true;
+    const runId = ++subscriptionRun.current;
+    const topic = `cash-sessions-branch-${branchId}-${runId}-${Math.random().toString(36).slice(2)}`;
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      channel = supabase
+        .channel(topic)
+        .on(
+          "postgres_changes",
+          { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` },
+          () => {
+            if (!mounted) return;
+            qc.invalidateQueries({ queryKey });
+          },
+        )
+        .subscribe((status, error) => {
+          if (error) console.warn("[cash-session-realtime]", status, error.message);
+        });
+    } catch (error) {
+      console.warn("[cash-session-realtime] realtime desactivado; se usará refetch automático", error);
+      qc.invalidateQueries({ queryKey });
+    }
+
     return () => {
-      supabase.removeChannel(channel);
+      mounted = false;
+      if (channel) {
+        void supabase.removeChannel(channel).catch((error) => {
+          console.warn("[cash-session-realtime] no se pudo remover el canal", error);
+        });
+      }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [branchId]);
+  }, [branchId, qc, queryKey]);
 
   return {
     session: query.data ?? null,
