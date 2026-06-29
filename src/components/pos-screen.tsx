@@ -360,6 +360,43 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     );
   }, [pendingSale]);
 
+  // Cargar pedido pendiente del Kiosko (al ser seleccionado desde el panel)
+  const { data: kioskSale } = useQuery({
+    queryKey: ["kiosk-sale", kioskSaleId],
+    enabled: !!kioskSaleId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sales")
+        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .eq("id", kioskSaleId!)
+        .maybeSingle();
+      return data as null | {
+        id: string;
+        ticket_number: number;
+        customer_name: string | null;
+        notes: string | null;
+        created_at: string;
+        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
+      };
+    },
+  });
+
+  useEffect(() => {
+    if (!kioskSale) return;
+    setPendingSaleId(kioskSale.id);
+    setCustomer(kioskSale.customer_name ?? "");
+    setNotes(kioskSale.notes ?? "");
+    setCart(
+      (kioskSale.sale_items ?? []).map((i) => ({
+        key: i.product_id,
+        product_id: i.product_id,
+        name: i.product_name,
+        unit_price: Number(i.unit_price),
+        qty: Number(i.qty),
+      })),
+    );
+  }, [kioskSale]);
+
 
   const filtered = useMemo(() => {
     return products.filter((p) => {
