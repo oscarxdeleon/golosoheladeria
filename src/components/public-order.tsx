@@ -253,26 +253,26 @@ export function PublicOrder({
 
 
 
+      const payload = {
+        source,
+        order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "domicilio",
+        table_id: tableId ?? null,
+        branch_id: branch?.id ?? null,
+        branch_slug: branchSlug ?? branch?.slug ?? null,
+        user_name: source === "kiosk" ? `Kiosko${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
+        customer_name: customerName || null,
+        customer_phone: phone || null,
+        delivery_address: isDelivery ? address : null,
+        delivery_neighborhood: isDelivery ? neighborhood : null,
+        notes: source === "kiosk" && kioskService
+          ? `[${kioskService === "llevar" ? "PARA LLEVAR" : "COMER AQUÍ"}]${notes ? " " + notes : ""}`
+          : notes || null,
+        payment_method: payMethod,
+        payment_details,
+        items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
+      };
       const { data, error } = await supabase.rpc("create_public_order", {
-        _payload: {
-          source,
-          order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "domicilio",
-          table_id: tableId ?? null,
-          branch_id: branch?.id ?? null,
-          branch_slug: branchSlug ?? branch?.slug ?? null,
-          user_name: source === "kiosk" ? `Kiosko${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
-
-          customer_name: customerName || null,
-          customer_phone: phone || null,
-          delivery_address: isDelivery ? address : null,
-          delivery_neighborhood: isDelivery ? neighborhood : null,
-          notes: source === "kiosk" && kioskService
-            ? `[${kioskService === "llevar" ? "PARA LLEVAR" : "COMER AQUÍ"}]${notes ? " " + notes : ""}`
-            : notes || null,
-          payment_method: payMethod,
-          payment_details,
-          items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
-        },
+        _payload: JSON.parse(JSON.stringify(payload)),
       });
       if (error) throw error;
       const result = data as { ticket_number: number } | null;
