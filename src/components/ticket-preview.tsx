@@ -11,6 +11,9 @@ interface BusinessSettings {
   nit: string | null;
   address: string | null;
   phone: string | null;
+  logo_url: string | null;
+  ticket_header: string | null;
+  ticket_footer: string | null;
 }
 
 function Dashed() {
@@ -34,11 +37,21 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
   useEffect(() => {
     supabase
       .from("settings")
-      .select("business_name,nit,address,phone")
+      .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
       .eq("id", 1)
       .maybeSingle()
-      .then(({ data }) => setSettings(data as BusinessSettings | null));
+      .then(({ data }) => setSettings(data as unknown as BusinessSettings | null));
   }, []);
+
+  const headerLines = (settings?.ticket_header ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const footerLines = (settings?.ticket_footer ?? "¡Gracias por Preferirnos!")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const logoSrc = settings?.logo_url || logoAsset.url;
 
   const lines: SaleLine[] = sale.lines;
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);
@@ -54,7 +67,7 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
     >
       {/* Logo */}
       <div className="flex justify-center mb-2">
-        <img src={logoAsset.url} alt="Heladería Goloso" className="w-48 h-auto" />
+        <img src={logoSrc} alt={settings?.business_name ?? "Logo"} className="w-48 h-auto object-contain" />
       </div>
 
       {/* Business name */}
@@ -62,12 +75,18 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
         {(settings?.business_name ?? "HELADERIA GOLOSO").toUpperCase()}
       </h1>
 
-      {/* Contact */}
-      <div className="space-y-1.5 text-[15px] flex flex-col items-center">
-        <div className="flex items-center gap-2"><IdCard className="h-4 w-4 shrink-0" /><span>NIT: {settings?.nit ?? "123456789-0"}</span></div>
-        <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /><span>{settings?.address ?? "Calle 6 # 10-46"}</span></div>
-        <div className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0" /><span>{settings?.phone ?? "311 448 6300"}</span></div>
-      </div>
+      {/* Custom header lines (overrides default contact block if present) */}
+      {headerLines.length > 0 ? (
+        <div className="space-y-1 text-[14px] flex flex-col items-center text-center whitespace-pre-line">
+          {headerLines.map((l, i) => <div key={i}>{l}</div>)}
+        </div>
+      ) : (
+        <div className="space-y-1.5 text-[15px] flex flex-col items-center">
+          <div className="flex items-center gap-2"><IdCard className="h-4 w-4 shrink-0" /><span>NIT: {settings?.nit ?? "123456789-0"}</span></div>
+          <div className="flex items-center gap-2"><MapPin className="h-4 w-4 shrink-0" /><span>{settings?.address ?? "Calle 6 # 10-46"}</span></div>
+          <div className="flex items-center gap-2"><Phone className="h-4 w-4 shrink-0" /><span>{settings?.phone ?? "311 448 6300"}</span></div>
+        </div>
+      )}
 
       <Dashed />
 
@@ -135,8 +154,8 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
       {/* Footer */}
       <div className="mt-5 flex items-center justify-between gap-2">
         <IceCream className="h-10 w-10 text-pink-500" />
-        <div className="text-center font-bold italic text-lg" style={{ fontFamily: '"Brush Script MT", "Lucida Handwriting", cursive' }}>
-          ¡Gracias por Preferirnos!
+        <div className="text-center font-bold italic text-lg whitespace-pre-line" style={{ fontFamily: '"Brush Script MT", "Lucida Handwriting", cursive' }}>
+          {footerLines.join("\n")}
         </div>
         <IceCream className="h-10 w-10 text-pink-500" />
       </div>
