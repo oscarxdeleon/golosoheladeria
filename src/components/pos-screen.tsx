@@ -277,10 +277,20 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate").maybeSingle();
-      return data as { delivery_fee: number; tax_rate: number } | null;
+      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate,business_name,nit,address,phone,logo_url,ticket_header,ticket_footer").maybeSingle();
+      return data as (Branding & { delivery_fee: number; tax_rate: number }) | null;
     },
   });
+  const branding: Branding = {
+    business_name: settings?.business_name || "Heladería Goloso",
+    nit: settings?.nit ?? null,
+    address: settings?.address ?? null,
+    phone: settings?.phone ?? null,
+    logo_url: settings?.logo_url ?? null,
+    ticket_header: settings?.ticket_header ?? null,
+    ticket_footer: settings?.ticket_footer ?? null,
+  };
+
 
   const { data: openSession } = useQuery({
     queryKey: ["cash-session-open", user?.id],
