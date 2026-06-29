@@ -67,7 +67,7 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      navigate({ to: "/dashboard" });
+      window.location.replace("/");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error de autenticación");
     } finally {
