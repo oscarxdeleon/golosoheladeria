@@ -404,12 +404,13 @@ export function PublicOrder({
             </div>
           )}
           <div className="flex-1 leading-tight">
-            <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}</div>
+            <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}{branch?.name ? <span className="text-primary"> · {branch.name}</span> : null}</div>
             <div className="text-xs text-muted-foreground">
               {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Kiosko"}`}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
               {source === "online_menu" && "Menú en línea · A domicilio"}
             </div>
+
           </div>
           {source === "kiosk" && kioskService && (
             <Button size="sm" variant="ghost" onClick={resetKiosk} className="gap-1">
