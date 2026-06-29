@@ -44,10 +44,20 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 
 function UsuariosPage() {
   const { isAdmin, loading: authLoading } = useAuth();
+  const { home, loading: permsLoading } = usePermissions();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const createFn = useServerFn(createAppUser);
   const updateFn = useServerFn(updateAppUser);
   const deleteFn = useServerFn(deleteAppUser);
+
+  useEffect(() => {
+    if (authLoading || permsLoading) return;
+    if (!isAdmin) {
+      toast.error("Acceso denegado: Solo el administrador puede gestionar los usuarios del sistema.");
+      navigate({ to: home, replace: true });
+    }
+  }, [authLoading, permsLoading, isAdmin, home, navigate]);
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches-for-users"],
