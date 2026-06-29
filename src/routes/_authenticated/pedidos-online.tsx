@@ -191,40 +191,6 @@ function OnlineOrdersPage() {
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
 
-  async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
-    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
-    const payload: PrintPayload = {
-      type: "comanda",
-      ticket: o.ticket_number,
-      header,
-      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
-      customer: o.customer_name ?? "",
-      notes: o.notes ?? "",
-      address: o.delivery_address ?? "",
-      phone: o.customer_phone ?? "",
-      user_name: "En línea",
-      created_at: o.created_at,
-    };
-    printSilent(payload, comandaHTML({
-      ticket: o.ticket_number, header,
-      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
-      customer: o.customer_name ?? "", notes: o.notes ?? "",
-      address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
-      created_at: o.created_at,
-    }));
-    // Estado intermedio: confirmado, en preparación, esperando despacho/cobro.
-    const { error } = await supabase
-      .from("sales")
-      .update({
-        status: "confirmed",
-        printed_at: new Date().toISOString(),
-        kds_ack_at: new Date().toISOString(),
-      })
-      .eq("id", o.id);
-    if (error) return toast.error(error.message);
-    toast.success(`Pedido #${o.ticket_number} confirmado · Comanda enviada a cocina`);
-    qc.invalidateQueries({ queryKey: ["online-orders"] });
-  }
 
   async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
