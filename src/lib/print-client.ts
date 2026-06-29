@@ -8,7 +8,7 @@
 //   localStorage.removeItem("LOCAL_PRINT_URL")
 
 export type PrintPayload = {
-  type: "comanda" | "precuenta" | "ticket" | "comprobante";
+  type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
   ticket?: number;
   header: string;
   items: { name: string; qty: number; unit_price?: number }[];
@@ -28,7 +28,14 @@ export type PrintPayload = {
   printer_ip?: string;
   printer_port?: number;
   cashierMessage?: string;
+  /**
+   * Si es true, el servidor local antepone la secuencia ESC/POS de pulso
+   * para abrir el cajón monedero (ESC p 0 25 250). SOLO debe usarse en
+   * tickets de venta — NUNCA en comandas de cocina.
+   */
+  open_drawer?: boolean;
 };
+
 
 const LS_KEY = "LOCAL_PRINT_URL";
 
@@ -141,3 +148,25 @@ export function printSilent(
     printHTMLFallback(fallbackHTML);
   })();
 }
+
+/**
+ * Envía SOLO el pulso de apertura del cajón monedero al servidor local.
+ * Útil cuando el ticket se imprime por el diálogo del navegador (HTML)
+ * pero igualmente se desea abrir la gaveta mediante ESC/POS.
+ *
+ * Nunca llamar desde flujos de cocina/KDS — la gaveta debe permanecer
+ * cerrada al imprimir comandas.
+ */
+export async function kickCashDrawer(opts: { printer_ip?: string; printer_port?: number } = {}): Promise<boolean> {
+  const url = getLocalPrintUrl();
+  if (!url) return false;
+  return sendToLocalPrinter({
+    type: "drawer",
+    header: "DRAWER",
+    items: [],
+    open_drawer: true,
+    printer_ip: opts.printer_ip,
+    printer_port: opts.printer_port,
+  });
+}
+

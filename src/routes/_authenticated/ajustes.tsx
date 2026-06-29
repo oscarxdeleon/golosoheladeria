@@ -327,7 +327,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   );
 }
 
-interface Printer { id: string; name: string; ip: string | null; port: number; platform: string; area: string; active: boolean; }
+interface Printer { id: string; name: string; ip: string | null; port: number; platform: string; area: string; active: boolean; open_drawer_on_print?: boolean; }
 function ImpresorasTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const [edit, setEdit] = useState<Partial<Printer> | null>(null);
@@ -346,7 +346,9 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
       platform: edit?.platform ?? "Windows",
       area: edit?.area ?? "caja",
       active: edit?.active ?? true,
+      open_drawer_on_print: edit?.open_drawer_on_print ?? false,
     };
+
     try {
       const res = edit?.id
         ? await supabase.from("printers").update(payload).eq("id", edit.id).select().single()
@@ -431,8 +433,22 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
                   <Switch checked={edit?.active ?? true} onCheckedChange={(v) => setEdit({ ...edit, active: v })} />
                   <Label>Activa</Label>
                 </div>
+                <div className="rounded-md border p-3 flex items-start justify-between gap-3">
+                  <div>
+                    <Label className="font-medium">Activar Apertura de Cajón Monedero</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Al imprimir un ticket de venta en esta impresora, se enviará el pulso ESC/POS para abrir la gaveta.
+                      Las comandas de cocina <b>nunca</b> abrirán el cajón.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={edit?.open_drawer_on_print ?? false}
+                    onCheckedChange={(v) => setEdit({ ...edit, open_drawer_on_print: v })}
+                  />
+                </div>
               </div>
               <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
+
             </DialogContent>
           </Dialog>
         )}

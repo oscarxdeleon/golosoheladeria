@@ -613,6 +613,7 @@ export type Database = {
           id: string
           ip: string | null
           name: string
+          open_drawer_on_print: boolean
           platform: string
           port: number
         }
@@ -623,6 +624,7 @@ export type Database = {
           id?: string
           ip?: string | null
           name: string
+          open_drawer_on_print?: boolean
           platform?: string
           port?: number
         }
@@ -633,6 +635,7 @@ export type Database = {
           id?: string
           ip?: string | null
           name?: string
+          open_drawer_on_print?: boolean
           platform?: string
           port?: number
         }
