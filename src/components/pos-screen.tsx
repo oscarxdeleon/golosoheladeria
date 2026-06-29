@@ -19,8 +19,9 @@ import { useBranch } from "@/contexts/branch-context";
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
 interface Category { id: string; name: string; sort_order: number; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; }
-interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; modifier_group_ids?: string[] | null; }
+interface SaleModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
+interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; }
 
 const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color: string }> = {
   mesa: { label: "Mesa", icon: Utensils, color: "bg-primary text-primary-foreground" },
