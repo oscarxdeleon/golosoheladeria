@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dialog";
 import { Plus, Users, Trash2, QrCode, Copy, Download } from "lucide-react";
 import { toast } from "sonner";
+import { useBranch } from "@/contexts/branch-context";
 import tableFreeAsset from "@/assets/mesa_libre.png.asset.json";
 import tableOccupiedAsset from "@/assets/mesa_ocupada.png.asset.json";
 const tableFree = tableFreeAsset.url;
@@ -50,6 +51,7 @@ function MesasPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { isAdmin } = useAuth();
+  const { activeBranchId, activeBranch } = useBranch();
   const [createOpen, setCreateOpen] = useState(false);
   const [newNumber, setNewNumber] = useState("");
   const [newSeats, setNewSeats] = useState("4");
@@ -57,12 +59,14 @@ function MesasPage() {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
-    queryKey: ["restaurant_tables"],
+    queryKey: ["restaurant_tables", activeBranchId],
+    enabled: !!activeBranchId,
     queryFn: async () => {
       const { data } = await supabase
         .from("restaurant_tables")
         .select("*")
         .eq("active", true)
+        .eq("branch_id", activeBranchId!)
         .order("number");
       return (data ?? []) as Mesa[];
     },
@@ -113,12 +117,14 @@ function MesasPage() {
   async function createMesa() {
     const n = Number(newNumber);
     if (!n) return toast.error("Número de mesa requerido");
+    if (!activeBranchId) return toast.error("Selecciona una sede primero");
     const { error } = await supabase.from("restaurant_tables").insert({
       number: n,
       label: `Mesa ${n}`,
       seats: Number(newSeats) || 4,
       pos_x: mesas.length % 4,
       pos_y: Math.floor(mesas.length / 4),
+      branch_id: activeBranchId,
     });
     if (error) return toast.error(error.message);
     toast.success("Mesa creada");
