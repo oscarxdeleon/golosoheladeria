@@ -52,6 +52,7 @@ export type Database = {
       }
       cash_sessions: {
         Row: {
+          branch_id: string | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null
@@ -67,6 +68,7 @@ export type Database = {
           user_name: string
         }
         Insert: {
+          branch_id?: string | null
           closed_at?: string | null
           closing_notes?: string | null
           counted_amount?: number | null
@@ -82,6 +84,7 @@ export type Database = {
           user_name: string
         }
         Update: {
+          branch_id?: string | null
           closed_at?: string | null
           closing_notes?: string | null
           counted_amount?: number | null
@@ -96,7 +99,15 @@ export type Database = {
           user_id?: string
           user_name?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "cash_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       categories: {
         Row: {
@@ -405,6 +416,7 @@ export type Database = {
       restaurant_tables: {
         Row: {
           active: boolean
+          branch_id: string | null
           created_at: string
           current_guests: number | null
           id: string
@@ -420,6 +432,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          branch_id?: string | null
           created_at?: string
           current_guests?: number | null
           id?: string
@@ -435,6 +448,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          branch_id?: string | null
           created_at?: string
           current_guests?: number | null
           id?: string
@@ -448,7 +462,15 @@ export type Database = {
           status?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "restaurant_tables_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sale_items: {
         Row: {
@@ -500,6 +522,7 @@ export type Database = {
       }
       sales: {
         Row: {
+          branch_id: string | null
           cash_session_id: string | null
           created_at: string
           customer_id: string | null
@@ -525,6 +548,7 @@ export type Database = {
           user_name: string | null
         }
         Insert: {
+          branch_id?: string | null
           cash_session_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -550,6 +574,7 @@ export type Database = {
           user_name?: string | null
         }
         Update: {
+          branch_id?: string | null
           cash_session_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -575,6 +600,13 @@ export type Database = {
           user_name?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "sales_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sales_cash_session_id_fkey"
             columns: ["cash_session_id"]
@@ -705,6 +737,7 @@ export type Database = {
       close_cash_session: {
         Args: { _closing_notes?: string; _counted_amount: number }
         Returns: {
+          branch_id: string | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null
@@ -729,6 +762,7 @@ export type Database = {
       get_active_cash_session: {
         Args: never
         Returns: {
+          branch_id: string | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null
@@ -764,6 +798,7 @@ export type Database = {
           _user_name?: string
         }
         Returns: {
+          branch_id: string | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null

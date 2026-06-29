@@ -13,6 +13,7 @@ import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike,
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, type PrintPayload } from "@/lib/print-client";
+import { useBranch } from "@/contexts/branch-context";
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
@@ -172,6 +173,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { activeBranchId } = useBranch();
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -387,6 +389,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             notes: notes || null,
             order_type: orderType,
             table_id: tableId ?? null,
+            branch_id: activeBranchId,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_fee: deliveryFee,
@@ -548,6 +551,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
             notes: notes || null,
             order_type: orderType,
             table_id: tableId ?? null,
+            branch_id: activeBranchId,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_fee: deliveryFee,

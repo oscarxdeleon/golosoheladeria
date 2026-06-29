@@ -20,6 +20,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { AlertTriangle, Banknote, LockOpen, LockKeyhole, TrendingUp, TrendingDown, History } from "lucide-react";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/caja")({
   head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
@@ -76,6 +77,7 @@ function getErrorDetails(error: unknown, fallback: string): UiError {
 function CajaPage() {
   const qc = useQueryClient();
   const { user, profile, isAdmin, loading: authLoading } = useAuth();
+  const { activeBranchId, activeBranch } = useBranch();
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
   const [openingAmount, setOpeningAmount] = useState("");
@@ -101,41 +103,46 @@ function CajaPage() {
   });
 
   const { data: history = [] } = useQuery({
-    queryKey: ["cash-sessions-history"],
+    queryKey: ["cash-sessions-history", activeBranchId],
+    enabled: !!activeBranchId,
     queryFn: async () => {
       const { data } = await supabase
         .from("cash_sessions")
         .select("*")
+        .eq("branch_id", activeBranchId!)
         .order("opened_at", { ascending: false })
         .limit(20);
       return (data ?? []) as CashSession[];
     },
   });
 
-  // Calcula ventas en efectivo durante la sesión actual
+  // Calcula ventas en efectivo durante la sesión actual (sede activa)
   const { data: cashSales = 0 } = useQuery({
-    queryKey: ["session-cash-sales", current?.id],
-    enabled: !!current,
+    queryKey: ["session-cash-sales", current?.id, activeBranchId],
+    enabled: !!current && !!activeBranchId,
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
         .select("total")
         .eq("user_id", current!.user_id)
+        .eq("branch_id", activeBranchId!)
         .eq("payment_method", "Efectivo")
         .gte("created_at", current!.opened_at);
       return (data ?? []).reduce((s: number, r: { total: number }) => s + Number(r.total), 0);
     },
   });
 
-  // Mesas ocupadas (pedidos sin cobrar)
+  // Mesas ocupadas en la sede activa
   const { data: occupiedTables = [] } = useQuery({
-    queryKey: ["occupied-tables"],
+    queryKey: ["occupied-tables", activeBranchId],
+    enabled: !!activeBranchId,
     queryFn: async () => {
       const { data } = await supabase
         .from("restaurant_tables")
         .select("id,number,label")
         .eq("active", true)
-        .eq("status", "occupied");
+        .eq("status", "occupied")
+        .eq("branch_id", activeBranchId!);
       return data ?? [];
     },
     refetchInterval: 10000,
@@ -169,6 +176,14 @@ function CajaPage() {
       });
       if (error) throw error;
       const session = data as CashSession;
+
+      // Asociar la sesión recién abierta a la sede activa
+      if (activeBranchId) {
+        await supabase
+          .from("cash_sessions")
+          .update({ branch_id: activeBranchId })
+          .eq("id", session.id);
+      }
 
       qc.setQueryData(["cash-session-open", user.id], session);
       toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
