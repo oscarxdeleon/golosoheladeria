@@ -34,6 +34,7 @@ export function PublicOrder({
   const qc = useQueryClient();
   const [activeCat, setActiveCat] = useState("all");
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -44,6 +45,7 @@ export function PublicOrder({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [ticketNumber, setTicketNumber] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
 
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
