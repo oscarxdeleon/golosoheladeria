@@ -527,6 +527,7 @@ interface Branch {
   is_main: boolean; inherits_main_catalog: boolean;
   neighborhood?: string | null; nit?: string | null;
   ticket_header?: string | null; ticket_footer?: string | null;
+  report_email?: string | null;
 }
 
 
