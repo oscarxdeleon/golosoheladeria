@@ -553,20 +553,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       if (p.category_id && !visibleCatIds.has(p.category_id)) return false;
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
       if (q && !p.name.toLowerCase().includes(q)) return false;
+      // POS: solo favoritos (la búsqueda sí permite ver no-favoritos como respaldo).
+      if (!q && !p.is_favorite) return false;
       return true;
     });
-    // Cuando hay búsqueda activa, mostrar coincidencias en orden natural (alfabético del query).
     if (q) {
       return [...base].sort((a, b) => a.name.localeCompare(b.name, "es"));
     }
-    // Favoritos primero (alfabético), luego el resto (alfabético).
-    return [...base].sort((a, b) => {
-      const af = a.is_favorite ? 1 : 0;
-      const bf = b.is_favorite ? 1 : 0;
-      if (af !== bf) return bf - af;
-      return a.name.localeCompare(b.name, "es");
-    });
+    return [...base].sort((a, b) => a.name.localeCompare(b.name, "es"));
   }, [products, cats, activeCat, search]);
+
 
   const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
