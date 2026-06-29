@@ -23,16 +23,17 @@ export type PrintPayload = {
   phone?: string;
   user_name?: string;
   created_at?: string;
-  // Override del destino: si se indica, el servidor local enruta el ticket
-  // a esta IP/puerto (RAW 9100) en vez de a la impresora por defecto.
+  // Datos de la sede (impresos en el encabezado del ticket).
+  business_name?: string;
+  nit?: string;
+  address_biz?: string;
+  phone_biz?: string;
+  email_biz?: string;
+  footer_text?: string;
+  cash_received?: number;
   printer_ip?: string;
   printer_port?: number;
   cashierMessage?: string;
-  /**
-   * Si es true, el servidor local antepone la secuencia ESC/POS de pulso
-   * para abrir el cajón monedero (ESC p 0 25 250). SOLO debe usarse en
-   * tickets de venta — NUNCA en comandas de cocina.
-   */
   open_drawer?: boolean;
 };
 
