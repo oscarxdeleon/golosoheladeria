@@ -181,6 +181,7 @@ export function PublicOrder({
 
       setTicketNumber(result.ticket_number);
       setConfirmOpen(true);
+      setCartOpen(false);
       setCart([]);
       setCustomerName("");
       setPhone("");
@@ -188,6 +189,7 @@ export function PublicOrder({
       setNeighborhood("");
       setNotes("");
       setCashAmount("");
+
       qc.invalidateQueries({ queryKey: ["pending-sales"] });
       qc.invalidateQueries({ queryKey: ["online-orders"] });
     } catch (e) {
