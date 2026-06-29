@@ -51,7 +51,7 @@ type Terminal = {
   active: boolean;
 };
 
-type Record = {
+type AttRecord = {
   id: string;
   employee_id: string;
   terminal_id: string | null;
@@ -64,13 +64,12 @@ type Record = {
   face_match_score: number | null;
 };
 
-const recordTypeLabel: Record_ = {
+const recordTypeLabel: { [k: string]: string } = {
   entrada: "Entrada",
   salida: "Salida",
   pausa_inicio: "Inicio pausa",
   pausa_fin: "Fin pausa",
 };
-type Record_ = Record<string, string>;
 
 function AsistenciaPage() {
   return (
