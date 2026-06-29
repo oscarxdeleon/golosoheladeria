@@ -802,6 +802,8 @@ function EditarSedeTab() {
         ticket_footer: form.ticket_footer ?? null,
         report_email: form.report_email ?? null,
         online_menu_url: form.online_menu_url?.trim() ? form.online_menu_url.trim() : null,
+        logo_url: form.logo_url ?? null,
+        email: form.email?.trim() ? form.email.trim() : null,
       };
       const { error } = await supabase.from("branches").update(payload as never).eq("id", selectedId);
       if (error) {
