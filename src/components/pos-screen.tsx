@@ -891,26 +891,41 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
 
-      // Imprimir comanda en segundo plano (no bloquea la UI)
-      const snap = cart.map((l) => ({ name: l.name, qty: l.qty }));
-      setTimeout(() => {
-        printComanda({
-          ticket: sale.ticket_number,
-          header,
-          items: snap,
-          customer,
-          notes,
-          address: orderType === "domicilio" ? address : "",
-          phone: orderType === "domicilio" ? phone : "",
-          user_name: profile?.full_name ?? user.email ?? "",
-          created_at: sale.created_at,
-        });
-      }, 0);
+      // Snapshot inmediato de los productos (con modificadores y notas) y
+      // datos de la orden — NO depende de estado de React que aún no se haya
+      // re-renderizado. Esto evita la race condition donde la primera
+      // impresión se disparaba sin payload completo.
+      const printSnapshot = {
+        ticket: sale.ticket_number,
+        header,
+        items: cart.map((l) => ({
+          name: l.name + (l.modifiers && l.modifiers.length
+            ? " (" + l.modifiers.map((m: { name: string; qty?: number }) => m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name).join(", ") + ")"
+            : ""),
+          qty: l.qty,
+        })),
+        customer,
+        notes,
+        address: orderType === "domicilio" ? address : "",
+        phone: orderType === "domicilio" ? phone : "",
+        user_name: profile?.full_name ?? user.email ?? "",
+        created_at: sale.created_at,
+      };
 
+      // 1º DB ya guardada · 2º KDS realtime (invalidate) · 3º Impresión física.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
-      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+
+      // Esperamos el envío a la impresora ANTES de limpiar el estado y
+      // navegar — así el primer clic siempre dispara la impresión.
+      const printed = await printComanda(printSnapshot);
+      if (printed) {
+        toast.success(`Comanda #${sale.ticket_number} enviada a cocina, KDS e impresora`);
+      } else {
+        toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+      }
+
 
       // Limpiar estado local y regresar al panel principal
       setCart([]);
