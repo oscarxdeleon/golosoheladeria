@@ -105,12 +105,36 @@ function OnlineOrdersPage() {
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
 
-  async function markAccepted(id: string) {
-    const { error } = await supabase.from("sales").update({ status: "paid", payment_method: "Pendiente · Aceptado" }).eq("id", id);
+  async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
+    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
+    const payload: PrintPayload = {
+      type: "comanda",
+      ticket: o.ticket_number,
+      header,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      customer: o.customer_name ?? "",
+      notes: o.notes ?? "",
+      address: o.delivery_address ?? "",
+      phone: o.customer_phone ?? "",
+      user_name: "En línea",
+      created_at: o.created_at,
+    };
+    printSilent(payload, comandaHTML({
+      ticket: o.ticket_number, header,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      customer: o.customer_name ?? "", notes: o.notes ?? "",
+      address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
+      created_at: o.created_at,
+    }));
+    const { error } = await supabase
+      .from("sales")
+      .update({ status: "paid", printed_at: new Date().toISOString(), kds_ack_at: new Date().toISOString() })
+      .eq("id", o.id);
     if (error) return toast.error(error.message);
-    toast.success("Pedido aceptado");
+    toast.success(`Pedido #${o.ticket_number} confirmado · Comanda enviada a impresora`);
     qc.invalidateQueries({ queryKey: ["online-orders"] });
   }
+
   async function reject(id: string) {
     if (!confirm("¿Cancelar este pedido?")) return;
     const { error } = await supabase.from("sales").update({ status: "cancelled" }).eq("id", id);
@@ -118,6 +142,7 @@ function OnlineOrdersPage() {
     toast.success("Pedido cancelado");
     qc.invalidateQueries({ queryKey: ["online-orders"] });
   }
+
 
   function buildMsg(o: SaleRow, its: ItemRow[]) {
     const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
