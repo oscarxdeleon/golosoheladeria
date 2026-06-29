@@ -101,6 +101,27 @@ export function PublicOrder({
     queryKey: ["public-settings"],
     queryFn: async () => (await supabase.from("settings").select("*").maybeSingle()).data,
   });
+  const { data: branch } = useQuery({
+    queryKey: ["public-branch", branchSlug ?? null],
+    queryFn: async () => {
+      if (!branchSlug) {
+        const { data } = await supabase
+          .from("branches")
+          .select("id,name,slug")
+          .eq("is_main", true)
+          .order("created_at")
+          .limit(1)
+          .maybeSingle();
+        return data;
+      }
+      const { data } = await supabase
+        .from("branches")
+        .select("id,name,slug")
+        .eq("slug", branchSlug)
+        .maybeSingle();
+      return data;
+    },
+  });
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["public-cats"],
     queryFn: async () => (await supabase.from("categories").select("*").eq("active", true).order("sort_order")).data ?? [],
@@ -109,6 +130,7 @@ export function PublicOrder({
     queryKey: ["public-products"],
     queryFn: async () => (await supabase.from("products").select("*").eq("active", true).order("name")).data ?? [],
   });
+
 
   const filtered = useMemo(
     () => products.filter((p) => activeCat === "all" || p.category_id === activeCat),
