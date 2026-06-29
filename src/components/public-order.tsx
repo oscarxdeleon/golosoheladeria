@@ -34,6 +34,7 @@ export function PublicOrder({
   const qc = useQueryClient();
   const [activeCat, setActiveCat] = useState("all");
   const [cart, setCart] = useState<CartLine[]>([]);
+  const [cartOpen, setCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
@@ -44,6 +45,7 @@ export function PublicOrder({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [ticketNumber, setTicketNumber] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+
 
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
@@ -65,6 +67,8 @@ export function PublicOrder({
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
   const isDelivery = source === "online_menu";
+  const deliveryFee = isDelivery ? Number((settings as { delivery_fee?: number | null } | null | undefined)?.delivery_fee ?? 0) : 0;
+  const total = subtotal + deliveryFee;
 
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
@@ -75,10 +79,12 @@ export function PublicOrder({
       if (ex) return c.map((l) => (l === ex ? { ...l, qty: l.qty + 1 } : l));
       return [...c, { key: crypto.randomUUID(), product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1 }];
     });
+    toast.success(`${p.name} agregado`, { duration: 1200 });
   }
   function setQty(key: string, qty: number) {
     setCart((c) => (qty <= 0 ? c.filter((l) => l.key !== key) : c.map((l) => (l.key === key ? { ...l, qty } : l))));
   }
+
 
   function validate(): string | null {
     if (cart.length === 0) return "Agrega productos primero";
@@ -92,14 +98,14 @@ export function PublicOrder({
     }
     if (payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
-      if (!v || v < subtotal) return `Con efectivo debes pagar al menos ${formatMoney(subtotal)}`;
+      if (!v || v < total) return `Con efectivo debes pagar al menos ${formatMoney(total)}`;
     }
     return null;
   }
 
   function buildWhatsappMessage(ticket: number) {
     const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
-    const change = cashReceived - subtotal;
+    const change = cashReceived - total;
     const lines: string[] = [];
     lines.push(`*¡Nuevo Pedido de ${settings?.business_name ?? "Heladería Goloso"}!*`);
     lines.push(`*Pedido #:* ${ticket}`);
@@ -120,9 +126,12 @@ export function PublicOrder({
     cart.forEach((l) => {
       lines.push(`- ${l.qty} x ${l.name} (${formatMoney(l.unit_price)})`);
     });
-    lines.push(`*Total a Pagar:* ${formatMoney(subtotal)}`);
+    lines.push(`*Subtotal:* ${formatMoney(subtotal)}`);
+    if (deliveryFee > 0) lines.push(`*Domicilio:* ${formatMoney(deliveryFee)}`);
+    lines.push(`*Total a Pagar:* ${formatMoney(total)}`);
     return lines.join("\n");
   }
+
 
   async function submit() {
     const err = validate();
@@ -132,10 +141,12 @@ export function PublicOrder({
       const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
       const payment_details =
         payMethod === "Efectivo"
-          ? { cash_received: cashReceived, change: cashReceived - subtotal }
+          ? { cash_received: cashReceived, change: cashReceived - total }
           : payMethod === "Nequi"
           ? { nequi_number: nequiNum }
           : { bancolombia_account: bancoAcc };
+
+
 
       const { data, error } = await supabase.rpc("create_public_order", {
         _payload: {
@@ -170,6 +181,7 @@ export function PublicOrder({
 
       setTicketNumber(result.ticket_number);
       setConfirmOpen(true);
+      setCartOpen(false);
       setCart([]);
       setCustomerName("");
       setPhone("");
@@ -177,6 +189,7 @@ export function PublicOrder({
       setNeighborhood("");
       setNotes("");
       setCashAmount("");
+
       qc.invalidateQueries({ queryKey: ["pending-sales"] });
       qc.invalidateQueries({ queryKey: ["online-orders"] });
     } catch (e) {
@@ -229,11 +242,13 @@ export function PublicOrder({
             </div>
           </div>
           {!readOnly && itemCount > 0 && (
-            <Badge className="text-base px-3 py-1">
-              <ShoppingCart className="h-4 w-4 mr-1" />
-              {itemCount}
-            </Badge>
+            <Button size="sm" onClick={() => setCartOpen(true)} className="gap-1">
+              <ShoppingCart className="h-4 w-4" />
+              <span className="hidden sm:inline">Ver carrito</span>
+              <Badge variant="secondary" className="ml-1">{itemCount}</Badge>
+            </Button>
           )}
+
         </div>
 
         <div className="max-w-5xl mx-auto px-4 pb-3 overflow-x-auto">
@@ -273,114 +288,145 @@ export function PublicOrder({
         )}
       </main>
 
-      {!readOnly && cart.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 z-30 border-t bg-background shadow-[0_-4px_20px_rgba(0,0,0,0.08)] max-h-[80vh] overflow-y-auto">
-          <div className="max-w-5xl mx-auto px-4 py-3 space-y-3">
-            <div className="max-h-40 overflow-y-auto space-y-2">
-              {cart.map((l) => (
-                <div key={l.key} className="flex items-center gap-2 text-sm">
-                  <div className="flex-1">
-                    <div className="font-medium">{l.name}</div>
-                    <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)}</div>
-                  </div>
-                  <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty - 1)}>
-                    <Minus className="h-3 w-3" />
-                  </Button>
-                  <span className="w-6 text-center font-medium">{l.qty}</span>
-                  <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty + 1)}>
-                    <Plus className="h-3 w-3" />
-                  </Button>
-                  <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setQty(l.key, 0)}>
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              ))}
+      {!readOnly && cart.length > 0 && !cartOpen && (
+        <div className="fixed bottom-4 inset-x-0 z-30 flex justify-center px-4 pointer-events-none">
+          <Button
+            size="lg"
+            onClick={() => setCartOpen(true)}
+            className="pointer-events-auto shadow-lg gap-2 px-6"
+          >
+            <ShoppingCart className="h-5 w-5" />
+            Ver carrito ({itemCount}) · {formatMoney(total)}
+          </Button>
+        </div>
+      )}
+
+      {!readOnly && cartOpen && cart.length > 0 && (
+        <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center sm:justify-center" onClick={() => setCartOpen(false)}>
+          <div
+            className="w-full sm:max-w-lg bg-background border-t sm:border sm:rounded-xl shadow-xl max-h-[92vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="sticky top-0 bg-background border-b px-4 py-3 flex items-center justify-between">
+              <div className="font-display text-lg">Tu pedido</div>
+              <Button size="sm" variant="ghost" onClick={() => setCartOpen(false)}>Seguir comprando</Button>
             </div>
-
-            {source !== "table_qr" && (
+            <div className="px-4 py-3 space-y-3">
               <div className="space-y-2">
-                <Input
-                  placeholder="Nombre *"
-                  value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
-                  required
-                />
-                <Input
-                  placeholder={`Teléfono ${isDelivery ? "*" : "(opcional)"}`}
-                  inputMode="tel"
-                  value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
-                />
-                {isDelivery && (
-                  <>
-                    <Input placeholder="Dirección de entrega *" value={address} onChange={(e) => setAddress(e.target.value)} />
-                    <Input placeholder="Barrio *" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
-                  </>
-                )}
-              </div>
-            )}
-
-            <Textarea
-              placeholder="Notas para cocina (opcional)"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              rows={2}
-            />
-
-            <div className="rounded-lg border p-3 space-y-3">
-              <div className="text-sm font-medium">Método de pago</div>
-              <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className="grid grid-cols-3 gap-2">
-                {(["Efectivo", "Nequi", "Bancolombia"] as PayMethod[]).map((m) => (
-                  <Label
-                    key={m}
-                    htmlFor={`pm-${m}`}
-                    className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs ${payMethod === m ? "border-primary bg-primary/5" : ""}`}
-                  >
-                    <RadioGroupItem id={`pm-${m}`} value={m} className="sr-only" />
-                    {m === "Efectivo" && <Banknote className="h-5 w-5" />}
-                    {m === "Nequi" && <Smartphone className="h-5 w-5" />}
-                    {m === "Bancolombia" && <Landmark className="h-5 w-5" />}
-                    <span className="font-medium">{m}</span>
-                  </Label>
+                {cart.map((l) => (
+                  <div key={l.key} className="flex items-center gap-2 text-sm">
+                    <div className="flex-1">
+                      <div className="font-medium">{l.name}</div>
+                      <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)}</div>
+                    </div>
+                    <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty - 1)}>
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-6 text-center font-medium">{l.qty}</span>
+                    <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty + 1)}>
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setQty(l.key, 0)}>
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
                 ))}
-              </RadioGroup>
+              </div>
 
-              {payMethod === "Efectivo" && (
-                <div className="space-y-1">
-                  <Label className="text-xs">¿Con cuánto vas a pagar?</Label>
+              {source !== "table_qr" && (
+                <div className="space-y-2">
                   <Input
-                    inputMode="numeric"
-                    placeholder="Ej: 50000"
-                    value={cashAmount}
-                    onChange={(e) => setCashAmount(e.target.value.replace(/[^\d]/g, ""))}
+                    placeholder="Nombre *"
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    required
                   />
-                  {cashAmount && Number(cashAmount) >= subtotal && (
-                    <div className="text-xs text-success">Cambio: {formatMoney(Number(cashAmount) - subtotal)}</div>
+                  <Input
+                    placeholder={`Teléfono ${isDelivery ? "*" : "(opcional)"}`}
+                    inputMode="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                  />
+                  {isDelivery && (
+                    <>
+                      <Input placeholder="Dirección de entrega *" value={address} onChange={(e) => setAddress(e.target.value)} />
+                      <Input placeholder="Barrio *" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
+                    </>
                   )}
                 </div>
               )}
-              {payMethod === "Nequi" && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Número Nequi del negocio</Label>
-                  <Input value={nequiNum} readOnly placeholder="No configurado" />
-                  <div className="text-[11px] text-muted-foreground">Transfiere a este número y trae el comprobante.</div>
-                </div>
-              )}
-              {payMethod === "Bancolombia" && (
-                <div className="space-y-1">
-                  <Label className="text-xs">Cuenta Bancolombia del negocio</Label>
-                  <Input value={bancoAcc} readOnly placeholder="No configurado" />
-                  <div className="text-[11px] text-muted-foreground">Transfiere a esta cuenta y trae el comprobante.</div>
-                </div>
-              )}
-            </div>
 
-            <Button size="lg" className="w-full" onClick={submit} disabled={submitting}>
-              {submitting ? "Enviando..." : `Enviar pedido · ${formatMoney(subtotal)}`}
-            </Button>
+              <Textarea
+                placeholder="Notas para cocina (opcional)"
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                rows={2}
+              />
+
+              <div className="rounded-lg border p-3 space-y-3">
+                <div className="text-sm font-medium">Método de pago</div>
+                <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className="grid grid-cols-3 gap-2">
+                  {(["Efectivo", "Nequi", "Bancolombia"] as PayMethod[]).map((m) => (
+                    <Label
+                      key={m}
+                      htmlFor={`pm-${m}`}
+                      className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs ${payMethod === m ? "border-primary bg-primary/5" : ""}`}
+                    >
+                      <RadioGroupItem id={`pm-${m}`} value={m} className="sr-only" />
+                      {m === "Efectivo" && <Banknote className="h-5 w-5" />}
+                      {m === "Nequi" && <Smartphone className="h-5 w-5" />}
+                      {m === "Bancolombia" && <Landmark className="h-5 w-5" />}
+                      <span className="font-medium">{m}</span>
+                    </Label>
+                  ))}
+                </RadioGroup>
+
+                {payMethod === "Efectivo" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">¿Con cuánto vas a pagar?</Label>
+                    <Input
+                      inputMode="numeric"
+                      placeholder="Ej: 50000"
+                      value={cashAmount}
+                      onChange={(e) => setCashAmount(e.target.value.replace(/[^\d]/g, ""))}
+                    />
+                    {cashAmount && Number(cashAmount) >= total && (
+                      <div className="text-xs text-success">Cambio: {formatMoney(Number(cashAmount) - total)}</div>
+                    )}
+                  </div>
+                )}
+                {payMethod === "Nequi" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Número Nequi del negocio</Label>
+                    <Input value={nequiNum} readOnly placeholder="No configurado" />
+                    <div className="text-[11px] text-muted-foreground">Transfiere a este número y trae el comprobante.</div>
+                  </div>
+                )}
+                {payMethod === "Bancolombia" && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Cuenta Bancolombia del negocio</Label>
+                    <Input value={bancoAcc} readOnly placeholder="No configurado" />
+                    <div className="text-[11px] text-muted-foreground">Transfiere a esta cuenta y trae el comprobante.</div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg border p-3 space-y-1 text-sm">
+                <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
+                {deliveryFee > 0 && (
+                  <div className="flex justify-between"><span>Domicilio</span><span>{formatMoney(deliveryFee)}</span></div>
+                )}
+                <div className="flex justify-between font-display text-lg pt-1 border-t"><span>Total</span><span>{formatMoney(total)}</span></div>
+              </div>
+
+              <Button size="lg" className="w-full" onClick={submit} disabled={submitting}>
+                {submitting ? "Enviando..." : `Finalizar pedido · ${formatMoney(total)}`}
+              </Button>
+            </div>
           </div>
         </div>
       )}
+
     </div>
   );
 }

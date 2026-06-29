@@ -1,0 +1,90 @@
+CREATE OR REPLACE FUNCTION public.create_public_order(_payload jsonb)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'public'
+AS $function$
+DECLARE
+  _source text := COALESCE(_payload->>'source','online_menu');
+  _items jsonb := COALESCE(_payload->'items','[]'::jsonb);
+  _sale_id uuid;
+  _ticket integer;
+  _subtotal numeric(12,2) := 0;
+  _delivery_fee numeric(12,2) := 0;
+  _total numeric(12,2) := 0;
+  _item jsonb;
+  _qty numeric;
+  _price numeric;
+BEGIN
+  IF _source NOT IN ('online_menu','kiosk','table_qr') THEN
+    RAISE EXCEPTION 'Origen de pedido no válido';
+  END IF;
+
+  IF jsonb_array_length(_items) = 0 THEN
+    RAISE EXCEPTION 'El pedido no contiene productos';
+  END IF;
+
+  FOR _item IN SELECT * FROM jsonb_array_elements(_items) LOOP
+    _qty := COALESCE((_item->>'qty')::numeric, 0);
+    SELECT price INTO _price FROM public.products WHERE id = (_item->>'product_id')::uuid AND active = true;
+    IF _price IS NULL THEN
+      RAISE EXCEPTION 'Producto no disponible';
+    END IF;
+    _subtotal := _subtotal + (_price * _qty);
+  END LOOP;
+
+  IF _source = 'online_menu' THEN
+    SELECT COALESCE(delivery_fee, 0) INTO _delivery_fee FROM public.settings LIMIT 1;
+    IF _delivery_fee IS NULL THEN _delivery_fee := 0; END IF;
+  END IF;
+
+  _total := _subtotal + _delivery_fee;
+
+  INSERT INTO public.sales (
+    user_id, user_name, source, status, order_type,
+    table_id, subtotal, total, delivery_fee, payment_method,
+    customer_name, customer_phone, delivery_address, delivery_neighborhood,
+    notes, payment_details
+  ) VALUES (
+    NULL,
+    COALESCE(NULLIF(_payload->>'user_name',''),'Cliente'),
+    _source,
+    'pending',
+    COALESCE(_payload->>'order_type','llevar'),
+    NULLIF(_payload->>'table_id','')::uuid,
+    _subtotal,
+    _total,
+    _delivery_fee,
+    COALESCE(NULLIF(_payload->>'payment_method',''),'Pendiente'),
+    NULLIF(_payload->>'customer_name',''),
+    NULLIF(_payload->>'customer_phone',''),
+    NULLIF(_payload->>'delivery_address',''),
+    NULLIF(_payload->>'delivery_neighborhood',''),
+    NULLIF(_payload->>'notes',''),
+    _payload->'payment_details'
+  )
+  RETURNING id, ticket_number INTO _sale_id, _ticket;
+
+  FOR _item IN SELECT * FROM jsonb_array_elements(_items) LOOP
+    _qty := COALESCE((_item->>'qty')::numeric, 0);
+    SELECT price INTO _price FROM public.products WHERE id = (_item->>'product_id')::uuid;
+    INSERT INTO public.sale_items (sale_id, product_id, product_name, unit_price, qty, subtotal)
+    VALUES (
+      _sale_id,
+      (_item->>'product_id')::uuid,
+      COALESCE(_item->>'name','Producto'),
+      _price,
+      _qty,
+      _price * _qty
+    );
+  END LOOP;
+
+  RETURN jsonb_build_object(
+    'id', _sale_id,
+    'ticket_number', _ticket,
+    'subtotal', _subtotal,
+    'delivery_fee', _delivery_fee,
+    'total', _total
+  );
+END;
+$function$;

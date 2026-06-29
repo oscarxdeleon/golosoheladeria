@@ -36,14 +36,15 @@ export function OnlineOrdersNotifier() {
           if (seen.current.has(row.id)) return;
           seen.current.add(row.id);
           beep();
-          toast.success(`Nuevo pedido en línea #${row.ticket_number}`, {
+          toast.success(`¡Nuevo pedido recibido! #${row.ticket_number}`, {
             description: `${row.customer_name ?? "Cliente"} · $${Math.round(Number(row.total ?? 0)).toLocaleString("es-CO")}`,
-            duration: 10000,
+            duration: Infinity,
             action: {
-              label: "Ver",
+              label: "Ver y confirmar",
               onClick: () => navigate({ to: "/pedidos-online" }),
             },
           });
+
           qc.invalidateQueries({ queryKey: ["online-orders"] });
           qc.invalidateQueries({ queryKey: ["pending-sales"] });
         },

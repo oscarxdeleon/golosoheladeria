@@ -5,9 +5,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MessageCircle, RefreshCw, Phone, Clock, CheckCircle2 } from "lucide-react";
+import { MessageCircle, RefreshCw, Phone, Clock, CheckCircle2, Printer } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { printSilent, type PrintPayload } from "@/lib/print-client";
 
 export const Route = createFileRoute("/_authenticated/pedidos-online")({
   head: () => ({ meta: [{ title: "Pedidos en línea · Goloso POS" }] }),
@@ -22,6 +23,10 @@ interface SaleRow {
   notes: string | null;
   total: number;
   subtotal: number;
+  delivery_fee: number | null;
+  delivery_address: string | null;
+  delivery_neighborhood: string | null;
+  payment_method: string | null;
   status: string;
   source: string;
   order_type: string | null;
@@ -34,6 +39,29 @@ function waLink(phone: string, msg: string) {
   const num = clean.startsWith("57") || clean.length > 10 ? clean : `57${clean}`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
+
+function comandaHTML(o: { ticket: number; header: string; items: { name: string; qty: number }[]; customer: string; notes: string; address: string; phone: string; created_at: string; }) {
+  const rows = o.items.map((i) => `<tr><td class="qty">${i.qty}×</td><td class="name">${i.name}</td></tr>`).join("");
+  return `<!doctype html><html><head><title> </title><style>
+    @page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}
+    html,body{width:80mm}body{font-family:'Arial Black','Helvetica',sans-serif;font-size:26px;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.35}
+    h1{font-size:42px;margin:0 0 10px;text-align:center;letter-spacing:2px}h2{font-size:34px;margin:10px 0;text-transform:uppercase;text-align:center;border:3px solid #000;padding:6px 0}
+    table{width:100%;border-collapse:collapse;margin-top:8px}td{vertical-align:top;padding:10px 0;border-bottom:2px dashed #000}
+    td.qty{font-size:40px;width:80px;text-align:right;padding-right:12px}td.name{font-size:32px;text-transform:uppercase;line-height:1.2}
+    hr{border:none;border-top:3px dashed #000;margin:8px 0}.meta{font-size:22px;margin:4px 0}.notes{margin-top:10px;font-size:24px;border:3px solid #000;padding:8px}.footer{margin-top:12px;text-align:center;font-size:24px}
+  </style></head><body>
+    <h1>COMANDA #${o.ticket}</h1>
+    <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <hr/><h2>${o.header}</h2>
+    ${o.customer ? `<div class="meta">Cliente: ${o.customer}</div>` : ""}
+    ${o.address ? `<div class="meta">Dir: ${o.address}</div>` : ""}
+    ${o.phone ? `<div class="meta">Tel: ${o.phone}</div>` : ""}
+    <hr/><table>${rows}</table>
+    ${o.notes ? `<div class="notes">NOTAS:<br/>${o.notes}</div>` : ""}
+    <div class="footer">*** ENVIAR A COCINA ***</div>
+  </body></html>`;
+}
+
 
 function OnlineOrdersPage() {
   const qc = useQueryClient();
@@ -77,12 +105,36 @@ function OnlineOrdersPage() {
     return () => { supabase.removeChannel(ch); };
   }, [qc]);
 
-  async function markAccepted(id: string) {
-    const { error } = await supabase.from("sales").update({ status: "paid", payment_method: "Pendiente · Aceptado" }).eq("id", id);
+  async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
+    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
+    const payload: PrintPayload = {
+      type: "comanda",
+      ticket: o.ticket_number,
+      header,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      customer: o.customer_name ?? "",
+      notes: o.notes ?? "",
+      address: o.delivery_address ?? "",
+      phone: o.customer_phone ?? "",
+      user_name: "En línea",
+      created_at: o.created_at,
+    };
+    printSilent(payload, comandaHTML({
+      ticket: o.ticket_number, header,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      customer: o.customer_name ?? "", notes: o.notes ?? "",
+      address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
+      created_at: o.created_at,
+    }));
+    const { error } = await supabase
+      .from("sales")
+      .update({ status: "paid", printed_at: new Date().toISOString(), kds_ack_at: new Date().toISOString() })
+      .eq("id", o.id);
     if (error) return toast.error(error.message);
-    toast.success("Pedido aceptado");
+    toast.success(`Pedido #${o.ticket_number} confirmado · Comanda enviada a impresora`);
     qc.invalidateQueries({ queryKey: ["online-orders"] });
   }
+
   async function reject(id: string) {
     if (!confirm("¿Cancelar este pedido?")) return;
     const { error } = await supabase.from("sales").update({ status: "cancelled" }).eq("id", id);
@@ -90,6 +142,7 @@ function OnlineOrdersPage() {
     toast.success("Pedido cancelado");
     qc.invalidateQueries({ queryKey: ["online-orders"] });
   }
+
 
   function buildMsg(o: SaleRow, its: ItemRow[]) {
     const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
@@ -147,10 +200,29 @@ function OnlineOrdersPage() {
                     <li key={i.id}>{i.qty} × {i.product_name} <span className="text-muted-foreground">— {formatMoney(i.unit_price * i.qty)}</span></li>
                   ))}
                 </ul>
+                {(o.delivery_address || o.delivery_neighborhood) && (
+                  <div className="text-xs text-muted-foreground">
+                    {o.delivery_address && <>📍 {o.delivery_address}</>}
+                    {o.delivery_neighborhood && <> · {o.delivery_neighborhood}</>}
+                  </div>
+                )}
                 {o.notes && <div className="text-xs bg-muted rounded p-2"><b>Notas:</b> {o.notes}</div>}
+
+                <div className="rounded-md border bg-muted/30 p-2 text-sm space-y-0.5">
+                  <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(Number(o.subtotal ?? 0))}</span></div>
+                  {Number(o.delivery_fee ?? 0) > 0 && (
+                    <div className="flex justify-between"><span>Domicilio</span><span>{formatMoney(Number(o.delivery_fee))}</span></div>
+                  )}
+                  <div className="flex justify-between font-semibold border-t pt-1"><span>Total</span><span>{formatMoney(Number(o.total ?? 0))}</span></div>
+                  {o.payment_method && <div className="flex justify-between text-xs text-muted-foreground"><span>Pago</span><span>{o.payment_method}</span></div>}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => confirmAndPrint(o, its)}>
+                    <Printer className="h-4 w-4 mr-1" /> Confirmar pedido e imprimir
+                  </Button>
                   {sedePhone && (
-                    <Button asChild variant="default" size="sm">
+                    <Button asChild variant="outline" size="sm">
                       <a href={waLink(sedePhone, msg)} target="_blank" rel="noreferrer">
                         <MessageCircle className="h-4 w-4 mr-1" /> Avisar a la sede
                       </a>
@@ -163,16 +235,16 @@ function OnlineOrdersPage() {
                       </a>
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => markAccepted(o.id)}>
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar aceptado
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(o.id)}>
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Cancelar
                   </Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(o.id)}>Cancelar</Button>
                 </div>
               </div>
             );
           })}
         </CardContent>
       </Card>
+
 
       {history.length > 0 && (
         <Card>
