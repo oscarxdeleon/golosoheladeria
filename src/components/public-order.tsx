@@ -98,14 +98,14 @@ export function PublicOrder({
     }
     if (payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
-      if (!v || v < subtotal) return `Con efectivo debes pagar al menos ${formatMoney(subtotal)}`;
+      if (!v || v < total) return `Con efectivo debes pagar al menos ${formatMoney(total)}`;
     }
     return null;
   }
 
   function buildWhatsappMessage(ticket: number) {
     const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
-    const change = cashReceived - subtotal;
+    const change = cashReceived - total;
     const lines: string[] = [];
     lines.push(`*¡Nuevo Pedido de ${settings?.business_name ?? "Heladería Goloso"}!*`);
     lines.push(`*Pedido #:* ${ticket}`);
@@ -126,9 +126,12 @@ export function PublicOrder({
     cart.forEach((l) => {
       lines.push(`- ${l.qty} x ${l.name} (${formatMoney(l.unit_price)})`);
     });
-    lines.push(`*Total a Pagar:* ${formatMoney(subtotal)}`);
+    lines.push(`*Subtotal:* ${formatMoney(subtotal)}`);
+    if (deliveryFee > 0) lines.push(`*Domicilio:* ${formatMoney(deliveryFee)}`);
+    lines.push(`*Total a Pagar:* ${formatMoney(total)}`);
     return lines.join("\n");
   }
+
 
   async function submit() {
     const err = validate();
