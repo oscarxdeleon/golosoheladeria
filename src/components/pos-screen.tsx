@@ -774,6 +774,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
+            cash_session_id: effectiveSessionId,
             printed_at: new Date().toISOString(),
           })
           .eq("id", pendingSaleId)
