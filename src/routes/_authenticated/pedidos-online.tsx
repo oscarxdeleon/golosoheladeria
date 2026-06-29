@@ -380,7 +380,7 @@ function OnlineOrdersPage() {
   const pending = orders.filter((o) => o.status === "pending");
   const confirmed = orders.filter((o) => o.status === "confirmed" || o.status === "ready");
   const history = orders.filter((o) => !["pending", "confirmed", "ready"].includes(o.status));
-  const sedePhone: string | null = (settings as { phone?: string | null } | null | undefined)?.phone ?? null;
+  const sedePhone: string | null = activeBranch?.phone ?? (settings as { phone?: string | null } | null | undefined)?.phone ?? null;
 
   return (
     <div className="space-y-4">
@@ -388,7 +388,7 @@ function OnlineOrdersPage() {
         <div>
           <h1 className="font-display text-3xl">Pedidos en línea</h1>
           <p className="text-sm text-muted-foreground">
-            Recibe automáticamente los pedidos del <Link to={activeBranch?.slug ? "/s/$slug/menu" : "/menu"} params={activeBranch?.slug ? { slug: activeBranch.slug } : undefined} className="underline">Menú en línea</Link>.
+            Recibe automáticamente los pedidos del {activeBranch?.slug ? <a href={`/s/${activeBranch.slug}/menu`} className="underline">Menú en línea</a> : <Link to="/menu" className="underline">Menú en línea</Link>}.
             {sedePhone ? <> WhatsApp de la sede: <b>{sedePhone}</b></> : <> · <Link to="/ajustes" className="underline">Configura el WhatsApp en Ajustes</Link></>}
           </p>
         </div>
@@ -505,7 +505,7 @@ function OnlineOrdersPage() {
                     <Printer className="h-4 w-4 mr-1" /> Imprimir Pre-cuenta / Comanda
                   </Button>
                   <Button size="sm" onClick={() => setPayOrder(o)}>
-                    <Banknote className="h-4 w-4 mr-1" /> Procesar Pago / Finalizar
+                    <Banknote className="h-4 w-4 mr-1" /> Proceder con el pago
                   </Button>
                   <Button size="sm" variant="ghost" className="text-destructive ml-auto" onClick={() => reject(o.id)}>
                     Cancelar
