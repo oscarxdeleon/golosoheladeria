@@ -20,6 +20,7 @@ import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedPedidosOnlineRouteImport } from './routes/_authenticated/pedidos-online'
+import { Route as AuthenticatedMesasAdminRouteImport } from './routes/_authenticated/mesas-admin'
 import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
 import { Route as AuthenticatedLlevarRouteImport } from './routes/_authenticated/llevar'
 import { Route as AuthenticatedKioskoRouteImport } from './routes/_authenticated/kiosko'
@@ -95,6 +96,11 @@ const AuthenticatedPedidosOnlineRoute =
     path: '/pedidos-online',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedMesasAdminRoute = AuthenticatedMesasAdminRouteImport.update({
+  id: '/mesas-admin',
+  path: '/mesas-admin',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedMesasRoute = AuthenticatedMesasRouteImport.update({
   id: '/mesas',
   path: '/mesas',
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -246,6 +253,7 @@ export interface FileRoutesByTo {
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
   '/mesas': typeof AuthenticatedMesasRoute
+  '/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -279,6 +287,7 @@ export interface FileRoutesById {
   '/_authenticated/kiosko': typeof AuthenticatedKioskoRoute
   '/_authenticated/llevar': typeof AuthenticatedLlevarRoute
   '/_authenticated/mesas': typeof AuthenticatedMesasRoute
+  '/_authenticated/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/_authenticated/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
@@ -312,6 +321,7 @@ export interface FileRouteTypes {
     | '/kiosko'
     | '/llevar'
     | '/mesas'
+    | '/mesas-admin'
     | '/pedidos-online'
     | '/pos'
     | '/usuarios'
@@ -343,6 +353,7 @@ export interface FileRouteTypes {
     | '/kiosko'
     | '/llevar'
     | '/mesas'
+    | '/mesas-admin'
     | '/pedidos-online'
     | '/pos'
     | '/usuarios'
@@ -375,6 +386,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kiosko'
     | '/_authenticated/llevar'
     | '/_authenticated/mesas'
+    | '/_authenticated/mesas-admin'
     | '/_authenticated/pedidos-online'
     | '/_authenticated/pos'
     | '/_authenticated/usuarios'
@@ -475,6 +487,13 @@ declare module '@tanstack/react-router' {
       path: '/pedidos-online'
       fullPath: '/pedidos-online'
       preLoaderRoute: typeof AuthenticatedPedidosOnlineRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/mesas-admin': {
+      id: '/_authenticated/mesas-admin'
+      path: '/mesas-admin'
+      fullPath: '/mesas-admin'
+      preLoaderRoute: typeof AuthenticatedMesasAdminRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mesas': {
@@ -628,6 +647,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKioskoRoute: typeof AuthenticatedKioskoRoute
   AuthenticatedLlevarRoute: typeof AuthenticatedLlevarRoute
   AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
+  AuthenticatedMesasAdminRoute: typeof AuthenticatedMesasAdminRoute
   AuthenticatedPedidosOnlineRoute: typeof AuthenticatedPedidosOnlineRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
@@ -653,6 +673,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKioskoRoute: AuthenticatedKioskoRoute,
   AuthenticatedLlevarRoute: AuthenticatedLlevarRoute,
   AuthenticatedMesasRoute: AuthenticatedMesasRoute,
+  AuthenticatedMesasAdminRoute: AuthenticatedMesasAdminRoute,
   AuthenticatedPedidosOnlineRoute: AuthenticatedPedidosOnlineRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,

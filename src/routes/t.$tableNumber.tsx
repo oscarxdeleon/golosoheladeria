@@ -2,14 +2,25 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { PublicOrder } from "@/components/public-order";
+import { z } from "zod";
+import { fallback, zodValidator } from "@tanstack/zod-adapter";
+
+const tableSearchSchema = z.object({
+  sede: fallback(z.string().optional(), undefined),
+  sala: fallback(z.string().optional(), undefined),
+  mesa: fallback(z.string().optional(), undefined),
+});
 
 export const Route = createFileRoute("/t/$tableNumber")({
+  validateSearch: zodValidator(tableSearchSchema),
   head: ({ params }) => ({ meta: [{ title: `Mesa ${params.tableNumber} · Goloso` }] }),
   component: TableOrderPage,
 });
 
 function TableOrderPage() {
   const { tableNumber } = Route.useParams();
+  const { sala } = Route.useSearch();
+
   const { data: table, isLoading } = useQuery({
     queryKey: ["public-table", tableNumber],
     queryFn: async () => {
@@ -17,7 +28,7 @@ function TableOrderPage() {
       if (!n) return null;
       const { data } = await supabase
         .from("restaurant_tables")
-        .select("id,number,label")
+        .select("id,number,label,room_id")
         .eq("number", n)
         .eq("active", true)
         .maybeSingle();
@@ -34,5 +45,14 @@ function TableOrderPage() {
       </div>
     );
 
-  return <PublicOrder source="table_qr" tableId={table.id} tableLabel={table.label ?? `Mesa ${table.number}`} />;
+  const baseLabel = table.label ?? `Mesa ${table.number}`;
+  const roomSuffix = sala ? ` · ${sala.replace(/-/g, " ")}` : "";
+
+  return (
+    <PublicOrder
+      source="table_qr"
+      tableId={table.id}
+      tableLabel={`${baseLabel}${roomSuffix}`}
+    />
+  );
 }

@@ -42,7 +42,7 @@ import {
   CollapsibleContent,
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const main = [
@@ -72,6 +72,7 @@ const menu = [
 ];
 
 const admin = [
+  { to: "/mesas-admin", label: "Gestión de mesas", icon: LayoutGrid },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace },
   { to: "/usuarios", label: "Usuarios", icon: Users },
   { to: "/ajustes", label: "Ajustes", icon: Settings },
