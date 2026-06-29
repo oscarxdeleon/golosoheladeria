@@ -1279,34 +1279,39 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               )}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-center text-sm text-muted-foreground">
-            ¿Deseas imprimir el ticket para el cliente?
+          <p className="text-center text-base font-medium">
+            ¿Desea imprimir el ticket de venta?
           </p>
           <DialogFooter className="sm:justify-center gap-2">
             <Button
               variant="outline"
+              className="font-bold"
               onClick={() => {
                 const redirect = successDialog?.redirectTo ?? null;
                 setSuccessDialog(null);
                 if (redirect) navigate({ to: redirect });
               }}
             >
-              No imprimir
+              No, Finalizar
             </Button>
             <Button
+              className="font-bold"
               onClick={() => {
                 const payload = successDialog?.printPayload;
                 const redirect = successDialog?.redirectTo ?? null;
                 setSuccessDialog(null);
                 if (payload) {
+                  // Dispara la impresión (servidor local silencioso o fallback nativo).
+                  // El POS no se queda bloqueado: redirige de inmediato al panel principal.
                   setTimeout(() => printTicketFinal(payload), 0);
                 }
-                if (redirect) navigate({ to: redirect });
+                if (redirect) setTimeout(() => navigate({ to: redirect }), 50);
               }}
             >
-              <Printer className="h-4 w-4 mr-1" /> Imprimir Ticket
+              <Printer className="h-4 w-4 mr-1" /> Sí, Imprimir
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
