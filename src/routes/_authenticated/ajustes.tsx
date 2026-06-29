@@ -43,11 +43,12 @@ function AjustesPage() {
     <div className="space-y-4">
       <h1 className="font-display text-3xl">Ajustes</h1>
       <Tabs defaultValue="estab">
-        <TabsList>
+        <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="estab">Establecimiento</TabsTrigger>
           <TabsTrigger value="ticket">Ticket</TabsTrigger>
           <TabsTrigger value="suc">Sucursales</TabsTrigger>
           <TabsTrigger value="sede-edit">Editar Sede</TabsTrigger>
+          <TabsTrigger value="kiosko-link">Link de Kiosko</TabsTrigger>
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
@@ -56,6 +57,7 @@ function AjustesPage() {
         <TabsContent value="ticket"><TicketTab /></TabsContent>
         <TabsContent value="suc"><SucursalesTab disabled={false} /></TabsContent>
         <TabsContent value="sede-edit"><EditarSedeTab /></TabsContent>
+        <TabsContent value="kiosko-link"><KioskoLinkTab /></TabsContent>
         <TabsContent value="impr"><ImpresorasTab disabled={false} /></TabsContent>
         <TabsContent value="pagos"><PagosTab disabled={false} /></TabsContent>
         <TabsContent value="domi"><DomicilioTab disabled={false} /></TabsContent>
