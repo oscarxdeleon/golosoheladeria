@@ -748,6 +748,25 @@ function EditarSedeTab() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [form, setForm] = useState<Partial<Branch>>({});
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+
+  async function handleLogoFile(file: File) {
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `branch-${selectedId || "new"}-${Date.now()}.${ext}`;
+      const up = await supabase.storage.from("logos").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
+      if (up.error) { toast.error(up.error.message); return; }
+      const { data: signed } = await supabase.storage.from("logos").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+      if (signed?.signedUrl) {
+        setForm((f) => ({ ...f, logo_url: signed.signedUrl }));
+        toast.success("Logo cargado — recuerda guardar cambios");
+      }
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
 
   const { data: branches = [] } = useQuery<Branch[]>({
     queryKey: ["branches"],
