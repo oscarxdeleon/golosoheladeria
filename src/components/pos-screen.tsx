@@ -20,7 +20,7 @@ import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
-interface Category { id: string; name: string; sort_order: number; }
+interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; modifier_group_ids?: string[] | null; }
 interface SaleModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; }
@@ -400,10 +400,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
 
   const { data: cats = [] } = useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories", "pos"],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("*").eq("active", true).order("sort_order");
-      return (data ?? []) as Category[];
+      const { data } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("active", true)
+        .order("sort_order");
+      return ((data ?? []) as Category[]).filter((c) => c.show_in_pos !== false);
     },
   });
   const { data: products = [] } = useQuery({
@@ -546,7 +550,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
+    const visibleCatIds = new Set(cats.map((c) => c.id));
     const base = products.filter((p) => {
+      // Si la categoría del producto está oculta en POS, descártalo
+      if (p.category_id && !visibleCatIds.has(p.category_id)) return false;
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
       if (q && !p.name.toLowerCase().includes(q)) return false;
       return true;
@@ -562,7 +569,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       if (af !== bf) return bf - af;
       return a.name.localeCompare(b.name, "es");
     });
-  }, [products, activeCat, search]);
+  }, [products, cats, activeCat, search]);
 
   const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);

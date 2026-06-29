@@ -16,7 +16,7 @@ import { ModifiersModal } from "@/components/modifiers-modal";
 
 type KioskService = "llevar" | "comer_aqui";
 
-interface Category { id: string; name: string; sort_order: number; }
+interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; modifier_group_ids?: string[] | null; }
 interface CartModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: CartModifier[]; }
@@ -128,7 +128,10 @@ export function PublicOrder({
   });
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["public-cats"],
-    queryFn: async () => (await supabase.from("categories").select("*").eq("active", true).order("sort_order")).data ?? [],
+    queryFn: async () => {
+      const { data } = await supabase.from("categories").select("*").eq("active", true).order("sort_order");
+      return ((data ?? []) as Category[]).filter((c) => c.show_in_online_menu !== false);
+    },
   });
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["public-products"],
@@ -136,14 +139,16 @@ export function PublicOrder({
   });
 
   const branchId = (branch as { id?: string } | null | undefined)?.id;
+  const visibleCatIds = useMemo(() => new Set(cats.map((c) => c.id)), [cats]);
   const visibleProducts = useMemo(
     () => products.filter((p) => {
       if (p.show_in_online === false) return false;
+      if (p.category_id && !visibleCatIds.has(p.category_id)) return false;
       const ids = p.available_branch_ids;
       if (branchId && ids && ids.length > 0 && !ids.includes(branchId)) return false;
       return true;
     }),
-    [products, branchId],
+    [products, branchId, visibleCatIds],
   );
   const favorites = useMemo(() => visibleProducts.filter((p) => p.is_favorite), [visibleProducts]);
   const filtered = useMemo(
