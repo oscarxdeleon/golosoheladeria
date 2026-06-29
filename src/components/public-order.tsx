@@ -55,6 +55,7 @@ export function PublicOrder({
   const [resetCountdown, setResetCountdown] = useState(30);
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
+  const [modalProduct, setModalProduct] = useState<Product | null>(null);
 
   function resetKiosk() {
     if (resetTimerRef.current) {
