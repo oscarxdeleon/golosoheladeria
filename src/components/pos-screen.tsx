@@ -32,23 +32,44 @@ function comandaHTML(o: {
   customer: string; notes: string; address: string; phone: string;
   user_name: string; created_at: string;
 }) {
-  const rows = o.items.map((i) => `<tr><td style="padding:4px 0">${i.qty} ×</td><td style="padding:4px 0">${i.name}</td></tr>`).join("");
+  const rows = o.items
+    .map(
+      (i) => `<tr>
+        <td class="qty">${i.qty}×</td>
+        <td class="name">${i.name}</td>
+      </tr>`,
+    )
+    .join("");
   return `<!doctype html><html><head><title> </title>
-  <style>@page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}html,body{width:80mm}body{font-family:monospace;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000}h1{font-size:16px;margin:0 0 4px}h2{font-size:14px;margin:6px 0}table{width:100%;border-collapse:collapse}hr{border:none;border-top:1px dashed #000;margin:6px 0}.muted{color:#222;font-size:11px}</style></head>
+  <style>
+    @page{size:80mm auto;margin:0}
+    @media print{html,body{width:80mm;margin:0!important;padding:0!important}}
+    html,body{width:80mm}
+    body{font-family:'Arial Black','Helvetica',monospace;font-size:18px;padding:4mm;width:72mm;margin:0;color:#000;font-weight:700;line-height:1.25}
+    h1{font-size:30px;margin:0 0 6px;text-align:center;font-weight:900;letter-spacing:1px}
+    h2{font-size:22px;margin:6px 0;font-weight:900;text-transform:uppercase}
+    table{width:100%;border-collapse:collapse;margin-top:4px}
+    td{vertical-align:top;padding:6px 0;border-bottom:1px dashed #000}
+    td.qty{font-size:28px;font-weight:900;width:54px;text-align:right;padding-right:8px}
+    td.name{font-size:22px;font-weight:900;text-transform:uppercase;line-height:1.2}
+    hr{border:none;border-top:2px dashed #000;margin:6px 0}
+    .meta{font-size:13px;font-weight:700}
+    .notes{margin-top:8px;font-size:16px;font-weight:700;border:2px solid #000;padding:6px;line-height:1.3}
+    .footer{margin-top:8px;text-align:center;font-size:14px;font-weight:900}
+  </style></head>
   <body>
     <h1>COMANDA #${o.ticket}</h1>
-    <div class="muted">${new Date(o.created_at).toLocaleString("es-CO")}</div>
-    <div class="muted">Cajero: ${o.user_name}</div>
+    <div class="meta">${new Date(o.created_at).toLocaleString("es-CO")}</div>
+    <div class="meta">Cajero: ${o.user_name}</div>
     <hr/>
     <h2>${o.header}</h2>
-    ${o.customer ? `<div>Cliente: ${o.customer}</div>` : ""}
-    ${o.address ? `<div>Dir: ${o.address}</div>` : ""}
-    ${o.phone ? `<div>Tel: ${o.phone}</div>` : ""}
+    ${o.customer ? `<div class="meta">Cliente: ${o.customer}</div>` : ""}
+    ${o.address ? `<div class="meta">Dir: ${o.address}</div>` : ""}
+    ${o.phone ? `<div class="meta">Tel: ${o.phone}</div>` : ""}
     <hr/>
     <table>${rows}</table>
-    <hr/>
-    ${o.notes ? `<div><b>Notas:</b> ${o.notes}</div>` : ""}
-    <div class="muted" style="margin-top:8px">*** ENVIAR A COCINA ***</div>
+    ${o.notes ? `<div class="notes"><b>NOTAS:</b><br/>${o.notes}</div>` : ""}
+    <div class="footer">*** ENVIAR A COCINA ***</div>
   </body></html>`;
 }
 
