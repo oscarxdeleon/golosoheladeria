@@ -173,7 +173,6 @@ export function PublicOrder({
       }
     } else {
       setFieldErrors({});
-      if (source === "online_menu" && !customerName.trim()) return "Ingresa tu nombre";
     }
     if (payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
