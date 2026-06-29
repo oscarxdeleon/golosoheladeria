@@ -205,6 +205,7 @@ export type Database = {
           neighborhood: string | null
           nit: string | null
           phone: string | null
+          report_email: string | null
           slug: string | null
           ticket_footer: string | null
           ticket_header: string | null
@@ -221,6 +222,7 @@ export type Database = {
           neighborhood?: string | null
           nit?: string | null
           phone?: string | null
+          report_email?: string | null
           slug?: string | null
           ticket_footer?: string | null
           ticket_header?: string | null
@@ -237,6 +239,7 @@ export type Database = {
           neighborhood?: string | null
           nit?: string | null
           phone?: string | null
+          report_email?: string | null
           slug?: string | null
           ticket_footer?: string | null
           ticket_header?: string | null
@@ -246,7 +249,13 @@ export type Database = {
       }
       cash_sessions: {
         Row: {
+          bancolombia_counted: number | null
+          bancolombia_difference: number | null
+          bancolombia_expected: number | null
           branch_id: string | null
+          cash_counted: number | null
+          cash_difference: number | null
+          cash_expected: number | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null
@@ -254,6 +263,9 @@ export type Database = {
           difference: number | null
           expected_amount: number | null
           id: string
+          nequi_counted: number | null
+          nequi_difference: number | null
+          nequi_expected: number | null
           opened_at: string
           opening_amount: number
           opening_notes: string | null
@@ -262,7 +274,13 @@ export type Database = {
           user_name: string
         }
         Insert: {
+          bancolombia_counted?: number | null
+          bancolombia_difference?: number | null
+          bancolombia_expected?: number | null
           branch_id?: string | null
+          cash_counted?: number | null
+          cash_difference?: number | null
+          cash_expected?: number | null
           closed_at?: string | null
           closing_notes?: string | null
           counted_amount?: number | null
@@ -270,6 +288,9 @@ export type Database = {
           difference?: number | null
           expected_amount?: number | null
           id?: string
+          nequi_counted?: number | null
+          nequi_difference?: number | null
+          nequi_expected?: number | null
           opened_at?: string
           opening_amount?: number
           opening_notes?: string | null
@@ -278,7 +299,13 @@ export type Database = {
           user_name: string
         }
         Update: {
+          bancolombia_counted?: number | null
+          bancolombia_difference?: number | null
+          bancolombia_expected?: number | null
           branch_id?: string | null
+          cash_counted?: number | null
+          cash_difference?: number | null
+          cash_expected?: number | null
           closed_at?: string | null
           closing_notes?: string | null
           counted_amount?: number | null
@@ -286,6 +313,9 @@ export type Database = {
           difference?: number | null
           expected_amount?: number | null
           id?: string
+          nequi_counted?: number | null
+          nequi_difference?: number | null
+          nequi_expected?: number | null
           opened_at?: string
           opening_amount?: number
           opening_notes?: string | null
@@ -997,7 +1027,13 @@ export type Database = {
       close_cash_session: {
         Args: { _closing_notes?: string; _counted_amount: number }
         Returns: {
+          bancolombia_counted: number | null
+          bancolombia_difference: number | null
+          bancolombia_expected: number | null
           branch_id: string | null
+          cash_counted: number | null
+          cash_difference: number | null
+          cash_expected: number | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null
@@ -1005,6 +1041,48 @@ export type Database = {
           difference: number | null
           expected_amount: number | null
           id: string
+          nequi_counted: number | null
+          nequi_difference: number | null
+          nequi_expected: number | null
+          opened_at: string
+          opening_amount: number
+          opening_notes: string | null
+          status: string
+          user_id: string
+          user_name: string
+        }
+        SetofOptions: {
+          from: "*"
+          to: "cash_sessions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
+      close_cash_session_blind: {
+        Args: {
+          _bancolombia_counted: number
+          _cash_counted: number
+          _closing_notes?: string
+          _nequi_counted: number
+        }
+        Returns: {
+          bancolombia_counted: number | null
+          bancolombia_difference: number | null
+          bancolombia_expected: number | null
+          branch_id: string | null
+          cash_counted: number | null
+          cash_difference: number | null
+          cash_expected: number | null
+          closed_at: string | null
+          closing_notes: string | null
+          counted_amount: number | null
+          created_at: string
+          difference: number | null
+          expected_amount: number | null
+          id: string
+          nequi_counted: number | null
+          nequi_difference: number | null
+          nequi_expected: number | null
           opened_at: string
           opening_amount: number
           opening_notes: string | null
@@ -1023,7 +1101,13 @@ export type Database = {
       get_active_cash_session: {
         Args: never
         Returns: {
+          bancolombia_counted: number | null
+          bancolombia_difference: number | null
+          bancolombia_expected: number | null
           branch_id: string | null
+          cash_counted: number | null
+          cash_difference: number | null
+          cash_expected: number | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null
@@ -1031,6 +1115,9 @@ export type Database = {
           difference: number | null
           expected_amount: number | null
           id: string
+          nequi_counted: number | null
+          nequi_difference: number | null
+          nequi_expected: number | null
           opened_at: string
           opening_amount: number
           opening_notes: string | null
@@ -1063,7 +1150,13 @@ export type Database = {
           _user_name?: string
         }
         Returns: {
+          bancolombia_counted: number | null
+          bancolombia_difference: number | null
+          bancolombia_expected: number | null
           branch_id: string | null
+          cash_counted: number | null
+          cash_difference: number | null
+          cash_expected: number | null
           closed_at: string | null
           closing_notes: string | null
           counted_amount: number | null
@@ -1071,6 +1164,9 @@ export type Database = {
           difference: number | null
           expected_amount: number | null
           id: string
+          nequi_counted: number | null
+          nequi_difference: number | null
+          nequi_expected: number | null
           opened_at: string
           opening_amount: number
           opening_notes: string | null
