@@ -63,7 +63,7 @@ function GastosPage() {
     try {
       let cashSessionId: string | null = null;
       if (payment === "efectivo") {
-        const { data: cs } = await supabase.rpc("get_active_cash_session");
+        const { data: cs } = await supabase.rpc("get_active_cash_session", { _branch_id: activeBranchId });
         cashSessionId = (cs as { id?: string } | null)?.id ?? null;
         if (!cashSessionId) {
           setSaving(false);

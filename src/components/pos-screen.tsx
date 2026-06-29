@@ -451,22 +451,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   };
 
 
-  const { data: openSession } = useQuery({
-    queryKey: ["cash-session-open", user?.id],
-    enabled: !!user,
-    queryFn: async () => {
-      const { data } = await supabase
-        .from("cash_sessions")
-        .select("id,opened_at")
-        .eq("user_id", user!.id)
-        .eq("status", "open")
-        .maybeSingle();
-      return data;
-    },
-  });
   // Sesión de caja a nivel de SEDE (la usa la tablet de meseros para heredar el turno_id de la caja matriz)
   const { session: branchSession } = useBranchCashSession(activeBranchId);
-  const effectiveSessionId = openSession?.id ?? branchSession?.id ?? null;
+  const openSession = branchSession;
+  const effectiveSessionId = branchSession?.id ?? null;
   const { data: mesa } = useQuery({
     queryKey: ["restaurant_tables", tableId],
     enabled: !!tableId,
