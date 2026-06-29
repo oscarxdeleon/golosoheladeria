@@ -623,10 +623,14 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
       setPhone("");
       setPendingSaleId(null);
 
-      if (orderType === "mesa") navigate({ to: "/mesas" });
-      else if (orderType === "llevar") navigate({ to: "/llevar" });
-      else if (orderType === "domicilio") navigate({ to: "/domicilio" });
-      else if (orderType === "kiosko") navigate({ to: "/kiosko" });
+      if (onSaved) {
+        onSaved();
+      } else {
+        if (orderType === "mesa") navigate({ to: "/mesas" });
+        else if (orderType === "llevar") navigate({ to: "/llevar" });
+        else if (orderType === "domicilio") navigate({ to: "/domicilio" });
+        else if (orderType === "kiosko") navigate({ to: "/kiosko" });
+      }
 
     } catch (err) {
       console.error(err);
