@@ -214,6 +214,7 @@ function ticketHTML(o: {
     ${o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="total-row"><span class="lbl">TOTAL</span><span class="val">${money(o.total)}</span></div>
+    ${o.notes ? `<div style="margin-top:8px;padding:8px;border:2px dashed #000;font-size:13px;line-height:1.35"><div style="font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📝 Notas del pedido:</div><div style="white-space:pre-line;font-weight:700">${o.notes}</div></div>` : ""}
     <div class="cash">
       <div class="ln"><span class="lf">${SVG.bill} Recibido:</span><span class="rv">${money(received)}</span></div>
       <div class="ln"><span class="lf">${SVG.bill} Cambio:</span><span class="rv">${money(change)}</span></div>
