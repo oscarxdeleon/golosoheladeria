@@ -151,10 +151,20 @@ export function PublicOrder({
     [products, branchId, visibleCatIds],
   );
   const favorites = useMemo(() => visibleProducts.filter((p) => p.is_favorite), [visibleProducts]);
-  const filtered = useMemo(
-    () => visibleProducts.filter((p) => activeCat === "all" || p.category_id === activeCat),
-    [visibleProducts, activeCat],
-  );
+  void favorites;
+  const filtered = useMemo(() => {
+    const list = visibleProducts.filter((p) => activeCat === "all" || p.category_id === activeCat);
+    if (activeCat !== "all") return list;
+    // Orden global: por categoría (sort_order) y luego nombre del producto.
+    const order = new Map(cats.map((c, i) => [c.id, c.sort_order ?? i]));
+    return [...list].sort((a, b) => {
+      const oa = a.category_id ? (order.get(a.category_id) ?? 999) : 999;
+      const ob = b.category_id ? (order.get(b.category_id) ?? 999) : 999;
+      if (oa !== ob) return oa - ob;
+      return a.name.localeCompare(b.name, "es");
+    });
+  }, [visibleProducts, activeCat, cats]);
+
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
   const isDelivery = source === "online_menu";
