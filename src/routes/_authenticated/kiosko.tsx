@@ -1,152 +1,138 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
-import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Monitor, Copy, ExternalLink, Download, Smartphone, Banknote } from "lucide-react";
-import { formatMoney, formatDate } from "@/lib/format";
-import { toast } from "sonner";
+import { Monitor, Banknote, ShoppingBag, Utensils, Inbox } from "lucide-react";
+import { formatMoney } from "@/lib/format";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/kiosko")({
-  head: () => ({ meta: [{ title: "Kiosko · Goloso POS" }] }),
-  component: KioskoAdmin,
+  head: () => ({ meta: [{ title: "Pedidos Kiosko · Goloso POS" }] }),
+  component: KioskoInbox,
 });
 
-function KioskoAdmin() {
+interface KioskOrder {
+  id: string;
+  ticket_number: number;
+  created_at: string;
+  customer_name: string | null;
+  notes: string | null;
+  total: number;
+  sale_items: { qty: number; product_name: string }[];
+}
+
+function timeAgo(d: string) {
+  const m = Math.floor((Date.now() - new Date(d).getTime()) / 60000);
+  if (m < 1) return "ahora";
+  if (m < 60) return `hace ${m} min`;
+  return `hace ${Math.floor(m / 60)} h`;
+}
+
+function serviceFromNotes(n: string | null) {
+  const t = (n ?? "").toUpperCase();
+  if (t.includes("COMER")) return { label: "Comer aquí", icon: Utensils };
+  return { label: "Para llevar", icon: ShoppingBag };
+}
+
+function KioskoInbox() {
   const navigate = useNavigate();
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const link = `${origin}/kiosk`;
-  const [copied, setCopied] = useState(false);
+  const { activeBranchId } = useBranch();
 
-  const { data: orders = [] } = useQuery({
-    queryKey: ["kiosk-orders"],
+  const { data: orders = [], isLoading } = useQuery<KioskOrder[]>({
+    queryKey: ["kiosk-pending", activeBranchId],
+    refetchInterval: 4000,
     queryFn: async () => {
-      const { data } = await supabase
+      let q = supabase
         .from("sales")
-        .select("*, sale_items(qty,product_name)")
+        .select("id,ticket_number,created_at,customer_name,notes,total,sale_items(qty,product_name)")
         .eq("source", "kiosk")
-        .order("created_at", { ascending: false })
-        .limit(30);
-      return data ?? [];
+        .eq("status", "pending")
+        .order("created_at", { ascending: true })
+        .limit(60);
+      if (activeBranchId) q = q.eq("branch_id", activeBranchId);
+      const { data } = await q;
+      return (data ?? []) as KioskOrder[];
     },
-    refetchInterval: 5000,
   });
-
-  function copy() {
-    navigator.clipboard.writeText(link);
-    setCopied(true);
-    toast.success("Link copiado");
-    setTimeout(() => setCopied(false), 1500);
-  }
-
-  function downloadQR() {
-    const canvas = document.querySelector<HTMLCanvasElement>("#kiosk-qr canvas");
-    if (!canvas) return;
-    const a = document.createElement("a");
-    a.href = canvas.toDataURL("image/png");
-    a.download = "kiosko-goloso-qr.png";
-    a.click();
-  }
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="font-display text-3xl flex items-center gap-2">
-          <Monitor className="h-7 w-7" /> Kiosko de auto-pedido
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          Configura una tablet fija en el local apuntando al siguiente link. Los pedidos llegan acá y al KDS.
-        </p>
-      </div>
-
-      <div className="grid gap-4 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5" /> Link del kiosko</CardTitle>
-            <CardDescription>Abre este link en el navegador de la tablet, ponlo en modo pantalla completa.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex gap-2">
-              <Input readOnly value={link} className="font-mono text-xs" />
-              <Button variant="outline" size="icon" onClick={copy}>
-                <Copy className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => window.open(link, "_blank")}>
-                <ExternalLink className="h-4 w-4" />
-              </Button>
-            </div>
-            {copied && <p className="text-xs text-success">¡Copiado!</p>}
-            <div className="rounded-lg border bg-muted/40 p-3 text-xs space-y-1">
-              <p className="font-medium">Pasos rápidos:</p>
-              <ol className="list-decimal pl-4 space-y-0.5 text-muted-foreground">
-                <li>Abre {link} en la tablet</li>
-                <li>Activa "Agregar a pantalla de inicio" o modo Kiosko del navegador</li>
-                <li>Los pedidos enviados aparecerán aquí y en el KDS</li>
-              </ol>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>QR para imprimir</CardTitle>
-            <CardDescription>Útil para invitar al cliente a escanear desde su propio teléfono.</CardDescription>
-          </CardHeader>
-          <CardContent className="flex flex-col items-center gap-3">
-            <div id="kiosk-qr" className="rounded-xl border bg-white p-4">
-              <QRCodeCanvas value={link} size={180} level="M" />
-            </div>
-            <Button variant="outline" size="sm" onClick={downloadQR}>
-              <Download className="h-4 w-4" /> Descargar PNG
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="flex items-center gap-3">
+        <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-purple-100 text-purple-600 dark:bg-purple-950/40">
+          <Monitor className="h-6 w-6" />
+        </div>
+        <div>
+          <h1 className="font-display text-3xl">Pedidos Kiosko</h1>
+          <p className="text-sm text-muted-foreground">
+            Bandeja en tiempo real de pedidos de autoservicio pendientes de pago.
+          </p>
+        </div>
+        <Badge className="ml-auto bg-purple-600 text-white text-base px-3 py-1">
+          {orders.length} pendiente{orders.length === 1 ? "" : "s"}
+        </Badge>
       </div>
 
       <Card>
         <CardHeader>
-          <CardTitle>Pedidos recientes del kiosko</CardTitle>
-          <CardDescription>Solo se muestran pedidos generados desde la tablet del kiosko.</CardDescription>
+          <CardTitle>Pendientes de pago</CardTitle>
+          <CardDescription>
+            Selecciona un pedido para verificarlo y procesar el cobro en caja.
+          </CardDescription>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="divide-y">
-            {orders.map((o: { id: string; ticket_number: number; created_at: string; status: string; total: number; customer_name: string | null; sale_items: { qty: number; product_name: string }[] }) => (
-              <div key={o.id} className="p-4 flex items-start gap-3">
-                <div className="font-display text-2xl text-primary w-16 shrink-0">#{o.ticket_number}</div>
-                <div className="flex-1">
-                  <div className="text-xs text-muted-foreground">{formatDate(o.created_at)}</div>
-                  {o.customer_name && <div className="text-sm font-medium">{o.customer_name}</div>}
-                  <div className="text-sm text-muted-foreground mt-1">
-                    {o.sale_items.map((i) => `${i.qty}× ${i.product_name}`).join(" · ")}
-                  </div>
-                </div>
-                <div className="text-right space-y-1">
-                  <Badge variant={o.status === "pending" ? "default" : o.status === "paid" ? "secondary" : "outline"}>
-                    {o.status === "pending" ? "Pendiente de pago" : o.status === "paid" ? "Cobrado" : "Cancelado"}
-                  </Badge>
-                  <div className="font-medium">{formatMoney(o.total)}</div>
-                  {o.status === "pending" && (
-                    <Button
-                      size="sm"
-                      className="mt-1"
-                      onClick={() => navigate({ to: "/pos", search: { type: "kiosko", kioskSaleId: o.id } })}
-                    >
-                      <Banknote className="h-4 w-4 mr-1" /> Cobrar en caja
-                    </Button>
-                  )}
-                </div>
-              </div>
-            ))}
-            {orders.length === 0 && (
-              <div className="p-12 text-center text-muted-foreground">
-                Aún no hay pedidos del kiosko. Comparte el link con la tablet.
-              </div>
-            )}
-          </div>
+          {isLoading ? (
+            <div className="p-12 text-center text-sm text-muted-foreground">Cargando…</div>
+          ) : orders.length === 0 ? (
+            <div className="p-16 text-center text-muted-foreground">
+              <Inbox className="mx-auto h-10 w-10 mb-3 opacity-50" />
+              <p className="font-medium">Sin pedidos pendientes</p>
+              <p className="text-sm">Los pedidos del kiosko aparecerán aquí automáticamente.</p>
+            </div>
+          ) : (
+            <ul className="divide-y">
+              {orders.map((o) => {
+                const svc = serviceFromNotes(o.notes);
+                const SvcIcon = svc.icon;
+                return (
+                  <li key={o.id} className="flex flex-col md:flex-row md:items-center gap-4 p-4 hover:bg-muted/40 transition">
+                    <div className="font-display text-4xl text-purple-600 w-20 shrink-0 text-center leading-none">
+                      #{o.ticket_number}
+                    </div>
+                    <div className="flex-1 min-w-0 space-y-1">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-purple-100 dark:bg-purple-950/40 px-2 py-0.5 text-purple-700 dark:text-purple-300 font-medium">
+                          <SvcIcon className="h-3 w-3" />
+                          {svc.label}
+                        </span>
+                        <span>·</span>
+                        <span>{timeAgo(o.created_at)}</span>
+                        {o.customer_name && <><span>·</span><span>{o.customer_name}</span></>}
+                      </div>
+                      <ul className="text-sm">
+                        {o.sale_items.map((i, idx) => (
+                          <li key={idx} className="text-foreground">
+                            <span className="font-medium">{i.qty}×</span> {i.product_name}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="flex md:flex-col items-center md:items-end gap-3 md:gap-2 md:text-right">
+                      <div className="font-display text-2xl text-primary">{formatMoney(o.total)}</div>
+                      <Button
+                        size="lg"
+                        className="bg-purple-600 hover:bg-purple-700 text-white"
+                        onClick={() => navigate({ to: "/pos", search: { type: "kiosko", kioskSaleId: o.id } })}
+                      >
+                        <Banknote className="h-4 w-4 mr-1" /> Procesar Pago
+                      </Button>
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
         </CardContent>
       </Card>
     </div>
