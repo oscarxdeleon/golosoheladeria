@@ -996,7 +996,17 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   }
 
   return (
-    <div className="grid gap-4 lg:grid-cols-[1fr,420px]">
+    <div className="relative grid gap-4 lg:grid-cols-[1fr,420px]">
+      {meseroMode && paying && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-8 py-6 shadow-2xl">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-primary/30 border-t-primary" />
+            <p className="text-sm font-medium">Enviando comanda…</p>
+            <p className="text-xs text-muted-foreground">Caja · Cocina · KDS</p>
+          </div>
+        </div>
+      )}
+
 
       {!meseroMode && !openSession && (
         <div className="lg:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
