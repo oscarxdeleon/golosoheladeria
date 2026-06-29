@@ -16,8 +16,9 @@ import { toast } from "sonner";
 type KioskService = "llevar" | "comer_aqui";
 
 interface Category { id: string; name: string; sort_order: number; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; }
-interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; modifier_group_ids?: string[] | null; }
+interface CartModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
+interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: CartModifier[]; }
 
 type Source = "kiosk" | "table_qr" | "online_menu";
 type PayMethod = "Efectivo" | "Nequi" | "Bancolombia";
