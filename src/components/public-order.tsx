@@ -300,45 +300,68 @@ export function PublicOrder({
 
   if (source === "kiosk" && !kioskService) {
     return (
-      <div className="fixed inset-0 z-50 flex flex-col bg-gradient-to-br from-primary/15 via-background to-secondary/20 overflow-hidden">
-        <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
-          {settings?.logo_url ? (
-            <img
-              src={settings.logo_url}
-              alt={settings?.business_name ?? "Heladería Goloso"}
-              className="max-h-[40vh] max-w-[80vw] object-contain drop-shadow-xl animate-in fade-in zoom-in duration-700"
-            />
-          ) : (
-            <div className="h-48 w-48 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
-              <IceCream className="h-24 w-24" />
-            </div>
-          )}
-          <h1 className="font-display text-4xl md:text-6xl mt-8 text-foreground">
-            {settings?.business_name ?? "Heladería Goloso"}
-          </h1>
-          <p className="text-muted-foreground text-lg md:text-2xl mt-3">Toca una opción para empezar tu pedido</p>
-        </div>
-        <div className="p-6 md:p-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-6xl w-full mx-auto">
-          <button
-            onClick={() => setKioskService("llevar")}
-            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary to-primary/80 text-primary-foreground p-10 md:p-14 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-          >
-            <ShoppingBag className="!h-20 !w-20 md:!h-28 md:!w-28 mx-auto mb-4 drop-shadow-lg transition-transform group-hover:scale-110" />
-            <div className="font-display text-3xl md:text-5xl font-bold">PARA LLEVAR</div>
-            <div className="text-base md:text-lg opacity-90 mt-2">Llévate tu pedido</div>
-          </button>
-          <button
-            onClick={() => setKioskService("comer_aqui")}
-            className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-accent to-accent/80 text-accent-foreground p-10 md:p-14 shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-[1.03] active:scale-[0.98]"
-          >
-            <Utensils className="!h-20 !w-20 md:!h-28 md:!w-28 mx-auto mb-4 drop-shadow-lg transition-transform group-hover:scale-110" />
-            <div className="font-display text-3xl md:text-5xl font-bold">COMER AQUÍ</div>
-            <div className="text-base md:text-lg opacity-90 mt-2">Disfruta en el local</div>
-          </button>
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-primary/15 via-background to-secondary/20">
+        <div className="min-h-full flex flex-col items-center justify-between py-8 px-6 md:py-12 md:px-12">
+          {/* Encabezado: logo + sucursal + instrucción */}
+          <div className="flex flex-col items-center text-center w-full">
+            {settings?.logo_url ? (
+              <img
+                src={settings.logo_url}
+                alt={settings?.business_name ?? "Heladería Goloso"}
+                className="max-h-[28vh] max-w-[70vw] object-contain drop-shadow-xl animate-in fade-in zoom-in duration-700"
+              />
+            ) : (
+              <div className="h-40 w-40 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
+                <IceCream className="h-20 w-20" />
+              </div>
+            )}
+            <h1 className="font-display text-3xl md:text-5xl mt-6 text-foreground uppercase tracking-wide">
+              {settings?.business_name ?? "Heladería Goloso"}
+            </h1>
+            <p className="text-muted-foreground text-base md:text-xl mt-2">
+              Toca una opción para empezar tu pedido
+            </p>
+          </div>
+
+          {/* Botones de tipo de pedido — apilados verticalmente */}
+          <div className="w-full max-w-2xl mx-auto mt-8 flex flex-col gap-5">
+            <button
+              type="button"
+              onClick={() => setKioskService("llevar")}
+              className="group w-full flex items-center gap-6 rounded-3xl bg-primary text-primary-foreground px-8 py-7 md:py-9 shadow-xl ring-1 ring-primary/30 hover:shadow-2xl hover:brightness-110 transition-all duration-200 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 text-left"
+            >
+              <div className="shrink-0 rounded-2xl bg-white/15 p-4 group-hover:scale-110 transition-transform">
+                <ShoppingBag className="!h-14 !w-14 md:!h-16 md:!w-16" strokeWidth={2.2} />
+              </div>
+              <div className="flex-1">
+                <div className="font-display text-3xl md:text-4xl font-extrabold leading-tight">
+                  PARA LLEVAR
+                </div>
+                <div className="text-sm md:text-lg opacity-90 mt-1">Llévate tu pedido</div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setKioskService("comer_aqui")}
+              className="group w-full flex items-center gap-6 rounded-3xl bg-primary text-primary-foreground px-8 py-7 md:py-9 shadow-xl ring-1 ring-primary/30 hover:shadow-2xl hover:brightness-110 transition-all duration-200 active:scale-[0.98] focus:outline-none focus-visible:ring-4 focus-visible:ring-primary/40 text-left"
+            >
+              <div className="shrink-0 rounded-2xl bg-white/15 p-4 group-hover:scale-110 transition-transform">
+                <Utensils className="!h-14 !w-14 md:!h-16 md:!w-16" strokeWidth={2.2} />
+              </div>
+              <div className="flex-1">
+                <div className="font-display text-3xl md:text-4xl font-extrabold leading-tight">
+                  PARA COMER AQUÍ
+                </div>
+                <div className="text-sm md:text-lg opacity-90 mt-1">Disfruta en nuestro local</div>
+              </div>
+            </button>
+          </div>
         </div>
       </div>
     );
   }
+
 
 
   return (
