@@ -202,7 +202,11 @@ export type Database = {
           inherits_main_catalog: boolean
           is_main: boolean
           name: string
+          neighborhood: string | null
+          nit: string | null
           phone: string | null
+          ticket_footer: string | null
+          ticket_header: string | null
           updated_at: string
         }
         Insert: {
@@ -213,7 +217,11 @@ export type Database = {
           inherits_main_catalog?: boolean
           is_main?: boolean
           name: string
+          neighborhood?: string | null
+          nit?: string | null
           phone?: string | null
+          ticket_footer?: string | null
+          ticket_header?: string | null
           updated_at?: string
         }
         Update: {
@@ -224,7 +232,11 @@ export type Database = {
           inherits_main_catalog?: boolean
           is_main?: boolean
           name?: string
+          neighborhood?: string | null
+          nit?: string | null
           phone?: string | null
+          ticket_footer?: string | null
+          ticket_header?: string | null
           updated_at?: string
         }
         Relationships: []
