@@ -17,12 +17,21 @@ export async function loadFaceModels(): Promise<void> {
   return loadingPromise;
 }
 
-export async function getFaceDescriptor(input: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement) {
+export async function getFaceDescriptor(
+  input: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
+  opts: { inputSize?: number; scoreThreshold?: number } = {},
+) {
   const detection = await faceapi
-    .detectSingleFace(input, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+    .detectSingleFace(
+      input,
+      new faceapi.TinyFaceDetectorOptions({
+        inputSize: opts.inputSize ?? 224,
+        scoreThreshold: opts.scoreThreshold ?? 0.45,
+      }),
+    )
     .withFaceLandmarks()
     .withFaceDescriptor();
-  return detection?.descriptor ?? null;
+  return detection ?? null;
 }
 
 export function euclideanDistance(a: Float32Array | number[], b: Float32Array | number[]) {
@@ -34,8 +43,8 @@ export function euclideanDistance(a: Float32Array | number[], b: Float32Array | 
   return Math.sqrt(sum);
 }
 
-// Distance < 0.55 typically means a match for face-api.js descriptors
-export const FACE_MATCH_THRESHOLD = 0.55;
+// Match if distance below this; relaxed from 0.55 for varied lighting in stores
+export const FACE_MATCH_THRESHOLD = 0.5;
 
 export function descriptorToArray(d: Float32Array): number[] {
   return Array.from(d);
