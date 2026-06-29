@@ -38,6 +38,7 @@ export interface Branding {
   nit?: string | null;
   address?: string | null;
   phone?: string | null;
+  email?: string | null;
   logo_url?: string | null;
   ticket_header?: string | null;
   ticket_footer?: string | null;
