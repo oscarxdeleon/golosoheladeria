@@ -145,6 +145,7 @@ function CajaPage() {
       if (error) throw error;
       const session = data as CashSession;
       qc.setQueryData(["cash-session-open-branch", activeBranchId], session);
+      qc.setQueryData(["branch-cash-session-open", activeBranchId], session);
       if (session.user_id === user.id) {
         toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
       } else {
@@ -154,6 +155,7 @@ function CajaPage() {
       setOpeningAmount("");
       setOpeningNotes("");
       await qc.invalidateQueries({ queryKey: ["cash-sessions-history"] });
+      await qc.invalidateQueries({ queryKey: ["branch-cash-session-open", activeBranchId] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al abrir caja");
     } finally {
@@ -164,6 +166,7 @@ function CajaPage() {
   async function closeSession() {
     setCloseError(null);
     if (!user || !current) return;
+    if (!activeBranchId) return toast.error("Selecciona una sede antes de cerrar caja");
     if (occupiedTables.length > 0) {
       return toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar.`);
     }
@@ -178,10 +181,12 @@ function CajaPage() {
         _nequi_counted: nc,
         _bancolombia_counted: bc,
         _closing_notes: closingNotes || undefined,
+        _branch_id: activeBranchId,
       });
       if (error) throw error;
       const closed = data as CashSession;
       qc.setQueryData(["cash-session-open-branch", activeBranchId], null);
+      qc.setQueryData(["branch-cash-session-open", activeBranchId], null);
       toast.success("Caja cerrada correctamente");
 
       // Enviar reporte por correo en segundo plano
