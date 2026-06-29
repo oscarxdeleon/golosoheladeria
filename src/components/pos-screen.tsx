@@ -665,11 +665,11 @@ export function PosScreen({ orderType, tableId, title }: Props) {
               onClick={() => add(p)}
               className="group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98]"
             >
-              <div className="aspect-square w-full overflow-hidden bg-gradient-to-br from-secondary/30 to-accent/20">
+              <div className="aspect-square w-full overflow-hidden bg-white p-2 flex items-center justify-center">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="h-full w-full object-cover transition group-hover:scale-105" loading="lazy" />
+                  <img src={p.image_url} alt={p.name} className="max-h-full max-w-full object-contain transition group-hover:scale-105" loading="lazy" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl font-display text-primary/40">
+                  <div className="flex h-full w-full items-center justify-center text-3xl font-display text-primary/40 bg-gradient-to-br from-secondary/30 to-accent/20 rounded-lg">
                     {p.name.charAt(0).toUpperCase()}
                   </div>
                 )}

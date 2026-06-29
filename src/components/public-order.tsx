@@ -186,13 +186,13 @@ export function PublicOrder({
             className={`overflow-hidden transition ${readOnly ? "" : "cursor-pointer hover:shadow-md active:scale-[0.98]"}`}
             onClick={() => !readOnly && add(p)}
           >
-            {p.image_url ? (
-              <img src={p.image_url} alt={p.name} className="h-28 w-full object-cover" loading="lazy" />
-            ) : (
-              <div className="h-28 w-full bg-gradient-to-br from-primary/10 to-secondary/10 flex items-center justify-center">
+            <div className="aspect-square w-full overflow-hidden bg-white p-2 flex items-center justify-center">
+              {p.image_url ? (
+                <img src={p.image_url} alt={p.name} className="max-h-full max-w-full object-contain" loading="lazy" />
+              ) : (
                 <IceCream className="h-8 w-8 text-muted-foreground/40" />
-              </div>
-            )}
+              )}
+            </div>
             <CardContent className="p-3">
               <div className="font-medium leading-tight line-clamp-2">{p.name}</div>
               <div className="font-display text-primary mt-1">{formatMoney(p.price)}</div>
