@@ -477,40 +477,6 @@ export function PublicOrder({
         </div>
       </header>
 
-      {favorites.length > 0 && activeCat === "all" && (
-        <section className="max-w-5xl mx-auto px-4 pt-4">
-          <div className="flex items-center gap-2 mb-3">
-            <div className="h-8 w-8 rounded-full bg-gradient-to-br from-yellow-400 to-pink-500 flex items-center justify-center shadow-md">
-              <span className="text-white text-lg">⭐</span>
-            </div>
-            <h2 className="font-display text-xl sm:text-2xl bg-gradient-to-r from-pink-600 to-yellow-600 bg-clip-text text-transparent">
-              Nuestros Favoritos
-            </h2>
-          </div>
-          <div className="flex gap-3 overflow-x-auto pb-3 -mx-1 px-1 snap-x">
-            {favorites.map((p) => (
-              <Card
-                key={p.id}
-                className={`shrink-0 w-40 sm:w-48 snap-start overflow-hidden border-2 border-yellow-300 shadow-md transition ${readOnly ? "" : "cursor-pointer hover:shadow-xl hover:-translate-y-0.5 active:scale-[0.98]"}`}
-                onClick={() => !readOnly && add(p)}
-              >
-                <div className="aspect-square w-full overflow-hidden bg-white p-2 flex items-center justify-center relative">
-                  <span className="absolute top-1 right-1 text-xs bg-yellow-400 text-yellow-900 font-bold px-1.5 py-0.5 rounded-full shadow">★</span>
-                  {p.image_url ? (
-                    <img src={p.image_url} alt={p.name} className="max-h-full max-w-full object-contain" loading="lazy" />
-                  ) : (
-                    <IceCream className="h-8 w-8 text-muted-foreground/40" />
-                  )}
-                </div>
-                <CardContent className="p-3">
-                  <div className="font-medium text-sm leading-tight line-clamp-2">{p.name}</div>
-                  <div className="font-display text-primary mt-1">{formatMoney(p.price)}</div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </section>
-      )}
 
       <main className="max-w-5xl mx-auto px-4 py-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {filtered.map((p) => (
