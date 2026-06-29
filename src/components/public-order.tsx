@@ -344,8 +344,9 @@ export function PublicOrder({
               </div>
             )}
             <h1 className="font-display text-3xl md:text-5xl mt-6 text-foreground uppercase tracking-wide">
-              {settings?.business_name ?? "Heladería Goloso"}
+              {settings?.business_name ?? "Heladería Goloso"}{branch?.name ? ` · ${branch.name}` : ""}
             </h1>
+
             <p className="text-muted-foreground text-base md:text-xl mt-2">
               Toca una opción para empezar tu pedido
             </p>
