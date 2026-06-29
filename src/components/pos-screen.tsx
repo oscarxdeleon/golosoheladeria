@@ -130,7 +130,7 @@ body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:12px;padding:4mm;
 .tbl{width:100%;border-collapse:collapse;margin-top:4px}
 .tbl thead th{font-size:11px;font-weight:900;text-transform:uppercase;padding:6px 0;border-top:2px solid #000;border-bottom:2px solid #000;font-family:'Arial Black',sans-serif;letter-spacing:.5px}
 .tbl th.qty,.tbl td.qty{width:18%;text-align:left}
-.tbl th.det,.tbl td.det{text-align:left;padding-left:4px}
+.tbl th.det,.tbl td.det{text-align:left;padding-left:4px;white-space:pre-line}
 .tbl th.tot,.tbl td.tot{width:30%;text-align:right;white-space:nowrap}
 .tbl td{padding:6px 0;font-size:12px;vertical-align:top;font-weight:700}
 .tbl td.qty{font-weight:900;font-size:13px}
