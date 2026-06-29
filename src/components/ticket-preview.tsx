@@ -67,7 +67,7 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
     >
       {/* Logo */}
       <div className="flex justify-center mb-2">
-        <img src={logoSrc} alt={settings?.business_name ?? "Logo"} className="w-48 h-auto object-contain" />
+        <img src={logoSrc} alt={settings?.business_name ?? "Logo"} className="ticket-logo w-48 h-auto object-contain" />
       </div>
 
       {/* Business name */}
