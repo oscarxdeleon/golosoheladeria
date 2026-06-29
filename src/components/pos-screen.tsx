@@ -665,7 +665,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       });
 
       // Mantener referencia a snapshots no usados para evitar warnings
-      void snapshotNotes; void snapshotAddress; void snapshotPhone;
+      void snapshotNotes;
     } catch (err) {
       console.error("[pay] error fatal", err);
       const msg = err instanceof Error ? err.message : "Error al cobrar";
