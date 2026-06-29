@@ -76,5 +76,5 @@ export function usePermissions() {
     return false;
   }
 
-  return { permissions: data, can, canPath, role: primaryRole, isAdmin, loading: authLoading || isLoading, home: ROLE_HOME[primaryRole] };
+  return { permissions: data, can, canPath, role: primaryRole, isAdmin, loading: authLoading || rolesLoading || isLoading, home: ROLE_HOME[primaryRole] };
 }
