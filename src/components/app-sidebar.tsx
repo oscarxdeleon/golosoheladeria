@@ -1,5 +1,6 @@
 import { Link, useRouterState } from "@tanstack/react-router";
 import logoAsset from "@/assets/logo-goloso.png.asset.json";
+import { usePermissions } from "@/hooks/use-permissions";
 
 import {
   LayoutDashboard,
