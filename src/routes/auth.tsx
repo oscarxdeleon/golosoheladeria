@@ -39,9 +39,9 @@ function AuthPage() {
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) navigate({ to: "/dashboard" });
+      if (data.session) window.location.replace("/");
     });
-  }, [navigate]);
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
