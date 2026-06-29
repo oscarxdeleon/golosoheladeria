@@ -225,7 +225,10 @@ export function PublicOrder({
           source,
           order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "domicilio",
           table_id: tableId ?? null,
-          user_name: source === "kiosk" ? "Kiosko" : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : "Menú en línea",
+          branch_id: branch?.id ?? null,
+          branch_slug: branchSlug ?? branch?.slug ?? null,
+          user_name: source === "kiosk" ? `Kiosko${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
+
           customer_name: customerName || null,
           customer_phone: phone || null,
           delivery_address: isDelivery ? address : null,
