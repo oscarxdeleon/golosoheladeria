@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,20 +44,11 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 
 function UsuariosPage() {
   const { isAdmin, loading: authLoading } = useAuth();
-  const { home, loading: permsLoading } = usePermissions();
-  const navigate = useNavigate();
+  const { loading: permsLoading } = usePermissions();
   const qc = useQueryClient();
   const createFn = useServerFn(createAppUser);
   const updateFn = useServerFn(updateAppUser);
   const deleteFn = useServerFn(deleteAppUser);
-
-  useEffect(() => {
-    if (authLoading || permsLoading) return;
-    if (!isAdmin) {
-      toast.error("Acceso denegado: Solo el administrador puede gestionar los usuarios del sistema.");
-      navigate({ to: home, replace: true });
-    }
-  }, [authLoading, permsLoading, isAdmin, home, navigate]);
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches-for-users"],
