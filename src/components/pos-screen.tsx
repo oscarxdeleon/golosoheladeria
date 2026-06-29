@@ -446,7 +446,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     nit: activeBranch?.nit ?? settings?.nit ?? null,
     address: [activeBranch?.address, activeBranch?.neighborhood].filter(Boolean).join(" · ") || settings?.address || null,
     phone: activeBranch?.phone ?? settings?.phone ?? null,
-    logo_url: settings?.logo_url ?? null,
+    email: activeBranch?.email ?? null,
+    logo_url: activeBranch?.logo_url ?? settings?.logo_url ?? null,
     ticket_header: activeBranch?.ticket_header ?? settings?.ticket_header ?? null,
     ticket_footer: activeBranch?.ticket_footer ?? settings?.ticket_footer ?? null,
   };
