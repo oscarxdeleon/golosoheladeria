@@ -14,15 +14,41 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
+import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
   head: () => ({ meta: [{ title: "Ajustes · Goloso POS" }] }),
   component: AjustesPage,
+  errorComponent: AjustesErrorComponent,
 });
+
+function AjustesErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <div className="p-6">
+      <div className="max-w-2xl rounded-2xl border border-destructive/40 bg-destructive/5 p-6 space-y-3">
+        <div className="flex items-center gap-2 font-semibold text-destructive text-lg">
+          <AlertTriangle className="h-5 w-5" /> No se pudo cargar Ajustes
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Ocurrió un error al renderizar esta pantalla. Puedes reintentar sin perder tu sesión.
+        </p>
+        <pre className="text-xs whitespace-pre-wrap break-words text-muted-foreground max-h-48 overflow-auto bg-background/60 p-3 rounded-lg border">
+          {error?.message || String(error)}
+        </pre>
+        <button
+          onClick={() => reset()}
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <RefreshCw className="h-4 w-4" /> Reintentar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const DAYS: Array<{ key: string; label: string }> = [
   { key: "lun", label: "Lunes" }, { key: "mar", label: "Martes" }, { key: "mie", label: "Miércoles" },
