@@ -199,15 +199,17 @@ function ticketHTML(o: {
     <div class="biz-meta">${SVG.idCard}<span>NIT: ${b.nit ?? "—"}</span></div>
     <div class="biz-meta">${SVG.pin}<span>${b.address ?? ""}</span></div>
     <div class="biz-meta">${SVG.phone}<span>${b.phone ?? ""}</span></div>
-    <div class="dots"></div>
+    <hr class="dashed"/>
     <div class="ticket-no">TICKET DE VENTA<span class="num">No. ${ticketNo}</span></div>
+    <hr class="dashed"/>
     <div class="info">
       <div class="label">${SVG.cal} Fecha:</div><div class="val">${fmtDate(o.created_at)}</div>
       <div class="label">${SVG.user} Cliente:</div><div class="val">${o.customer || "Mostrador"}</div>
       ${o.address ? `<div class="label">${SVG.pin} Dirección:</div><div class="val">${o.address}</div>` : ""}
       ${o.phone ? `<div class="label">${SVG.phone} Teléfono:</div><div class="val">${o.phone}</div>` : ""}
-      <div class="label">${SVG.card} F. Pago:</div><div class="val">${o.payment_method}</div>
+      <div class="label">${SVG.card} Forma de Pago:</div><div class="val">${o.payment_method}</div>
     </div>
+    <hr class="dashed"/>
     <table class="tbl">
       <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
       <tbody>${rows}</tbody>
@@ -215,16 +217,18 @@ function ticketHTML(o: {
     <div class="sub-row first"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>
     ${o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
-    <div class="total-row"><span class="lbl">TOTAL</span><span class="val">${money(o.total)}</span></div>
-    ${o.notes ? `<div style="margin-top:8px;padding:8px;border:2px dashed #000;font-size:13px;line-height:1.35"><div style="font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">📝 Notas del pedido:</div><div style="white-space:pre-line;font-weight:700">${o.notes}</div></div>` : ""}
+    <div class="total-row"><span class="lbl">TOTAL:</span><span class="val">${money(o.total)}</span></div>
+    ${o.notes ? `<div style="margin-top:6px;padding:8px;border:1.5px dashed #000;font-size:13px;line-height:1.35"><div style="font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">NOTAS DEL PEDIDO:</div><div style="white-space:pre-line;font-weight:700">${o.notes}</div></div>` : ""}
     <div class="cash">
       <div class="ln"><span class="lf">${SVG.bill} Recibido:</span><span class="rv">${money(received)}</span></div>
-      <div class="ln"><span class="lf">${SVG.bill} Cambio:</span><span class="rv">${money(change)}</span></div>
+      <div class="ln"><span class="lf">Cambio:</span><span class="rv">${money(change)}</span></div>
     </div>
-    <div class="deco">🍦 · 🍧 · 🍨 · 🍦 · 🍧</div>
-    <div class="thanks">${b.ticket_footer ? b.ticket_footer : "¡Gracias por Preferirnos!"}</div>
-    <div class="deco">♥ · 🍦 · ♥ · 🍧 · ♥</div>
-    <div class="deco-bot">— HELADERÍA GOLOSO —</div>
+    <div style="display:flex;align-items:center;justify-content:center;gap:8px;margin-top:10px">
+      <span style="font-size:26px">🍨</span>
+      <div class="thanks" style="margin:0">${b.ticket_footer ? b.ticket_footer : "¡Gracias por Preferirnos!"}</div>
+      <span style="font-size:26px">🍨</span>
+    </div>
+    <div class="deco">♥ · 🍦 · ♥ · 🍧 · ♥ · 🍦 · ♥</div>
   </body></html>`;
 }
 
