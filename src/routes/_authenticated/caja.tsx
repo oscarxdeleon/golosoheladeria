@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { AlertTriangle, Banknote, LockOpen, LockKeyhole, History, Eye, Smartphone, Building2 } from "lucide-react";
+import { AlertTriangle, Banknote, LockOpen, LockKeyhole, History, Eye, Smartphone, Building2, Lock } from "lucide-react";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
@@ -72,18 +72,28 @@ function CajaPage() {
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<CashSession | null>(null);
 
+  // Caja abierta para la SEDE activa (compartida entre cajeros de la misma sede)
   const { data: current } = useQuery({
-    queryKey: ["cash-session-open", user?.id],
-    enabled: !!user,
+    queryKey: ["cash-session-open-branch", activeBranchId],
+    enabled: !!activeBranchId,
     refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_active_cash_session");
+      const { data, error } = await supabase
+        .from("cash_sessions")
+        .select("*")
+        .eq("branch_id", activeBranchId!)
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
-      const session = (data as CashSession | null) ?? null;
-      if (!session || !session.id || session.status !== "open") return null;
-      return session;
+      return (data as unknown as CashSession | null) ?? null;
     },
   });
+
+  const isOwner = !!current && !!user && current.user_id === user.id;
+  const canCloseSession = isOwner || isAdmin;
 
   const { data: history = [] } = useQuery({
     queryKey: ["cash-sessions-history", activeBranchId],
@@ -121,6 +131,7 @@ function CajaPage() {
 
   async function openSession() {
     if (!user) return toast.error("Esperando sesión de usuario…");
+    if (!activeBranchId) return toast.error("Selecciona una sede antes de abrir caja");
     const amount = Number(openingAmount);
     if (!Number.isFinite(amount) || amount < 0) return toast.error("Monto inicial inválido");
     setSaving(true);
@@ -129,14 +140,16 @@ function CajaPage() {
         _opening_amount: amount,
         _opening_notes: openingNotes || undefined,
         _user_name: profile?.full_name ?? user.email ?? "Cajero",
+        _branch_id: activeBranchId,
       });
       if (error) throw error;
       const session = data as CashSession;
-      if (activeBranchId) {
-        await supabase.from("cash_sessions").update({ branch_id: activeBranchId }).eq("id", session.id);
+      qc.setQueryData(["cash-session-open-branch", activeBranchId], session);
+      if (session.user_id === user.id) {
+        toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
+      } else {
+        toast.info(`La caja ya estaba abierta por ${session.user_name}. Ingresa directamente a la operación.`);
       }
-      qc.setQueryData(["cash-session-open", user.id], session);
-      toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
@@ -168,7 +181,7 @@ function CajaPage() {
       });
       if (error) throw error;
       const closed = data as CashSession;
-      qc.setQueryData(["cash-session-open", user.id], null);
+      qc.setQueryData(["cash-session-open-branch", activeBranchId], null);
       toast.success("Caja cerrada correctamente");
 
       // Enviar reporte por correo en segundo plano
@@ -199,22 +212,30 @@ function CajaPage() {
       </div>
 
       {current ? (
-        <Card className="border-success/40 bg-success/5">
+        <Card className={isOwner ? "border-success/40 bg-success/5" : "border-amber-300 bg-amber-50/40"}>
           <CardHeader>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-success/15 p-3 text-success"><LockOpen className="h-6 w-6" /></div>
+                <div className={`rounded-xl p-3 ${isOwner ? "bg-success/15 text-success" : "bg-amber-100 text-amber-700"}`}>
+                  {isOwner ? <LockOpen className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
+                </div>
                 <div>
-                  <CardTitle className="font-display text-2xl">Caja abierta</CardTitle>
-                  <CardDescription>Desde {formatDate(current.opened_at)} · {current.user_name}</CardDescription>
+                  <CardTitle className="font-display text-2xl">
+                    {isOwner ? "Caja abierta" : "Caja abierta por otro cajero"}
+                  </CardTitle>
+                  <CardDescription>
+                    Desde {formatDate(current.opened_at)} · {current.user_name}
+                  </CardDescription>
                 </div>
               </div>
-              <Button onClick={() => setCloseDialog(true)} variant="destructive">
-                <LockKeyhole className="h-4 w-4" />Cerrar caja
-              </Button>
+              {canCloseSession && (
+                <Button onClick={() => setCloseDialog(true)} variant="destructive">
+                  <LockKeyhole className="h-4 w-4" />Cerrar caja
+                </Button>
+              )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <div className="rounded-lg border bg-card p-4">
               <div className="text-xs text-muted-foreground">Monto inicial</div>
               <div className="font-display text-xl">{formatMoney(current.opening_amount)}</div>
@@ -224,16 +245,23 @@ function CajaPage() {
                 </p>
               )}
             </div>
+            {!isOwner && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <strong>La caja para esta sede ya fue abierta por otro terminal.</strong>{" "}
+                Ingrese directamente a la operación. Sólo {current.user_name}
+                {isAdmin ? " o un administrador" : ""} puede realizar el cierre.
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>No tienes caja abierta</CardTitle>
+            <CardTitle>No hay caja abierta en esta sede</CardTitle>
             <CardDescription>Abre la caja al iniciar tu turno indicando el monto inicial en efectivo.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setOpenDialog(true)} disabled={authLoading || !user}>
+            <Button onClick={() => setOpenDialog(true)} disabled={authLoading || !user || !activeBranchId}>
               <LockOpen className="h-4 w-4" />{authLoading ? "Cargando…" : "Abrir caja"}
             </Button>
           </CardContent>
