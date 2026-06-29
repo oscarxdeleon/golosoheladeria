@@ -16,6 +16,7 @@ import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
+import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
@@ -35,11 +36,15 @@ import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/c
 import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
 import { Route as AuthenticatedAsistenciaRouteImport } from './routes/_authenticated/asistencia'
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
+import { Route as SSlugIndexRouteImport } from './routes/s.$slug.index'
+import { Route as SSlugMenuRouteImport } from './routes/s.$slug.menu'
+import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
 import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
 import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_authenticated/menu/modificadores'
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
 import { Route as AuthenticatedMenuCategoriasRouteImport } from './routes/_authenticated/menu/categorias'
+import { Route as SSlugTTableNumberRouteImport } from './routes/s.$slug.t.$tableNumber'
 
 const TabletPedidosRoute = TabletPedidosRouteImport.update({
   id: '/tablet-pedidos',
@@ -73,6 +78,11 @@ const IndexRoute = IndexRouteImport.update({
 const TTableNumberRoute = TTableNumberRouteImport.update({
   id: '/t/$tableNumber',
   path: '/t/$tableNumber',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SSlugRoute = SSlugRouteImport.update({
+  id: '/s/$slug',
+  path: '/s/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthenticatedVentasRoute = AuthenticatedVentasRouteImport.update({
@@ -171,6 +181,21 @@ const AuthenticatedAjustesRoute = AuthenticatedAjustesRouteImport.update({
   path: '/ajustes',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const SSlugIndexRoute = SSlugIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SSlugRoute,
+} as any)
+const SSlugMenuRoute = SSlugMenuRouteImport.update({
+  id: '/menu',
+  path: '/menu',
+  getParentRoute: () => SSlugRoute,
+} as any)
+const SSlugKioskRoute = SSlugKioskRouteImport.update({
+  id: '/kiosk',
+  path: '/kiosk',
+  getParentRoute: () => SSlugRoute,
+} as any)
 const AsistenciaTerminalSlugRoute = AsistenciaTerminalSlugRouteImport.update({
   id: '/asistencia/terminal/$slug',
   path: '/asistencia/terminal/$slug',
@@ -200,6 +225,11 @@ const AuthenticatedMenuCategoriasRoute =
     path: '/menu/categorias',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const SSlugTTableNumberRoute = SSlugTTableNumberRouteImport.update({
+  id: '/t/$tableNumber',
+  path: '/t/$tableNumber',
+  getParentRoute: () => SSlugRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -226,12 +256,17 @@ export interface FileRoutesByFullPath {
   '/pos': typeof AuthenticatedPosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
+  '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
+  '/s/$slug/kiosk': typeof SSlugKioskRoute
+  '/s/$slug/menu': typeof SSlugMenuRoute
+  '/s/$slug/': typeof SSlugIndexRoute
+  '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -264,6 +299,10 @@ export interface FileRoutesByTo {
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
+  '/s/$slug/kiosk': typeof SSlugKioskRoute
+  '/s/$slug/menu': typeof SSlugMenuRoute
+  '/s/$slug': typeof SSlugIndexRoute
+  '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -292,12 +331,17 @@ export interface FileRoutesById {
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
+  '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
   '/_authenticated/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/_authenticated/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
+  '/s/$slug/kiosk': typeof SSlugKioskRoute
+  '/s/$slug/menu': typeof SSlugMenuRoute
+  '/s/$slug/': typeof SSlugIndexRoute
+  '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -326,12 +370,17 @@ export interface FileRouteTypes {
     | '/pos'
     | '/usuarios'
     | '/ventas'
+    | '/s/$slug'
     | '/t/$tableNumber'
     | '/menu/categorias'
     | '/menu/insumos'
     | '/menu/modificadores'
     | '/menu/productos'
     | '/asistencia/terminal/$slug'
+    | '/s/$slug/kiosk'
+    | '/s/$slug/menu'
+    | '/s/$slug/'
+    | '/s/$slug/t/$tableNumber'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -364,6 +413,10 @@ export interface FileRouteTypes {
     | '/menu/modificadores'
     | '/menu/productos'
     | '/asistencia/terminal/$slug'
+    | '/s/$slug/kiosk'
+    | '/s/$slug/menu'
+    | '/s/$slug'
+    | '/s/$slug/t/$tableNumber'
   id:
     | '__root__'
     | '/'
@@ -391,12 +444,17 @@ export interface FileRouteTypes {
     | '/_authenticated/pos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
+    | '/s/$slug'
     | '/t/$tableNumber'
     | '/_authenticated/menu/categorias'
     | '/_authenticated/menu/insumos'
     | '/_authenticated/menu/modificadores'
     | '/_authenticated/menu/productos'
     | '/asistencia/terminal/$slug'
+    | '/s/$slug/kiosk'
+    | '/s/$slug/menu'
+    | '/s/$slug/'
+    | '/s/$slug/t/$tableNumber'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -406,6 +464,7 @@ export interface RootRouteChildren {
   KioskRoute: typeof KioskRoute
   MenuRoute: typeof MenuRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
+  SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
   AsistenciaTerminalSlugRoute: typeof AsistenciaTerminalSlugRoute
 }
@@ -459,6 +518,13 @@ declare module '@tanstack/react-router' {
       path: '/t/$tableNumber'
       fullPath: '/t/$tableNumber'
       preLoaderRoute: typeof TTableNumberRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/s/$slug': {
+      id: '/s/$slug'
+      path: '/s/$slug'
+      fullPath: '/s/$slug'
+      preLoaderRoute: typeof SSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/ventas': {
@@ -594,6 +660,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAjustesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/s/$slug/': {
+      id: '/s/$slug/'
+      path: '/'
+      fullPath: '/s/$slug/'
+      preLoaderRoute: typeof SSlugIndexRouteImport
+      parentRoute: typeof SSlugRoute
+    }
+    '/s/$slug/menu': {
+      id: '/s/$slug/menu'
+      path: '/menu'
+      fullPath: '/s/$slug/menu'
+      preLoaderRoute: typeof SSlugMenuRouteImport
+      parentRoute: typeof SSlugRoute
+    }
+    '/s/$slug/kiosk': {
+      id: '/s/$slug/kiosk'
+      path: '/kiosk'
+      fullPath: '/s/$slug/kiosk'
+      preLoaderRoute: typeof SSlugKioskRouteImport
+      parentRoute: typeof SSlugRoute
+    }
     '/asistencia/terminal/$slug': {
       id: '/asistencia/terminal/$slug'
       path: '/asistencia/terminal/$slug'
@@ -628,6 +715,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/menu/categorias'
       preLoaderRoute: typeof AuthenticatedMenuCategoriasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/s/$slug/t/$tableNumber': {
+      id: '/s/$slug/t/$tableNumber'
+      path: '/t/$tableNumber'
+      fullPath: '/s/$slug/t/$tableNumber'
+      preLoaderRoute: typeof SSlugTTableNumberRouteImport
+      parentRoute: typeof SSlugRoute
     }
   }
 }
@@ -687,6 +781,22 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
 const AuthenticatedRouteRouteWithChildren =
   AuthenticatedRouteRoute._addFileChildren(AuthenticatedRouteRouteChildren)
 
+interface SSlugRouteChildren {
+  SSlugKioskRoute: typeof SSlugKioskRoute
+  SSlugMenuRoute: typeof SSlugMenuRoute
+  SSlugIndexRoute: typeof SSlugIndexRoute
+  SSlugTTableNumberRoute: typeof SSlugTTableNumberRoute
+}
+
+const SSlugRouteChildren: SSlugRouteChildren = {
+  SSlugKioskRoute: SSlugKioskRoute,
+  SSlugMenuRoute: SSlugMenuRoute,
+  SSlugIndexRoute: SSlugIndexRoute,
+  SSlugTTableNumberRoute: SSlugTTableNumberRoute,
+}
+
+const SSlugRouteWithChildren = SSlugRoute._addFileChildren(SSlugRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
@@ -694,6 +804,7 @@ const rootRouteChildren: RootRouteChildren = {
   KioskRoute: KioskRoute,
   MenuRoute: MenuRoute,
   TabletPedidosRoute: TabletPedidosRoute,
+  SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
   AsistenciaTerminalSlugRoute: AsistenciaTerminalSlugRoute,
 }
