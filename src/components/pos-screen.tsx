@@ -257,33 +257,36 @@ function precuentaHTML(o: {
   </body></html>`;
 }
 
-async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
-  let printerIp: string | undefined;
-  let printerPort: number | undefined;
+async function fetchCajaPrinter(): Promise<{ ip?: string; port?: number }> {
   try {
-    const { data: cajaPrinters } = await supabase
+    const { data } = await supabase
       .from("printers")
       .select("ip,port,active,area")
       .eq("area", "caja")
       .eq("active", true)
       .limit(1);
-    const p = cajaPrinters?.[0];
-    if (p) {
-      printerIp = p.ip ?? undefined;
-      printerPort = p.port ?? undefined;
-    }
+    const p = data?.[0];
+    return { ip: p?.ip ?? undefined, port: p?.port ?? undefined };
   } catch (e) {
-    console.warn("[print] no se pudo consultar impresora de caja para comanda", e);
+    console.warn("[print] no se pudo consultar impresora de caja", e);
+    return {};
   }
+}
+
+async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
+  const { ip, port } = await fetchCajaPrinter();
   const payload: PrintPayload = {
     type: "comanda", ticket: o.ticket, header: o.header,
     items: o.items, customer: o.customer, notes: o.notes,
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
-    printer_ip: printerIp, printer_port: printerPort,
+    printer_ip: ip, printer_port: port,
   };
-  // Silencioso: si no hay servidor local de impresión, NO abre el diálogo
-  // nativo del navegador para no interrumpir el flujo del mesero/cajero.
-  printSilent(payload, comandaHTML(o), { silent: true });
+  // Esperamos al envío al servidor local; si falla, NO abrimos diálogo del navegador.
+  const ok = await sendToLocalPrinter(payload);
+  if (!ok) {
+    console.warn("[print] comanda no enviada al servidor local — verifica LOCAL_PRINT_URL y print-server");
+  }
+  return ok;
 }
 async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
   // Impresión SILENCIOSA: intenta enviar el ticket al servidor local de
