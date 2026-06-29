@@ -823,6 +823,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       setNotes("");
       setAddress("");
       setPhone("");
+      setNeighborhood("");
+      setFieldErrors({});
       setPendingSaleId(null);
 
       if (onSaved) {
