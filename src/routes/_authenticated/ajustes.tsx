@@ -433,7 +433,20 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
                   <Switch checked={edit?.active ?? true} onCheckedChange={(v) => setEdit({ ...edit, active: v })} />
                   <Label>Activa</Label>
                 </div>
-              </div>
+                <div className="rounded-md border p-3 flex items-start justify-between gap-3">
+                  <div>
+                    <Label className="font-medium">Activar Apertura de Cajón Monedero</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Al imprimir un ticket de venta en esta impresora, se enviará el pulso ESC/POS para abrir la gaveta.
+                      Las comandas de cocina <b>nunca</b> abrirán el cajón.
+                    </p>
+                  </div>
+                  <Switch
+                    checked={edit?.open_drawer_on_print ?? false}
+                    onCheckedChange={(v) => setEdit({ ...edit, open_drawer_on_print: v })}
+                  />
+                </div>
+
               <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
           </Dialog>
