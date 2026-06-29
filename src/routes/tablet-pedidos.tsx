@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Utensils, ShoppingBag, Bike, Users, ArrowLeft, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
-import { toast } from "sonner";
+
 import logoAsset from "@/assets/logo-goloso.png.asset.json";
 import tableFreeAsset from "@/assets/mesa_libre.png.asset.json";
 import tableOccupiedAsset from "@/assets/mesa_ocupada.png.asset.json";

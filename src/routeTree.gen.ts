@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TabletPedidosRouteImport } from './routes/tablet-pedidos'
 import { Route as MenuRouteImport } from './routes/menu'
 import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as AuthRouteImport } from './routes/auth'
@@ -37,6 +38,11 @@ import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_au
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
 import { Route as AuthenticatedMenuCategoriasRouteImport } from './routes/_authenticated/menu/categorias'
 
+const TabletPedidosRoute = TabletPedidosRouteImport.update({
+  id: '/tablet-pedidos',
+  path: '/tablet-pedidos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MenuRoute = MenuRouteImport.update({
   id: '/menu',
   path: '/menu',
@@ -182,6 +188,7 @@ export interface FileRoutesByFullPath {
   '/auth': typeof AuthRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
+  '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
@@ -210,6 +217,7 @@ export interface FileRoutesByTo {
   '/auth': typeof AuthRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
+  '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
@@ -240,6 +248,7 @@ export interface FileRoutesById {
   '/auth': typeof AuthRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
+  '/tablet-pedidos': typeof TabletPedidosRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
   '/_authenticated/caja': typeof AuthenticatedCajaRoute
@@ -270,6 +279,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/kiosk'
     | '/menu'
+    | '/tablet-pedidos'
     | '/ajustes'
     | '/ayuda'
     | '/caja'
@@ -298,6 +308,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/kiosk'
     | '/menu'
+    | '/tablet-pedidos'
     | '/ajustes'
     | '/ayuda'
     | '/caja'
@@ -327,6 +338,7 @@ export interface FileRouteTypes {
     | '/auth'
     | '/kiosk'
     | '/menu'
+    | '/tablet-pedidos'
     | '/_authenticated/ajustes'
     | '/_authenticated/ayuda'
     | '/_authenticated/caja'
@@ -357,11 +369,19 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRoute
   KioskRoute: typeof KioskRoute
   MenuRoute: typeof MenuRoute
+  TabletPedidosRoute: typeof TabletPedidosRoute
   TTableNumberRoute: typeof TTableNumberRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tablet-pedidos': {
+      id: '/tablet-pedidos'
+      path: '/tablet-pedidos'
+      fullPath: '/tablet-pedidos'
+      preLoaderRoute: typeof TabletPedidosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/menu': {
       id: '/menu'
       path: '/menu'
@@ -611,6 +631,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRoute,
   KioskRoute: KioskRoute,
   MenuRoute: MenuRoute,
+  TabletPedidosRoute: TabletPedidosRoute,
   TTableNumberRoute: TTableNumberRoute,
 }
 export const routeTree = rootRouteImport
