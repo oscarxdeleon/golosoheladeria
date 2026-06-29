@@ -72,18 +72,28 @@ function CajaPage() {
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<CashSession | null>(null);
 
+  // Caja abierta para la SEDE activa (compartida entre cajeros de la misma sede)
   const { data: current } = useQuery({
-    queryKey: ["cash-session-open", user?.id],
-    enabled: !!user,
+    queryKey: ["cash-session-open-branch", activeBranchId],
+    enabled: !!activeBranchId,
     refetchOnWindowFocus: true,
+    refetchInterval: 15_000,
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("get_active_cash_session");
+      const { data, error } = await supabase
+        .from("cash_sessions")
+        .select("*")
+        .eq("branch_id", activeBranchId!)
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
       if (error) throw error;
-      const session = (data as CashSession | null) ?? null;
-      if (!session || !session.id || session.status !== "open") return null;
-      return session;
+      return (data as unknown as CashSession | null) ?? null;
     },
   });
+
+  const isOwner = !!current && !!user && current.user_id === user.id;
+  const canCloseSession = isOwner || isAdmin;
 
   const { data: history = [] } = useQuery({
     queryKey: ["cash-sessions-history", activeBranchId],
@@ -121,6 +131,7 @@ function CajaPage() {
 
   async function openSession() {
     if (!user) return toast.error("Esperando sesión de usuario…");
+    if (!activeBranchId) return toast.error("Selecciona una sede antes de abrir caja");
     const amount = Number(openingAmount);
     if (!Number.isFinite(amount) || amount < 0) return toast.error("Monto inicial inválido");
     setSaving(true);
@@ -129,14 +140,16 @@ function CajaPage() {
         _opening_amount: amount,
         _opening_notes: openingNotes || undefined,
         _user_name: profile?.full_name ?? user.email ?? "Cajero",
+        _branch_id: activeBranchId,
       });
       if (error) throw error;
       const session = data as CashSession;
-      if (activeBranchId) {
-        await supabase.from("cash_sessions").update({ branch_id: activeBranchId }).eq("id", session.id);
+      qc.setQueryData(["cash-session-open-branch", activeBranchId], session);
+      if (session.user_id === user.id) {
+        toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
+      } else {
+        toast.info(`La caja ya estaba abierta por ${session.user_name}. Ingresa directamente a la operación.`);
       }
-      qc.setQueryData(["cash-session-open", user.id], session);
-      toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
