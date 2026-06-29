@@ -7,11 +7,15 @@
 //   GET  /test    -> imprime un ticket de prueba
 //   POST /print   -> imprime el payload recibido
 //
-// Variables de entorno:
+// Variables de entorno (impresora por defecto):
 //   PORT          (default 3001)
 //   PRINTER_TYPE  usb | network | raw   (default usb)
 //   PRINTER_IP    (si network/raw)
 //   PRINTER_PORT  (default 9100)
+//
+// El payload puede sobrescribir el destino con `printer_ip` y `printer_port`
+// (siempre por red RAW 9100), útil para enviar tickets a la "Impresora de Caja"
+// sin tocar la configuración del servidor.
 
 import http from "node:http";
 import net from "node:net";
@@ -24,7 +28,6 @@ const PRINTER_PORT = Number(process.env.PRINTER_PORT || 9100);
 const money = (n) => "$" + Math.round(Number(n || 0)).toLocaleString("es-CO");
 
 // ---------- Render ESC/POS plano (sin librerías) ----------
-// Funciona con cualquier térmica 80mm que soporte ESC/POS RAW por TCP 9100.
 const ESC = "\x1B";
 const GS = "\x1D";
 const INIT = ESC + "@";
@@ -52,11 +55,13 @@ function buildRaw(p) {
       ? `COMANDA #${p.ticket ?? ""}`
       : p.type === "precuenta"
         ? "PRECUENTA"
-        : "Heladería Goloso";
+        : p.type === "comprobante"
+          ? `PEDIDO #${p.ticket ?? ""}`
+          : "Heladería Goloso";
 
   out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + title + "\n" + BOLD_OFF + SIZE_NORMAL;
   out += new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
-  if (p.ticket && p.type !== "comanda") out += `Ticket #${p.ticket}\n`;
+  if (p.ticket && p.type !== "comanda" && p.type !== "comprobante") out += `Ticket #${p.ticket}\n`;
   if (p.user_name) out += `Cajero: ${p.user_name}\n`;
   out += ALIGN_L + LINE;
   if (p.header) out += BOLD_ON + p.header + "\n" + BOLD_OFF;
@@ -74,16 +79,27 @@ function buildRaw(p) {
   }
   out += LINE;
 
-  if (p.type !== "comanda") {
+  if (p.type === "comanda") {
+    if (p.notes) out += `Notas: ${p.notes}\n`;
+    out += ALIGN_C + "*** ENVIAR A COCINA ***\n";
+  } else if (p.type === "comprobante") {
+    if (p.subtotal != null) out += row("Subtotal", money(p.subtotal));
+    if (Number(p.deliveryFee) > 0) out += row("Domicilio", money(p.deliveryFee));
+    out += BOLD_ON + row("TOTAL", money(p.total)) + BOLD_OFF + LINE;
+    out += ALIGN_C + SIZE_DOUBLE + BOLD_ON;
+    out += "FAVOR PASAR A CAJA\n";
+    out += "A CANCELAR ANTES\n";
+    out += "DE RECIBIR SU\n";
+    out += "PEDIDO\n";
+    out += BOLD_OFF + SIZE_NORMAL;
+    if (p.cashierMessage) out += "\n" + p.cashierMessage + "\n";
+  } else {
     if (p.subtotal != null) out += row("Subtotal", money(p.subtotal));
     if (Number(p.tax) > 0) out += row("Impuesto", money(p.tax));
     if (Number(p.deliveryFee) > 0) out += row("Domicilio", money(p.deliveryFee));
     out += BOLD_ON + row("TOTAL", money(p.total)) + BOLD_OFF;
     if (p.payment_method) out += `Pago: ${p.payment_method}\n`;
     out += LINE + ALIGN_C + "¡Gracias por tu compra!\n";
-  } else {
-    if (p.notes) out += `Notas: ${p.notes}\n`;
-    out += ALIGN_C + "*** ENVIAR A COCINA ***\n";
   }
 
   out += FEED(4) + CUT;
@@ -91,7 +107,7 @@ function buildRaw(p) {
 }
 
 // ---------- Envío a impresora ----------
-function sendRaw(buf) {
+function sendRaw(buf, ip, port) {
   return new Promise((resolve, reject) => {
     const sock = new net.Socket();
     let done = false;
@@ -102,12 +118,11 @@ function sendRaw(buf) {
       err ? reject(err) : resolve();
     };
     sock.setTimeout(5000);
-    sock.on("timeout", () => finish(new Error(`Timeout conectando a ${PRINTER_IP}:${PRINTER_PORT}`)));
+    sock.on("timeout", () => finish(new Error(`Timeout conectando a ${ip}:${port}`)));
     sock.on("error", (e) => finish(e));
-    sock.connect(PRINTER_PORT, PRINTER_IP, () => {
+    sock.connect(port, ip, () => {
       sock.write(buf, (err) => {
         if (err) return finish(err);
-        // Pequeña espera para que la impresora reciba antes de cerrar
         setTimeout(() => finish(), 300);
       });
     });
@@ -134,8 +149,14 @@ async function sendUsb(buf) {
 
 async function printJob(payload) {
   const buf = buildRaw(payload);
+  // Si el payload trae una IP destino, siempre va por red (independiente del PRINTER_TYPE)
+  if (payload.printer_ip) {
+    const ip = String(payload.printer_ip);
+    const port = Number(payload.printer_port || 9100);
+    return sendRaw(buf, ip, port);
+  }
   if (PRINTER_TYPE === "usb") return sendUsb(buf);
-  return sendRaw(buf); // network / raw
+  return sendRaw(buf, PRINTER_IP, PRINTER_PORT);
 }
 
 // ---------- HTTP ----------
@@ -180,7 +201,7 @@ const server = http.createServer(async (req, res) => {
     req.on("end", async () => {
       try {
         const payload = JSON.parse(body || "{}");
-        console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length}`);
+        console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length} dst=${payload.printer_ip ?? "(default)"}`);
         await printJob(payload);
         send(200, { ok: true });
       } catch (e) {
