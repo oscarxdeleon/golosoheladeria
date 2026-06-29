@@ -1197,7 +1197,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 </div>
               </>
             )}
-            <Input placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+            <div className="space-y-1.5 rounded-xl border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 shadow-sm">
+              <label className="block text-sm font-bold text-foreground">
+                📝 Notas adicionales del pedido
+              </label>
+              <Textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notas adicionales para el pedido (ej: Salsa aparte, sin cubiertos...)."
+                rows={2}
+                className="rounded-xl border-amber-300/70 bg-background/90 text-sm focus-visible:ring-amber-400"
+              />
+            </div>
           </div>
 
           <div className="space-y-1 border-t pt-3">
