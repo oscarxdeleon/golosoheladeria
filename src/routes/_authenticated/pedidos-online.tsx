@@ -200,10 +200,29 @@ function OnlineOrdersPage() {
                     <li key={i.id}>{i.qty} × {i.product_name} <span className="text-muted-foreground">— {formatMoney(i.unit_price * i.qty)}</span></li>
                   ))}
                 </ul>
+                {(o.delivery_address || o.delivery_neighborhood) && (
+                  <div className="text-xs text-muted-foreground">
+                    {o.delivery_address && <>📍 {o.delivery_address}</>}
+                    {o.delivery_neighborhood && <> · {o.delivery_neighborhood}</>}
+                  </div>
+                )}
                 {o.notes && <div className="text-xs bg-muted rounded p-2"><b>Notas:</b> {o.notes}</div>}
+
+                <div className="rounded-md border bg-muted/30 p-2 text-sm space-y-0.5">
+                  <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(Number(o.subtotal ?? 0))}</span></div>
+                  {Number(o.delivery_fee ?? 0) > 0 && (
+                    <div className="flex justify-between"><span>Domicilio</span><span>{formatMoney(Number(o.delivery_fee))}</span></div>
+                  )}
+                  <div className="flex justify-between font-semibold border-t pt-1"><span>Total</span><span>{formatMoney(Number(o.total ?? 0))}</span></div>
+                  {o.payment_method && <div className="flex justify-between text-xs text-muted-foreground"><span>Pago</span><span>{o.payment_method}</span></div>}
+                </div>
+
                 <div className="flex flex-wrap gap-2">
+                  <Button size="sm" onClick={() => confirmAndPrint(o, its)}>
+                    <Printer className="h-4 w-4 mr-1" /> Confirmar pedido e imprimir
+                  </Button>
                   {sedePhone && (
-                    <Button asChild variant="default" size="sm">
+                    <Button asChild variant="outline" size="sm">
                       <a href={waLink(sedePhone, msg)} target="_blank" rel="noreferrer">
                         <MessageCircle className="h-4 w-4 mr-1" /> Avisar a la sede
                       </a>
@@ -216,16 +235,16 @@ function OnlineOrdersPage() {
                       </a>
                     </Button>
                   )}
-                  <Button size="sm" variant="outline" onClick={() => markAccepted(o.id)}>
-                    <CheckCircle2 className="h-4 w-4 mr-1" /> Marcar aceptado
+                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(o.id)}>
+                    <CheckCircle2 className="h-4 w-4 mr-1" /> Cancelar
                   </Button>
-                  <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(o.id)}>Cancelar</Button>
                 </div>
               </div>
             );
           })}
         </CardContent>
       </Card>
+
 
       {history.length > 0 && (
         <Card>
