@@ -14,6 +14,7 @@ import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
+import { ModifiersModal } from "@/components/modifiers-modal";
 
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
