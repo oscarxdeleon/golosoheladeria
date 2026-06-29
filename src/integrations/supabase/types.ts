@@ -632,40 +632,61 @@ export type Database = {
       products: {
         Row: {
           active: boolean
+          allow_negative_stock: boolean
+          available_branch_ids: string[] | null
           category_id: string | null
           created_at: string
           id: string
           image_url: string | null
+          is_favorite: boolean
           min_stock: number
+          modifier_group_ids: string[] | null
           name: string
           price: number
+          recipe: Json
+          show_in_online: boolean
           sku: string | null
+          sold_by_weight: boolean
           stock: number
           track_stock: boolean
         }
         Insert: {
           active?: boolean
+          allow_negative_stock?: boolean
+          available_branch_ids?: string[] | null
           category_id?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
+          is_favorite?: boolean
           min_stock?: number
+          modifier_group_ids?: string[] | null
           name: string
           price?: number
+          recipe?: Json
+          show_in_online?: boolean
           sku?: string | null
+          sold_by_weight?: boolean
           stock?: number
           track_stock?: boolean
         }
         Update: {
           active?: boolean
+          allow_negative_stock?: boolean
+          available_branch_ids?: string[] | null
           category_id?: string | null
           created_at?: string
           id?: string
           image_url?: string | null
+          is_favorite?: boolean
           min_stock?: number
+          modifier_group_ids?: string[] | null
           name?: string
           price?: number
+          recipe?: Json
+          show_in_online?: boolean
           sku?: string | null
+          sold_by_weight?: boolean
           stock?: number
           track_stock?: boolean
         }
