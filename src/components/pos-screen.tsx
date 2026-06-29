@@ -1203,7 +1203,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               variant={meseroMode ? "default" : "outline"}
               className={meseroMode ? "h-14 text-lg" : "border-primary text-primary hover:bg-primary/10"}
             >
-              <Save className="h-4 w-4 mr-1" /> {meseroMode ? "Guardar y enviar a KDS" : "Guardar / KDS"}
+              <Save className="h-4 w-4 mr-1" /> {paying ? "Enviando…" : (meseroMode ? "Guardar y enviar a KDS" : "Guardar / KDS")}
             </Button>
           </div>
 
