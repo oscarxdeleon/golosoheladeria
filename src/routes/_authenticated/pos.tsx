@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { z } from "zod";
 import { PosScreen, type OrderType } from "@/components/pos-screen";
+import { BranchCashGuard } from "@/components/branch-cash-guard";
 
 const searchSchema = z.object({
   type: z.enum(["mesa", "llevar", "domicilio", "kiosko"]).optional(),
@@ -17,5 +18,9 @@ export const Route = createFileRoute("/_authenticated/pos")({
 function POSRoute() {
   const { type, tableId, kioskSaleId } = Route.useSearch();
   const orderType: OrderType = type ?? (tableId ? "mesa" : kioskSaleId ? "kiosko" : "llevar");
-  return <PosScreen orderType={orderType} tableId={tableId ?? null} kioskSaleId={kioskSaleId ?? null} />;
+  return (
+    <BranchCashGuard extraMessage="Solicita al cajero iniciar el turno para poder operar.">
+      <PosScreen orderType={orderType} tableId={tableId ?? null} kioskSaleId={kioskSaleId ?? null} />
+    </BranchCashGuard>
+  );
 }
