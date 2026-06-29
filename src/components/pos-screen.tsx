@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, type PrintPayload } from "@/lib/print-client";
@@ -162,6 +162,13 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
+  const [successDialog, setSuccessDialog] = useState<null | {
+    ticket: number;
+    method: string;
+    total: number;
+    printPayload: Parameters<typeof printTicketFinal>[0];
+    redirectTo: "/mesas" | "/llevar" | "/domicilio" | "/kiosko" | null;
+  }>(null);
 
 
   useEffect(() => {
@@ -427,30 +434,36 @@ export function PosScreen({ orderType, tableId, title }: Props) {
       toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
 
       // ───────────────────────────────────────────────────────────────
-      // PASO 3: Redireccionar al panel principal (no bloqueante)
+      // PASO 3: Mostrar modal de confirmación post-venta
+      // (la impresión y la redirección quedan a cargo del cajero desde el modal)
       // ───────────────────────────────────────────────────────────────
-      if (orderType === "mesa") navigate({ to: "/mesas" });
-      else if (orderType === "llevar") navigate({ to: "/llevar" });
-      else if (orderType === "domicilio") navigate({ to: "/domicilio" });
+      const redirectTo: "/mesas" | "/llevar" | "/domicilio" | "/kiosko" | null =
+        orderType === "mesa" ? "/mesas"
+        : orderType === "llevar" ? "/llevar"
+        : orderType === "domicilio" ? "/domicilio"
+        : orderType === "kiosko" ? "/kiosko"
+        : null;
 
-      // ───────────────────────────────────────────────────────────────
-      // PASO 4: Imprimir ticket en segundo plano (sin bloquear UI)
-      // ───────────────────────────────────────────────────────────────
-      setTimeout(() => {
-        printTicketFinal({
-          ticket: sale!.ticket_number,
+      setSuccessDialog({
+        ticket: sale.ticket_number,
+        method: sale.payment_method,
+        total: Number(sale.total),
+        redirectTo,
+        printPayload: {
+          ticket: sale.ticket_number,
           header: snapshotHeader,
           items: snapshotItems,
           subtotal,
           tax,
           deliveryFee,
-          total: Number(sale!.total),
-          payment_method: sale!.payment_method,
+          total: Number(sale.total),
+          payment_method: sale.payment_method,
           customer: snapshotCustomer,
           user_name: snapshotUserName,
-          created_at: sale!.created_at,
-        });
-      }, 0);
+          created_at: sale.created_at,
+        },
+      });
+
       // Mantener referencia a snapshots no usados para evitar warnings
       void snapshotNotes; void snapshotAddress; void snapshotPhone;
     } catch (err) {
@@ -885,6 +898,62 @@ export function PosScreen({ orderType, tableId, title }: Props) {
               }}
             >
               {paying ? "Cobrando…" : "Confirmar cobro"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={!!successDialog}
+        onOpenChange={(open) => {
+          if (!open && successDialog) {
+            const redirect = successDialog.redirectTo;
+            setSuccessDialog(null);
+            if (redirect) navigate({ to: redirect });
+          }
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+              <Check className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="text-center text-2xl">¡Venta realizada con éxito!</DialogTitle>
+            <DialogDescription className="text-center">
+              {successDialog && (
+                <>
+                  Ticket <b>#{successDialog.ticket}</b> · {successDialog.method} ·{" "}
+                  <b>{formatMoney(successDialog.total)}</b>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-center text-sm text-muted-foreground">
+            ¿Deseas imprimir el ticket para el cliente?
+          </p>
+          <DialogFooter className="sm:justify-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                const redirect = successDialog?.redirectTo ?? null;
+                setSuccessDialog(null);
+                if (redirect) navigate({ to: redirect });
+              }}
+            >
+              No imprimir
+            </Button>
+            <Button
+              onClick={() => {
+                const payload = successDialog?.printPayload;
+                const redirect = successDialog?.redirectTo ?? null;
+                setSuccessDialog(null);
+                if (payload) {
+                  setTimeout(() => printTicketFinal(payload), 0);
+                }
+                if (redirect) navigate({ to: redirect });
+              }}
+            >
+              <Printer className="h-4 w-4 mr-1" /> Imprimir Ticket
             </Button>
           </DialogFooter>
         </DialogContent>
