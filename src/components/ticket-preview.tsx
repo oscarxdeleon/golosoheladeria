@@ -37,11 +37,21 @@ export function TicketPreview({ sale }: { sale: { id: string; ticket_number: num
   useEffect(() => {
     supabase
       .from("settings")
-      .select("business_name,nit,address,phone")
+      .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
       .eq("id", 1)
       .maybeSingle()
-      .then(({ data }) => setSettings(data as BusinessSettings | null));
+      .then(({ data }) => setSettings(data as unknown as BusinessSettings | null));
   }, []);
+
+  const headerLines = (settings?.ticket_header ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const footerLines = (settings?.ticket_footer ?? "¡Gracias por Preferirnos!")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const logoSrc = settings?.logo_url || logoAsset.url;
 
   const lines: SaleLine[] = sale.lines;
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);
