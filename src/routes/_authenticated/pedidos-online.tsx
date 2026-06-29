@@ -109,7 +109,7 @@ function preCuentaHTML(o: { ticket: number; header: string; items: { name: strin
 function OnlineOrdersPage() {
   const qc = useQueryClient();
   const { activeBranchId } = useBranch();
-  const { data: cashSession } = useBranchCashSession(activeBranchId);
+  const { session: cashSession } = useBranchCashSession(activeBranchId);
   const [payOrder, setPayOrder] = useState<SaleRow | null>(null);
   const [paying, setPaying] = useState(false);
 
