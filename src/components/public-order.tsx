@@ -271,7 +271,7 @@ export function PublicOrder({
             : notes || null,
           payment_method: payMethod,
           payment_details,
-          items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty })),
+          items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
         },
       });
       if (error) throw error;
