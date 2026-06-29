@@ -22,6 +22,8 @@ import {
   BellRing,
   Contact2,
   ScanFace,
+  Receipt as ReceiptIcon,
+  TrendingDown,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -69,6 +71,12 @@ const menu = [
   { to: "/menu/insumos", label: "Insumos", icon: Boxes },
   { to: "/menu/modificadores", label: "Grupos de modificadores", icon: Layers },
   { to: "/inventario", label: "Inventario y stock", icon: Boxes },
+];
+
+const egresos = [
+  { to: "/compras", label: "Nueva compra", icon: ShoppingBag },
+  { to: "/gastos", label: "Nuevo gasto", icon: ReceiptIcon },
+  { to: "/egresos", label: "Historial egresos", icon: TrendingDown },
 ];
 
 const admin = [
@@ -166,6 +174,24 @@ export function AppSidebar() {
             </CollapsibleContent>
           </SidebarGroup>
         </Collapsible>
+
+        <SidebarGroup>
+          <SidebarGroupLabel>Egresos</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {egresos.map((i) => (
+                <SidebarMenuItem key={i.to}>
+                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                    <Link to={i.to}>
+                      <i.icon />
+                      <span>{i.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
 
         <SidebarGroup>
           <SidebarGroupLabel>Administración</SidebarGroupLabel>

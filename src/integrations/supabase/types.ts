@@ -408,6 +408,63 @@ export type Database = {
         }
         Relationships: []
       }
+      expenses: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          cash_session_id: string | null
+          category: string
+          created_at: string
+          description: string
+          id: string
+          payment_method: string
+          receipt_url: string | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          cash_session_id?: string | null
+          category: string
+          created_at?: string
+          description: string
+          id?: string
+          payment_method?: string
+          receipt_url?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          cash_session_id?: string | null
+          category?: string
+          created_at?: string
+          description?: string
+          id?: string
+          payment_method?: string
+          receipt_url?: string | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "expenses_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inventory_movements: {
         Row: {
           created_at: string
@@ -639,6 +696,124 @@ export type Database = {
           id?: string
         }
         Relationships: []
+      }
+      purchase_items: {
+        Row: {
+          created_at: string
+          id: string
+          item_name: string
+          item_type: string
+          product_id: string | null
+          purchase_id: string
+          quantity: number
+          subtotal: number
+          supply_id: string | null
+          unit_cost: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          item_name: string
+          item_type: string
+          product_id?: string | null
+          purchase_id: string
+          quantity: number
+          subtotal?: number
+          supply_id?: string | null
+          unit_cost?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          item_name?: string
+          item_type?: string
+          product_id?: string | null
+          purchase_id?: string
+          quantity?: number
+          subtotal?: number
+          supply_id?: string | null
+          unit_cost?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchase_items_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchase_items_supply_id_fkey"
+            columns: ["supply_id"]
+            isOneToOne: false
+            referencedRelation: "supplies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      purchases: {
+        Row: {
+          branch_id: string | null
+          cash_session_id: string | null
+          created_at: string
+          id: string
+          invoice_number: string | null
+          notes: string | null
+          payment_method: string
+          supplier: string | null
+          total: number
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          cash_session_id?: string | null
+          created_at?: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          payment_method?: string
+          supplier?: string | null
+          total?: number
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          cash_session_id?: string | null
+          created_at?: string
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          payment_method?: string
+          supplier?: string | null
+          total?: number
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "purchases_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "purchases_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       restaurant_tables: {
         Row: {
