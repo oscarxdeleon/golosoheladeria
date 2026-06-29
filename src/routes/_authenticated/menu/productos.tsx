@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, ImagePlus, Star } from "lucide-react";
+import { Plus, Trash2, Pencil, ImagePlus, Star, Copy } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -62,6 +62,12 @@ function ProductosPage() {
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
   const [showRecipe, setShowRecipe] = useState(false);
   const [showMods, setShowMods] = useState(false);
+  const [duplicating, setDuplicating] = useState<Product | null>(null);
+  const [dupName, setDupName] = useState("");
+  const [dupMain, setDupMain] = useState(true);
+  const [dupBranch, setDupBranch] = useState(true);
+  const [dupCopyModsRecipe, setDupCopyModsRecipe] = useState(true);
+  const [dupSaving, setDupSaving] = useState(false);
 
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["categories"],
@@ -166,6 +172,57 @@ function ProductosPage() {
     list.splice(idx, 1);
     setEditing({ ...editing, recipe: list });
   }
+
+  function openDuplicate(p: Product) {
+    setDuplicating(p);
+    setDupName(`${p.name} - Copia`);
+    setDupCopyModsRecipe(true);
+    const ids = p.available_branch_ids;
+    const main = branches.find((b) => b.is_main);
+    const sub = branches.find((b) => !b.is_main);
+    setDupMain(main ? (!ids || ids.length === 0 || ids.includes(main.id)) : false);
+    setDupBranch(sub ? (!ids || ids.length === 0 || ids.includes(sub.id)) : false);
+  }
+
+  async function confirmDuplicate() {
+    if (!duplicating) return;
+    if (!dupName.trim()) return toast.error("Nombre requerido");
+    const targetBranchIds: string[] = [];
+    const main = branches.find((b) => b.is_main);
+    const sub = branches.find((b) => !b.is_main);
+    if (dupMain && main) targetBranchIds.push(main.id);
+    if (dupBranch && sub) targetBranchIds.push(sub.id);
+    if (branches.length > 0 && targetBranchIds.length === 0) {
+      return toast.error("Selecciona al menos una sede destino");
+    }
+    setDupSaving(true);
+    const src = duplicating;
+    const payload = {
+      name: dupName.trim(),
+      price: src.price,
+      category_id: src.category_id ?? null,
+      sku: null,
+      active: src.active ?? true,
+      image_url: src.image_url ?? null,
+      allow_negative_stock: !!src.allow_negative_stock,
+      sold_by_weight: !!src.sold_by_weight,
+      show_in_online: src.show_in_online ?? true,
+      is_favorite: !!src.is_favorite,
+      available_branch_ids: targetBranchIds.length > 0 ? targetBranchIds : null,
+      modifier_group_ids: dupCopyModsRecipe ? (src.modifier_group_ids ?? null) : null,
+      recipe: dupCopyModsRecipe ? (src.recipe ?? []) : [],
+    };
+    const { error } = await supabase.from("products").insert(payload as never);
+    setDupSaving(false);
+    if (error) return toast.error(error.message);
+    toast.success("Producto duplicado correctamente");
+    setDuplicating(null);
+    qc.invalidateQueries({ queryKey: ["products-all"] });
+    qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["public-products"] });
+  }
+
+
 
   const branchSelected = (bid: string) => {
     const ids = editing?.available_branch_ids;
@@ -347,8 +404,9 @@ function ProductosPage() {
                   <TableCell className="text-right">
                     {isAdmin && (
                       <>
-                        <Button size="icon" variant="ghost" onClick={() => openEditor(p)}><Pencil className="h-4 w-4" /></Button>
-                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" onClick={() => openEditor(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-primary hover:bg-primary/10" onClick={() => openDuplicate(p)} title="Duplicar producto"><Copy className="h-4 w-4" /></Button>
+                        <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)} title="Eliminar"><Trash2 className="h-4 w-4" /></Button>
                       </>
                     )}
                   </TableCell>
@@ -359,6 +417,48 @@ function ProductosPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <Dialog open={!!duplicating} onOpenChange={(o) => !o && setDuplicating(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Copy className="h-5 w-5 text-primary" /> Duplicar Producto: {duplicating?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label>Nuevo Nombre</Label>
+              <Input value={dupName} onChange={(e) => setDupName(e.target.value)} autoFocus />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-sm">Sedes destino del duplicado</Label>
+              <ToggleRow
+                label="Duplicar en Punto de Venta Principal"
+                hint="Sede Santa"
+                checked={dupMain}
+                onChange={setDupMain}
+              />
+              <ToggleRow
+                label="Duplicar en Punto de Venta Sucursal"
+                hint="Sede Parque"
+                checked={dupBranch}
+                onChange={setDupBranch}
+              />
+            </div>
+            <ToggleRow
+              label="Duplicar Modificadores y Recetas"
+              hint="Copia los toppings, sabores e insumos del producto original"
+              checked={dupCopyModsRecipe}
+              onChange={setDupCopyModsRecipe}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setDuplicating(null)} disabled={dupSaving}>Cancelar</Button>
+            <Button onClick={confirmDuplicate} disabled={dupSaving}>
+              <Copy className="h-4 w-4 mr-1" /> {dupSaving ? "Duplicando..." : "Confirmar Duplicado"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
