@@ -46,7 +46,7 @@ export const ROLE_HOME: Record<AppRole, string> = {
 };
 
 export function usePermissions() {
-  const { primaryRole, isAdmin, loading: authLoading } = useAuth();
+  const { primaryRole, isAdmin, loading: authLoading, rolesLoading } = useAuth();
   const { data = [], isLoading } = useQuery({
     queryKey: ["role-permissions"],
     queryFn: async (): Promise<RolePermission[]> => {
