@@ -47,6 +47,51 @@ export function PublicOrder({
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [ticketNumber, setTicketNumber] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [kioskService, setKioskService] = useState<KioskService | null>(null);
+  const [resetCountdown, setResetCountdown] = useState(30);
+  const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  function resetKiosk() {
+    if (resetTimerRef.current) {
+      clearInterval(resetTimerRef.current);
+      resetTimerRef.current = null;
+    }
+    setConfirmOpen(false);
+    setTicketNumber(null);
+    setCart([]);
+    setCustomerName("");
+    setPhone("");
+    setAddress("");
+    setNeighborhood("");
+    setNotes("");
+    setCashAmount("");
+    setCartOpen(false);
+    setActiveCat("all");
+    setResetCountdown(30);
+    if (source === "kiosk") setKioskService(null);
+  }
+
+  useEffect(() => {
+    if (!confirmOpen || source !== "kiosk") return;
+    setResetCountdown(30);
+    resetTimerRef.current = setInterval(() => {
+      setResetCountdown((s) => {
+        if (s <= 1) {
+          if (resetTimerRef.current) clearInterval(resetTimerRef.current);
+          resetTimerRef.current = null;
+          resetKiosk();
+          return 0;
+        }
+        return s - 1;
+      });
+    }, 1000);
+    return () => {
+      if (resetTimerRef.current) clearInterval(resetTimerRef.current);
+      resetTimerRef.current = null;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [confirmOpen, source]);
+
 
 
   const { data: settings } = useQuery({
