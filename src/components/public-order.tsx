@@ -242,11 +242,13 @@ export function PublicOrder({
             </div>
           </div>
           {!readOnly && itemCount > 0 && (
-            <Badge className="text-base px-3 py-1">
-              <ShoppingCart className="h-4 w-4 mr-1" />
-              {itemCount}
-            </Badge>
+            <Button size="sm" onClick={() => setCartOpen(true)} className="gap-1">
+              <ShoppingCart className="h-4 w-4" />
+              <span className="hidden sm:inline">Ver carrito</span>
+              <Badge variant="secondary" className="ml-1">{itemCount}</Badge>
+            </Button>
           )}
+
         </div>
 
         <div className="max-w-5xl mx-auto px-4 pb-3 overflow-x-auto">
