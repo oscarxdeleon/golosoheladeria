@@ -531,6 +531,7 @@ interface Branch {
   neighborhood?: string | null; nit?: string | null;
   ticket_header?: string | null; ticket_footer?: string | null;
   report_email?: string | null;
+  online_menu_url?: string | null;
 }
 
 
@@ -731,6 +732,7 @@ function EditarSedeTab() {
         ticket_header: form.ticket_header ?? null,
         ticket_footer: form.ticket_footer ?? null,
         report_email: form.report_email ?? null,
+        online_menu_url: form.online_menu_url?.trim() ? form.online_menu_url.trim() : null,
       };
       const { error } = await supabase.from("branches").update(payload as never).eq("id", selectedId);
       if (error) {
@@ -805,10 +807,37 @@ function EditarSedeTab() {
             </div>
 
             <div>
+              <Label className="flex items-center gap-2"><LinkIcon className="h-4 w-4" /> Enlace del Menú en Línea</Label>
+              <p className="text-xs text-muted-foreground mb-2">URL pública e independiente del menú en línea de esta sede. Cada sucursal opera con su propio link.</p>
+              <div className="flex gap-2">
+                <Input
+                  value={form.online_menu_url ?? ""}
+                  onChange={(e) => setForm({ ...form, online_menu_url: e.target.value })}
+                  placeholder="https://golosoheladeria.lovable.app/menu?sede=santa"
+                  className="font-mono text-sm"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    const v = (form.online_menu_url ?? "").trim();
+                    if (!v) return toast.error("No hay link para copiar");
+                    if (typeof navigator !== "undefined" && navigator.clipboard) {
+                      navigator.clipboard.writeText(v).then(() => toast.success("Link copiado al portapapeles"));
+                    }
+                  }}
+                  className="gap-2 shrink-0"
+                >
+                  <LinkIcon className="h-4 w-4" /> Copiar Link
+                </Button>
+              </div>
+            </div>
+            <div>
               <Label>Encabezado del ticket (esta sede)</Label>
               <p className="text-xs text-muted-foreground mb-2">Líneas extra que se imprimirán en el encabezado del ticket para esta sucursal.</p>
               <Textarea rows={3} value={form.ticket_header ?? ""} onChange={(e) => setForm({ ...form, ticket_header: e.target.value })} placeholder="¡Bienvenido a Sede Santa!" />
             </div>
+
 
             <div>
               <Label>Pie de página del ticket (esta sede)</Label>

@@ -204,6 +204,7 @@ export type Database = {
           name: string
           neighborhood: string | null
           nit: string | null
+          online_menu_url: string | null
           phone: string | null
           report_email: string | null
           slug: string | null
@@ -221,6 +222,7 @@ export type Database = {
           name: string
           neighborhood?: string | null
           nit?: string | null
+          online_menu_url?: string | null
           phone?: string | null
           report_email?: string | null
           slug?: string | null
@@ -238,6 +240,7 @@ export type Database = {
           name?: string
           neighborhood?: string | null
           nit?: string | null
+          online_menu_url?: string | null
           phone?: string | null
           report_email?: string | null
           slug?: string | null
