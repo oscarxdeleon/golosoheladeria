@@ -145,7 +145,7 @@ function reciboDomicilioHTML(o: { ticket: number; customer: string; address: str
 
 function OnlineOrdersPage() {
   const qc = useQueryClient();
-  const { activeBranchId } = useBranch();
+  const { activeBranchId, activeBranch } = useBranch();
   const { session: cashSession } = useBranchCashSession(activeBranchId);
   const [payOrder, setPayOrder] = useState<SaleRow | null>(null);
   const [paying, setPaying] = useState(false);
