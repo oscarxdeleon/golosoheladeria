@@ -617,6 +617,7 @@ export type Database = {
           occupied_at: string | null
           pos_x: number
           pos_y: number
+          room_id: string | null
           seats: number
           status: string
           updated_at: string
@@ -633,6 +634,7 @@ export type Database = {
           occupied_at?: string | null
           pos_x?: number
           pos_y?: number
+          room_id?: string | null
           seats?: number
           status?: string
           updated_at?: string
@@ -649,6 +651,7 @@ export type Database = {
           occupied_at?: string | null
           pos_x?: number
           pos_y?: number
+          room_id?: string | null
           seats?: number
           status?: string
           updated_at?: string
@@ -656,6 +659,51 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "restaurant_tables_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_tables_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      rooms: {
+        Row: {
+          active: boolean
+          branch_id: string | null
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rooms_branch_id_fkey"
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
