@@ -1076,8 +1076,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             <button
               key={p.id}
               onClick={() => add(p)}
-              className="group flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98]"
+              className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98] ${
+                p.is_favorite ? "border-yellow-400 ring-2 ring-yellow-300/60 shadow-md" : ""
+              }`}
             >
+              {p.is_favorite && (
+                <span
+                  aria-label="Producto destacado"
+                  className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white shadow-lg ring-2 ring-white"
+                >
+                  <Star className="h-4 w-4 fill-white" strokeWidth={2.5} />
+                </span>
+              )}
               <div className="aspect-square w-full overflow-hidden bg-white p-2 flex items-center justify-center">
                 {p.image_url ? (
                   <img src={p.image_url} alt={p.name} className="max-h-full max-w-full object-contain transition group-hover:scale-105" loading="lazy" />
@@ -1088,8 +1098,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 )}
               </div>
               <div className="p-3">
-                <div className="font-medium leading-tight line-clamp-2 text-sm">{p.name}</div>
-                <div className="mt-1 font-display text-lg text-primary">{formatMoney(p.price)}</div>
+                <div className={`leading-tight line-clamp-2 text-sm ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
+                <div className={`mt-1 font-display text-lg text-primary ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
             </button>
           ))}
