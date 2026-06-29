@@ -14,7 +14,7 @@ import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
-import { KioskPendingPanel } from "@/components/kiosk-pending-panel";
+
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
@@ -867,13 +867,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           <a href="/caja" className="rounded-md bg-amber-500 px-3 py-1 text-white text-xs font-medium hover:bg-amber-600">
             Ir a Caja
           </a>
-        </div>
-      )}
-      {!meseroMode && !kioskSaleId && (
-        <div className="lg:col-span-2">
-          <KioskPendingPanel
-            onSelect={(id) => navigate({ to: "/pos", search: { type: "kiosko", kioskSaleId: id } })}
-          />
         </div>
       )}
       <div className="space-y-4">
