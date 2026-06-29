@@ -986,6 +986,7 @@ export type Database = {
           product_id: string | null
           product_name: string
           qty: number
+          ready_at: string | null
           sale_id: string
           subtotal: number
           unit_price: number
@@ -996,6 +997,7 @@ export type Database = {
           product_id?: string | null
           product_name: string
           qty?: number
+          ready_at?: string | null
           sale_id: string
           subtotal?: number
           unit_price?: number
@@ -1006,6 +1008,7 @@ export type Database = {
           product_id?: string | null
           product_name?: string
           qty?: number
+          ready_at?: string | null
           sale_id?: string
           subtotal?: number
           unit_price?: number
