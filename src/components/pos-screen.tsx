@@ -173,7 +173,7 @@ interface Props {
   onSaved?: () => void;
 }
 
-export function PosScreen({ orderType, tableId, title }: Props) {
+export function PosScreen({ orderType, tableId, title, meseroMode = false, onSaved }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
