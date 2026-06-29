@@ -72,13 +72,14 @@ export const updateAppUser = createServerFn({ method: "POST" })
     await assertAdmin(context.userId);
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
 
-    const patch: Record<string, unknown> = {};
+    const patch: { full_name?: string; branch_id?: string | null; active?: boolean } = {};
     if (data.full_name !== undefined) patch.full_name = data.full_name;
     if (data.branch_id !== undefined) patch.branch_id = data.branch_id;
     if (data.active !== undefined) patch.active = data.active;
     if (Object.keys(patch).length) {
       await supabaseAdmin.from("profiles").update(patch).eq("id", data.user_id);
     }
+
 
     if (data.role) {
       await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
