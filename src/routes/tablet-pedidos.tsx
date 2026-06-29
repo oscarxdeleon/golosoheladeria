@@ -259,13 +259,7 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
                     height={512}
                     className="h-24 w-24 object-contain"
                   />
-                  <div className="mt-2 font-display text-xl">{m.label ?? `Mesa ${m.number}`}</div>
-                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                    <Users className="h-3 w-3" />
-                    {occupied && m.current_guests
-                      ? `${m.current_guests}/${m.seats}`
-                      : `${m.seats} puestos`}
-                  </div>
+                  <div className="mt-2 font-display text-4xl font-bold leading-none">{m.number}</div>
                   <Badge
                     variant={occupied ? "destructive" : reserved ? "outline" : "secondary"}
                     className="mt-2"
