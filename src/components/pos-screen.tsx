@@ -545,10 +545,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
 
   const filtered = useMemo(() => {
-    return products.filter((p) => {
+    const q = search.trim().toLowerCase();
+    const base = products.filter((p) => {
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
-      if (search && !p.name.toLowerCase().includes(search.toLowerCase())) return false;
+      if (q && !p.name.toLowerCase().includes(q)) return false;
       return true;
+    });
+    // Cuando hay búsqueda activa, mostrar coincidencias en orden natural (alfabético del query).
+    if (q) {
+      return [...base].sort((a, b) => a.name.localeCompare(b.name, "es"));
+    }
+    // Favoritos primero (alfabético), luego el resto (alfabético).
+    return [...base].sort((a, b) => {
+      const af = a.is_favorite ? 1 : 0;
+      const bf = b.is_favorite ? 1 : 0;
+      if (af !== bf) return bf - af;
+      return a.name.localeCompare(b.name, "es");
     });
   }, [products, activeCat, search]);
 
