@@ -3,10 +3,13 @@ import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream } from "lucide-react";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Smartphone, Landmark } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -15,6 +18,7 @@ interface Product { id: string; name: string; price: number; category_id: string
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
 
 type Source = "kiosk" | "table_qr" | "online_menu";
+type PayMethod = "Efectivo" | "Nequi" | "Bancolombia";
 
 export function PublicOrder({
   source,
@@ -32,7 +36,11 @@ export function PublicOrder({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customerName, setCustomerName] = useState("");
   const [phone, setPhone] = useState("");
+  const [address, setAddress] = useState("");
+  const [neighborhood, setNeighborhood] = useState("");
   const [notes, setNotes] = useState("");
+  const [payMethod, setPayMethod] = useState<PayMethod>("Efectivo");
+  const [cashAmount, setCashAmount] = useState("");
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [ticketNumber, setTicketNumber] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -56,6 +64,10 @@ export function PublicOrder({
   );
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
+  const isDelivery = source === "online_menu";
+
+  const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
+  const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
 
   function add(p: Product) {
     setCart((c) => {
@@ -68,51 +80,69 @@ export function PublicOrder({
     setCart((c) => (qty <= 0 ? c.filter((l) => l.key !== key) : c.map((l) => (l.key === key ? { ...l, qty } : l))));
   }
 
+  function validate(): string | null {
+    if (cart.length === 0) return "Agrega productos primero";
+    if (source !== "table_qr") {
+      if (!customerName.trim()) return "Ingresa tu nombre";
+    }
+    if (isDelivery) {
+      if (!phone.trim()) return "El teléfono es obligatorio para domicilios";
+      if (!address.trim()) return "La dirección es obligatoria";
+      if (!neighborhood.trim()) return "El barrio es obligatorio";
+    }
+    if (payMethod === "Efectivo") {
+      const v = Number(cashAmount.replace(/[^\d]/g, ""));
+      if (!v || v < subtotal) return `Con efectivo debes pagar al menos ${formatMoney(subtotal)}`;
+    }
+    return null;
+  }
+
   async function submit() {
-    if (cart.length === 0) return toast.error("Agrega productos primero");
+    const err = validate();
+    if (err) return toast.error(err);
     setSubmitting(true);
     try {
-      const ticket = Math.floor(Date.now() / 1000) % 100000;
-      const { data: sale, error } = await supabase
-        .from("sales")
-        .insert({
-          ticket_number: ticket,
-          user_id: null,
-          user_name: source === "kiosk" ? "Kiosko" : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : "Menú en línea",
+      const payment_details =
+        payMethod === "Efectivo"
+          ? { cash_received: Number(cashAmount.replace(/[^\d]/g, "")), change: Number(cashAmount.replace(/[^\d]/g, "")) - subtotal }
+          : payMethod === "Nequi"
+          ? { nequi_number: nequiNum }
+          : { bancolombia_account: bancoAcc };
+
+      const { data, error } = await supabase.rpc("create_public_order", {
+        _payload: {
           source,
-          status: "pending",
-          order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "llevar",
+          order_type: source === "table_qr" ? "mesa" : source === "kiosk" ? "kiosko" : "domicilio",
           table_id: tableId ?? null,
-          subtotal,
-          total: subtotal,
-          delivery_fee: 0,
-          payment_method: "Pendiente",
+          user_name: source === "kiosk" ? "Kiosko" : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : "Menú en línea",
           customer_name: customerName || null,
           customer_phone: phone || null,
+          delivery_address: isDelivery ? address : null,
+          delivery_neighborhood: isDelivery ? neighborhood : null,
           notes: notes || null,
-        })
-        .select()
-        .single();
-      if (error || !sale) throw error;
-      const items = cart.map((l) => ({
-        sale_id: sale.id,
-        product_id: l.product_id,
-        product_name: l.name,
-        unit_price: l.unit_price,
-        qty: l.qty,
-        subtotal: l.unit_price * l.qty,
-      }));
-      const ins = await supabase.from("sale_items").insert(items);
-      if (ins.error) throw ins.error;
-      setTicketNumber(ticket);
+          payment_method: payMethod,
+          payment_details,
+          items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty })),
+        },
+      });
+      if (error) throw error;
+      const result = data as { ticket_number: number } | null;
+      if (!result) throw new Error("Sin respuesta del servidor");
+      setTicketNumber(result.ticket_number);
       setConfirmOpen(true);
       setCart([]);
       setCustomerName("");
       setPhone("");
+      setAddress("");
+      setNeighborhood("");
       setNotes("");
+      setCashAmount("");
       qc.invalidateQueries({ queryKey: ["pending-sales"] });
+      qc.invalidateQueries({ queryKey: ["online-orders"] });
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Error al enviar pedido");
+      const msg = e instanceof Error ? e.message : "Error desconocido al enviar el pedido";
+      toast.error(msg, { description: "Revisa tu conexión y los datos del formulario." });
+      console.error("create_public_order error", e);
     } finally {
       setSubmitting(false);
     }
@@ -128,6 +158,8 @@ export function PublicOrder({
         <p className="text-muted-foreground mt-4 max-w-sm">
           {source === "table_qr"
             ? "Un mesero llegará pronto. Mantén esta pantalla visible."
+            : isDelivery
+            ? "Prepararemos tu pedido y lo enviaremos a tu dirección. Te contactaremos al teléfono registrado."
             : "Acércate a la caja con este número para pagar y recibir tu pedido."}
         </p>
         <Button className="mt-8" size="lg" onClick={() => setConfirmOpen(false)}>
@@ -139,7 +171,6 @@ export function PublicOrder({
 
   return (
     <div className="min-h-screen bg-muted/30 pb-32">
-      {/* Header */}
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           {settings?.logo_url ? (
@@ -154,7 +185,7 @@ export function PublicOrder({
             <div className="text-xs text-muted-foreground">
               {source === "kiosk" && "Auto-pedido · Kiosko"}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
-              {source === "online_menu" && "Menú en línea"}
+              {source === "online_menu" && "Menú en línea · A domicilio"}
             </div>
           </div>
           {!readOnly && itemCount > 0 && (
@@ -165,7 +196,6 @@ export function PublicOrder({
           )}
         </div>
 
-        {/* Categorías */}
         <div className="max-w-5xl mx-auto px-4 pb-3 overflow-x-auto">
           <Tabs value={activeCat} onValueChange={setActiveCat}>
             <TabsList>
@@ -178,7 +208,6 @@ export function PublicOrder({
         </div>
       </header>
 
-      {/* Productos */}
       <main className="max-w-5xl mx-auto px-4 py-4 grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
         {filtered.map((p) => (
           <Card
@@ -204,11 +233,10 @@ export function PublicOrder({
         )}
       </main>
 
-      {/* Cart bottom */}
       {!readOnly && cart.length > 0 && (
-        <div className="fixed bottom-0 inset-x-0 z-30 border-t bg-background shadow-[0_-4px_20px_rgba(0,0,0,0.08)]">
+        <div className="fixed bottom-0 inset-x-0 z-30 border-t bg-background shadow-[0_-4px_20px_rgba(0,0,0,0.08)] max-h-[80vh] overflow-y-auto">
           <div className="max-w-5xl mx-auto px-4 py-3 space-y-3">
-            <div className="max-h-48 overflow-y-auto space-y-2">
+            <div className="max-h-40 overflow-y-auto space-y-2">
               {cart.map((l) => (
                 <div key={l.key} className="flex items-center gap-2 text-sm">
                   <div className="flex-1">
@@ -228,15 +256,87 @@ export function PublicOrder({
                 </div>
               ))}
             </div>
+
             {source !== "table_qr" && (
-              <div className="grid grid-cols-2 gap-2">
-                <Input placeholder="Tu nombre" value={customerName} onChange={(e) => setCustomerName(e.target.value)} />
-                <Input placeholder="Teléfono (opcional)" value={phone} onChange={(e) => setPhone(e.target.value)} />
+              <div className="space-y-2">
+                <Input
+                  placeholder="Nombre *"
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  required
+                />
+                <Input
+                  placeholder={`Teléfono ${isDelivery ? "*" : "(opcional)"}`}
+                  inputMode="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                />
+                {isDelivery && (
+                  <>
+                    <Input placeholder="Dirección de entrega *" value={address} onChange={(e) => setAddress(e.target.value)} />
+                    <Input placeholder="Barrio *" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
+                  </>
+                )}
               </div>
             )}
-            <Input placeholder="Notas para cocina (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
+
+            <Textarea
+              placeholder="Notas para cocina (opcional)"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              rows={2}
+            />
+
+            <div className="rounded-lg border p-3 space-y-3">
+              <div className="text-sm font-medium">Método de pago</div>
+              <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className="grid grid-cols-3 gap-2">
+                {(["Efectivo", "Nequi", "Bancolombia"] as PayMethod[]).map((m) => (
+                  <Label
+                    key={m}
+                    htmlFor={`pm-${m}`}
+                    className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs ${payMethod === m ? "border-primary bg-primary/5" : ""}`}
+                  >
+                    <RadioGroupItem id={`pm-${m}`} value={m} className="sr-only" />
+                    {m === "Efectivo" && <Banknote className="h-5 w-5" />}
+                    {m === "Nequi" && <Smartphone className="h-5 w-5" />}
+                    {m === "Bancolombia" && <Landmark className="h-5 w-5" />}
+                    <span className="font-medium">{m}</span>
+                  </Label>
+                ))}
+              </RadioGroup>
+
+              {payMethod === "Efectivo" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">¿Con cuánto vas a pagar?</Label>
+                  <Input
+                    inputMode="numeric"
+                    placeholder="Ej: 50000"
+                    value={cashAmount}
+                    onChange={(e) => setCashAmount(e.target.value.replace(/[^\d]/g, ""))}
+                  />
+                  {cashAmount && Number(cashAmount) >= subtotal && (
+                    <div className="text-xs text-success">Cambio: {formatMoney(Number(cashAmount) - subtotal)}</div>
+                  )}
+                </div>
+              )}
+              {payMethod === "Nequi" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Número Nequi del negocio</Label>
+                  <Input value={nequiNum} readOnly placeholder="No configurado" />
+                  <div className="text-[11px] text-muted-foreground">Transfiere a este número y trae el comprobante.</div>
+                </div>
+              )}
+              {payMethod === "Bancolombia" && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Cuenta Bancolombia del negocio</Label>
+                  <Input value={bancoAcc} readOnly placeholder="No configurado" />
+                  <div className="text-[11px] text-muted-foreground">Transfiere a esta cuenta y trae el comprobante.</div>
+                </div>
+              )}
+            </div>
+
             <Button size="lg" className="w-full" onClick={submit} disabled={submitting}>
-              Enviar pedido · {formatMoney(subtotal)}
+              {submitting ? "Enviando..." : `Enviar pedido · ${formatMoney(subtotal)}`}
             </Button>
           </div>
         </div>

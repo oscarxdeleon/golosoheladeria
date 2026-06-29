@@ -530,11 +530,13 @@ export type Database = {
           customer_phone: string | null
           delivery_address: string | null
           delivery_fee: number
+          delivery_neighborhood: string | null
           delivery_phone: string | null
           id: string
           kds_ack_at: string | null
           notes: string | null
           order_type: string
+          payment_details: Json | null
           payment_method: string
           printed_at: string | null
           source: string
@@ -556,11 +558,13 @@ export type Database = {
           customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_neighborhood?: string | null
           delivery_phone?: string | null
           id?: string
           kds_ack_at?: string | null
           notes?: string | null
           order_type?: string
+          payment_details?: Json | null
           payment_method: string
           printed_at?: string | null
           source?: string
@@ -582,11 +586,13 @@ export type Database = {
           customer_phone?: string | null
           delivery_address?: string | null
           delivery_fee?: number
+          delivery_neighborhood?: string | null
           delivery_phone?: string | null
           id?: string
           kds_ack_at?: string | null
           notes?: string | null
           order_type?: string
+          payment_details?: Json | null
           payment_method?: string
           printed_at?: string | null
           source?: string
@@ -633,12 +639,14 @@ export type Database = {
       settings: {
         Row: {
           address: string | null
+          bancolombia_account: string | null
           business_name: string
           city: string | null
           delivery_fee: number
           id: number
           logo_url: string | null
           menu_link: string | null
+          nequi_number: string | null
           nit: string | null
           phone: string | null
           schedules: Json
@@ -649,12 +657,14 @@ export type Database = {
         }
         Insert: {
           address?: string | null
+          bancolombia_account?: string | null
           business_name?: string
           city?: string | null
           delivery_fee?: number
           id?: number
           logo_url?: string | null
           menu_link?: string | null
+          nequi_number?: string | null
           nit?: string | null
           phone?: string | null
           schedules?: Json
@@ -665,12 +675,14 @@ export type Database = {
         }
         Update: {
           address?: string | null
+          bancolombia_account?: string | null
           business_name?: string
           city?: string | null
           delivery_fee?: number
           id?: number
           logo_url?: string | null
           menu_link?: string | null
+          nequi_number?: string | null
           nit?: string | null
           phone?: string | null
           schedules?: Json
@@ -759,6 +771,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      create_public_order: { Args: { _payload: Json }; Returns: Json }
       get_active_cash_session: {
         Args: never
         Returns: {
