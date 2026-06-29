@@ -546,7 +546,9 @@ export function PosScreen({ orderType, tableId, title, meseroMode = false, onSav
           customer: snapshotCustomer,
           user_name: snapshotUserName,
           created_at: sale.created_at,
+          branding,
         },
+
       });
 
       // Mantener referencia a snapshots no usados para evitar warnings
