@@ -212,22 +212,30 @@ function CajaPage() {
       </div>
 
       {current ? (
-        <Card className="border-success/40 bg-success/5">
+        <Card className={isOwner ? "border-success/40 bg-success/5" : "border-amber-300 bg-amber-50/40"}>
           <CardHeader>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className="rounded-xl bg-success/15 p-3 text-success"><LockOpen className="h-6 w-6" /></div>
+                <div className={`rounded-xl p-3 ${isOwner ? "bg-success/15 text-success" : "bg-amber-100 text-amber-700"}`}>
+                  {isOwner ? <LockOpen className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
+                </div>
                 <div>
-                  <CardTitle className="font-display text-2xl">Caja abierta</CardTitle>
-                  <CardDescription>Desde {formatDate(current.opened_at)} · {current.user_name}</CardDescription>
+                  <CardTitle className="font-display text-2xl">
+                    {isOwner ? "Caja abierta" : "Caja abierta por otro cajero"}
+                  </CardTitle>
+                  <CardDescription>
+                    Desde {formatDate(current.opened_at)} · {current.user_name}
+                  </CardDescription>
                 </div>
               </div>
-              <Button onClick={() => setCloseDialog(true)} variant="destructive">
-                <LockKeyhole className="h-4 w-4" />Cerrar caja
-              </Button>
+              {canCloseSession && (
+                <Button onClick={() => setCloseDialog(true)} variant="destructive">
+                  <LockKeyhole className="h-4 w-4" />Cerrar caja
+                </Button>
+              )}
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-3">
             <div className="rounded-lg border bg-card p-4">
               <div className="text-xs text-muted-foreground">Monto inicial</div>
               <div className="font-display text-xl">{formatMoney(current.opening_amount)}</div>
@@ -237,16 +245,23 @@ function CajaPage() {
                 </p>
               )}
             </div>
+            {!isOwner && (
+              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                <strong>La caja para esta sede ya fue abierta por otro terminal.</strong>{" "}
+                Ingrese directamente a la operación. Sólo {current.user_name}
+                {isAdmin ? " o un administrador" : ""} puede realizar el cierre.
+              </div>
+            )}
           </CardContent>
         </Card>
       ) : (
         <Card>
           <CardHeader>
-            <CardTitle>No tienes caja abierta</CardTitle>
+            <CardTitle>No hay caja abierta en esta sede</CardTitle>
             <CardDescription>Abre la caja al iniciar tu turno indicando el monto inicial en efectivo.</CardDescription>
           </CardHeader>
           <CardContent>
-            <Button onClick={() => setOpenDialog(true)} disabled={authLoading || !user}>
+            <Button onClick={() => setOpenDialog(true)} disabled={authLoading || !user || !activeBranchId}>
               <LockOpen className="h-4 w-4" />{authLoading ? "Cargando…" : "Abrir caja"}
             </Button>
           </CardContent>
