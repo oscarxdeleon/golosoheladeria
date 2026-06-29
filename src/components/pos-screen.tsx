@@ -13,6 +13,7 @@ import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike,
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, type PrintPayload } from "@/lib/print-client";
+import { useBranch } from "@/contexts/branch-context";
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
