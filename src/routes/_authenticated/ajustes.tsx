@@ -580,6 +580,8 @@ interface Branch {
   ticket_header?: string | null; ticket_footer?: string | null;
   report_email?: string | null;
   online_menu_url?: string | null;
+  logo_url?: string | null;
+  email?: string | null;
 }
 
 
@@ -746,6 +748,25 @@ function EditarSedeTab() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [form, setForm] = useState<Partial<Branch>>({});
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
+
+  async function handleLogoFile(file: File) {
+    setUploadingLogo(true);
+    try {
+      const ext = file.name.split(".").pop()?.toLowerCase() || "png";
+      const path = `branch-${selectedId || "new"}-${Date.now()}.${ext}`;
+      const up = await supabase.storage.from("logos").upload(path, file, { upsert: true, contentType: file.type || `image/${ext}` });
+      if (up.error) { toast.error(up.error.message); return; }
+      const { data: signed } = await supabase.storage.from("logos").createSignedUrl(path, 60 * 60 * 24 * 365 * 5);
+      if (signed?.signedUrl) {
+        setForm((f) => ({ ...f, logo_url: signed.signedUrl }));
+        toast.success("Logo cargado — recuerda guardar cambios");
+      }
+    } finally {
+      setUploadingLogo(false);
+    }
+  }
 
   const { data: branches = [] } = useQuery<Branch[]>({
     queryKey: ["branches"],
@@ -781,6 +802,8 @@ function EditarSedeTab() {
         ticket_footer: form.ticket_footer ?? null,
         report_email: form.report_email ?? null,
         online_menu_url: form.online_menu_url?.trim() ? form.online_menu_url.trim() : null,
+        logo_url: form.logo_url ?? null,
+        email: form.email?.trim() ? form.email.trim() : null,
       };
       const { error } = await supabase.from("branches").update(payload as never).eq("id", selectedId);
       if (error) {
@@ -852,7 +875,43 @@ function EditarSedeTab() {
               <Input type="email" value={form.report_email ?? ""} onChange={(e) => setForm({ ...form, report_email: e.target.value })} placeholder="reportes@goloso.com" />
             </div>
 
+            <div>
+              <Label>Correo Electrónico (ticket)</Label>
+              <p className="text-xs text-muted-foreground mb-2">Aparecerá impreso como dato de contacto en los tickets emitidos por esta sede.</p>
+              <Input type="email" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} placeholder="contacto@goloso.com" />
             </div>
+
+            </div>
+
+            <div>
+              <Label>Logo de la Sede</Label>
+              <p className="text-xs text-muted-foreground mb-2">Aparece centrado en la parte superior de los tickets impresos por esta sede. PNG, BMP, JPG o WEBP.</p>
+              <div className="flex items-center gap-3">
+                {form.logo_url ? (
+                  <img src={form.logo_url} alt="logo sede" className="h-24 w-24 rounded-lg border object-contain bg-white" />
+                ) : (
+                  <div className="h-24 w-24 rounded-lg border bg-muted flex items-center justify-center text-xs text-muted-foreground text-center px-2">Sin logo (se usa el global)</div>
+                )}
+                <input
+                  ref={logoFileRef}
+                  type="file"
+                  accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp,.jpg,.jpeg,.webp"
+                  className="hidden"
+                  onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ""; }}
+                />
+                <div className="flex flex-col gap-2">
+                  <Button type="button" variant="outline" onClick={() => logoFileRef.current?.click()} disabled={uploadingLogo}>
+                    <Upload className="h-4 w-4 mr-1" />{uploadingLogo ? "Subiendo…" : (form.logo_url ? "Cambiar logo" : "Subir logo")}
+                  </Button>
+                  {form.logo_url && (
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setForm({ ...form, logo_url: null })}>
+                      Quitar logo
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+
 
             <div>
               <Label className="flex items-center gap-2"><LinkIcon className="h-4 w-4" /> Enlace del Menú en Línea</Label>

@@ -198,9 +198,11 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          email: string | null
           id: string
           inherits_main_catalog: boolean
           is_main: boolean
+          logo_url: string | null
           name: string
           neighborhood: string | null
           nit: string | null
@@ -216,9 +218,11 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           inherits_main_catalog?: boolean
           is_main?: boolean
+          logo_url?: string | null
           name: string
           neighborhood?: string | null
           nit?: string | null
@@ -234,9 +238,11 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          email?: string | null
           id?: string
           inherits_main_catalog?: boolean
           is_main?: boolean
+          logo_url?: string | null
           name?: string
           neighborhood?: string | null
           nit?: string | null

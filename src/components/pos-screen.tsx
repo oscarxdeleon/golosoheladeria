@@ -38,6 +38,7 @@ export interface Branding {
   nit?: string | null;
   address?: string | null;
   phone?: string | null;
+  email?: string | null;
   logo_url?: string | null;
   ticket_header?: string | null;
   ticket_footer?: string | null;
@@ -62,7 +63,9 @@ function comandaHTML(o: {
   ticket: number; header: string; items: { name: string; qty: number }[];
   customer: string; notes: string; address: string; phone: string;
   user_name: string; created_at: string;
+  branding?: Branding;
 }) {
+  const b = o.branding ?? DEFAULT_BRANDING;
   const rows = o.items
     .map(
       (i) => `<tr>
@@ -71,35 +74,43 @@ function comandaHTML(o: {
       </tr>`,
     )
     .join("");
+  const logoHTML = b.logo_url
+    ? `<div style="text-align:center;margin:0 0 6px"><img src="${b.logo_url}" alt="logo" style="max-width:48mm;max-height:22mm;object-fit:contain;display:block;margin:0 auto"/></div>`
+    : "";
   return `<!doctype html><html><head><title> </title>
   <style>
     @page{size:80mm auto;margin:0}
     @media print{html,body{width:80mm;margin:0!important;padding:0!important}}
     html,body{width:80mm}
     body{font-family:'Arial Black','Helvetica',sans-serif;font-size:26px;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.35}
-    h1{font-size:42px;margin:0 0 10px;text-align:center;font-weight:900;letter-spacing:2px}
-    h2{font-size:34px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:3px solid #000;padding:6px 0}
+    h1{font-size:48px;margin:0 0 6px;text-align:center;font-weight:900;letter-spacing:2px}
+    .sede{font-size:22px;text-align:center;font-weight:900;text-transform:uppercase;margin:0 0 6px;letter-spacing:1px}
+    h2{font-size:36px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:4px solid #000;padding:8px 0;letter-spacing:1px}
     table{width:100%;border-collapse:collapse;margin-top:8px}
-    td{vertical-align:top;padding:10px 0;border-bottom:2px dashed #000}
-    td.qty{font-size:40px;font-weight:900;width:80px;text-align:right;padding-right:12px}
-    td.name{font-size:32px;font-weight:900;text-transform:uppercase;line-height:1.2;white-space:pre-line}
+    td{vertical-align:top;padding:12px 0;border-bottom:2px dashed #000}
+    td.qty{font-size:44px;font-weight:900;width:90px;text-align:right;padding-right:14px}
+    td.name{font-size:34px;font-weight:900;text-transform:uppercase;line-height:1.15;white-space:pre-line}
     hr{border:none;border-top:3px dashed #000;margin:8px 0}
-    .meta{font-size:22px;font-weight:900;margin:4px 0}
-    .notes{margin-top:10px;font-size:24px;font-weight:900;border:3px solid #000;padding:8px;line-height:1.35}
+    .meta{font-size:24px;font-weight:900;margin:4px 0}
+    .meta.big{font-size:28px}
+    .notes{margin-top:10px;font-size:30px;font-weight:900;border:4px solid #000;padding:10px;line-height:1.3;text-transform:uppercase}
+    .notes .lbl{font-size:24px;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px}
     .footer{margin-top:12px;text-align:center;font-size:24px;font-weight:900}
   </style></head>
   <body>
-    <h1>COMANDA #${o.ticket}</h1>
+    ${logoHTML}
+    <div class="sede">${b.business_name || "Heladería Goloso"}</div>
+    <h1>PEDIDO #${o.ticket}</h1>
     <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
     <div class="meta" style="text-align:center">Cajero: ${o.user_name}</div>
     <hr/>
     <h2>${o.header}</h2>
-    ${o.customer ? `<div class="meta">Cliente: ${o.customer}</div>` : ""}
-    ${o.address ? `<div class="meta">Dir: ${o.address}</div>` : ""}
-    ${o.phone ? `<div class="meta">Tel: ${o.phone}</div>` : ""}
+    ${o.customer ? `<div class="meta big">Cliente: ${o.customer}</div>` : ""}
+    ${o.address ? `<div class="meta big">Dir: ${o.address}</div>` : ""}
+    ${o.phone ? `<div class="meta big">Tel: ${o.phone}</div>` : ""}
     <hr/>
     <table>${rows}</table>
-    ${o.notes ? `<div class="notes">NOTAS:<br/>${o.notes}</div>` : ""}
+    ${o.notes ? `<div class="notes"><div class="lbl">OBSERVACIÓN:</div>${o.notes}</div>` : ""}
     <div class="footer">*** ENVIAR A COCINA ***</div>
   </body></html>`;
 }
@@ -113,6 +124,7 @@ const SVG = {
   user:   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`,
   card:   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>`,
   bill:   `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/></svg>`,
+  mail:   `<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 6-10 7L2 6"/></svg>`,
 };
 
 const TICKET_STYLES = `@page{size:80mm auto;margin:0}
@@ -197,8 +209,9 @@ function ticketHTML(o: {
     ${logoHTML}
     <h1 class="biz-name">${(b.business_name || "Heladería Goloso").toUpperCase()}</h1>
     <div class="biz-meta">${SVG.idCard}<span>NIT: ${b.nit ?? "—"}</span></div>
-    <div class="biz-meta">${SVG.pin}<span>${b.address ?? ""}</span></div>
-    <div class="biz-meta">${SVG.phone}<span>${b.phone ?? ""}</span></div>
+    ${b.address ? `<div class="biz-meta">${SVG.pin}<span>${b.address}</span></div>` : ""}
+    ${b.phone ? `<div class="biz-meta">${SVG.phone}<span>${b.phone}</span></div>` : ""}
+    ${b.email ? `<div class="biz-meta">${SVG.mail}<span>${b.email}</span></div>` : ""}
     <hr class="dashed"/>
     <div class="ticket-no">TICKET DE VENTA<span class="num">No. ${ticketNo}</span></div>
     <hr class="dashed"/>
@@ -284,13 +297,14 @@ async function fetchCajaPrinter(): Promise<{ ip?: string; port?: number }> {
 
 async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   const { ip, port } = await fetchCajaPrinter();
+  const b = o.branding ?? DEFAULT_BRANDING;
   const payload: PrintPayload = {
     type: "comanda", ticket: o.ticket, header: o.header,
     items: o.items, customer: o.customer, notes: o.notes,
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
+    business_name: b.business_name,
     printer_ip: ip, printer_port: port,
   };
-  // Esperamos al envío al servidor local; si falla, NO abrimos diálogo del navegador.
   const ok = await sendToLocalPrinter(payload);
   if (!ok) {
     console.warn("[print] comanda no enviada al servidor local — verifica LOCAL_PRINT_URL y print-server");
@@ -298,11 +312,6 @@ async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   return ok;
 }
 async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
-  // Impresión SILENCIOSA: intenta enviar el ticket al servidor local de
-  // impresión térmica configurado en el POS. Si no hay servidor local
-  // configurado, recurre al render HTML por iframe (último recurso).
-  // Esto evita que aparezca el diálogo de impresión del navegador cuando
-  // el cajero ya tiene su impresora térmica configurada.
   let printerIp: string | undefined;
   let printerPort: number | undefined;
   let openDrawer = false;
@@ -322,6 +331,7 @@ async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
   } catch (e) {
     console.warn("[print] no se pudo consultar config de impresora", e);
   }
+  const b = o.branding ?? DEFAULT_BRANDING;
   const payload: PrintPayload = {
     type: "ticket",
     ticket: o.ticket,
@@ -335,14 +345,18 @@ async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
     customer: o.customer,
     user_name: o.user_name,
     created_at: o.created_at,
+    business_name: b.business_name,
+    nit: b.nit ?? undefined,
+    address_biz: b.address ?? undefined,
+    phone_biz: b.phone ?? undefined,
+    email_biz: b.email ?? undefined,
+    footer_text: b.ticket_footer ?? undefined,
+    cash_received: o.cash_received,
     printer_ip: printerIp,
     printer_port: printerPort,
     open_drawer: openDrawer,
   };
-  // Si hay servidor local → impresión silenciosa directa a la térmica.
-  // Si NO hay servidor local → fallback HTML (diálogo del navegador).
   printSilent(payload, ticketHTML(o));
-  // Apertura del cajón monedero solo si está activada en la impresora de caja.
   if (openDrawer) {
     void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
   }
@@ -445,7 +459,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     nit: activeBranch?.nit ?? settings?.nit ?? null,
     address: [activeBranch?.address, activeBranch?.neighborhood].filter(Boolean).join(" · ") || settings?.address || null,
     phone: activeBranch?.phone ?? settings?.phone ?? null,
-    logo_url: settings?.logo_url ?? null,
+    email: activeBranch?.email ?? null,
+    logo_url: activeBranch?.logo_url ?? settings?.logo_url ?? null,
     ticket_header: activeBranch?.ticket_header ?? settings?.ticket_header ?? null,
     ticket_footer: activeBranch?.ticket_footer ?? settings?.ticket_footer ?? null,
   };
