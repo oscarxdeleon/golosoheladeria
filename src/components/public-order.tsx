@@ -16,7 +16,7 @@ import { toast } from "sonner";
 type KioskService = "llevar" | "comer_aqui";
 
 interface Category { id: string; name: string; sort_order: number; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; }
 
 type Source = "kiosk" | "table_qr" | "online_menu";
