@@ -400,10 +400,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
 
   const { data: cats = [] } = useQuery({
-    queryKey: ["categories"],
+    queryKey: ["categories", "pos"],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("*").eq("active", true).order("sort_order");
-      return (data ?? []) as Category[];
+      const { data } = await supabase
+        .from("categories")
+        .select("*")
+        .eq("active", true)
+        .order("sort_order");
+      return ((data ?? []) as Category[]).filter((c) => c.show_in_pos !== false);
     },
   });
   const { data: products = [] } = useQuery({
