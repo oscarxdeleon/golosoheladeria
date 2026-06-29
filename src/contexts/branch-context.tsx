@@ -7,6 +7,12 @@ export interface Branch {
   name: string;
   is_main: boolean | null;
   city: string | null;
+  address?: string | null;
+  phone?: string | null;
+  neighborhood?: string | null;
+  nit?: string | null;
+  ticket_header?: string | null;
+  ticket_footer?: string | null;
 }
 
 interface BranchContextValue {
