@@ -173,6 +173,7 @@ export function PosScreen({ orderType, tableId, title }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
+  const { activeBranchId } = useBranch();
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
