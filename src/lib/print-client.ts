@@ -170,5 +170,3 @@ export async function kickCashDrawer(opts: { printer_ip?: string; printer_port?:
   });
 }
 
-  })();
-}
