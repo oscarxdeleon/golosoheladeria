@@ -14,15 +14,41 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
+import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
   head: () => ({ meta: [{ title: "Ajustes · Goloso POS" }] }),
   component: AjustesPage,
+  errorComponent: AjustesErrorComponent,
 });
+
+function AjustesErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+  return (
+    <div className="p-6">
+      <div className="max-w-2xl rounded-2xl border border-destructive/40 bg-destructive/5 p-6 space-y-3">
+        <div className="flex items-center gap-2 font-semibold text-destructive text-lg">
+          <AlertTriangle className="h-5 w-5" /> No se pudo cargar Ajustes
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Ocurrió un error al renderizar esta pantalla. Puedes reintentar sin perder tu sesión.
+        </p>
+        <pre className="text-xs whitespace-pre-wrap break-words text-muted-foreground max-h-48 overflow-auto bg-background/60 p-3 rounded-lg border">
+          {error?.message || String(error)}
+        </pre>
+        <button
+          onClick={() => reset()}
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+        >
+          <RefreshCw className="h-4 w-4" /> Reintentar
+        </button>
+      </div>
+    </div>
+  );
+}
 
 const DAYS: Array<{ key: string; label: string }> = [
   { key: "lun", label: "Lunes" }, { key: "mar", label: "Martes" }, { key: "mie", label: "Miércoles" },
@@ -55,15 +81,15 @@ function AjustesPage() {
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
           <TabsTrigger value="roles">Roles</TabsTrigger>
         </TabsList>
-        <TabsContent value="estab"><EstablecimientoTab disabled={false} /></TabsContent>
-        <TabsContent value="ticket"><TicketTab /></TabsContent>
-        <TabsContent value="suc"><SucursalesTab disabled={false} /></TabsContent>
-        <TabsContent value="sede-edit"><EditarSedeTab /></TabsContent>
-        <TabsContent value="kiosko-link"><KioskoLinkTab /></TabsContent>
-        <TabsContent value="impr"><ImpresorasTab disabled={false} /></TabsContent>
-        <TabsContent value="pagos"><PagosTab disabled={false} /></TabsContent>
-        <TabsContent value="domi"><DomicilioTab disabled={false} /></TabsContent>
-        <TabsContent value="roles"><RolesTab /></TabsContent>
+        <TabsContent value="estab"><SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="ticket"><SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="suc"><SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="sede-edit"><SectionErrorBoundary label="Editar sede"><EditarSedeTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="kiosko-link"><SectionErrorBoundary label="Link de Kiosko"><KioskoLinkTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="impr"><SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="pagos"><SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="domi"><SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="roles"><SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary></TabsContent>
       </Tabs>
     </div>
   );
@@ -75,7 +101,7 @@ function TicketTab() {
   const [uploading, setUploading] = useState(false);
   const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
   const [s, setS] = useState<Settings | null>(null);
   useEffect(() => { if (settings) setS(settings); }, [settings]);
@@ -189,13 +215,16 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   const [uploading, setUploading] = useState(false);
   const { data: settings } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
   const [s, setS] = useState<Settings | null>(null);
-  useEffect(() => { if (settings) setS(settings); }, [settings]);
+  useEffect(() => {
+    if (settings) setS({ ...settings, schedules: settings.schedules ?? {} });
+  }, [settings]);
   if (!s) return null;
-
-  const setSched = (day: string, patch: Partial<Schedule>) => setS({ ...s, schedules: { ...s.schedules, [day]: { ...s.schedules[day], ...patch } } });
+  const schedules = s.schedules ?? {};
+  const setSched = (day: string, patch: Partial<Schedule>) =>
+    setS({ ...s, schedules: { ...schedules, [day]: { ...(schedules[day] ?? { open: false, from: "10:00", to: "21:00" }), ...patch } } });
 
   async function save() {
     if (!s) return;
@@ -230,7 +259,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
     <Card>
       <CardContent className="space-y-4 p-6">
         <div className="grid gap-4 md:grid-cols-2">
-          <div><Label>Nombre</Label><Input value={s.business_name} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
+          <div><Label>Nombre</Label><Input value={s.business_name ?? ""} onChange={(e) => setS({ ...s, business_name: e.target.value })} /></div>
           <div><Label>NIT</Label><Input value={s.nit ?? ""} onChange={(e) => setS({ ...s, nit: e.target.value })} /></div>
           <div><Label>Dirección</Label><Input value={s.address ?? ""} onChange={(e) => setS({ ...s, address: e.target.value })} /></div>
           <div><Label>Ciudad</Label><Input value={s.city ?? ""} onChange={(e) => setS({ ...s, city: e.target.value })} /></div>
@@ -308,7 +337,7 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
           <h3 className="font-medium mb-2">Horarios</h3>
           <div className="space-y-2">
             {DAYS.map((d) => {
-              const sc = s.schedules[d.key] ?? { open: false, from: "10:00", to: "21:00" };
+              const sc = schedules[d.key] ?? { open: false, from: "10:00", to: "21:00" };
               return (
                 <div key={d.key} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-3 rounded-lg border p-3">
                   <div className="flex items-center gap-2 w-28"><Switch disabled={false} checked={sc.open} onCheckedChange={(v) => setSched(d.key, { open: v })} /><span className="text-sm">{d.label}</span></div>
@@ -522,7 +551,7 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const { data } = useQuery<Settings>({
     queryKey: ["settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).single()).data as unknown as Settings,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
   const [fee, setFee] = useState<number>(0);
   useEffect(() => { if (data) setFee(Number(data.delivery_fee)); }, [data]);
