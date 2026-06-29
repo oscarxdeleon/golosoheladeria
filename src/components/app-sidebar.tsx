@@ -119,106 +119,99 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupLabel>Operación</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {main.map((i) => (
-                <SidebarMenuItem key={i.to}>
-                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                    <Link to={i.to}>
-                      <i.icon />
-                      <span>{i.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-        <SidebarGroup>
-          <SidebarGroupLabel>Pedidos</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {orden.map((i) => (
-                <SidebarMenuItem key={i.to}>
-                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                    <Link to={i.to}>
-                      <i.icon />
-                      <span>{i.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
-
-
-        <Collapsible defaultOpen={menuOpenDefault} className="group/collapsible">
+        {fMain.length > 0 && (
           <SidebarGroup>
-            <CollapsibleTrigger asChild>
-              <SidebarGroupLabel className="cursor-pointer">
-                Menú
-                <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
-              </SidebarGroupLabel>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <SidebarGroupContent>
-                <SidebarMenu>
-                  {menu.map((i) => (
-                    <SidebarMenuItem key={i.to}>
-                      <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                        <Link to={i.to}>
-                          <i.icon />
-                          <span>{i.label}</span>
-                        </Link>
-                      </SidebarMenuButton>
-                    </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              </SidebarGroupContent>
-            </CollapsibleContent>
+            <SidebarGroupLabel>Operación</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {fMain.map((i) => (
+                  <SidebarMenuItem key={i.to}>
+                    <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
           </SidebarGroup>
-        </Collapsible>
+        )}
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Egresos</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {egresos.map((i) => (
-                <SidebarMenuItem key={i.to}>
-                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                    <Link to={i.to}>
-                      <i.icon />
-                      <span>{i.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {fOrden.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Pedidos</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {fOrden.map((i) => (
+                  <SidebarMenuItem key={i.to}>
+                    <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
 
-        <SidebarGroup>
-          <SidebarGroupLabel>Administración</SidebarGroupLabel>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              {admin.map((i) => (
-                <SidebarMenuItem key={i.to}>
-                  <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                    <Link to={i.to}>
-                      <i.icon />
-                      <span>{i.label}</span>
-                    </Link>
-                  </SidebarMenuButton>
-                </SidebarMenuItem>
-              ))}
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
+        {fMenu.length > 0 && (
+          <Collapsible defaultOpen={menuOpenDefault} className="group/collapsible">
+            <SidebarGroup>
+              <CollapsibleTrigger asChild>
+                <SidebarGroupLabel className="cursor-pointer">
+                  Menú
+                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
+                </SidebarGroupLabel>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {fMenu.map((i) => (
+                      <SidebarMenuItem key={i.to}>
+                        <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                          <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </CollapsibleContent>
+            </SidebarGroup>
+          </Collapsible>
+        )}
+
+        {fEgresos.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Egresos</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {fEgresos.map((i) => (
+                  <SidebarMenuItem key={i.to}>
+                    <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {fAdmin.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel>Administración</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {fAdmin.map((i) => (
+                  <SidebarMenuItem key={i.to}>
+                    <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
       </SidebarContent>
 
       <SidebarFooter>
