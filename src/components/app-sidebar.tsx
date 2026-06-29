@@ -176,7 +176,6 @@ export function AppSidebar() {
         </Collapsible>
 
         <SidebarGroup>
-        <SidebarGroup>
           <SidebarGroupLabel>Egresos</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
