@@ -129,13 +129,23 @@ export function PublicOrder({
   });
   const { data: products = [] } = useQuery<Product[]>({
     queryKey: ["public-products"],
-    queryFn: async () => (await supabase.from("products").select("*").eq("active", true).order("name")).data ?? [],
+    queryFn: async () => ((await supabase.from("products").select("*").eq("active", true).order("name")).data ?? []) as unknown as Product[],
   });
 
-
+  const branchId = (branch as { id?: string } | null | undefined)?.id;
+  const visibleProducts = useMemo(
+    () => products.filter((p) => {
+      if (p.show_in_online === false) return false;
+      const ids = p.available_branch_ids;
+      if (branchId && ids && ids.length > 0 && !ids.includes(branchId)) return false;
+      return true;
+    }),
+    [products, branchId],
+  );
+  const favorites = useMemo(() => visibleProducts.filter((p) => p.is_favorite), [visibleProducts]);
   const filtered = useMemo(
-    () => products.filter((p) => activeCat === "all" || p.category_id === activeCat),
-    [products, activeCat],
+    () => visibleProducts.filter((p) => activeCat === "all" || p.category_id === activeCat),
+    [visibleProducts, activeCat],
   );
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
