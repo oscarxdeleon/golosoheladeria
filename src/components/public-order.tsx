@@ -518,22 +518,46 @@ export function PublicOrder({
 
               {source !== "table_qr" && (
                 <div className="space-y-2">
-                  <Input
-                    placeholder="Nombre *"
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    required
-                  />
-                  <Input
-                    placeholder={`Teléfono ${isDelivery ? "*" : "(opcional)"}`}
-                    inputMode="tel"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                  />
+                  <div className="space-y-1">
+                    <Input
+                      placeholder={`Nombre ${isDelivery ? "del cliente *" : "*"}`}
+                      value={customerName}
+                      onChange={(e) => { setCustomerName(e.target.value); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: false }); }}
+                      className={fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
+                      required
+                    />
+                    {fieldErrors.name && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                  </div>
+                  <div className="space-y-1">
+                    <Input
+                      placeholder={`Teléfono de contacto ${isDelivery ? "*" : "(opcional)"}`}
+                      inputMode="tel"
+                      value={phone}
+                      onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
+                      className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                    />
+                    {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                  </div>
                   {isDelivery && (
                     <>
-                      <Input placeholder="Dirección de entrega *" value={address} onChange={(e) => setAddress(e.target.value)} />
-                      <Input placeholder="Barrio *" value={neighborhood} onChange={(e) => setNeighborhood(e.target.value)} />
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Dirección completa *"
+                          value={address}
+                          onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                          className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                        />
+                        {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                      </div>
+                      <div className="space-y-1">
+                        <Input
+                          placeholder="Barrio *"
+                          value={neighborhood}
+                          onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                          className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                        />
+                        {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                      </div>
                     </>
                   )}
                 </div>
