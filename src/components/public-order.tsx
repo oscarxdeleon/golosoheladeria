@@ -97,14 +97,42 @@ export function PublicOrder({
     return null;
   }
 
+  function buildWhatsappMessage(ticket: number) {
+    const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
+    const change = cashReceived - subtotal;
+    const lines: string[] = [];
+    lines.push(`*¡Nuevo Pedido de ${settings?.business_name ?? "Heladería Goloso"}!*`);
+    lines.push(`*Pedido #:* ${ticket}`);
+    if (customerName) lines.push(`*Cliente:* ${customerName}`);
+    if (phone) lines.push(`*Teléfono:* ${phone}`);
+    if (isDelivery) {
+      lines.push(`*Dirección:* ${address} - *Barrio:* ${neighborhood}`);
+    } else if (source === "table_qr" && tableLabel) {
+      lines.push(`*Mesa:* ${tableLabel}`);
+    }
+    let pago = `*Método de Pago:* ${payMethod}`;
+    if (payMethod === "Efectivo" && cashReceived > 0) {
+      pago += ` (Paga con ${formatMoney(cashReceived)} - Cambio: ${formatMoney(change)})`;
+    }
+    lines.push(pago);
+    if (notes) lines.push(`*Notas:* ${notes}`);
+    lines.push(`*Detalle del Pedido:*`);
+    cart.forEach((l) => {
+      lines.push(`- ${l.qty} x ${l.name} (${formatMoney(l.unit_price)})`);
+    });
+    lines.push(`*Total a Pagar:* ${formatMoney(subtotal)}`);
+    return lines.join("\n");
+  }
+
   async function submit() {
     const err = validate();
     if (err) return toast.error(err);
     setSubmitting(true);
     try {
+      const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
       const payment_details =
         payMethod === "Efectivo"
-          ? { cash_received: Number(cashAmount.replace(/[^\d]/g, "")), change: Number(cashAmount.replace(/[^\d]/g, "")) - subtotal }
+          ? { cash_received: cashReceived, change: cashReceived - subtotal }
           : payMethod === "Nequi"
           ? { nequi_number: nequiNum }
           : { bancolombia_account: bancoAcc };
@@ -128,6 +156,18 @@ export function PublicOrder({
       if (error) throw error;
       const result = data as { ticket_number: number } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
+
+      // WhatsApp redirect (only para domicilio / online_menu)
+      if (source === "online_menu") {
+        const rawPhone = (settings as { phone?: string | null } | null | undefined)?.phone ?? "";
+        const digits = rawPhone.replace(/[^\d]/g, "");
+        if (digits) {
+          const finalPhone = digits.length === 10 ? `57${digits}` : digits;
+          const msg = encodeURIComponent(buildWhatsappMessage(result.ticket_number));
+          window.open(`https://api.whatsapp.com/send?phone=${finalPhone}&text=${msg}`, "_blank");
+        }
+      }
+
       setTicketNumber(result.ticket_number);
       setConfirmOpen(true);
       setCart([]);
