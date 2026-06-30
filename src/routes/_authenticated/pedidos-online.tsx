@@ -322,7 +322,8 @@ function OnlineOrdersPage() {
     }
     setPaying(true);
     const its = items.filter((i) => i.sale_id === payOrder.id);
-    const { error } = await supabase
+    // Finalizar venta: marcar como pagada con método y caja
+    const { data: paidRow, error } = await supabase
       .from("sales")
       .update({
         status: "paid",
@@ -330,38 +331,50 @@ function OnlineOrdersPage() {
         cash_session_id: cashSession.id,
       })
       .eq("id", payOrder.id)
-      .eq("branch_id", activeBranchId);
+      .eq("branch_id", activeBranchId)
+      .select("id,status,ticket_number,total")
+      .maybeSingle();
     setPaying(false);
     if (error) return toast.error(error.message);
+    if (!paidRow || paidRow.status !== "paid") {
+      toast.error("No se pudo confirmar el pago. El ticket no será enviado.");
+      return;
+    }
 
-    // Ticket de venta digital → WhatsApp del cliente (nombre tomado de la sede activa)
-    if (payOrder.customer_phone) {
+    toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
+
+    // ✅ Pago confirmado y venta finalizada → recién ahora se genera y envía el ticket por WhatsApp
+    const phoneDigits = (payOrder.customer_phone ?? "").replace(/[^\d]/g, "");
+    if (phoneDigits && its.length > 0) {
       const baseName = (settings as { business_name?: string } | null | undefined)?.business_name ?? "Heladería Goloso";
       const sedeName = activeBranch?.name ?? "";
       const negocio = sedeName ? `${baseName} - ${sedeName}` : baseName;
-      const sedeAddr = activeBranch?.address ? `\n${activeBranch.address}` : "";
-      const sedePhoneTxt = activeBranch?.phone ? `\nTel: ${activeBranch.phone}` : "";
+      const sedeAddr = activeBranch?.address ? `\n📍 ${activeBranch.address}` : "";
+      const sedePhoneTxt = activeBranch?.phone ? `\n📞 ${activeBranch.phone}` : "";
       const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
       const msg = [
         `🍦 *${negocio}*${sedeAddr}${sedePhoneTxt}`,
         ``,
-        `Ticket de venta #${payOrder.ticket_number}`,
+        `*Ticket de venta #${payOrder.ticket_number}*`,
         new Date().toLocaleString("es-CO"),
-        "",
+        payOrder.customer_name ? `Cliente: ${payOrder.customer_name}` : null,
+        ``,
         lines,
-        "",
-        `*TOTAL: ${formatMoney(payOrder.total)}*`,
-        `Pago: ${method}`,
-        "",
-        "¡Gracias por tu compra! 💛",
-      ].join("\n");
-      window.open(waLink(payOrder.customer_phone, msg), "_blank", "noopener");
+        ``,
+        `*TOTAL PAGADO: ${formatMoney(payOrder.total)}*`,
+        `Método de pago: ${method}`,
+        ``,
+        `¡Gracias por tu compra! 💛`,
+      ].filter(Boolean).join("\n");
+      window.open(waLink(payOrder.customer_phone!, msg), "_blank", "noopener");
+    } else if (!phoneDigits) {
+      toast.info("Cliente sin WhatsApp registrado · ticket digital no enviado");
     }
 
-    toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
     setPayOrder(null);
     qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
   }
+
 
   function buildMsg(o: SaleRow, its: ItemRow[]) {
     const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
@@ -447,13 +460,7 @@ function OnlineOrdersPage() {
                       </a>
                     </Button>
                   )}
-                  {o.customer_phone && (
-                    <Button asChild variant="outline" size="sm">
-                      <a href={waLink(o.customer_phone, `Hola ${o.customer_name ?? ""}, recibimos tu pedido #${o.ticket_number}. ¡Lo estamos preparando!`)} target="_blank" rel="noreferrer">
-                        <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp cliente
-                      </a>
-                    </Button>
-                  )}
+                  {/* El ticket por WhatsApp al cliente se envía SOLO al confirmar el pago */}
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(o.id)}>
                     <CheckCircle2 className="h-4 w-4 mr-1" /> Cancelar
                   </Button>
