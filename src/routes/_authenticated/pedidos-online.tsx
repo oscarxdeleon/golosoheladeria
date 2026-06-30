@@ -574,12 +574,14 @@ function OnlineOrdersPage() {
         </Card>
       )}
 
-      <Dialog open={!!payOrder} onOpenChange={(open) => { if (!open) setPayOrder(null); }}>
+      <Dialog open={!!payOrder} onOpenChange={(open) => { if (!open) resetPayState(); }}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cobrar pedido #{payOrder?.ticket_number}</DialogTitle>
             <DialogDescription>
-              Selecciona el método de pago con el que se recaudó el dinero.
+              {selectedMethod
+                ? "Registra los datos del pago y confirma para finalizar la venta."
+                : "1) Selecciona el método de pago con el que se recaudó el dinero."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
@@ -593,20 +595,87 @@ function OnlineOrdersPage() {
                 Debes abrir caja en esta sede para registrar el cobro.
               </div>
             )}
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <Button disabled={paying || !cashSession?.id} onClick={() => processPayment("Efectivo")} className="h-16 flex-col">
+              <Button
+                disabled={paying || !cashSession?.id}
+                onClick={() => { setSelectedMethod("Efectivo"); setPaymentRef(""); }}
+                variant={selectedMethod === "Efectivo" ? "default" : "outline"}
+                className="h-16 flex-col"
+              >
                 <Banknote className="h-5 w-5" /> Efectivo
               </Button>
-              <Button disabled={paying || !cashSession?.id} onClick={() => processPayment("Nequi")} variant="secondary" className="h-16 flex-col">
+              <Button
+                disabled={paying || !cashSession?.id}
+                onClick={() => { setSelectedMethod("Nequi"); setAmountReceived(""); }}
+                variant={selectedMethod === "Nequi" ? "default" : "outline"}
+                className="h-16 flex-col"
+              >
                 <Smartphone className="h-5 w-5" /> Nequi
               </Button>
-              <Button disabled={paying || !cashSession?.id} onClick={() => processPayment("Bancolombia")} variant="secondary" className="h-16 flex-col">
+              <Button
+                disabled={paying || !cashSession?.id}
+                onClick={() => { setSelectedMethod("Bancolombia"); setAmountReceived(""); }}
+                variant={selectedMethod === "Bancolombia" ? "default" : "outline"}
+                className="h-16 flex-col"
+              >
                 <CreditCard className="h-5 w-5" /> Bancolombia
               </Button>
             </div>
+
+            {selectedMethod === "Efectivo" && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium uppercase text-muted-foreground">Monto recibido</label>
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  value={amountReceived}
+                  onChange={(e) => setAmountReceived(e.target.value)}
+                  placeholder="Ej: 50000"
+                  className="w-full rounded-md border bg-background px-3 py-2 text-base"
+                  autoFocus
+                />
+                {amountReceived && Number(amountReceived.replace(/[^\d.]/g, "")) >= Number(payOrder?.total ?? 0) && (
+                  <div className="text-xs text-muted-foreground">
+                    Cambio: <b>{formatMoney(Number(amountReceived.replace(/[^\d.]/g, "")) - Number(payOrder?.total ?? 0))}</b>
+                  </div>
+                )}
+              </div>
+            )}
+            {(selectedMethod === "Nequi" || selectedMethod === "Bancolombia") && (
+              <div className="space-y-1">
+                <label className="text-xs font-medium uppercase text-muted-foreground">
+                  Referencia / últimos 4 dígitos
+                </label>
+                <input
+                  type="text"
+                  value={paymentRef}
+                  onChange={(e) => setPaymentRef(e.target.value)}
+                  placeholder={selectedMethod === "Nequi" ? "Ej: 1234" : "Ref. transacción"}
+                  className="w-full rounded-md border bg-background px-3 py-2 text-base"
+                  autoFocus
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Verifica el ingreso del dinero en la app de {selectedMethod} antes de confirmar.
+                </p>
+              </div>
+            )}
+
+            {selectedMethod && (
+              <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-xs text-muted-foreground">
+                ⚠️ El ticket digital se enviará al WhatsApp del cliente <b>solo después</b> de confirmar el pago.
+              </div>
+            )}
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPayOrder(null)}>Cancelar</Button>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={resetPayState} disabled={paying}>Cancelar</Button>
+            <Button
+              onClick={processPayment}
+              disabled={paying || !selectedMethod || !cashSession?.id}
+              className="min-w-[220px]"
+            >
+              {paying ? "Procesando…" : "Confirmar pago y finalizar venta"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
