@@ -221,18 +221,19 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
         .from("settings")
         .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
         .maybeSingle();
-      let branch: {
+      type BranchInfo = {
         name?: string; nit?: string | null; address?: string | null; neighborhood?: string | null;
         phone?: string | null; email?: string | null; logo_url?: string | null;
         ticket_header?: string | null; ticket_footer?: string | null;
-      } | null = null;
+      };
+      let branch: BranchInfo | null = null;
       if (sale?.branch_id) {
         const { data: b } = await supabase
           .from("branches")
           .select("name,nit,address,neighborhood,phone,email,logo_url,ticket_header,ticket_footer")
           .eq("id", sale.branch_id)
           .maybeSingle();
-        branch = b as typeof branch;
+        branch = (b ?? null) as BranchInfo | null;
       }
       branding = {
         business_name: branch?.name || settings?.business_name || "Heladería Goloso",
