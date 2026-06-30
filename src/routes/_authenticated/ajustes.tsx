@@ -588,7 +588,7 @@ interface Branch {
 }
 
 
-function SucursalesTab({ disabled }: { disabled: boolean }) {
+function SucursalesTab({ disabled, onEditBranch }: { disabled: boolean; onEditBranch?: (id: string) => void }) {
   const qc = useQueryClient();
   const [edit, setEdit] = useState<Partial<Branch> | null>(null);
   const [copyCatalog, setCopyCatalog] = useState(true);
