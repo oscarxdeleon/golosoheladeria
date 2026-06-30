@@ -149,6 +149,10 @@ function OnlineOrdersPage() {
   const { session: cashSession } = useBranchCashSession(activeBranchId);
   const [payOrder, setPayOrder] = useState<SaleRow | null>(null);
   const [paying, setPaying] = useState(false);
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const [paymentRef, setPaymentRef] = useState("");
+  const [amountReceived, setAmountReceived] = useState("");
+
 
   const { data: settings } = useQuery({
     queryKey: ["settings-one"],
