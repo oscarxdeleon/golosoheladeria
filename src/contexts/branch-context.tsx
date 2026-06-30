@@ -106,7 +106,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   return (
     <BranchContext.Provider
-      value={{ branches, activeBranchId, activeBranch, setActiveBranchId, loading: isLoading, lockedToBranch }}
+      value={{ branches: visibleBranches, activeBranchId, activeBranch, setActiveBranchId, loading: isLoading, lockedToBranch }}
     >
       {children}
     </BranchContext.Provider>
