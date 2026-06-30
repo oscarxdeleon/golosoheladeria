@@ -24,6 +24,7 @@ interface BranchContextValue {
   activeBranch: Branch | null;
   setActiveBranchId: (id: string) => void;
   loading: boolean;
+  lockedToBranch: boolean;
 }
 
 const BranchContext = createContext<BranchContextValue | null>(null);
@@ -44,19 +45,55 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     },
   });
 
+  // Sede asignada al usuario actual + si es admin. Los usuarios no-admin
+  // quedan bloqueados a su sede para que el notifier en tiempo real escuche
+  // SU branch_id y los pedidos no se filtren a la sede equivocada.
+  const { data: userScope } = useQuery({
+    queryKey: ["branch-user-scope"],
+    queryFn: async () => {
+      const { data: u } = await supabase.auth.getUser();
+      const uid = u.user?.id;
+      if (!uid) return { branchId: null as string | null, isAdmin: false };
+      const [{ data: prof }, { data: roles }] = await Promise.all([
+        supabase.from("profiles").select("branch_id").eq("id", uid).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", uid),
+      ]);
+      const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
+      return { branchId: (prof?.branch_id as string | null) ?? null, isAdmin };
+    },
+  });
+
+  const profileBranchId = userScope?.branchId ?? null;
+  const isAdmin = userScope?.isAdmin ?? false;
+  const lockedToBranch = !isAdmin && !!profileBranchId;
 
   useEffect(() => {
     if (branches.length === 0) return;
+
+    // No-admin: forzar la sede asignada e ignorar el localStorage.
+    if (lockedToBranch && profileBranchId && branches.some((b) => b.id === profileBranchId)) {
+      setActiveBranchIdState(profileBranchId);
+      if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, profileBranchId);
+      return;
+    }
+
     const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
     if (saved && branches.some((b) => b.id === saved)) {
       setActiveBranchIdState(saved);
-    } else {
-      const main = branches.find((b) => b.is_main) ?? branches[0];
-      setActiveBranchIdState(main.id);
+      return;
     }
-  }, [branches]);
+    // Admin sin selección guardada: preferir su sede asignada antes que la principal.
+    if (profileBranchId && branches.some((b) => b.id === profileBranchId)) {
+      setActiveBranchIdState(profileBranchId);
+      return;
+    }
+    const main = branches.find((b) => b.is_main) ?? branches[0];
+    setActiveBranchIdState(main.id);
+  }, [branches, profileBranchId, lockedToBranch]);
 
   const setActiveBranchId = (id: string) => {
+    // Bloquear a no-admin de cambiar de sede.
+    if (lockedToBranch && profileBranchId && id !== profileBranchId) return;
     setActiveBranchIdState(id);
     if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, id);
   };
@@ -65,7 +102,7 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   return (
     <BranchContext.Provider
-      value={{ branches, activeBranchId, activeBranch, setActiveBranchId, loading: isLoading }}
+      value={{ branches, activeBranchId, activeBranch, setActiveBranchId, loading: isLoading, lockedToBranch }}
     >
       {children}
     </BranchContext.Provider>
