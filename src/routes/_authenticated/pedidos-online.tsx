@@ -314,8 +314,20 @@ function OnlineOrdersPage() {
     qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
   }
 
-  async function processPayment(method: string) {
+  function resetPayState() {
+    setPayOrder(null);
+    setSelectedMethod(null);
+    setPaymentRef("");
+    setAmountReceived("");
+  }
+
+  async function processPayment() {
     if (!payOrder) return;
+    const method = selectedMethod;
+    if (!method) {
+      toast.error("Selecciona un método de pago antes de confirmar");
+      return;
+    }
     if (!activeBranchId || payOrder.branch_id !== activeBranchId) {
       toast.error("Este pedido pertenece a otra sede. Cambia a la sede correcta para cobrarlo.");
       return;
@@ -324,15 +336,34 @@ function OnlineOrdersPage() {
       toast.error("No hay caja abierta en esta sede");
       return;
     }
+    // Validaciones por método
+    if (method === "Efectivo") {
+      const recv = Number(amountReceived.replace(/[^\d.]/g, ""));
+      if (!recv || recv < Number(payOrder.total)) {
+        toast.error("Ingresa el monto recibido (≥ total)");
+        return;
+      }
+    } else if (method === "Nequi" || method === "Bancolombia" || method === "Transferencia") {
+      if (!paymentRef.trim()) {
+        toast.error(`Ingresa la referencia / últimos 4 dígitos del pago por ${method}`);
+        return;
+      }
+    }
+
     setPaying(true);
     const its = items.filter((i) => i.sale_id === payOrder.id);
-    // Finalizar venta: marcar como pagada con método y caja
+    const noteSuffix = method === "Efectivo"
+      ? `Recibido: ${amountReceived}`
+      : paymentRef ? `Ref: ${paymentRef}` : "";
+    const newNotes = [payOrder.notes, noteSuffix].filter(Boolean).join(" · ");
+
     const { data: paidRow, error } = await supabase
       .from("sales")
       .update({
         status: "paid",
         payment_method: method,
         cash_session_id: cashSession.id,
+        notes: newNotes || null,
       })
       .eq("id", payOrder.id)
       .eq("branch_id", activeBranchId)
@@ -351,12 +382,11 @@ function OnlineOrdersPage() {
     const phoneDigits = (payOrder.customer_phone ?? "").replace(/[^\d]/g, "");
     if (phoneDigits && its.length > 0) {
       const sedeName = activeBranch?.name?.trim() || (settings as { business_name?: string } | null | undefined)?.business_name || "Heladería Goloso";
-      const negocio = sedeName;
       const sedeAddr = activeBranch?.address ? `\n📍 ${activeBranch.address}` : "";
       const sedePhoneTxt = activeBranch?.phone ? `\n📞 ${activeBranch.phone}` : "";
       const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
       const msg = [
-        `🍦 *${negocio}*${sedeAddr}${sedePhoneTxt}`,
+        `🍦 *${sedeName}*${sedeAddr}${sedePhoneTxt}`,
         ``,
         `*Ticket de venta #${payOrder.ticket_number}*`,
         new Date().toLocaleString("es-CO"),
@@ -374,9 +404,10 @@ function OnlineOrdersPage() {
       toast.info("Cliente sin WhatsApp registrado · ticket digital no enviado");
     }
 
-    setPayOrder(null);
+    resetPayState();
     qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
   }
+
 
 
   function buildMsg(o: SaleRow, its: ItemRow[]) {
