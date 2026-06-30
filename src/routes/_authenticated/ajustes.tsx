@@ -778,6 +778,10 @@ function EditarSedeTab({ initialBranchId }: { initialBranchId?: string | null } 
   });
 
   useEffect(() => {
+    if (initialBranchId) setSelectedId(initialBranchId);
+  }, [initialBranchId]);
+
+  useEffect(() => {
     if (!selectedId && branches.length) {
       const main = branches.find((b) => b.is_main) ?? branches[0];
       setSelectedId(main.id);
