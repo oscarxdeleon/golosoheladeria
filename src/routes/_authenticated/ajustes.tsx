@@ -66,10 +66,13 @@ interface Settings {
 
 function AjustesPage() {
   const { isAdmin } = useAuth();
+  const [tab, setTab] = useState("estab");
+  const [editBranchId, setEditBranchId] = useState<string | null>(null);
+  const goEditBranch = (id: string) => { setEditBranchId(id); setTab("sede-edit"); };
   return (
     <div className="space-y-4">
       <h1 className="font-display text-3xl">Ajustes</h1>
-      <Tabs defaultValue="estab">
+      <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="flex flex-wrap h-auto">
           <TabsTrigger value="estab">Establecimiento</TabsTrigger>
           <TabsTrigger value="ticket">Ticket</TabsTrigger>
@@ -83,8 +86,8 @@ function AjustesPage() {
         </TabsList>
         <TabsContent value="estab"><SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="ticket"><SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary></TabsContent>
-        <TabsContent value="suc"><SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} /></SectionErrorBoundary></TabsContent>
-        <TabsContent value="sede-edit"><SectionErrorBoundary label="Editar sede"><EditarSedeTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="suc"><SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="sede-edit"><SectionErrorBoundary label="Editar sede"><EditarSedeTab initialBranchId={editBranchId} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="kiosko-link"><SectionErrorBoundary label="Link de Kiosko"><KioskoLinkTab /></SectionErrorBoundary></TabsContent>
         <TabsContent value="impr"><SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="pagos"><SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary></TabsContent>
