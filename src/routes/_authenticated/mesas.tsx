@@ -129,7 +129,7 @@ function MesasPage() {
     const { error } = await supabase.rpc("move_table", {
       _from_table_id: moveFrom.id,
       _to_table_id: moveTarget.id,
-      _reason: null,
+      _reason: undefined,
       _force: force,
     });
     setMoving(false);
