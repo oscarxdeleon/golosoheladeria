@@ -53,6 +53,7 @@ const main = [
   { to: "/pos", label: "Punto de venta", icon: ShoppingCart, key: "pos" },
   { to: "/caja", label: "Caja", icon: Banknote, key: "caja" },
   { to: "/ventas", label: "Ventas", icon: Receipt, key: "ventas" },
+  { to: "/historial", label: "Historial de pedidos", icon: ReceiptIcon, key: "ventas" },
 ];
 
 const orden = [
