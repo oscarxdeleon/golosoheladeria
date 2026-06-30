@@ -365,6 +365,75 @@ function MesasPage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Release with mandatory reason */}
+      <Dialog open={!!releaseMesa} onOpenChange={(o) => { if (!o) { setReleaseMesa(null); setReleaseReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Liberar Mesa {releaseMesa?.number}</DialogTitle>
+            <DialogDescription>
+              Ingrese el motivo por el cual desea liberar o cancelar esta mesa. El pedido pendiente se cancelará.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Motivo <span className="text-destructive">*</span></label>
+            <Textarea
+              value={releaseReason}
+              onChange={(e) => setReleaseReason(e.target.value)}
+              placeholder="Ej: Cliente se retiró sin consumir, error de mesera, mesa marcada por error..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReleaseMesa(null)} disabled={releasing}>
+              Cancelar acción
+            </Button>
+            <Button variant="destructive" onClick={confirmRelease} disabled={releasing || releaseReason.trim().length < 3}>
+              Confirmar liberación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move table */}
+      <Dialog open={!!moveFrom} onOpenChange={(o) => { if (!o) { setMoveFrom(null); setMoveTarget(null); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Mover Mesa {moveFrom?.number}</DialogTitle>
+            <DialogDescription>
+              Selecciona la mesa destino. El pedido, productos y tiempo de ocupación se trasladarán automáticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[50vh] overflow-y-auto p-1">
+            {mesas.filter((m) => m.id !== moveFrom?.id).map((m) => {
+              const isTarget = moveTarget?.id === m.id;
+              const isOcc = m.status === "occupied";
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setMoveTarget(m)}
+                  className={`rounded-xl border-2 p-3 text-center transition ${
+                    isTarget ? "border-primary bg-primary/10 ring-2 ring-primary"
+                      : isOcc ? "border-destructive/40 bg-destructive/5"
+                      : "border-success/40 bg-success/5 hover:border-success"
+                  }`}
+                >
+                  <div className="font-display text-2xl font-bold">{m.number}</div>
+                  <div className="text-[10px] text-muted-foreground">{STATUS_LABEL[m.status]}</div>
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMoveFrom(null); setMoveTarget(null); }} disabled={moving}>
+              Cancelar
+            </Button>
+            <Button onClick={() => doMove(false)} disabled={!moveTarget || moving}>
+              Confirmar traslado{moveTarget ? ` a Mesa ${moveTarget.number}` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </BranchCashGuard>
   );
