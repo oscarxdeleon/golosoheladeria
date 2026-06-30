@@ -311,7 +311,7 @@ async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   }
   return ok;
 }
-async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
+async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
   let printerIp: string | undefined;
   let printerPort: number | undefined;
   let openDrawer = false;
