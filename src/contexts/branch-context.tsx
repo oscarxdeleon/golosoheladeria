@@ -99,6 +99,10 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   };
 
   const activeBranch = branches.find((b) => b.id === activeBranchId) ?? null;
+  // No-admin: ocultar otras sedes del listado expuesto al resto de la app.
+  const visibleBranches = lockedToBranch && profileBranchId
+    ? branches.filter((b) => b.id === profileBranchId)
+    : branches;
 
   return (
     <BranchContext.Provider
