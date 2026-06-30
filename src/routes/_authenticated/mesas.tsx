@@ -104,15 +104,6 @@ function MesasPage() {
     navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
   }
 
-  async function liberar(m: Mesa, e: React.MouseEvent) {
-    e.stopPropagation();
-    await supabase
-      .from("restaurant_tables")
-      .update({ status: "free", current_guests: null, occupied_at: null })
-      .eq("id", m.id);
-    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-    toast.success(`Mesa ${m.number} liberada`);
-  }
 
   async function confirmRelease() {
     if (!releaseMesa) return;
