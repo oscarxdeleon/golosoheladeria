@@ -234,13 +234,24 @@ function MesasPage() {
                     {STATUS_LABEL[m.status]}
                   </Badge>
                   {occupied && (
-                    <span
-                      role="button"
-                      onClick={(e) => liberar(m, e)}
-                      className="absolute top-2 right-2 rounded-md bg-background/80 px-2 py-0.5 text-[10px] font-medium hover:bg-background"
-                    >
-                      Liberar
-                    </span>
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <span
+                        role="button"
+                        onClick={(e) => { e.stopPropagation(); setMoveFrom(m); }}
+                        className="rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-medium hover:bg-background flex items-center gap-1"
+                        title="Mover mesa"
+                      >
+                        <ArrowRightLeft className="h-3 w-3" /> Mover
+                      </span>
+                      <span
+                        role="button"
+                        onClick={(e) => { e.stopPropagation(); setReleaseMesa(m); setReleaseReason(""); }}
+                        className="rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-medium hover:bg-background flex items-center gap-1"
+                        title="Liberar mesa"
+                      >
+                        <LogOut className="h-3 w-3" /> Liberar
+                      </span>
+                    </div>
                   )}
                   <span
                     role="button"
