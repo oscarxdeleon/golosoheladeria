@@ -89,18 +89,8 @@ function MesasPage() {
   );
 
   async function openMesa(m: Mesa) {
-    // Marca como ocupada si está libre
-    if (m.status === "free") {
-      await supabase
-        .from("restaurant_tables")
-        .update({
-          status: "occupied",
-          current_guests: m.seats,
-          occupied_at: new Date().toISOString(),
-        })
-        .eq("id", m.id);
-      qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-    }
+    // La mesa solo cambia a "ocupada" cuando se guarda un pedido con al menos un producto
+    // (lo gestiona el trigger de DB sobre sale_items).
     navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
   }
 
