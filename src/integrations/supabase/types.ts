@@ -1277,6 +1277,89 @@ export type Database = {
         }
         Relationships: []
       }
+      table_events: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          event_type: string
+          id: string
+          metadata: Json | null
+          new_status: string | null
+          previous_status: string | null
+          reason: string | null
+          sale_id: string | null
+          table_id: string | null
+          table_number: number | null
+          target_table_id: string | null
+          target_table_number: number | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          event_type: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          previous_status?: string | null
+          reason?: string | null
+          sale_id?: string | null
+          table_id?: string | null
+          table_number?: number | null
+          target_table_id?: string | null
+          target_table_number?: number | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          event_type?: string
+          id?: string
+          metadata?: Json | null
+          new_status?: string | null
+          previous_status?: string | null
+          reason?: string | null
+          sale_id?: string | null
+          table_id?: string | null
+          table_number?: number | null
+          target_table_id?: string | null
+          target_table_number?: number | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "table_events_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "table_events_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "table_events_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "table_events_target_table_id_fkey"
+            columns: ["target_table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
@@ -1420,6 +1503,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      move_table: {
+        Args: {
+          _force?: boolean
+          _from_table_id: string
+          _reason?: string
+          _to_table_id: string
+        }
+        Returns: Json
+      }
       open_cash_session: {
         Args: {
           _branch_id?: string
@@ -1458,6 +1550,10 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      release_table: {
+        Args: { _reason: string; _table_id: string }
+        Returns: Json
       }
       terminal_list_employees: {
         Args: { _slug: string }
