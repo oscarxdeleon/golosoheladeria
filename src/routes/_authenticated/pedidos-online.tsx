@@ -378,28 +378,64 @@ function OnlineOrdersPage() {
 
     toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
 
-    // ✅ Pago confirmado y venta finalizada → recién ahora se genera y envía el ticket por WhatsApp
+    // 1) Preguntar si imprimir el ticket de venta
+    const wantPrint = window.confirm(
+      `Pago registrado por ${formatMoney(Number(payOrder.total))} (${method}).\n\n¿Imprimir ticket de venta físico?`,
+    );
+    if (wantPrint) {
+      const header = payOrder.order_type === "domicilio" ? "DOMICILIO" : payOrder.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
+      const ticketPayload: PrintPayload = {
+        type: "ticket",
+        ticket: payOrder.ticket_number,
+        header: `TICKET DE VENTA · ${header}`,
+        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
+        subtotal: Number(payOrder.subtotal ?? 0),
+        deliveryFee: Number(payOrder.delivery_fee ?? 0),
+        total: Number(payOrder.total ?? 0),
+        payment_method: method,
+        customer: payOrder.customer_name ?? "",
+        address: payOrder.delivery_address ?? "",
+        phone: payOrder.customer_phone ?? "",
+        cash_received: method === "Efectivo" ? Number(amountReceived.replace(/[^\d.]/g, "")) : Number(payOrder.total ?? 0),
+        created_at: payOrder.created_at,
+      };
+      printSilent(ticketPayload, preCuentaHTML({
+        ticket: payOrder.ticket_number, header: `TICKET DE VENTA · ${header}`,
+        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
+        customer: payOrder.customer_name ?? "", address: payOrder.delivery_address ?? "",
+        phone: payOrder.customer_phone ?? "", notes: `Pago: ${method}`,
+        subtotal: Number(payOrder.subtotal ?? 0), delivery_fee: Number(payOrder.delivery_fee ?? 0),
+        total: Number(payOrder.total ?? 0), created_at: payOrder.created_at,
+      }));
+    }
+
+    // 2) Preguntar si enviar ticket digital por WhatsApp
     const phoneDigits = (payOrder.customer_phone ?? "").replace(/[^\d]/g, "");
     if (phoneDigits && its.length > 0) {
-      const sedeName = activeBranch?.name?.trim() || (settings as { business_name?: string } | null | undefined)?.business_name || "Heladería Goloso";
-      const sedeAddr = activeBranch?.address ? `\n📍 ${activeBranch.address}` : "";
-      const sedePhoneTxt = activeBranch?.phone ? `\n📞 ${activeBranch.phone}` : "";
-      const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
-      const msg = [
-        `🍦 *${sedeName}*${sedeAddr}${sedePhoneTxt}`,
-        ``,
-        `*Ticket de venta #${payOrder.ticket_number}*`,
-        new Date().toLocaleString("es-CO"),
-        payOrder.customer_name ? `Cliente: ${payOrder.customer_name}` : null,
-        ``,
-        lines,
-        ``,
-        `*TOTAL PAGADO: ${formatMoney(payOrder.total)}*`,
-        `Método de pago: ${method}`,
-        ``,
-        `¡Gracias por tu compra! 💛`,
-      ].filter(Boolean).join("\n");
-      window.open(waLink(payOrder.customer_phone!, msg), "_blank", "noopener");
+      const wantWA = window.confirm(
+        `¿Enviar ticket digital por WhatsApp al cliente?\n\nNúmero: ${payOrder.customer_phone}`,
+      );
+      if (wantWA) {
+        const sedeName = activeBranch?.name?.trim() || (settings as { business_name?: string } | null | undefined)?.business_name || "Heladería Goloso";
+        const sedeAddr = activeBranch?.address ? `\n📍 ${activeBranch.address}` : "";
+        const sedePhoneTxt = activeBranch?.phone ? `\n📞 ${activeBranch.phone}` : "";
+        const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
+        const msg = [
+          `🍦 *${sedeName}*${sedeAddr}${sedePhoneTxt}`,
+          ``,
+          `*Ticket de venta #${payOrder.ticket_number}*`,
+          new Date().toLocaleString("es-CO"),
+          payOrder.customer_name ? `Cliente: ${payOrder.customer_name}` : null,
+          ``,
+          lines,
+          ``,
+          `*TOTAL PAGADO: ${formatMoney(payOrder.total)}*`,
+          `Método de pago: ${method}`,
+          ``,
+          `¡Gracias por tu compra! 💛`,
+        ].filter(Boolean).join("\n");
+        window.open(waLink(payOrder.customer_phone!, msg), "_blank", "noopener");
+      }
     } else if (!phoneDigits) {
       toast.info("Cliente sin WhatsApp registrado · ticket digital no enviado");
     }
