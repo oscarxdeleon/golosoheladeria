@@ -111,7 +111,7 @@ export function PublicOrder({
       if (!branchSlug) {
         const { data } = await supabase
           .from("branches")
-          .select("id,name,slug,phone")
+          .select("id,name,slug,phone,address,nit,logo_url")
           .eq("is_main", true)
           .order("created_at")
           .limit(1)
@@ -120,7 +120,7 @@ export function PublicOrder({
       }
       const { data } = await supabase
         .from("branches")
-        .select("id,name,slug,phone")
+        .select("id,name,slug,phone,address,nit,logo_url")
         .eq("slug", branchSlug)
         .maybeSingle();
       return data;
@@ -226,8 +226,14 @@ export function PublicOrder({
   function buildWhatsappMessage(ticket: number) {
     const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
     const change = cashReceived - total;
+    const br = branch as { name?: string | null; address?: string | null; phone?: string | null; nit?: string | null } | null | undefined;
+    const sedeName = br?.name?.trim() || (settings as { business_name?: string } | null | undefined)?.business_name || "Heladería Goloso";
+    const sedeAddr = br?.address || (settings as { address?: string | null } | null | undefined)?.address || "";
+    const sedePhone = br?.phone || (settings as { phone?: string | null } | null | undefined)?.phone || "";
     const lines: string[] = [];
-    lines.push(`*¡Nuevo Pedido de ${settings?.business_name ?? "Heladería Goloso"}!*`);
+    lines.push(`*¡Nuevo Pedido de ${sedeName}!*`);
+    if (sedeAddr) lines.push(`📍 ${sedeAddr}`);
+    if (sedePhone) lines.push(`📞 ${sedePhone}`);
     lines.push(`*Pedido #:* ${ticket}`);
     if (customerName) lines.push(`*Cliente:* ${customerName}`);
     if (phone) lines.push(`*Teléfono:* ${phone}`);

@@ -346,9 +346,8 @@ function OnlineOrdersPage() {
     // ✅ Pago confirmado y venta finalizada → recién ahora se genera y envía el ticket por WhatsApp
     const phoneDigits = (payOrder.customer_phone ?? "").replace(/[^\d]/g, "");
     if (phoneDigits && its.length > 0) {
-      const baseName = (settings as { business_name?: string } | null | undefined)?.business_name ?? "Heladería Goloso";
-      const sedeName = activeBranch?.name ?? "";
-      const negocio = sedeName ? `${baseName} - ${sedeName}` : baseName;
+      const sedeName = activeBranch?.name?.trim() || (settings as { business_name?: string } | null | undefined)?.business_name || "Heladería Goloso";
+      const negocio = sedeName;
       const sedeAddr = activeBranch?.address ? `\n📍 ${activeBranch.address}` : "";
       const sedePhoneTxt = activeBranch?.phone ? `\n📞 ${activeBranch.phone}` : "";
       const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
