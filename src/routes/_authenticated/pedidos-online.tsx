@@ -447,13 +447,7 @@ function OnlineOrdersPage() {
                       </a>
                     </Button>
                   )}
-                  {o.customer_phone && (
-                    <Button asChild variant="outline" size="sm">
-                      <a href={waLink(o.customer_phone, `Hola ${o.customer_name ?? ""}, recibimos tu pedido #${o.ticket_number}. ¡Lo estamos preparando!`)} target="_blank" rel="noreferrer">
-                        <MessageCircle className="h-4 w-4 mr-1" /> WhatsApp cliente
-                      </a>
-                    </Button>
-                  )}
+                  {/* El ticket por WhatsApp al cliente se envía SOLO al confirmar el pago */}
                   <Button size="sm" variant="ghost" className="text-destructive" onClick={() => reject(o.id)}>
                     <CheckCircle2 className="h-4 w-4 mr-1" /> Cancelar
                   </Button>
