@@ -662,7 +662,7 @@ export function PublicOrder({
                 )}
                 {payMethod === "Bancolombia" && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Cuenta Bancolombia del negocio</Label>
+                    <Label className="text-xs">Cuenta Bancolombia del negocio (Ahorros)</Label>
                     <Input value={bancoAcc} readOnly placeholder="No configurado" />
                     <div className="text-[11px] text-muted-foreground">Transfiere a esta cuenta y trae el comprobante.</div>
                   </div>
