@@ -634,6 +634,7 @@ export function PublicOrder({
                       {m === "Nequi" && <Smartphone className="h-5 w-5" />}
                       {m === "Bancolombia" && <Landmark className="h-5 w-5" />}
                       <span className="font-medium">{m}</span>
+                      {m === "Bancolombia" && <span className="text-[10px] text-muted-foreground -mt-1">Ahorros</span>}
                     </Label>
                   ))}
                 </RadioGroup>
