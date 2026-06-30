@@ -356,7 +356,13 @@ async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]) {
     printer_port: printerPort,
     open_drawer: openDrawer,
   };
-  printSilent(payload, ticketHTML(o));
+  // Impresión 100% silenciosa: usa la impresora configurada (Ajustes → Impresoras / área "caja")
+  // vía el print-server local. Nunca abre el diálogo del navegador.
+  const ok = await sendToLocalPrinter(payload);
+  if (!ok) {
+    toast.error("No se pudo imprimir: revisa la impresora configurada en Ajustes → Impresoras y que el servidor local esté activo.");
+    return;
+  }
   if (openDrawer) {
     void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
   }
