@@ -79,6 +79,7 @@ function AjustesPage() {
           <TabsTrigger value="suc">Sucursales</TabsTrigger>
           <TabsTrigger value="sede-edit">Editar Sede</TabsTrigger>
           <TabsTrigger value="kiosko-link">Link de Kiosko</TabsTrigger>
+          <TabsTrigger value="kds-link">Link de KDS</TabsTrigger>
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
