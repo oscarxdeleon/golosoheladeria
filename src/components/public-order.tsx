@@ -120,7 +120,7 @@ export function PublicOrder({
       }
       const { data } = await supabase
         .from("branches")
-        .select("id,name,slug,phone")
+        .select("id,name,slug,phone,address,nit,logo_url")
         .eq("slug", branchSlug)
         .maybeSingle();
       return data;
