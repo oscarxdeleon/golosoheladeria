@@ -82,20 +82,20 @@ function comandaHTML(o: {
     @page{size:80mm auto;margin:0}
     @media print{html,body{width:80mm;margin:0!important;padding:0!important}}
     html,body{width:80mm}
-    body{font-family:'Arial Black','Helvetica',sans-serif;font-size:26px;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.35}
-    h1{font-size:48px;margin:0 0 6px;text-align:center;font-weight:900;letter-spacing:2px}
-    .sede{font-size:22px;text-align:center;font-weight:900;text-transform:uppercase;margin:0 0 6px;letter-spacing:1px}
-    h2{font-size:36px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:4px solid #000;padding:8px 0;letter-spacing:1px}
+    body{font-family:'Arial Black','Helvetica',sans-serif;font-size:30px;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.35}
+    h1{font-size:54px;margin:0 0 6px;text-align:center;font-weight:900;letter-spacing:2px}
+    .sede{font-size:26px;text-align:center;font-weight:900;text-transform:uppercase;margin:0 0 6px;letter-spacing:1px}
+    h2{font-size:42px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:5px solid #000;padding:10px 0;letter-spacing:1px}
     table{width:100%;border-collapse:collapse;margin-top:8px}
-    td{vertical-align:top;padding:12px 0;border-bottom:2px dashed #000}
-    td.qty{font-size:44px;font-weight:900;width:90px;text-align:right;padding-right:14px}
-    td.name{font-size:34px;font-weight:900;text-transform:uppercase;line-height:1.15;white-space:pre-line}
+    td{vertical-align:top;padding:14px 0;border-bottom:2px dashed #000}
+    td.qty{font-size:56px;font-weight:900;width:110px;text-align:right;padding-right:16px}
+    td.name{font-size:44px;font-weight:900;text-transform:uppercase;line-height:1.15;white-space:pre-line}
     hr{border:none;border-top:3px dashed #000;margin:8px 0}
-    .meta{font-size:24px;font-weight:900;margin:4px 0}
-    .meta.big{font-size:28px}
-    .notes{margin-top:10px;font-size:30px;font-weight:900;border:4px solid #000;padding:10px;line-height:1.3;text-transform:uppercase}
-    .notes .lbl{font-size:24px;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px}
-    .footer{margin-top:12px;text-align:center;font-size:24px;font-weight:900}
+    .meta{font-size:28px;font-weight:900;margin:4px 0}
+    .meta.big{font-size:34px}
+    .notes{margin-top:10px;font-size:38px;font-weight:900;border:5px solid #000;padding:12px;line-height:1.3;text-transform:uppercase}
+    .notes .lbl{font-size:28px;letter-spacing:1px;border-bottom:2px solid #000;padding-bottom:4px;margin-bottom:6px}
+    .footer{margin-top:12px;text-align:center;font-size:28px;font-weight:900}
   </style></head>
   <body>
     ${logoHTML}
@@ -131,41 +131,41 @@ const TICKET_STYLES = `@page{size:80mm auto;margin:0}
 @media print{html,body{width:80mm;margin:0!important;padding:0!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;color:#000}.logo{filter:none}*{color:#000!important}}
 html,body{width:80mm}
 *{box-sizing:border-box}
-body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:12px;padding:4mm;width:72mm;margin:0;color:#000;line-height:1.35}
+body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:15px;padding:4mm;width:72mm;margin:0;color:#000;line-height:1.35}
 .logo-wrap{text-align:center;margin:0 0 4px}
-.logo{max-width:56mm;max-height:32mm;object-fit:contain;display:block;margin:0 auto}
-.biz-name{font-size:24px;margin:4px 0 6px;text-align:center;font-weight:900;letter-spacing:1px;text-transform:uppercase;font-family:'Arial Black','Helvetica',sans-serif;line-height:1.05}
-.biz-meta{display:flex;align-items:center;justify-content:flex-start;gap:8px;font-size:13px;line-height:1.3;margin:3px 0;padding-left:16mm}
-.biz-meta svg{flex-shrink:0;width:14px;height:14px}
+.logo{max-width:60mm;max-height:36mm;object-fit:contain;display:block;margin:0 auto}
+.biz-name{font-size:30px;margin:6px 0 8px;text-align:center;font-weight:900;letter-spacing:1px;text-transform:uppercase;font-family:'Arial Black','Helvetica',sans-serif;line-height:1.05}
+.biz-meta{display:flex;align-items:center;justify-content:flex-start;gap:10px;font-size:17px;font-weight:700;line-height:1.3;margin:4px 0;padding-left:14mm}
+.biz-meta svg{flex-shrink:0;width:18px;height:18px}
 .dots,.dashed{border:0;border-top:1.5px dashed #000;margin:8px 0;width:100%;height:0}
-.ticket-no{text-align:center;font-weight:900;font-size:17px;letter-spacing:1px;font-family:'Arial Black','Impact',sans-serif;text-transform:uppercase;margin:6px 0;line-height:1.1}
-.ticket-no .num{font-weight:900;font-size:16px;margin-left:6px;letter-spacing:1.5px;text-transform:none}
-.info{display:grid;grid-template-columns:auto 1fr;column-gap:10px;row-gap:6px;font-size:13px;margin:6px 0 4px}
-.info .label{display:flex;align-items:center;gap:6px;font-weight:900;white-space:nowrap;text-transform:none;font-size:13px}
-.info .label svg{flex-shrink:0}
-.info .val{text-align:left;word-break:break-word;font-size:13px}
+.ticket-no{text-align:center;font-weight:900;font-size:22px;letter-spacing:1px;font-family:'Arial Black','Impact',sans-serif;text-transform:uppercase;margin:6px 0;line-height:1.1}
+.ticket-no .num{font-weight:900;font-size:22px;margin-left:6px;letter-spacing:1.5px;text-transform:none}
+.info{display:grid;grid-template-columns:auto 1fr;column-gap:10px;row-gap:8px;font-size:17px;margin:8px 0 4px}
+.info .label{display:flex;align-items:center;gap:6px;font-weight:900;white-space:nowrap;text-transform:none;font-size:17px}
+.info .label svg{flex-shrink:0;width:18px;height:18px}
+.info .val{text-align:left;word-break:break-word;font-size:17px;font-weight:600}
 .tbl{width:100%;border-collapse:collapse;margin-top:4px}
-.tbl thead th{font-size:11px;font-weight:900;text-transform:uppercase;padding:6px 0;border-top:1.5px dashed #000;border-bottom:0;font-family:'Arial Black',sans-serif;letter-spacing:.6px}
+.tbl thead th{font-size:13px;font-weight:900;text-transform:uppercase;padding:8px 0;border-top:1.5px dashed #000;border-bottom:0;font-family:'Arial Black',sans-serif;letter-spacing:.6px}
 .tbl th.qty,.tbl td.qty{width:22%;text-align:left}
 .tbl th.det,.tbl td.det{text-align:center;padding:0 4px;white-space:pre-line}
-.tbl th.tot,.tbl td.tot{width:28%;text-align:right;white-space:nowrap}
-.tbl td{padding:6px 0;font-size:12px;vertical-align:top;font-weight:700}
-.tbl td.qty{font-weight:700;font-size:12px;text-align:left;padding-left:4px}
+.tbl th.tot,.tbl td.tot{width:30%;text-align:right;white-space:nowrap}
+.tbl td{padding:8px 0;font-size:16px;vertical-align:top;font-weight:700}
+.tbl td.qty{font-weight:700;font-size:16px;text-align:left;padding-left:4px}
 .tbl tbody tr:last-child td{border-bottom:1.5px dashed #000}
-.sub-row{display:flex;justify-content:flex-end;gap:14px;font-size:12px;padding:3px 0}
+.sub-row{display:flex;justify-content:flex-end;gap:14px;font-size:15px;padding:4px 0}
 .sub-row.first{padding-top:8px}
 .sub-row .lbl{font-weight:900;text-transform:uppercase;letter-spacing:.4px}
-.total-row{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0 6px;padding:4px 0}
-.total-row .lbl{font-family:'Arial Black',sans-serif;font-weight:900;font-size:26px;letter-spacing:.5px}
-.total-row .val{font-family:'Arial Black',sans-serif;font-weight:900;font-size:30px}
-.cash{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:13px;padding:8px 0;border-top:1.5px dashed #000;border-bottom:1.5px dashed #000;margin-top:2px}
+.total-row{display:flex;justify-content:space-between;align-items:baseline;margin:6px 0 8px;padding:4px 0}
+.total-row .lbl{font-family:'Arial Black',sans-serif;font-weight:900;font-size:36px;letter-spacing:.5px}
+.total-row .val{font-family:'Arial Black',sans-serif;font-weight:900;font-size:42px}
+.cash{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:16px;padding:10px 0;border-top:1.5px dashed #000;border-bottom:1.5px dashed #000;margin-top:2px}
 .cash .ln{display:flex;align-items:center;gap:6px}
 .cash .ln .lf{display:flex;align-items:center;gap:6px;font-weight:900}
-.cash .ln .lf svg{width:18px;height:18px}
+.cash .ln .lf svg{width:20px;height:20px}
 .cash .ln .rv{font-weight:700}
-.thanks{text-align:center;font-family:'Brush Script MT','Lucida Handwriting','Segoe Script',cursive;font-style:italic;font-weight:700;font-size:22px;margin:10px 0 4px;white-space:pre-line;line-height:1.15}
-.deco{text-align:center;font-size:13px;letter-spacing:3px;margin:4px 0 2px}
-.deco-bot{text-align:center;font-size:9px;letter-spacing:3px;margin-top:4px;text-transform:uppercase;font-weight:700;color:#000}`;
+.thanks{text-align:center;font-family:'Brush Script MT','Lucida Handwriting','Segoe Script',cursive;font-style:italic;font-weight:700;font-size:28px;margin:10px 0 4px;white-space:pre-line;line-height:1.15}
+.deco{text-align:center;font-size:15px;letter-spacing:4px;margin:6px 0 2px}
+.deco-bot{text-align:center;font-size:10px;letter-spacing:3px;margin-top:4px;text-transform:uppercase;font-weight:700;color:#000}`;
 
 
 function ticketHTML(o: {
