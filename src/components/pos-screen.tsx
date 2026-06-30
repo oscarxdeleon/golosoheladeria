@@ -59,7 +59,7 @@ function brandHeaderHTML(b: Branding) {
   return `${logo}<h1 class="biz-name">${b.business_name || "Heladería Goloso"}</h1>${meta}`;
 }
 
-function comandaHTML(o: {
+export function comandaHTML(o: {
   ticket: number; header: string; items: { name: string; qty: number }[];
   customer: string; notes: string; address: string; phone: string;
   user_name: string; created_at: string;
@@ -168,7 +168,7 @@ body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:15px;padding:4mm;
 .deco-bot{text-align:center;font-size:10px;letter-spacing:3px;margin-top:4px;text-transform:uppercase;font-weight:700;color:#000}`;
 
 
-function ticketHTML(o: {
+export function ticketHTML(o: {
   ticket: number; header: string;
   items: { name: string; qty: number; unit_price: number }[];
   subtotal: number; tax: number; deliveryFee: number; total: number;
@@ -295,7 +295,7 @@ async function fetchCajaPrinter(): Promise<{ ip?: string; port?: number }> {
   }
 }
 
-async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
+export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   const { ip, port } = await fetchCajaPrinter();
   const b = o.branding ?? DEFAULT_BRANDING;
   const payload: PrintPayload = {
@@ -311,7 +311,7 @@ async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   }
   return ok;
 }
-async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
+export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
   let printerIp: string | undefined;
   let printerPort: number | undefined;
   let openDrawer = false;
