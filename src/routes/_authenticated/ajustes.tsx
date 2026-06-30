@@ -746,9 +746,9 @@ function BranchLinksCard({ branches }: { branches: Branch[] }) {
 }
 
 
-function EditarSedeTab() {
+function EditarSedeTab({ initialBranchId }: { initialBranchId?: string | null } = {}) {
   const qc = useQueryClient();
-  const [selectedId, setSelectedId] = useState<string>("");
+  const [selectedId, setSelectedId] = useState<string>(initialBranchId ?? "");
   const [form, setForm] = useState<Partial<Branch>>({});
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
