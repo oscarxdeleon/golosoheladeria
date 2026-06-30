@@ -16,7 +16,8 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Plus, Users, Trash2, QrCode, Copy, Download } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
@@ -57,6 +58,12 @@ function MesasPage() {
   const [newNumber, setNewNumber] = useState("");
   const [newSeats, setNewSeats] = useState("4");
   const [qrMesa, setQrMesa] = useState<Mesa | null>(null);
+  const [releaseMesa, setReleaseMesa] = useState<Mesa | null>(null);
+  const [releaseReason, setReleaseReason] = useState("");
+  const [releasing, setReleasing] = useState(false);
+  const [moveFrom, setMoveFrom] = useState<Mesa | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Mesa | null>(null);
+  const [moving, setMoving] = useState(false);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
@@ -97,14 +104,48 @@ function MesasPage() {
     navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
   }
 
-  async function liberar(m: Mesa, e: React.MouseEvent) {
-    e.stopPropagation();
-    await supabase
-      .from("restaurant_tables")
-      .update({ status: "free", current_guests: null, occupied_at: null })
-      .eq("id", m.id);
+
+  async function confirmRelease() {
+    if (!releaseMesa) return;
+    if (releaseReason.trim().length < 3) {
+      return toast.error("Ingresa un motivo (mínimo 3 caracteres)");
+    }
+    setReleasing(true);
+    const { error } = await supabase.rpc("release_table", {
+      _table_id: releaseMesa.id,
+      _reason: releaseReason.trim(),
+    });
+    setReleasing(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Mesa ${releaseMesa.number} liberada`);
+    setReleaseMesa(null);
+    setReleaseReason("");
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-    toast.success(`Mesa ${m.number} liberada`);
+  }
+
+  async function doMove(force = false) {
+    if (!moveFrom || !moveTarget) return;
+    setMoving(true);
+    const { error } = await supabase.rpc("move_table", {
+      _from_table_id: moveFrom.id,
+      _to_table_id: moveTarget.id,
+      _reason: undefined,
+      _force: force,
+    });
+    setMoving(false);
+    if (error) {
+      if (error.message.includes("destination_occupied")) {
+        if (confirm(`La mesa ${moveTarget.number} ya tiene un pedido activo. ¿Deseas continuar y fusionar?`)) {
+          return doMove(true);
+        }
+        return;
+      }
+      return toast.error(error.message);
+    }
+    toast.success(`Pedido movido a Mesa ${moveTarget.number}`);
+    setMoveFrom(null);
+    setMoveTarget(null);
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
   }
 
   async function eliminar(m: Mesa, e: React.MouseEvent) {
@@ -193,13 +234,24 @@ function MesasPage() {
                     {STATUS_LABEL[m.status]}
                   </Badge>
                   {occupied && (
-                    <span
-                      role="button"
-                      onClick={(e) => liberar(m, e)}
-                      className="absolute top-2 right-2 rounded-md bg-background/80 px-2 py-0.5 text-[10px] font-medium hover:bg-background"
-                    >
-                      Liberar
-                    </span>
+                    <div className="absolute top-2 right-2 flex gap-1">
+                      <span
+                        role="button"
+                        onClick={(e) => { e.stopPropagation(); setMoveFrom(m); }}
+                        className="rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-medium hover:bg-background flex items-center gap-1"
+                        title="Mover mesa"
+                      >
+                        <ArrowRightLeft className="h-3 w-3" /> Mover
+                      </span>
+                      <span
+                        role="button"
+                        onClick={(e) => { e.stopPropagation(); setReleaseMesa(m); setReleaseReason(""); }}
+                        className="rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-medium hover:bg-background flex items-center gap-1"
+                        title="Liberar mesa"
+                      >
+                        <LogOut className="h-3 w-3" /> Liberar
+                      </span>
+                    </div>
                   )}
                   <span
                     role="button"
@@ -311,6 +363,75 @@ function MesasPage() {
               </p>
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Release with mandatory reason */}
+      <Dialog open={!!releaseMesa} onOpenChange={(o) => { if (!o) { setReleaseMesa(null); setReleaseReason(""); } }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Liberar Mesa {releaseMesa?.number}</DialogTitle>
+            <DialogDescription>
+              Ingrese el motivo por el cual desea liberar o cancelar esta mesa. El pedido pendiente se cancelará.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Motivo <span className="text-destructive">*</span></label>
+            <Textarea
+              value={releaseReason}
+              onChange={(e) => setReleaseReason(e.target.value)}
+              placeholder="Ej: Cliente se retiró sin consumir, error de mesera, mesa marcada por error..."
+              rows={3}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReleaseMesa(null)} disabled={releasing}>
+              Cancelar acción
+            </Button>
+            <Button variant="destructive" onClick={confirmRelease} disabled={releasing || releaseReason.trim().length < 3}>
+              Confirmar liberación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Move table */}
+      <Dialog open={!!moveFrom} onOpenChange={(o) => { if (!o) { setMoveFrom(null); setMoveTarget(null); } }}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Mover Mesa {moveFrom?.number}</DialogTitle>
+            <DialogDescription>
+              Selecciona la mesa destino. El pedido, productos y tiempo de ocupación se trasladarán automáticamente.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-2 max-h-[50vh] overflow-y-auto p-1">
+            {mesas.filter((m) => m.id !== moveFrom?.id).map((m) => {
+              const isTarget = moveTarget?.id === m.id;
+              const isOcc = m.status === "occupied";
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setMoveTarget(m)}
+                  className={`rounded-xl border-2 p-3 text-center transition ${
+                    isTarget ? "border-primary bg-primary/10 ring-2 ring-primary"
+                      : isOcc ? "border-destructive/40 bg-destructive/5"
+                      : "border-success/40 bg-success/5 hover:border-success"
+                  }`}
+                >
+                  <div className="font-display text-2xl font-bold">{m.number}</div>
+                  <div className="text-[10px] text-muted-foreground">{STATUS_LABEL[m.status]}</div>
+                </button>
+              );
+            })}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setMoveFrom(null); setMoveTarget(null); }} disabled={moving}>
+              Cancelar
+            </Button>
+            <Button onClick={() => doMove(false)} disabled={!moveTarget || moving}>
+              Confirmar traslado{moveTarget ? ` a Mesa ${moveTarget.number}` : ""}
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
