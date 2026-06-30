@@ -114,6 +114,49 @@ function MesasPage() {
     toast.success(`Mesa ${m.number} liberada`);
   }
 
+  async function confirmRelease() {
+    if (!releaseMesa) return;
+    if (releaseReason.trim().length < 3) {
+      return toast.error("Ingresa un motivo (mínimo 3 caracteres)");
+    }
+    setReleasing(true);
+    const { error } = await supabase.rpc("release_table", {
+      _table_id: releaseMesa.id,
+      _reason: releaseReason.trim(),
+    });
+    setReleasing(false);
+    if (error) return toast.error(error.message);
+    toast.success(`Mesa ${releaseMesa.number} liberada`);
+    setReleaseMesa(null);
+    setReleaseReason("");
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+  }
+
+  async function doMove(force = false) {
+    if (!moveFrom || !moveTarget) return;
+    setMoving(true);
+    const { error } = await supabase.rpc("move_table", {
+      _from_table_id: moveFrom.id,
+      _to_table_id: moveTarget.id,
+      _reason: null,
+      _force: force,
+    });
+    setMoving(false);
+    if (error) {
+      if (error.message.includes("destination_occupied")) {
+        if (confirm(`La mesa ${moveTarget.number} ya tiene un pedido activo. ¿Deseas continuar y fusionar?`)) {
+          return doMove(true);
+        }
+        return;
+      }
+      return toast.error(error.message);
+    }
+    toast.success(`Pedido movido a Mesa ${moveTarget.number}`);
+    setMoveFrom(null);
+    setMoveTarget(null);
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+  }
+
   async function eliminar(m: Mesa, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm(`¿Eliminar Mesa ${m.number}?`)) return;
