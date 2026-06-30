@@ -90,6 +90,7 @@ function AjustesPage() {
         <TabsContent value="suc"><SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="sede-edit"><SectionErrorBoundary label="Editar sede"><EditarSedeTab initialBranchId={editBranchId} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="kiosko-link"><SectionErrorBoundary label="Link de Kiosko"><KioskoLinkTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="kds-link"><SectionErrorBoundary label="Link de KDS"><KdsLinkTab /></SectionErrorBoundary></TabsContent>
         <TabsContent value="impr"><SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="pagos"><SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="domi"><SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary></TabsContent>
