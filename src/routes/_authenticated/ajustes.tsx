@@ -677,11 +677,18 @@ function SucursalesTab({ disabled, onEditBranch }: { disabled: boolean; onEditBr
                 <TableCell>{b.phone ?? "—"}</TableCell>
                 <TableCell>{b.inherits_main_catalog ? "Sede principal" : "Independiente"}</TableCell>
                 <TableCell className="text-right">
-                  {!disabled && !b.is_main && (
-                    <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(b)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
+                  <div className="flex items-center justify-end gap-1">
+                    {onEditBranch && (
+                      <Button size="sm" variant="outline" onClick={() => onEditBranch(b.id)} className="gap-1">
+                        <Pencil className="h-3.5 w-3.5" /> Editar
+                      </Button>
+                    )}
+                    {!disabled && !b.is_main && (
+                      <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(b)}>
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ))}
