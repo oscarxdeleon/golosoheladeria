@@ -1201,3 +1201,137 @@ function KioskoLinkTab() {
     </Card>
   );
 }
+
+function KdsLinkTab() {
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [size, setSize] = useState(320);
+  const { data: branches = [] } = useQuery<Branch[]>({
+    queryKey: ["branches"],
+    queryFn: async () =>
+      ((await supabase.from("branches").select("*").order("is_main", { ascending: false }).order("name")).data ?? []) as unknown as Branch[],
+  });
+
+  useEffect(() => {
+    if (!selectedId && branches.length) {
+      const main = branches.find((b) => b.is_main) ?? branches[0];
+      setSelectedId(main.id);
+    }
+  }, [branches, selectedId]);
+
+  const branch = branches.find((b) => b.id === selectedId);
+  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  const slug = branch?.slug ?? "";
+  const url = branch
+    ? slug
+      ? `${origin}/kds?sede=${encodeURIComponent(slug)}`
+      : `${origin}/kds`
+    : "";
+
+  function copyLink() {
+    if (!url) return;
+    navigator.clipboard.writeText(url);
+    toast.success("Link copiado al portapapeles");
+  }
+
+  function downloadQR() {
+    const canvas = document.getElementById("kds-qr-canvas") as HTMLCanvasElement | null;
+    if (!canvas) return toast.error("QR no disponible");
+    const link = document.createElement("a");
+    link.download = `kds-${branch?.slug ?? branch?.name ?? "qr"}.png`;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
+  }
+
+  function printQR() {
+    const canvas = document.getElementById("kds-qr-canvas") as HTMLCanvasElement | null;
+    if (!canvas) return toast.error("QR no disponible");
+    const dataUrl = canvas.toDataURL("image/png");
+    const w = window.open("", "_blank", "width=400,height=600");
+    if (!w) return toast.error("Permite ventanas emergentes para imprimir");
+    w.document.write(`<!doctype html><html><head><title>QR KDS ${branch?.name ?? ""}</title>
+      <style>
+        @page { size: 80mm auto; margin: 4mm; }
+        body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 8px; }
+        h2 { font-size: 16px; margin: 4px 0; }
+        p { font-size: 11px; margin: 4px 0; word-break: break-all; }
+        img { width: 70mm; height: 70mm; }
+        .ftr { font-size: 12px; font-weight: bold; margin-top: 8px; }
+      </style></head><body>
+      <h2>${branch?.name ?? "KDS Cocina"}</h2>
+      <p>Pantalla de cocina (KDS)</p>
+      <img src="${dataUrl}" />
+      <p>${url}</p>
+      <div class="ftr">— Heladería Goloso —</div>
+      <script>window.onload=()=>{window.print();setTimeout(()=>window.close(),500);}</script>
+      </body></html>`);
+    w.document.close();
+  }
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> Link de KDS (Pantalla de Cocina)</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-5 p-6 pt-0">
+        <div className="max-w-md">
+          <Label>Sede</Label>
+          <Select value={selectedId} onValueChange={setSelectedId}>
+            <SelectTrigger><SelectValue placeholder="Selecciona una sede…" /></SelectTrigger>
+            <SelectContent>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {branch && !branch.slug && (
+            <p className="mt-2 text-xs text-amber-600">
+              Esta sede no tiene "slug" definido. Se usará el enlace genérico. Define un slug en "Sucursales" para personalizarlo.
+            </p>
+          )}
+        </div>
+
+        {branch && (
+          <div className="grid gap-6 md:grid-cols-2">
+            <div className="space-y-3">
+              <div>
+                <Label>URL del KDS</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input value={url} readOnly className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+                  <Button onClick={copyLink} variant="outline"><Copy className="h-4 w-4" />Copiar</Button>
+                </div>
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Abre esta URL en la pantalla / tablet de cocina. Mostrará las comandas en tiempo real de esta sede. Requiere sesión iniciada con un usuario autorizado.
+                </p>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" asChild>
+                  <a href={url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Abrir KDS</a>
+                </Button>
+                <Button onClick={downloadQR}><Download className="h-4 w-4" />Descargar QR</Button>
+                <Button onClick={printQR} variant="secondary"><Printer className="h-4 w-4" />Imprimir QR</Button>
+              </div>
+              <div>
+                <Label className="text-xs">Tamaño del QR (px)</Label>
+                <Input type="number" min={160} max={800} step={16} value={size} onChange={(e) => setSize(Number(e.target.value) || 320)} />
+              </div>
+            </div>
+            <div className="flex flex-col items-center justify-center rounded-lg border bg-white p-6 dark:bg-white">
+              <QRCodeCanvas
+                id="kds-qr-canvas"
+                value={url}
+                size={size}
+                level="H"
+                includeMargin
+                bgColor="#ffffff"
+                fgColor="#0e8a5a"
+              />
+              <p className="mt-3 text-xs text-center text-neutral-700">{branch.name} · KDS</p>
+              <p className="text-[10px] text-center text-neutral-500 break-all max-w-[280px]">{url}</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
