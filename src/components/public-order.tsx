@@ -111,7 +111,7 @@ export function PublicOrder({
       if (!branchSlug) {
         const { data } = await supabase
           .from("branches")
-          .select("id,name,slug,phone")
+          .select("id,name,slug,phone,address,nit,logo_url")
           .eq("is_main", true)
           .order("created_at")
           .limit(1)
