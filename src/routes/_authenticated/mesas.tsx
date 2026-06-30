@@ -58,6 +58,12 @@ function MesasPage() {
   const [newNumber, setNewNumber] = useState("");
   const [newSeats, setNewSeats] = useState("4");
   const [qrMesa, setQrMesa] = useState<Mesa | null>(null);
+  const [releaseMesa, setReleaseMesa] = useState<Mesa | null>(null);
+  const [releaseReason, setReleaseReason] = useState("");
+  const [releasing, setReleasing] = useState(false);
+  const [moveFrom, setMoveFrom] = useState<Mesa | null>(null);
+  const [moveTarget, setMoveTarget] = useState<Mesa | null>(null);
+  const [moving, setMoving] = useState(false);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
