@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -36,22 +36,22 @@ function useAlertLoop() {
     } catch { /* noop */ }
   }
 
-  function start() {
+  const start = useCallback(() => {
     if (intervalRef.current) return;
     playOnce();
-    // Repetir cada 2.5s hasta que el cajero lo detenga
     intervalRef.current = setInterval(playOnce, 2500);
-  }
+  }, []);
 
-  function stop() {
+  const stop = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  }
+  }, []);
 
   useEffect(() => () => {
-    stop();
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
     try { ctxRef.current?.close(); } catch { /* noop */ }
     ctxRef.current = null;
   }, []);
