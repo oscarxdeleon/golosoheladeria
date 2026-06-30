@@ -532,21 +532,100 @@ function PagosTab({ disabled }: { disabled: boolean }) {
     queryKey: ["payment_methods-all"],
     queryFn: async () => (await supabase.from("payment_methods").select("*").order("sort_order")).data ?? [],
   });
+  const { data: settings } = useQuery<Settings>({
+    queryKey: ["settings"],
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
+  });
+  const [nequi, setNequi] = useState("");
+  const [banco, setBanco] = useState("");
+  useEffect(() => {
+    const s = settings as unknown as { nequi_number?: string | null; bancolombia_account?: string | null } | null;
+    setNequi(s?.nequi_number ?? "");
+    setBanco(s?.bancolombia_account ?? "");
+  }, [settings]);
+
   async function toggle(id: string, active: boolean) {
     await supabase.from("payment_methods").update({ active }).eq("id", id);
     qc.invalidateQueries({ queryKey: ["payment_methods-all"] });
     qc.invalidateQueries({ queryKey: ["payment_methods"] });
   }
+
+  async function saveNequi() {
+    const clean = nequi.replace(/[^\d]/g, "").slice(0, 15);
+    if (clean && clean.length < 7) return toast.error("Número Nequi inválido");
+    const { error } = await supabase.from("settings").update({ nequi_number: clean || null }).eq("id", 1);
+    if (error) return toast.error(error.message);
+    toast.success("Número Nequi guardado");
+    setNequi(clean);
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  }
+  async function saveBanco() {
+    const clean = banco.replace(/[^\d-]/g, "").slice(0, 25);
+    if (clean && clean.replace(/\D/g, "").length < 6) return toast.error("Número de cuenta inválido");
+    const { error } = await supabase.from("settings").update({ bancolombia_account: clean || null }).eq("id", 1);
+    if (error) return toast.error(error.message);
+    toast.success("Cuenta Bancolombia guardada");
+    setBanco(clean);
+    qc.invalidateQueries({ queryKey: ["settings"] });
+  }
+
   return (
     <Card>
       <CardHeader><CardTitle>Medios de pago</CardTitle></CardHeader>
-      <CardContent className="space-y-2">
-        {data.map((m: { id: string; name: string; active: boolean }) => (
-          <div key={m.id} className="flex items-center justify-between rounded-lg border p-3">
-            <span className="font-medium">{m.name}</span>
-            <Switch disabled={false} checked={m.active} onCheckedChange={(v) => toggle(m.id, v)} />
-          </div>
-        ))}
+      <CardContent className="space-y-3">
+        {data.map((m: { id: string; name: string; active: boolean }) => {
+          const isNequi = m.name.toLowerCase() === "nequi";
+          const isBanco = m.name.toLowerCase() === "bancolombia";
+          return (
+            <div key={m.id} className="rounded-lg border p-3 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="font-medium">{m.name}</div>
+                  {isBanco && <div className="text-xs text-muted-foreground">Ahorros</div>}
+                </div>
+                <Switch disabled={disabled} checked={m.active} onCheckedChange={(v) => toggle(m.id, v)} />
+              </div>
+
+              {isNequi && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Número de Nequi</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      inputMode="numeric"
+                      placeholder="Ej: 3001234567"
+                      value={nequi}
+                      onChange={(e) => setNequi(e.target.value.replace(/[^\d]/g, "").slice(0, 15))}
+                      disabled={disabled}
+                    />
+                    <Button onClick={saveNequi} disabled={disabled}>Guardar</Button>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Se mostrará a los clientes en el Menú en Línea y en Modo Kiosko.
+                  </div>
+                </div>
+              )}
+
+              {isBanco && (
+                <div className="space-y-1">
+                  <Label className="text-xs">Número de cuenta Bancolombia</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      inputMode="numeric"
+                      placeholder="Ej: 12345678901"
+                      value={banco}
+                      onChange={(e) => setBanco(e.target.value.replace(/[^\d-]/g, "").slice(0, 25))}
+                      disabled={disabled}
+                    />
+                    <Button onClick={saveBanco} disabled={disabled}>Guardar</Button>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    Cuenta de Ahorros · visible para clientes en el Menú en Línea y Modo Kiosko.
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </CardContent>
     </Card>
   );

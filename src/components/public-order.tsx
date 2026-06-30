@@ -634,6 +634,7 @@ export function PublicOrder({
                       {m === "Nequi" && <Smartphone className="h-5 w-5" />}
                       {m === "Bancolombia" && <Landmark className="h-5 w-5" />}
                       <span className="font-medium">{m}</span>
+                      {m === "Bancolombia" && <span className="text-[10px] text-muted-foreground -mt-1">Ahorros</span>}
                     </Label>
                   ))}
                 </RadioGroup>
@@ -661,7 +662,7 @@ export function PublicOrder({
                 )}
                 {payMethod === "Bancolombia" && (
                   <div className="space-y-1">
-                    <Label className="text-xs">Cuenta Bancolombia del negocio</Label>
+                    <Label className="text-xs">Cuenta Bancolombia del negocio (Ahorros)</Label>
                     <Input value={bancoAcc} readOnly placeholder="No configurado" />
                     <div className="text-[11px] text-muted-foreground">Transfiere a esta cuenta y trae el comprobante.</div>
                   </div>
