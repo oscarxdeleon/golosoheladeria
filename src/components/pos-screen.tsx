@@ -1386,8 +1386,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 )}
               </div>
               <div className="px-2 py-1.5">
-                <div className={`leading-tight line-clamp-2 text-[11px] sm:text-xs ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
-                <div className={`mt-0.5 font-display text-sm sm:text-base text-primary tabular-nums ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
+                <div className="leading-tight line-clamp-2 text-[11px] sm:text-xs font-bold">{p.name}</div>
+                <div className="mt-0.5 font-display text-sm sm:text-base text-primary tabular-nums font-bold">{formatMoney(p.price)}</div>
               </div>
             </div>
             );
