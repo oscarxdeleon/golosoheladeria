@@ -447,9 +447,14 @@ interface Props {
   meseroMode?: boolean;
   /** Callback ejecutado después de guardar la comanda; si se provee, suplanta el redirect interno. */
   onSaved?: () => void;
+  /** Datos iniciales del cliente (usado por el selector de domicilio). */
+  initialCustomer?: string;
+  initialPhone?: string;
+  initialAddress?: string;
+  initialNeighborhood?: string;
 }
 
-export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -457,11 +462,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [cart, setCart] = useState<CartLine[]>([]);
-  const [customer, setCustomer] = useState("");
+  const [customer, setCustomer] = useState(initialCustomer ?? "");
   const [notes, setNotes] = useState("");
-  const [address, setAddress] = useState("");
-  const [phone, setPhone] = useState("");
-  const [neighborhood, setNeighborhood] = useState("");
+  const [address, setAddress] = useState(initialAddress ?? "");
+  const [phone, setPhone] = useState(initialPhone ?? "");
+  const [neighborhood, setNeighborhood] = useState(initialNeighborhood ?? "");
   const [fieldErrors, setFieldErrors] = useState<{ customer?: boolean; address?: boolean; neighborhood?: boolean; phone?: boolean }>({});
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
@@ -484,11 +489,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   useEffect(() => {
     setCart([]);
-    setCustomer("");
+    setCustomer(initialCustomer ?? "");
+    setAddress(initialAddress ?? "");
+    setPhone(initialPhone ?? "");
+    setNeighborhood(initialNeighborhood ?? "");
     setNotes("");
     setPendingSaleId(null);
     printedQtyRef.current = {};
-  }, [orderType, tableId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orderType, tableId, initialCustomer, initialPhone, initialAddress, initialNeighborhood]);
 
 
   const { data: cats = [] } = useQuery({
