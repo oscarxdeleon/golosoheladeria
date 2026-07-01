@@ -510,8 +510,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate,business_name,nit,address,phone,logo_url,ticket_header,ticket_footer").maybeSingle();
-      return data as (Branding & { delivery_fee: number; tax_rate: number }) | null;
+      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate,business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config").maybeSingle();
+      return data as (Branding & { delivery_fee: number; tax_rate: number; ticket_config?: Partial<TicketConfig> | null }) | null;
     },
   });
   const branding: Branding = {
@@ -523,7 +523,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     logo_url: activeBranch?.logo_url ?? settings?.logo_url ?? null,
     ticket_header: activeBranch?.ticket_header ?? settings?.ticket_header ?? null,
     ticket_footer: activeBranch?.ticket_footer ?? settings?.ticket_footer ?? null,
+    ticket_config: settings?.ticket_config ?? null,
   };
+
 
 
   // Sesión de caja a nivel de SEDE (la usa la tablet de meseros para heredar el turno_id de la caja matriz)
