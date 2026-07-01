@@ -491,18 +491,13 @@ function ProductosPage() {
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                {/* Datos básicos */}
-                <div className="flex items-center gap-3">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
-                    {editing?.image_url ? <img src={editing.image_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
-                  </div>
-                  <div className="flex-1">
-                    <Label>Foto del producto</Label>
-                    <Input type="file" accept="image/png,image/jpeg,image/webp,image/bmp" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
-                    {editing?.image_url && (
-                      <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-destructive" onClick={() => setEditing({ ...editing, image_url: null })}>Quitar foto</Button>
-                    )}
-                  </div>
+                {/* Foto del producto */}
+                <div>
+                  <Label className="mb-2 block">Foto del producto</Label>
+                  <ImageDropzone
+                    value={editing?.image_url ?? null}
+                    onChange={(url) => setEditing((prev) => ({ ...(prev ?? {}), image_url: url }))}
+                  />
                 </div>
                 <div><Label>Nombre</Label><Input value={editing?.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
