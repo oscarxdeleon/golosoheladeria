@@ -273,10 +273,14 @@ function ProductosPage() {
         return isNaN(n) ? 0 : n;
       };
 
+      const toTitle = (s: string) => {
+        const t = s.trim().toLowerCase();
+        return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+      };
       const items = rowsRaw
         .map((r) => ({
-          name: String(r[kName!] ?? "").trim(),
-          category: kCat ? String(r[kCat] ?? "").trim() : "",
+          name: String(r[kName!] ?? "").trim().toUpperCase(),
+          category: kCat ? toTitle(String(r[kCat] ?? "")) : "",
           price: parsePrice(r[kPrice!]),
         }))
         .filter((r) => r.name && r.price > 0);
@@ -336,8 +340,17 @@ function ProductosPage() {
     }
   }
 
-  async function bulkInsertItems(items: { name: string; category: string; price: number }[], sourceLabel: string) {
+  async function bulkInsertItems(itemsRaw: { name: string; category: string; price: number }[], sourceLabel: string) {
     const norm = (s: string) => s.toString().trim().toLowerCase().replace(/\s+/g, " ");
+    const toTitle = (s: string) => {
+      const t = s.trim().toLowerCase();
+      return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+    };
+    const items = itemsRaw.map((i) => ({
+      name: (i.name || "").trim().toUpperCase(),
+      category: toTitle(i.category || ""),
+      price: i.price,
+    }));
     if (!items.length) { toast.error(`No se encontraron productos en el ${sourceLabel}`); return; }
 
     const { data: existing } = await supabase.from("products").select("name");
