@@ -587,6 +587,17 @@ export function PublicOrder({
               <Badge variant="secondary" className="ml-1">{itemCount}</Badge>
             </Button>
           )}
+          {source === "table_qr" && tableId && (
+            <Button
+              size="sm"
+              onClick={callWaiter}
+              disabled={callingWaiter}
+              className="gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg animate-pulse"
+            >
+              <BellRing className="h-4 w-4" />
+              <span>Llamar al Mesero</span>
+            </Button>
+          )}
           <PwaInstallButton className="h-8 gap-1 px-3 text-xs bg-gradient-primary text-primary-foreground shadow-glow" />
 
 
