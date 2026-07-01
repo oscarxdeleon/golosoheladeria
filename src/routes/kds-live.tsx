@@ -152,7 +152,7 @@ function KdsLive() {
                       <li key={i.id} className={`flex items-center gap-2 rounded p-2 ${isReady ? "bg-emerald-50 dark:bg-emerald-950/30 line-through text-muted-foreground" : ""}`}>
                         <span className="font-bold w-8 shrink-0">{i.qty}×</span>
                         <span className="flex-1 whitespace-pre-line">{i.product_name}</span>
-                        <Button size="sm" variant={isReady ? "ghost" : "default"} disabled={isReady} onClick={() => markItemReady(s.id, i.id)}>
+                        <Button size="sm" variant={isReady ? "ghost" : "default"} disabled={isReady} onClick={() => markItemReady(s, i.id)}>
                           <Check className="h-4 w-4 mr-1" />{isReady ? "Listo" : "Marcar"}
                         </Button>
                       </li>
