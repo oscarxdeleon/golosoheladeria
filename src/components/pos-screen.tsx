@@ -1101,18 +1101,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         throw new Error(e2.message || "No se pudieron guardar los productos");
       }
 
-      // Marcar mesa como ocupada si aplica (el trigger DB también lo hace;
-      // este UPDATE es idempotente y no debe bloquear el flujo si falla).
+      // La mesa se marca como "ocupada" automáticamente por el trigger DB
+      // `auto_occupy_table_on_sale_item` cuando se inserta el primer producto.
+      // No hacemos UPDATE manual aquí para evitar dejar mesas ocupadas si el
+      // flujo se interrumpe antes de guardar productos.
       if (orderType === "mesa" && tableId) {
-        supabase
-          .from("restaurant_tables")
-          .update({ status: "occupied", occupied_at: new Date().toISOString() })
-          .eq("id", tableId)
-          .then(({ error: tErr }) => {
-            if (tErr) console.warn("[pos] no se pudo marcar mesa ocupada (trigger cubre):", tErr.message);
-            qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-          });
+        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
       }
+
 
       // Delta de impresión: solo los ítems (o cantidades) NUEVAS respecto a
       // lo ya enviado a cocina en comandas previas de la misma mesa. Evita que
