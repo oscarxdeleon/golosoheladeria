@@ -1319,10 +1319,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         </div>
 
         <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
-          <TabsList className="flex flex-wrap h-auto">
-            <TabsTrigger value="all">Todo</TabsTrigger>
+          <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent">
+            <TabsTrigger
+              value="all"
+              className="font-display font-extrabold uppercase tracking-wide text-sm sm:text-base px-4 py-2 rounded-xl data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
+            >
+              Todo
+            </TabsTrigger>
             {cats.map((c) => (
-              <TabsTrigger key={c.id} value={c.id}>{c.name}</TabsTrigger>
+              <TabsTrigger
+                key={c.id}
+                value={c.id}
+                className="font-display font-extrabold uppercase tracking-wide text-sm sm:text-base px-4 py-2 rounded-xl data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
+              >
+                {c.name}
+              </TabsTrigger>
             ))}
           </TabsList>
         </Tabs>
