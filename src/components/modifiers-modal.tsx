@@ -4,7 +4,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Minus, Plus } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Minus, Plus, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 
 export interface SelectedModifier {
@@ -34,7 +36,7 @@ interface Modifier {
 interface Props {
   product: { id: string; name: string; price: number; modifier_group_ids: string[] } | null;
   onClose: () => void;
-  onConfirm: (mods: SelectedModifier[], unitExtra: number) => void;
+  onConfirm: (mods: SelectedModifier[], unitExtra: number, note?: string) => void;
 }
 
 export function ModifiersModal({ product, onClose, onConfirm }: Props) {
@@ -68,8 +70,12 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
 
   // qty per modifier id
   const [picked, setPicked] = useState<Record<string, number>>({});
+  const [note, setNote] = useState("");
   useEffect(() => {
-    if (open) setPicked({});
+    if (open) {
+      setPicked({});
+      setNote("");
+    }
   }, [open, product?.id]);
 
   const countsByGroup = useMemo(() => {
@@ -130,7 +136,7 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
         price: Number(m.price),
         qty: picked[m.id]!,
       }));
-    onConfirm(selected, unitExtra);
+    onConfirm(selected, unitExtra, note.trim() || undefined);
   }
 
   if (!product) return null;
@@ -207,6 +213,20 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
               </div>
             );
           })}
+        </div>
+
+        <div className="mt-4 space-y-2">
+          <Label htmlFor="mod-note" className="flex items-center gap-1.5 text-sm font-medium">
+            <StickyNote className="h-4 w-4" /> Nota adicional (opcional)
+          </Label>
+          <Textarea
+            id="mod-note"
+            placeholder="Ej: sin azúcar, extra cremoso, para llevar…"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            maxLength={200}
+          />
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">

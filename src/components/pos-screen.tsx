@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
@@ -472,6 +472,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [noteProduct, setNoteProduct] = useState<Product | null>(null);
+  const [noteText, setNoteText] = useState("");
+  const [noteQty, setNoteQty] = useState(1);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
   const [successDialog, setSuccessDialog] = useState<null | {
@@ -690,7 +693,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
   }
-  function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number) {
+  function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number, note?: string) {
     const label = mods.length
       ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
       : p.name;
@@ -703,6 +706,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         unit_price: Number(p.price) + unitExtra,
         qty: 1,
         modifiers: mods,
+        notes: note,
+      },
+    ]);
+  }
+  function addWithNote(p: Product, note: string, qty: number) {
+    setCart((prev) => [
+      ...prev,
+      {
+        key: crypto.randomUUID(),
+        product_id: p.id,
+        name: p.name,
+        unit_price: Number(p.price),
+        qty: Math.max(1, qty),
+        modifiers: [],
+        notes: note.trim() || undefined,
       },
     ]);
   }
@@ -1268,13 +1286,34 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {filtered.map((p) => (
-            <button
+            <div
               key={p.id}
               onClick={() => add(p)}
-              className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98] ${
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") add(p); }}
+              className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98] cursor-pointer ${
                 p.is_favorite ? "border-yellow-400 ring-2 ring-yellow-300/60 shadow-md" : ""
               }`}
             >
+              <button
+                type="button"
+                aria-label="Agregar con nota"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNoteText("");
+                  setNoteQty(1);
+                  if (p.modifier_group_ids && p.modifier_group_ids.length > 0) {
+                    setModalProduct(p);
+                  } else {
+                    setNoteProduct(p);
+                  }
+                }}
+                className="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-primary shadow ring-1 ring-primary/20 hover:bg-primary hover:text-primary-foreground transition"
+                title="Agregar con nota"
+              >
+                <StickyNote className="h-4 w-4" />
+              </button>
               {p.is_favorite && (
                 <span
                   aria-label="Producto destacado"
@@ -1296,7 +1335,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 <div className={`leading-tight line-clamp-2 text-sm ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
                 <div className={`mt-1 font-display text-lg text-primary ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
-            </button>
+            </div>
           ))}
           {filtered.length === 0 && (
             <p className="col-span-full text-center text-sm text-muted-foreground py-12">
@@ -1702,11 +1741,57 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             : null
         }
         onClose={() => setModalProduct(null)}
-        onConfirm={(mods, unitExtra) => {
-          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra);
+        onConfirm={(mods, unitExtra, note) => {
+          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra, note);
           setModalProduct(null);
         }}
       />
+
+      <Dialog open={!!noteProduct} onOpenChange={(o) => !o && setNoteProduct(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl flex items-center gap-2">
+              <StickyNote className="h-5 w-5" /> {noteProduct?.name}
+            </DialogTitle>
+            <DialogDescription>Agrega una nota para este producto antes de enviarlo al carrito.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nota adicional</label>
+              <Textarea
+                autoFocus
+                placeholder="Ej: sin azúcar, extra cremoso, con topping…"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={3}
+                maxLength={200}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium mr-2">Cantidad</label>
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setNoteQty((q) => Math.max(1, q - 1))}>
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-10 text-center text-lg font-semibold">{noteQty}</span>
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setNoteQty((q) => q + 1)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteProduct(null)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (noteProduct) addWithNote(noteProduct, noteText, noteQty);
+                setNoteProduct(null);
+              }}
+            >
+              Agregar al carrito
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
