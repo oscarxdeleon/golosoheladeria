@@ -1194,6 +1194,7 @@ export type Database = {
           city: string | null
           delivery_fee: number
           id: number
+          local_print_url: string | null
           logo_url: string | null
           menu_link: string | null
           nequi_number: string | null
@@ -1214,6 +1215,7 @@ export type Database = {
           city?: string | null
           delivery_fee?: number
           id?: number
+          local_print_url?: string | null
           logo_url?: string | null
           menu_link?: string | null
           nequi_number?: string | null
@@ -1234,6 +1236,7 @@ export type Database = {
           city?: string | null
           delivery_fee?: number
           id?: number
+          local_print_url?: string | null
           logo_url?: string | null
           menu_link?: string | null
           nequi_number?: string | null

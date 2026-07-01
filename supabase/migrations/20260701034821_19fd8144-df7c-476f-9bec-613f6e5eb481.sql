@@ -1,0 +1,1 @@
+ALTER TABLE public.settings ADD COLUMN IF NOT EXISTS local_print_url TEXT;
