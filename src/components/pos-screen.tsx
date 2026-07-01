@@ -393,11 +393,17 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   }>(null);
 
 
+  // Cantidades ya impresas por línea (product_id → qty) — permite reimprimir
+  // en la comanda SOLO los ítems agregados después del último guardado, y
+  // evita la duplicación de productos ya enviados a cocina.
+  const printedQtyRef = useRef<Record<string, number>>({});
+
   useEffect(() => {
     setCart([]);
     setCustomer("");
     setNotes("");
     setPendingSaleId(null);
+    printedQtyRef.current = {};
   }, [orderType, tableId]);
 
 
