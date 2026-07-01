@@ -453,6 +453,24 @@ function ProductosPage() {
                 />
               </label>
             </Button>
+            <Button variant="outline" asChild disabled={pdfLoading}>
+              <label className={pdfLoading ? "cursor-wait opacity-70" : "cursor-pointer"}>
+                {pdfLoading
+                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Procesando PDF...</>
+                  : <><FileText className="h-4 w-4 mr-1" /> Importar PDF</>}
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="hidden"
+                  disabled={pdfLoading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) importFromPdf(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </Button>
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
               <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
 
