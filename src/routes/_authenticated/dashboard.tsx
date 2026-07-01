@@ -140,10 +140,10 @@ function DashboardPage() {
       {/* Cuadrante de caja y medios de pago */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg font-bold">
+          <CardTitle className="flex items-center gap-2 font-display text-xl font-extrabold uppercase tracking-wide">
             <Wallet className="h-5 w-5 text-primary" /> Cuadrante de caja · medios de pago
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Saldos del turno/día actual · actualiza cada 30 s</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Saldos del turno/día actual · actualiza cada 30 s</p>
         </CardHeader>
         <CardContent>
           {isLoading ? (
