@@ -1347,7 +1347,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 <div className={`mt-1 font-display text-lg text-primary ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
             </div>
-          ))}
+            );
+          })}
+
           {filtered.length === 0 && (
             <p className="col-span-full text-center text-sm text-muted-foreground py-12">
               Sin productos. Agrégalos en Menú → Productos.
