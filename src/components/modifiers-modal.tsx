@@ -215,6 +215,20 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
           })}
         </div>
 
+        <div className="mt-4 space-y-2">
+          <Label htmlFor="mod-note" className="flex items-center gap-1.5 text-sm font-medium">
+            <StickyNote className="h-4 w-4" /> Nota adicional (opcional)
+          </Label>
+          <Textarea
+            id="mod-note"
+            placeholder="Ej: sin azúcar, extra cremoso, para llevar…"
+            value={note}
+            onChange={(e) => setNote(e.target.value)}
+            rows={2}
+            maxLength={200}
+          />
+        </div>
+
         <DialogFooter className="flex-col sm:flex-row gap-2">
           <div className="mr-auto text-sm">
             {validation ? (
