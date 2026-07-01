@@ -266,10 +266,8 @@ function buildPersonalizedTicketRaw(p) {
 
   // ==== PIE ====
   if (cfg.show_thanks) {
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H;
-    for (const line of wrapText(cfg.thanks_text || "¡Gracias por Preferirnos!", Math.floor(WIDTH / 2)))
-      out += line + "\n";
-    out += SIZE_NORMAL + BOLD_OFF;
+    const oneLine = String(cfg.thanks_text || "¡Gracias por Preferirnos!").replace(/\s+/g, " ").trim();
+    out += ALIGN_C + BOLD_ON + centerLine(oneLine) + BOLD_OFF;
   }
 
   if (cfg.extra_footer) {
@@ -285,9 +283,9 @@ function buildPersonalizedTicketRaw(p) {
   }
 
   if (cfg.show_decorations) {
-    out += ALIGN_C + centerLine("* HELADERIA GOLOSO *");
     out += ALIGN_C + STAR_LINE;
   }
+
 
   out += ALIGN_L + FEED(4) + CUT;
   return Buffer.from(out, "binary");
