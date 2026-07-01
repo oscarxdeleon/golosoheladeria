@@ -39,9 +39,10 @@ function DespachoDomiciliosPage() {
     queryFn: async (): Promise<DeliverySale[]> => {
       let q = supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,delivery_status,delivery_user_id,status,created_at,notes")
+        .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,delivery_status,delivery_user_id,status,created_at,notes,source")
         .eq("order_type", "domicilio")
         .neq("status", "cancelled")
+        .or("source.is.null,source.neq.online_menu")
         .order("created_at", { ascending: false })
         .limit(100);
       if (!isAdmin && user) {
