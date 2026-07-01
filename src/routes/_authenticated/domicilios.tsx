@@ -151,19 +151,26 @@ function DespachoDomiciliosPage() {
             const branchCouriers = couriers.filter((c) => !c.branch_id || c.branch_id === s.branch_id);
             return (
               <Card key={s.id} className="border-l-4 border-l-primary">
-                <CardHeader className="flex flex-row items-start justify-between pb-2">
-                  <div>
-                    <CardTitle className="text-lg">Ticket #{s.ticket_number}</CardTitle>
-                    <p className="text-xs text-muted-foreground">{formatDate(s.created_at)}</p>
+                <CardHeader className="pb-3 space-y-2 bg-muted/40 rounded-t-lg">
+                  <div className="grid gap-1.5 text-sm">
+                    <div className="flex items-center gap-2"><Home className="h-4 w-4 text-muted-foreground" /><span className="font-bold uppercase">{s.customer_name ?? "SIN NOMBRE"}</span></div>
+                    <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-muted-foreground mt-0.5" /><span className="font-semibold uppercase">{s.delivery_address ?? "—"}</span></div>
+                    {s.delivery_neighborhood && (
+                      <div className="pl-6 text-xs uppercase text-muted-foreground">Barrio: <span className="font-semibold text-foreground">{s.delivery_neighborhood}</span></div>
+                    )}
+                    <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /><a href={`tel:${s.customer_phone}`} className="font-semibold hover:underline">{s.customer_phone ?? "—"}</a></div>
                   </div>
-                  <Badge variant={s.delivery_status === "en_camino" ? "default" : "secondary"}>
-                    {s.delivery_status === "en_camino" ? "En camino" : s.delivery_status === "asignado" ? "Asignado" : "Por asignar"}
-                  </Badge>
+                  <div className="flex items-center justify-between pt-2 border-t">
+                    <div>
+                      <CardTitle className="text-base">Ticket #{s.ticket_number}</CardTitle>
+                      <p className="text-xs text-muted-foreground">{formatDate(s.created_at)}</p>
+                    </div>
+                    <Badge variant={s.delivery_status === "en_camino" ? "default" : "secondary"}>
+                      {s.delivery_status === "en_camino" ? "En camino" : s.delivery_status === "asignado" ? "Asignado" : "Por asignar"}
+                    </Badge>
+                  </div>
                 </CardHeader>
-                <CardContent className="space-y-2 text-sm">
-                  <div className="flex items-center gap-2"><Home className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{s.customer_name ?? "Sin nombre"}</span></div>
-                  <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /><a href={`tel:${s.customer_phone}`} className="hover:underline">{s.customer_phone ?? "—"}</a></div>
-                  <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-muted-foreground mt-0.5" /><span>{s.delivery_address ?? "—"}{s.delivery_neighborhood ? ` · ${s.delivery_neighborhood}` : ""}</span></div>
+                <CardContent className="space-y-2 text-sm pt-3">
                   {s.notes && <p className="text-xs text-muted-foreground italic">Notas: {s.notes}</p>}
                   <div className="flex items-center justify-between">
                     <div className="text-lg font-bold text-primary">{formatMoney(s.total)}</div>
