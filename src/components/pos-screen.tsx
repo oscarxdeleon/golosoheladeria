@@ -690,7 +690,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
   }
-  function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number) {
+  function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number, note?: string) {
     const label = mods.length
       ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
       : p.name;
@@ -703,6 +703,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         unit_price: Number(p.price) + unitExtra,
         qty: 1,
         modifiers: mods,
+        notes: note,
+      },
+    ]);
+  }
+  function addWithNote(p: Product, note: string, qty: number) {
+    setCart((prev) => [
+      ...prev,
+      {
+        key: crypto.randomUUID(),
+        product_id: p.id,
+        name: p.name,
+        unit_price: Number(p.price),
+        qty: Math.max(1, qty),
+        modifiers: [],
+        notes: note.trim() || undefined,
       },
     ]);
   }
