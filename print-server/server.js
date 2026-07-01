@@ -434,7 +434,20 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
 
   if (req.method === "GET" && req.url === "/health") {
-    return send(200, { ok: true, printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+    return send(200, { ok: true, version: "1.3.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+  }
+
+  // Diagnóstico del logo: GET /logo-test?url=https://...
+  if (req.method === "GET" && req.url?.startsWith("/logo-test")) {
+    try {
+      const u = new URL(req.url, "http://localhost");
+      const url = u.searchParams.get("url");
+      if (!url) return send(400, { ok: false, error: "Falta ?url=" });
+      const buf = await fetchLogoRaster(url, WIDTH >= 42 ? 384 : 288);
+      return send(200, { ok: !!buf, bytes: buf?.length ?? 0, url });
+    } catch (e) {
+      return send(500, { ok: false, error: String(e?.message || e) });
+    }
   }
 
   if (req.method === "GET" && req.url === "/test") {
