@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
+import { notifyCustomerReady } from "@/lib/customer-ready-notify";
 
 export const Route = createFileRoute("/kds-live")({
   ssr: false,
