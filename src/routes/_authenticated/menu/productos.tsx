@@ -487,8 +487,10 @@ function ProductosPage() {
 
               <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         )}
+
       </div>
       <Card>
         <CardContent className="p-0">
