@@ -232,7 +232,7 @@ async function buildPersonalizedTicketRaw(p) {
   // ==== TITULO Y NUMERO ====
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + (cfg.title_text || "TICKET DE VENTA") + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (cfg.show_ticket_number) {
-    const num = `${cfg.number_prefix || "TV-"}${String(p.ticket ?? 0).padStart(6, "0")}`;
+    const num = String(p.ticket ?? 0).padStart(6, "0");
     out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `No. ${num}\n` + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
