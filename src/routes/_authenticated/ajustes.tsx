@@ -131,12 +131,17 @@ function TicketTab() {
   useEffect(() => { if (settings) setS(settings); }, [settings]);
   if (!s) return null;
 
+  const cfg: TicketConfigForm = { ...DEFAULT_TICKET_CFG, ...(s.ticket_config ?? {}) };
+  const setCfg = (patch: Partial<TicketConfigForm>) =>
+    setS({ ...s, ticket_config: { ...cfg, ...patch } });
+
   async function save() {
     if (!s) return;
     const { error } = await supabase.from("settings").update({
       logo_url: s.logo_url,
       ticket_header: s.ticket_header,
       ticket_footer: s.ticket_footer,
+      ticket_config: (s.ticket_config ?? cfg) as unknown as never,
     } as never).eq("id", 1);
     if (error) return toast.error(error.message);
     toast.success("Personalización del ticket guardada");
@@ -159,77 +164,122 @@ function TicketTab() {
     }
   }
 
-  const defaultHeader = [
-    s.business_name,
-    s.nit ? `NIT: ${s.nit}` : null,
-    s.address,
-    s.phone ? `Tel: ${s.phone}` : null,
-  ].filter(Boolean).join("\n");
+  const Toggle = ({ k, label, hint }: { k: keyof TicketConfigForm; label: string; hint?: string }) => (
+    <div className="flex items-start justify-between gap-3 rounded-lg border p-3">
+      <div className="min-w-0">
+        <div className="text-sm font-medium">{label}</div>
+        {hint && <div className="text-xs text-muted-foreground">{hint}</div>}
+      </div>
+      <Switch checked={Boolean(cfg[k])} onCheckedChange={(v) => setCfg({ [k]: v } as Partial<TicketConfigForm>)} />
+    </div>
+  );
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> Personalización del Ticket de Venta</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-6 p-6 pt-0">
-        <div>
-          <Label>Logo del ticket</Label>
-          <p className="text-xs text-muted-foreground mb-2">Aparece centrado en la parte superior del ticket impreso. PNG, BMP, JPG o WEBP.</p>
-          <div className="flex items-center gap-3">
-            {s.logo_url ? (
-              <img src={s.logo_url} alt="logo" className="h-24 w-24 rounded-lg border object-contain bg-white" />
-            ) : (
-              <div className="h-24 w-24 rounded-lg border bg-muted flex items-center justify-center text-xs text-muted-foreground text-center px-2">Sin logo (se usa el predeterminado)</div>
-            )}
-            <input
-              ref={fileRef}
-              type="file"
-              accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp,.jpg,.jpeg,.webp"
-              className="hidden"
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ""; }}
-            />
-            <div className="flex flex-col gap-2">
-              <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
-                <Upload className="h-4 w-4 mr-1" />{uploading ? "Subiendo…" : (s.logo_url ? "Cambiar logo" : "Subir logo")}
-              </Button>
-              {s.logo_url && (
-                <Button type="button" variant="ghost" size="sm" onClick={() => setS({ ...s, logo_url: null })}>
-                  Quitar logo
-                </Button>
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Receipt className="h-5 w-5" /> Personalización del Ticket de Venta</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-6 p-6 pt-0">
+          <div>
+            <Label>Logo del ticket</Label>
+            <p className="text-xs text-muted-foreground mb-2">Aparece centrado en la parte superior del ticket impreso. PNG, BMP, JPG o WEBP.</p>
+            <div className="flex items-center gap-3">
+              {s.logo_url ? (
+                <img src={s.logo_url} alt="logo" className="h-24 w-24 rounded-lg border object-contain bg-white" />
+              ) : (
+                <div className="h-24 w-24 rounded-lg border bg-muted flex items-center justify-center text-xs text-muted-foreground text-center px-2">Sin logo</div>
               )}
+              <input
+                ref={fileRef}
+                type="file"
+                accept="image/png,image/bmp,image/jpeg,image/webp,.png,.bmp,.jpg,.jpeg,.webp"
+                className="hidden"
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) handleLogoFile(f); e.target.value = ""; }}
+              />
+              <div className="flex flex-col gap-2">
+                <Button type="button" variant="outline" onClick={() => fileRef.current?.click()} disabled={uploading}>
+                  <Upload className="h-4 w-4 mr-1" />{uploading ? "Subiendo…" : (s.logo_url ? "Cambiar logo" : "Subir logo")}
+                </Button>
+                {s.logo_url && (
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setS({ ...s, logo_url: null })}>Quitar logo</Button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        <div>
-          <Label>Encabezado del ticket</Label>
-          <p className="text-xs text-muted-foreground mb-2">Una línea por renglón. Suele incluir nombre del negocio, NIT/RUT, dirección y teléfono. Déjalo vacío para usar los datos del establecimiento.</p>
-          <Textarea
-            rows={5}
-            placeholder={defaultHeader || "HELADERIA GOLOSO\nNIT: 123456789-0\nCalle 6 # 10-46\nTel: 311 448 6300"}
-            value={s.ticket_header ?? ""}
-            onChange={(e) => setS({ ...s, ticket_header: e.target.value })}
-          />
-        </div>
+      <Card>
+        <CardHeader><CardTitle>Textos del ticket</CardTitle></CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2 p-6 pt-0">
+          <div>
+            <Label>Título del ticket</Label>
+            <Input value={cfg.title_text} onChange={(e) => setCfg({ title_text: e.target.value })} placeholder="TICKET DE VENTA" />
+          </div>
+          <div>
+            <Label>Prefijo de número</Label>
+            <Input value={cfg.number_prefix} onChange={(e) => setCfg({ number_prefix: e.target.value })} placeholder="TV-" />
+            <p className="text-xs text-muted-foreground mt-1">Se antepone al número: {cfg.number_prefix}000001</p>
+          </div>
+          <div className="sm:col-span-2">
+            <Label>Mensaje de agradecimiento</Label>
+            <Input value={cfg.thanks_text} onChange={(e) => setCfg({ thanks_text: e.target.value })} placeholder="¡Gracias por Preferirnos!" />
+          </div>
+          <div className="sm:col-span-2">
+            <Label>Líneas adicionales al pie</Label>
+            <Textarea rows={3} value={cfg.extra_footer} onChange={(e) => setCfg({ extra_footer: e.target.value })} placeholder="Síguenos: @heladeriagoloso&#10;Domicilios: 311 448 6300" />
+          </div>
+        </CardContent>
+      </Card>
 
-        <div>
-          <Label>Pie de página del ticket</Label>
-          <p className="text-xs text-muted-foreground mb-2">Mensaje final del ticket. Puedes agregar condiciones, redes sociales o un saludo. Una línea por renglón.</p>
-          <Textarea
-            rows={4}
-            placeholder="¡Gracias por su compra!&#10;@heladeriagoloso"
-            value={s.ticket_footer ?? ""}
-            onChange={(e) => setS({ ...s, ticket_footer: e.target.value })}
-          />
-        </div>
+      <Card>
+        <CardHeader><CardTitle>Elementos visibles en el ticket</CardTitle></CardHeader>
+        <CardContent className="grid gap-3 sm:grid-cols-2 p-6 pt-0">
+          <Toggle k="show_logo" label="Logo" hint="Imagen del negocio en la parte superior" />
+          <Toggle k="show_business_name" label="Nombre del negocio" />
+          <Toggle k="show_nit" label="NIT / RUT" />
+          <Toggle k="show_address" label="Dirección del negocio" />
+          <Toggle k="show_phone" label="Teléfono del negocio" />
+          <Toggle k="show_email" label="Email del negocio" />
+          <Toggle k="show_ticket_number" label="Título + número de ticket" />
+          <Toggle k="show_date" label="Fecha y hora" />
+          <Toggle k="show_customer" label="Cliente" />
+          <Toggle k="show_customer_address" label="Dirección del cliente" hint="Solo si aplica al pedido" />
+          <Toggle k="show_customer_phone" label="Teléfono del cliente" />
+          <Toggle k="show_payment_method" label="Forma de pago" />
+          <Toggle k="show_subtotal" label="Subtotal" />
+          <Toggle k="show_tax" label="Impuestos" />
+          <Toggle k="show_delivery_fee" label="Domicilio" />
+          <Toggle k="show_cash_received" label="Recibido / Cambio" />
+          <Toggle k="show_thanks" label="Mensaje de agradecimiento" />
+          <Toggle k="show_decorations" label="Decoraciones (♥ · 🍦 · ♥)" />
+        </CardContent>
+      </Card>
 
-        <div className="flex justify-end">
-          <Button onClick={save}>Guardar cambios</Button>
-        </div>
-      </CardContent>
-    </Card>
+      <Card>
+        <CardHeader><CardTitle>Encabezado y pie personalizados (opcional)</CardTitle></CardHeader>
+        <CardContent className="space-y-4 p-6 pt-0">
+          <div>
+            <Label>Encabezado extra</Label>
+            <p className="text-xs text-muted-foreground mb-2">Se agrega debajo del logo. Déjalo vacío para usar los datos del establecimiento.</p>
+            <Textarea rows={3} placeholder="" value={s.ticket_header ?? ""} onChange={(e) => setS({ ...s, ticket_header: e.target.value })} />
+          </div>
+          <div>
+            <Label>Pie de página clásico</Label>
+            <p className="text-xs text-muted-foreground mb-2">Se usa si el mensaje de agradecimiento está vacío.</p>
+            <Textarea rows={3} value={s.ticket_footer ?? ""} onChange={(e) => setS({ ...s, ticket_footer: e.target.value })} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button size="lg" onClick={save}>Guardar cambios</Button>
+      </div>
+    </div>
   );
 }
+
 
 
 
