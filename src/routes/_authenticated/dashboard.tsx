@@ -140,10 +140,10 @@ function DashboardPage() {
       {/* Cuadrante de caja y medios de pago */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg font-bold">
+          <CardTitle className="flex items-center gap-2 font-display text-xl font-extrabold uppercase tracking-wide">
             <Wallet className="h-5 w-5 text-primary" /> Cuadrante de caja · medios de pago
           </CardTitle>
-          <p className="text-xs text-muted-foreground">Saldos del turno/día actual · actualiza cada 30 s</p>
+          <p className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Saldos del turno/día actual · actualiza cada 30 s</p>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -240,7 +240,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <CardContent className="flex items-center gap-3 p-5">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">{icon}</div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className="font-display text-xs font-extrabold uppercase tracking-widest text-muted-foreground">{label}</div>
           <div className="font-display text-2xl font-bold">{value}</div>
         </div>
       </CardContent>
@@ -254,13 +254,13 @@ function CashBox({
   return (
     <div className={`rounded-2xl bg-gradient-to-br ${accent} p-5 shadow-sm ring-1 ${ring}`}>
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold opacity-80">{label}</span>
+        <span className="font-display text-sm font-extrabold uppercase tracking-wide">{label}</span>
         <span className="opacity-80">{icon}</span>
       </div>
       <div className="mt-2 font-display text-3xl font-extrabold tracking-tight">
         {formatMoney(value)}
       </div>
-      {hint && <div className="mt-2 text-[11px] font-medium opacity-70">{hint}</div>}
+      {hint && <div className="mt-2 text-[11px] font-bold uppercase tracking-wide opacity-80">{hint}</div>}
     </div>
   );
 }
