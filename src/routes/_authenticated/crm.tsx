@@ -42,7 +42,7 @@ function waLink(phone: string, msg = "") {
 
 const CHANNEL_LABELS: Record<string, { label: string; tone: "default" | "secondary" | "destructive" | "outline" }> = {
   online_menu: { label: "Menú en Línea", tone: "default" },
-  kiosk: { label: "Kiosko", tone: "secondary" },
+  kiosk: { label: "Autopedido", tone: "secondary" },
   table_qr: { label: "QR Mesa", tone: "secondary" },
   pos: { label: "Caja", tone: "outline" },
   domicilio: { label: "Domicilio", tone: "default" },
@@ -151,7 +151,7 @@ function CrmPage() {
         <div>
           <h1 className="font-display text-3xl">CRM</h1>
           <p className="text-sm text-muted-foreground">
-            Captura automática desde POS, Kiosko, Menú en Línea y Domicilios. Identificador único: teléfono.
+            Captura automática desde POS, Autopedido, Menú en Línea y Domicilios. Identificador único: teléfono.
           </p>
         </div>
         <Badge variant={live ? "default" : "outline"} className="gap-1">

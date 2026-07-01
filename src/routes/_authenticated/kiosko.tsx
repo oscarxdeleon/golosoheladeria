@@ -9,8 +9,8 @@ import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/kiosko")({
-  head: () => ({ meta: [{ title: "Pedidos Kiosko · Goloso POS" }] }),
-  component: KioskoInbox,
+  head: () => ({ meta: [{ title: "Pedidos Autopedido · Goloso POS" }] }),
+  component: AutopedidoInbox,
 });
 
 interface KioskOrder {
@@ -36,7 +36,7 @@ function serviceFromNotes(n: string | null) {
   return { label: "Para llevar", icon: ShoppingBag };
 }
 
-function KioskoInbox() {
+function AutopedidoInbox() {
   const navigate = useNavigate();
   const { activeBranchId } = useBranch();
 
@@ -64,7 +64,7 @@ function KioskoInbox() {
           <Monitor className="h-6 w-6" />
         </div>
         <div>
-          <h1 className="font-display text-3xl">Pedidos Kiosko</h1>
+          <h1 className="font-display text-3xl">Pedidos Autopedido</h1>
           <p className="text-sm text-muted-foreground">
             Bandeja en tiempo real de pedidos de autoservicio pendientes de pago.
           </p>

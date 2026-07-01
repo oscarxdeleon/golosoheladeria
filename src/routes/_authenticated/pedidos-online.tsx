@@ -212,7 +212,7 @@ function OnlineOrdersPage() {
       toast.error("El pedido no tiene productos válidos");
       return;
     }
-    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
+    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
     // 1) Comanda de cocina
     const comandaPayload: PrintPayload = {
       type: "comanda",
@@ -282,7 +282,7 @@ function OnlineOrdersPage() {
   }
 
   function printPreCuenta(o: SaleRow, its: ItemRow[]) {
-    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
+    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
     const payload: PrintPayload = {
       type: "comprobante",
       ticket: o.ticket_number,
@@ -383,7 +383,7 @@ function OnlineOrdersPage() {
       `Pago registrado por ${formatMoney(Number(payOrder.total))} (${method}).\n\n¿Imprimir ticket de venta físico?`,
     );
     if (wantPrint) {
-      const header = payOrder.order_type === "domicilio" ? "DOMICILIO" : payOrder.order_type === "kiosko" ? "KIOSKO" : "MENÚ EN LÍNEA";
+      const header = payOrder.order_type === "domicilio" ? "DOMICILIO" : payOrder.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
       const ticketPayload: PrintPayload = {
         type: "ticket",
         ticket: payOrder.ticket_number,

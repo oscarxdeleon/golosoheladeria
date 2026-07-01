@@ -61,7 +61,7 @@ const orden = [
   { to: "/llevar", label: "Para llevar", icon: ShoppingBag, key: "llevar" },
   { to: "/domicilio", label: "A domicilio", icon: Bike, key: "domicilio" },
   { to: "/domicilios", label: "Despacho domicilios", icon: Bike, key: "domicilios" },
-  { to: "/kiosko", label: "Kiosko", icon: Monitor, key: "kiosko" },
+  { to: "/kiosko", label: "Autopedido", icon: Monitor, key: "kiosko" },
   { to: "/pedidos-online", label: "Pedidos en línea", icon: BellRing, key: "pedidos-online" },
   { to: "/kds", label: "KDS", icon: Monitor, key: "kds" },
   { to: "/clientes", label: "Clientes", icon: Users, key: "clientes" },

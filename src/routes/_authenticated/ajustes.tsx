@@ -97,7 +97,7 @@ function AjustesPage() {
           <TabsTrigger value="ticket">Ticket</TabsTrigger>
           <TabsTrigger value="suc">Sucursales</TabsTrigger>
           <TabsTrigger value="sede-edit">Editar Sede</TabsTrigger>
-          <TabsTrigger value="kiosko-link">Link de Kiosko</TabsTrigger>
+          <TabsTrigger value="kiosko-link">Link de Autopedido</TabsTrigger>
           <TabsTrigger value="kds-link">Link de KDS</TabsTrigger>
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
@@ -108,7 +108,7 @@ function AjustesPage() {
         <TabsContent value="ticket"><SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary></TabsContent>
         <TabsContent value="suc"><SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="sede-edit"><SectionErrorBoundary label="Editar sede"><EditarSedeTab initialBranchId={editBranchId} /></SectionErrorBoundary></TabsContent>
-        <TabsContent value="kiosko-link"><SectionErrorBoundary label="Link de Kiosko"><KioskoLinkTab /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="kiosko-link"><SectionErrorBoundary label="Link de Autopedido"><AutopedidoLinkTab /></SectionErrorBoundary></TabsContent>
         <TabsContent value="kds-link"><SectionErrorBoundary label="Link de KDS"><KdsLinkTab /></SectionErrorBoundary></TabsContent>
         <TabsContent value="impr"><SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="pagos"><SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary></TabsContent>
@@ -704,7 +704,7 @@ function PagosTab({ disabled }: { disabled: boolean }) {
                     <Button onClick={saveNequi} disabled={disabled}>Guardar</Button>
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Se mostrará a los clientes en el Menú en Línea y en Modo Kiosko.
+                    Se mostrará a los clientes en el Menú en Línea y en Modo Autopedido.
                   </div>
                 </div>
               )}
@@ -723,7 +723,7 @@ function PagosTab({ disabled }: { disabled: boolean }) {
                     <Button onClick={saveBanco} disabled={disabled}>Guardar</Button>
                   </div>
                   <div className="text-[11px] text-muted-foreground">
-                    Cuenta de Ahorros · visible para clientes en el Menú en Línea y Modo Kiosko.
+                    Cuenta de Ahorros · visible para clientes en el Menú en Línea y Modo Autopedido.
                   </div>
                 </div>
               )}
@@ -922,7 +922,7 @@ function BranchLinksCard({ branches }: { branches: Branch[] }) {
                 </div>
               </div>
               <div>
-                <Label className="text-xs">Tablet Kiosko</Label>
+                <Label className="text-xs">Tablet Autopedido</Label>
                 <div className="flex gap-1">
                   <Input readOnly value={kiosk} className="font-mono text-xs h-8" />
                   <Button size="sm" variant="outline" onClick={() => copy(kiosk, "Link de kiosko")}>Copiar</Button>
@@ -1227,7 +1227,7 @@ function CashierIpPrinterCard() {
     <div className="border-b p-4 space-y-3 bg-muted/10">
       <div className="font-medium text-sm">Impresora de Caja (Red IP)</div>
       <p className="text-xs text-muted-foreground">
-        Segunda impresora térmica de red para imprimir el <b>comprobante de pago</b> de los pedidos del Kiosko.
+        Segunda impresora térmica de red para imprimir el <b>comprobante de pago</b> de los pedidos del Autopedido.
         Cuando un cliente envía un pedido desde la tablet, se imprime aquí un ticket con el detalle y el mensaje
         "Favor pasar a caja a cancelar antes de recibir su pedido". Requiere el servidor local de impresión configurado arriba.
       </p>
@@ -1252,7 +1252,7 @@ function CashierIpPrinterCard() {
 
 
 
-function KioskoLinkTab() {
+function AutopedidoLinkTab() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [size, setSize] = useState(320);
   const { data: branches = [] } = useQuery<Branch[]>({
@@ -1298,7 +1298,7 @@ function KioskoLinkTab() {
     const dataUrl = canvas.toDataURL("image/png");
     const w = window.open("", "_blank", "width=400,height=600");
     if (!w) return toast.error("Permite ventanas emergentes para imprimir");
-    w.document.write(`<!doctype html><html><head><title>QR Kiosko ${branch?.name ?? ""}</title>
+    w.document.write(`<!doctype html><html><head><title>QR Autopedido ${branch?.name ?? ""}</title>
       <style>
         @page { size: 80mm auto; margin: 4mm; }
         body { font-family: Arial, sans-serif; text-align: center; margin: 0; padding: 8px; }
@@ -1307,7 +1307,7 @@ function KioskoLinkTab() {
         img { width: 70mm; height: 70mm; }
         .ftr { font-size: 12px; font-weight: bold; margin-top: 8px; }
       </style></head><body>
-      <h2>${branch?.name ?? "Kiosko Autoservicio"}</h2>
+      <h2>${branch?.name ?? "Autopedido Autoservicio"}</h2>
       <p>Escanea para hacer tu pedido</p>
       <img src="${dataUrl}" />
       <p>${url}</p>
@@ -1320,7 +1320,7 @@ function KioskoLinkTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> Link de Kiosko (Autoservicio)</CardTitle>
+        <CardTitle className="flex items-center gap-2"><QrCode className="h-5 w-5" /> Link de Autopedido (Autoservicio)</CardTitle>
       </CardHeader>
       <CardContent className="space-y-5 p-6 pt-0">
         <div className="max-w-md">
@@ -1344,7 +1344,7 @@ function KioskoLinkTab() {
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-3">
               <div>
-                <Label>URL del Modo Kiosko</Label>
+                <Label>URL del Modo Autopedido</Label>
                 <div className="flex gap-2 mt-1">
                   <Input value={url} readOnly className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
                   <Button onClick={copyLink} variant="outline"><Copy className="h-4 w-4" />Copiar</Button>
@@ -1355,7 +1355,7 @@ function KioskoLinkTab() {
               </div>
               <div className="flex gap-2 flex-wrap">
                 <Button variant="outline" asChild>
-                  <a href={url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Abrir Kiosko</a>
+                  <a href={url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Abrir Autopedido</a>
                 </Button>
                 <Button onClick={downloadQR}><Download className="h-4 w-4" />Descargar QR</Button>
                 <Button onClick={printQR} variant="secondary"><Printer className="h-4 w-4" />Imprimir QR</Button>
