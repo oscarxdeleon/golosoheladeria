@@ -17,6 +17,7 @@ import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, typ
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
+import { useSidebar } from "@/components/ui/sidebar";
 
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
@@ -462,6 +463,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const { activeBranchId, activeBranch } = useBranch();
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const { setOpen: setSidebarOpen } = useSidebar();
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState(initialCustomer ?? "");
   const [notes, setNotes] = useState("");
@@ -502,6 +505,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     printedQtyRef.current = {};
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType, tableId, initialCustomer, initialPhone, initialAddress, initialNeighborhood]);
+
+  // Colapsar sidebar al entrar al POS para maximizar el área de productos
+  useEffect(() => {
+    setSidebarOpen(false);
+    const t = setTimeout(() => searchRef.current?.focus(), 250);
+    return () => clearTimeout(t);
+  }, [setSidebarOpen]);
+
+  // Atajos de teclado: F2 buscar, Esc limpiar búsqueda
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F2") { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); }
+      if (e.key === "Escape" && document.activeElement === searchRef.current) { setSearch(""); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
 
 
   const { data: cats = [] } = useQuery({
@@ -692,6 +713,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       }
       return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
+    toast.success(p.name, { duration: 900, position: "bottom-center" });
   }
   function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number, note?: string) {
     const label = mods.length
@@ -1271,11 +1293,25 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </div>
           <div className="relative ml-auto w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar producto…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input
+              ref={searchRef}
+              placeholder="Buscar producto…  (F2)"
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && filtered.length > 0) {
+                  e.preventDefault();
+                  const p = filtered[0];
+                  if (p.modifier_group_ids && p.modifier_group_ids.length > 0) setModalProduct(p);
+                  else { add(p); setSearch(""); }
+                }
+              }}
+            />
           </div>
         </div>
 
-        <Tabs value={activeCat} onValueChange={setActiveCat}>
+        <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">Todo</TabsTrigger>
             {cats.map((c) => (
@@ -1284,7 +1320,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </TabsList>
         </Tabs>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
           {filtered.map((p) => {
             const openAdd = () => {
               setNoteText("");
@@ -1320,31 +1356,31 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                     setNoteProduct(p);
                   }
                 }}
-                className="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-primary shadow ring-1 ring-primary/20 hover:bg-primary hover:text-primary-foreground transition"
+                className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-primary shadow ring-1 ring-primary/20 hover:bg-primary hover:text-primary-foreground transition"
                 title="Agregar con nota"
               >
-                <StickyNote className="h-4 w-4" />
+                <StickyNote className="h-3.5 w-3.5" />
               </button>
               {p.is_favorite && (
                 <span
                   aria-label="Producto destacado"
-                  className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white shadow-lg ring-2 ring-white"
+                  className="absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-white shadow ring-1 ring-white"
                 >
-                  <Star className="h-4 w-4 fill-white" strokeWidth={2.5} />
+                  <Star className="h-3 w-3 fill-white" strokeWidth={2.5} />
                 </span>
               )}
-              <div className="aspect-square w-full overflow-hidden bg-white p-2 flex items-center justify-center">
+              <div className="aspect-square w-full overflow-hidden bg-white p-1.5 flex items-center justify-center">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="max-h-[70%] max-w-[70%] object-contain transition group-hover:scale-105" loading="lazy" />
+                  <img src={p.image_url} alt={p.name} className="max-h-[75%] max-w-[75%] object-contain transition group-hover:scale-105" loading="lazy" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl font-display text-primary/40 bg-gradient-to-br from-secondary/30 to-accent/20 rounded-lg">
+                  <div className="flex h-full w-full items-center justify-center text-2xl font-display text-primary/40 bg-gradient-to-br from-secondary/30 to-accent/20 rounded-lg">
                     {p.name.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
-              <div className="p-3">
-                <div className={`leading-tight line-clamp-2 text-sm ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
-                <div className={`mt-1 font-display text-lg text-primary ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
+              <div className="px-2 py-1.5">
+                <div className={`leading-tight line-clamp-2 text-[11px] sm:text-xs ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
+                <div className={`mt-0.5 font-display text-sm sm:text-base text-primary tabular-nums ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
             </div>
             );
