@@ -331,39 +331,12 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   } catch (e) {
     console.warn("[print] no se pudo consultar config de impresora", e);
   }
-  const b = o.branding ?? DEFAULT_BRANDING;
-  const payload: PrintPayload = {
-    type: "ticket",
-    ticket: o.ticket,
-    header: o.header,
-    items: o.items,
-    subtotal: o.subtotal,
-    tax: o.tax,
-    deliveryFee: o.deliveryFee,
-    total: o.total,
-    payment_method: o.payment_method,
-    customer: o.customer,
-    user_name: o.user_name,
-    created_at: o.created_at,
-    business_name: b.business_name,
-    nit: b.nit ?? undefined,
-    address_biz: b.address ?? undefined,
-    phone_biz: b.phone ?? undefined,
-    email_biz: b.email ?? undefined,
-    footer_text: b.ticket_footer ?? undefined,
-    cash_received: o.cash_received,
-    printer_ip: printerIp,
-    printer_port: printerPort,
-    open_drawer: openDrawer,
-  };
-  // Impresión 100% silenciosa: usa la impresora configurada (Ajustes → Impresoras / área "caja")
-  // vía el print-server local. Nunca abre el diálogo del navegador.
-  const ok = await sendToLocalPrinter(payload);
-  if (!ok) {
-    toast.error("No se pudo imprimir: revisa la impresora configurada en Ajustes → Impresoras y que el servidor local esté activo.");
-    return;
-  }
-  if (openDrawer) {
+  // El TICKET se imprime con el diseño HTML EXACTO (logo, tipografía, íconos
+  // y footer) usando un iframe — así el resultado impreso coincide 1:1 con la
+  // vista previa. El servidor local ESC/POS produce un formato genérico, por
+  // lo que solo lo usamos para el pulso de apertura del cajón monedero.
+  printHTMLFallback(ticketHTML(o));
+  if (openDrawer && printerIp) {
     void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
   }
 }
