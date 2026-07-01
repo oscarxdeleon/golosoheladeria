@@ -251,7 +251,7 @@ function KdsPage() {
                 <Button
                   className="w-full transition-transform active:scale-95"
                   variant={allReady ? "secondary" : "default"}
-                  onClick={() => markAllReady(s.id, s.sale_items)}
+                  onClick={() => markAllReady(s)}
                 >
                   <CheckCheck className="h-4 w-4 mr-1" />
                   {allReady ? "Despachar pedido" : "Despachar todo"}
