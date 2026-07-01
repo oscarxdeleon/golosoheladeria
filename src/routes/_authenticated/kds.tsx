@@ -227,7 +227,7 @@ function KdsPage() {
                           size="sm"
                           variant={isReady ? "ghost" : "default"}
                           disabled={isReady}
-                          onClick={() => markItemReady(s.id, i.id)}
+                          onClick={() => markItemReady(s, i.id)}
                           className="shrink-0 transition-transform active:scale-95"
                         >
                           <Check className="h-4 w-4 mr-1" />
