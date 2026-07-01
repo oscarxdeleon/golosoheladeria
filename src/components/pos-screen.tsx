@@ -713,6 +713,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       }
       return [...prev, { key: p.id, product_id: p.id, name: p.name, unit_price: Number(p.price), qty: 1, modifiers: [] }];
     });
+    toast.success(p.name, { duration: 900, position: "bottom-center" });
   }
   function addWithModifiers(p: Product, mods: SaleModifier[], unitExtra: number, note?: string) {
     const label = mods.length
