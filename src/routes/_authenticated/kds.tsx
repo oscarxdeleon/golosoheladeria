@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
+import { notifyCustomerReady } from "@/lib/customer-ready-notify";
 
 export const Route = createFileRoute("/_authenticated/kds")({
   head: () => ({ meta: [{ title: "KDS · Goloso POS" }] }),
@@ -26,6 +27,8 @@ interface Pending {
   ticket_number: number;
   user_name: string | null;
   customer_name: string | null;
+  customer_phone: string | null;
+  source: string | null;
   notes: string | null;
   order_type: string;
   created_at: string;
@@ -64,7 +67,7 @@ function KdsPage() {
       if (!activeBranchId) return [];
       const { data, error } = await supabase
         .from("sales")
-        .select("id,ticket_number,user_name,customer_name,notes,order_type,created_at,table_id,delivery_address,status,branch_id,sale_items(id,product_name,qty,ready_at,modifiers),restaurant_tables(number,label)")
+        .select("id,ticket_number,user_name,customer_name,customer_phone,source,notes,order_type,created_at,table_id,delivery_address,status,branch_id,sale_items(id,product_name,qty,ready_at,modifiers),restaurant_tables(number,label)")
         .eq("branch_id", activeBranchId)
         .in("status", ["pending", "confirmed"])
         .order("created_at", { ascending: true });
@@ -89,7 +92,8 @@ function KdsPage() {
     return () => { supabase.removeChannel(ch); };
   }, [qc, activeBranchId]);
 
-  async function markItemReady(saleId: string, itemId: string) {
+  async function markItemReady(sale: Pending, itemId: string) {
+    const saleId = sale.id;
     // Optimistic update
     qc.setQueryData<Pending[]>(["kds-pending", activeBranchId], (old) =>
       (old ?? []).map((s) =>
@@ -103,10 +107,19 @@ function KdsPage() {
     if (error) {
       toast.error("No se pudo marcar el ítem");
       qc.invalidateQueries({ queryKey: ["kds-pending", activeBranchId] });
+      return;
+    }
+    // Si con este ítem el pedido queda 100% listo, notificar al cliente (Autopedido)
+    const pendingCount = sale.sale_items.filter((i) => i.id !== itemId && !i.ready_at).length;
+    if (pendingCount === 0) {
+      const notified = notifyCustomerReady(sale);
+      if (notified) toast.success("WhatsApp enviado al cliente");
     }
   }
 
-  async function markAllReady(saleId: string, items: SaleItem[]) {
+  async function markAllReady(sale: Pending) {
+    const saleId = sale.id;
+    const items = sale.sale_items;
     if (!activeBranchId) {
       toast.error("Selecciona una sede para actualizar la comanda");
       return;
@@ -131,6 +144,8 @@ function KdsPage() {
     // Trigger auto-updates sales.status, but force-set just in case all were already ready
     await supabase.from("sales").update({ status: "ready", kds_ack_at: new Date().toISOString() }).eq("id", saleId).eq("branch_id", activeBranchId);
     toast.success("Pedido listo para servir");
+    const notified = notifyCustomerReady(sale);
+    if (notified) toast.success("WhatsApp enviado al cliente");
   }
 
   return (
@@ -212,7 +227,7 @@ function KdsPage() {
                           size="sm"
                           variant={isReady ? "ghost" : "default"}
                           disabled={isReady}
-                          onClick={() => markItemReady(s.id, i.id)}
+                          onClick={() => markItemReady(s, i.id)}
                           className="shrink-0 transition-transform active:scale-95"
                         >
                           <Check className="h-4 w-4 mr-1" />
@@ -236,7 +251,7 @@ function KdsPage() {
                 <Button
                   className="w-full transition-transform active:scale-95"
                   variant={allReady ? "secondary" : "default"}
-                  onClick={() => markAllReady(s.id, s.sale_items)}
+                  onClick={() => markAllReady(s)}
                 >
                   <CheckCheck className="h-4 w-4 mr-1" />
                   {allReady ? "Despachar pedido" : "Despachar todo"}

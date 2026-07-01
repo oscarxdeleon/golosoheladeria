@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
+import { notifyCustomerReady } from "@/lib/customer-ready-notify";
 
 export const Route = createFileRoute("/kds-live")({
   ssr: false,
@@ -20,6 +21,7 @@ interface SaleItem {
 }
 interface Pending {
   id: string; ticket_number: number; user_name: string | null; customer_name: string | null;
+  customer_phone: string | null; source: string | null;
   notes: string | null; order_type: string; created_at: string; table_id: string | null;
   delivery_address: string | null; status: string; branch_id: string | null;
   sale_items: SaleItem[];
@@ -64,18 +66,26 @@ function KdsLive() {
     return () => { supabase.removeChannel(ch); };
   }, [qc, sede]);
 
-  async function markItemReady(saleId: string, itemId: string) {
+  async function markItemReady(sale: Pending, itemId: string) {
+    const saleId = sale.id;
     qc.setQueryData<Pending[]>(["kds-public", sede], (old) =>
       (old ?? []).map((s) => s.id !== saleId ? s : { ...s, sale_items: s.sale_items.map((i) => i.id === itemId ? { ...i, ready_at: new Date().toISOString() } : i) })
     );
     const { error } = await supabase.rpc("kds_public_mark_item_ready", { p_item_id: itemId });
-    if (error) { toast.error("No se pudo marcar"); qc.invalidateQueries({ queryKey: ["kds-public", sede] }); }
+    if (error) { toast.error("No se pudo marcar"); qc.invalidateQueries({ queryKey: ["kds-public", sede] }); return; }
+    const pendingCount = sale.sale_items.filter((i) => i.id !== itemId && !i.ready_at).length;
+    if (pendingCount === 0) {
+      const notified = notifyCustomerReady(sale);
+      if (notified) toast.success("WhatsApp enviado al cliente");
+    }
   }
 
-  async function markAllReady(saleId: string) {
-    const { error } = await supabase.rpc("kds_public_mark_all_ready", { p_sale_id: saleId });
+  async function markAllReady(sale: Pending) {
+    const { error } = await supabase.rpc("kds_public_mark_all_ready", { p_sale_id: sale.id });
     if (error) { toast.error("Error al despachar"); return; }
     toast.success("Pedido listo");
+    const notified = notifyCustomerReady(sale);
+    if (notified) toast.success("WhatsApp enviado al cliente");
     qc.invalidateQueries({ queryKey: ["kds-public", sede] });
   }
 
@@ -142,7 +152,7 @@ function KdsLive() {
                       <li key={i.id} className={`flex items-center gap-2 rounded p-2 ${isReady ? "bg-emerald-50 dark:bg-emerald-950/30 line-through text-muted-foreground" : ""}`}>
                         <span className="font-bold w-8 shrink-0">{i.qty}×</span>
                         <span className="flex-1 whitespace-pre-line">{i.product_name}</span>
-                        <Button size="sm" variant={isReady ? "ghost" : "default"} disabled={isReady} onClick={() => markItemReady(s.id, i.id)}>
+                        <Button size="sm" variant={isReady ? "ghost" : "default"} disabled={isReady} onClick={() => markItemReady(s, i.id)}>
                           <Check className="h-4 w-4 mr-1" />{isReady ? "Listo" : "Marcar"}
                         </Button>
                       </li>
@@ -159,7 +169,7 @@ function KdsLive() {
                   <span>Cajero: {s.user_name ?? "—"}</span>
                   <span>{new Date(s.created_at).toLocaleTimeString("es-CO")}</span>
                 </div>
-                <Button className="w-full" variant={allReady ? "secondary" : "default"} onClick={() => markAllReady(s.id)}>
+                <Button className="w-full" variant={allReady ? "secondary" : "default"} onClick={() => markAllReady(s)}>
                   <CheckCheck className="h-4 w-4 mr-1" />{allReady ? "Despachar pedido" : "Despachar todo"}
                 </Button>
               </CardContent>
