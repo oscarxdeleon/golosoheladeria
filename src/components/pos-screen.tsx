@@ -497,16 +497,19 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     setPendingSaleId(pendingSale.id);
     setCustomer(pendingSale.customer_name ?? "");
     setNotes(pendingSale.notes ?? "");
-    setCart(
-      (pendingSale.sale_items ?? []).map((i) => ({
-        key: i.product_id,
-        product_id: i.product_id,
-        name: i.product_name,
-        unit_price: Number(i.unit_price),
-        qty: Number(i.qty),
-        modifiers: [],
-      })),
-    );
+    const hydrated = (pendingSale.sale_items ?? []).map((i) => ({
+      key: i.product_id,
+      product_id: i.product_id,
+      name: i.product_name,
+      unit_price: Number(i.unit_price),
+      qty: Number(i.qty),
+      modifiers: [] as SaleModifier[],
+    }));
+    setCart(hydrated);
+    // Todos los ítems hidratados YA fueron impresos en una comanda anterior.
+    const printed: Record<string, number> = {};
+    for (const l of hydrated) printed[l.key] = (printed[l.key] ?? 0) + l.qty;
+    printedQtyRef.current = printed;
   }, [pendingSale, paying]);
 
 
