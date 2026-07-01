@@ -5,14 +5,17 @@ import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bike, Phone, MapPin, Home, CheckCircle2, Truck } from "lucide-react";
+import { Bike, Phone, MapPin, Home, CheckCircle2, Truck, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney, formatDate } from "@/lib/format";
+import { buildCourierMessage, openWhatsAppTo } from "@/lib/courier-whatsapp";
 
 export const Route = createFileRoute("/_authenticated/domicilios")({
   head: () => ({ meta: [{ title: "Despacho domicilios · Goloso POS" }] }),
   component: DespachoDomiciliosPage,
 });
+
+interface Courier { id: string; name: string; phone: string; active: boolean; branch_id: string | null }
 
 interface DeliverySale {
   id: string;
@@ -22,11 +25,15 @@ interface DeliverySale {
   delivery_address: string | null;
   delivery_neighborhood: string | null;
   total: number;
+  payment_method: string;
+  payment_details: Record<string, unknown> | null;
   delivery_status: string | null;
   delivery_user_id: string | null;
+  courier_id: string | null;
   status: string;
   created_at: string;
   notes: string | null;
+  branch_id: string | null;
 }
 
 function DespachoDomiciliosPage() {
@@ -39,7 +46,7 @@ function DespachoDomiciliosPage() {
     queryFn: async (): Promise<DeliverySale[]> => {
       let q = supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,delivery_status,delivery_user_id,status,created_at,notes,source")
+        .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,payment_method,payment_details,delivery_status,delivery_user_id,courier_id,status,created_at,notes,source,branch_id")
         .eq("order_type", "domicilio")
         .neq("status", "cancelled")
         .or("source.is.null,source.neq.online_menu")
@@ -54,23 +61,61 @@ function DespachoDomiciliosPage() {
     refetchInterval: 15000,
   });
 
-  async function updateStatus(id: string, status: string) {
-    const patch: Record<string, unknown> = { delivery_status: status };
-    if (!isAdmin && user) patch.delivery_user_id = user.id;
-    const { error } = await supabase.from("sales").update(patch as never).eq("id", id);
+  const { data: couriers = [] } = useQuery({
+    queryKey: ["couriers", "active"],
+    queryFn: async () => {
+      const { data } = await supabase.from("couriers").select("id,name,phone,active,branch_id").eq("active", true).order("name");
+      return (data ?? []) as Courier[];
+    },
+  });
+
+  const { data: settings } = useQuery({
+    queryKey: ["settings-business"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("business_name,nequi_number,bancolombia_account").maybeSingle();
+      return data as { business_name?: string; nequi_number?: string; bancolombia_account?: string } | null;
+    },
+  });
+
+  async function assignCourier(sale: DeliverySale, courierId: string) {
+    const patch: Record<string, unknown> = { courier_id: courierId || null };
+    if (!isAdmin && user && !sale.delivery_user_id) patch.delivery_user_id = user.id;
+    if (courierId && !sale.delivery_status) patch.delivery_status = "asignado";
+    const { error } = await supabase.from("sales").update(patch as never).eq("id", sale.id);
     if (error) return toast.error(error.message);
-    toast.success(status === "entregado" ? "Pedido entregado" : "Estado actualizado");
+    toast.success(courierId ? "Repartidor asignado" : "Asignación quitada");
     qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
   }
 
-  async function takeOrder(id: string) {
-    if (!user) return;
-    const { error } = await supabase
-      .from("sales")
-      .update({ delivery_user_id: user.id, delivery_status: "asignado" } as never)
-      .eq("id", id);
+  function sendWhatsAppTo(sale: DeliverySale, courier: Courier) {
+    const msg = buildCourierMessage(
+      { ...sale, payment_details: sale.payment_details ?? {} },
+      { name: settings?.business_name ?? null, nequi_number: settings?.nequi_number ?? null, bancolombia_account: settings?.bancolombia_account ?? null },
+    );
+    openWhatsAppTo(courier.phone, msg);
+  }
+
+  async function markEnCamino(sale: DeliverySale) {
+    const courier = couriers.find((c) => c.id === sale.courier_id);
+    if (!courier) {
+      toast.error("Asigna un repartidor antes de marcar En camino");
+      return;
+    }
+    const patch: Record<string, unknown> = { delivery_status: "en_camino" };
+    if (!isAdmin && user) patch.delivery_user_id = user.id;
+    const { error } = await supabase.from("sales").update(patch as never).eq("id", sale.id);
     if (error) return toast.error(error.message);
-    toast.success("Pedido tomado");
+    sendWhatsAppTo(sale, courier);
+    toast.success(`Enviando pedido a ${courier.name} por WhatsApp`);
+    qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+  }
+
+  async function markEntregado(id: string) {
+    const patch: Record<string, unknown> = { delivery_status: "entregado" };
+    if (!isAdmin && user) patch.delivery_user_id = user.id;
+    const { error } = await supabase.from("sales").update(patch as never).eq("id", id);
+    if (error) return toast.error(error.message);
+    toast.success("Pedido entregado");
     qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
   }
 
@@ -84,10 +129,16 @@ function DespachoDomiciliosPage() {
         <div>
           <h1 className="font-display text-3xl leading-tight">Despacho de domicilios</h1>
           <p className="text-sm text-muted-foreground">
-            {isAdmin ? "Todos los pedidos a domicilio." : "Pedidos asignados a tu nombre."}
+            Asigna un repartidor y al marcar "En camino" se le envía el pedido por WhatsApp.
           </p>
         </div>
       </div>
+
+      {couriers.length === 0 && (
+        <Card><CardContent className="py-4 text-sm text-muted-foreground">
+          No hay repartidores registrados. Ve a <b>Repartidores</b> en el menú lateral para agregarlos.
+        </CardContent></Card>
+      )}
 
       <section className="space-y-3">
         <h2 className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Pendientes ({pending.length})</h2>
@@ -95,41 +146,63 @@ function DespachoDomiciliosPage() {
           <Card><CardContent className="py-10 text-center text-muted-foreground">Sin pedidos pendientes</CardContent></Card>
         )}
         <div className="grid gap-3 md:grid-cols-2">
-          {pending.map((s) => (
-            <Card key={s.id} className="border-l-4 border-l-primary">
-              <CardHeader className="flex flex-row items-start justify-between pb-2">
-                <div>
-                  <CardTitle className="text-lg">Ticket #{s.ticket_number}</CardTitle>
-                  <p className="text-xs text-muted-foreground">{formatDate(s.created_at)}</p>
-                </div>
-                <Badge variant={s.delivery_status === "en_camino" ? "default" : "secondary"}>
-                  {s.delivery_status === "en_camino" ? "En camino" : s.delivery_status === "asignado" ? "Asignado" : "Por asignar"}
-                </Badge>
-              </CardHeader>
-              <CardContent className="space-y-2 text-sm">
-                <div className="flex items-center gap-2"><Home className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{s.customer_name ?? "Sin nombre"}</span></div>
-                <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /><a href={`tel:${s.customer_phone}`} className="hover:underline">{s.customer_phone ?? "—"}</a></div>
-                <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-muted-foreground mt-0.5" /><span>{s.delivery_address ?? "—"}{s.delivery_neighborhood ? ` · ${s.delivery_neighborhood}` : ""}</span></div>
-                {s.notes && <p className="text-xs text-muted-foreground italic">Notas: {s.notes}</p>}
-                <div className="text-lg font-bold text-primary">{formatMoney(s.total)}</div>
-                <div className="flex flex-wrap gap-2 pt-2">
-                  {!s.delivery_user_id && !isAdmin && (
-                    <Button size="sm" onClick={() => takeOrder(s.id)}>Tomar pedido</Button>
-                  )}
-                  {(s.delivery_user_id || isAdmin) && s.delivery_status !== "en_camino" && (
-                    <Button size="sm" variant="outline" onClick={() => updateStatus(s.id, "en_camino")}>
-                      <Truck className="h-4 w-4 mr-1" /> En camino
-                    </Button>
-                  )}
-                  {(s.delivery_user_id || isAdmin) && (
-                    <Button size="sm" onClick={() => updateStatus(s.id, "entregado")}>
+          {pending.map((s) => {
+            const courier = couriers.find((c) => c.id === s.courier_id);
+            const branchCouriers = couriers.filter((c) => !c.branch_id || c.branch_id === s.branch_id);
+            return (
+              <Card key={s.id} className="border-l-4 border-l-primary">
+                <CardHeader className="flex flex-row items-start justify-between pb-2">
+                  <div>
+                    <CardTitle className="text-lg">Ticket #{s.ticket_number}</CardTitle>
+                    <p className="text-xs text-muted-foreground">{formatDate(s.created_at)}</p>
+                  </div>
+                  <Badge variant={s.delivery_status === "en_camino" ? "default" : "secondary"}>
+                    {s.delivery_status === "en_camino" ? "En camino" : s.delivery_status === "asignado" ? "Asignado" : "Por asignar"}
+                  </Badge>
+                </CardHeader>
+                <CardContent className="space-y-2 text-sm">
+                  <div className="flex items-center gap-2"><Home className="h-4 w-4 text-muted-foreground" /><span className="font-medium">{s.customer_name ?? "Sin nombre"}</span></div>
+                  <div className="flex items-center gap-2"><Phone className="h-4 w-4 text-muted-foreground" /><a href={`tel:${s.customer_phone}`} className="hover:underline">{s.customer_phone ?? "—"}</a></div>
+                  <div className="flex items-start gap-2"><MapPin className="h-4 w-4 text-muted-foreground mt-0.5" /><span>{s.delivery_address ?? "—"}{s.delivery_neighborhood ? ` · ${s.delivery_neighborhood}` : ""}</span></div>
+                  {s.notes && <p className="text-xs text-muted-foreground italic">Notas: {s.notes}</p>}
+                  <div className="flex items-center justify-between">
+                    <div className="text-lg font-bold text-primary">{formatMoney(s.total)}</div>
+                    <div className="text-xs uppercase text-muted-foreground">{s.payment_method}</div>
+                  </div>
+
+                  <div className="pt-2 border-t">
+                    <label className="text-xs font-medium text-muted-foreground">Repartidor</label>
+                    <select
+                      className="mt-1 w-full h-9 rounded-md border bg-background px-2 text-sm"
+                      value={s.courier_id ?? ""}
+                      onChange={(e) => assignCourier(s, e.target.value)}
+                    >
+                      <option value="">— Sin asignar —</option>
+                      {branchCouriers.map((c) => (
+                        <option key={c.id} value={c.id}>{c.name} · {c.phone}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-wrap gap-2 pt-2">
+                    {courier && (
+                      <Button size="sm" variant="outline" onClick={() => sendWhatsAppTo(s, courier)}>
+                        <MessageCircle className="h-4 w-4 mr-1" /> Reenviar WhatsApp
+                      </Button>
+                    )}
+                    {s.delivery_status !== "en_camino" && (
+                      <Button size="sm" onClick={() => markEnCamino(s)} disabled={!s.courier_id}>
+                        <Truck className="h-4 w-4 mr-1" /> En camino + WhatsApp
+                      </Button>
+                    )}
+                    <Button size="sm" onClick={() => markEntregado(s.id)}>
                       <CheckCircle2 className="h-4 w-4 mr-1" /> Entregado
                     </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
         </div>
       </section>
 

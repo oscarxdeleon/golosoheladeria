@@ -375,6 +375,47 @@ export type Database = {
         }
         Relationships: []
       }
+      couriers: {
+        Row: {
+          active: boolean
+          branch_id: string | null
+          created_at: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "couriers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -1069,6 +1110,7 @@ export type Database = {
         Row: {
           branch_id: string | null
           cash_session_id: string | null
+          courier_id: string | null
           created_at: string
           customer_id: string | null
           customer_name: string | null
@@ -1099,6 +1141,7 @@ export type Database = {
         Insert: {
           branch_id?: string | null
           cash_session_id?: string | null
+          courier_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
@@ -1129,6 +1172,7 @@ export type Database = {
         Update: {
           branch_id?: string | null
           cash_session_id?: string | null
+          courier_id?: string | null
           created_at?: string
           customer_id?: string | null
           customer_name?: string | null
@@ -1169,6 +1213,13 @@ export type Database = {
             columns: ["cash_session_id"]
             isOneToOne: false
             referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_courier_id_fkey"
+            columns: ["courier_id"]
+            isOneToOne: false
+            referencedRelation: "couriers"
             referencedColumns: ["id"]
           },
           {
