@@ -384,7 +384,7 @@ async function sendUsb(buf) {
 }
 
 async function printJob(payload) {
-  const buf = buildRaw(payload);
+  const buf = await buildRaw(payload);
   if (payload.printer_ip) {
     const ip = String(payload.printer_ip);
     const port = Number(payload.printer_port || 9100);
