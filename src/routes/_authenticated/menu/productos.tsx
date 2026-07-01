@@ -633,9 +633,19 @@ function ProductosPage() {
               {products.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <div className="h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                    <button
+                      type="button"
+                      onClick={() => isAdmin && openEditor(p)}
+                      className="group relative h-10 w-10 overflow-hidden rounded-md border bg-muted"
+                      title={isAdmin ? "Cambiar foto" : ""}
+                    >
                       {p.image_url ? <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">{p.name.charAt(0)}</div>}
-                    </div>
+                      {isAdmin && (
+                        <span className="absolute inset-0 hidden items-center justify-center bg-black/50 text-white group-hover:flex">
+                          <Camera className="h-4 w-4" />
+                        </span>
+                      )}
+                    </button>
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1">
