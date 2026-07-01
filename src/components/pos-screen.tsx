@@ -965,15 +965,40 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           });
       }
 
+      // Delta de impresión: solo los ítems (o cantidades) NUEVAS respecto a
+      // lo ya enviado a cocina en comandas previas de la misma mesa. Evita que
+      // se repitan los productos ya impresos.
+      const alreadyPrinted = { ...printedQtyRef.current };
+      const deltaLines = cart
+        .map((l) => {
+          const prev = alreadyPrinted[l.key] ?? 0;
+          const newQty = Math.max(0, l.qty - prev);
+          return { line: l, newQty };
+        })
+        .filter((x) => x.newQty > 0);
+
+      const printItems =
+        deltaLines.length > 0
+          ? deltaLines.map(({ line, newQty }) => ({
+              name:
+                line.name +
+                (line.modifiers && line.modifiers.length
+                  ? " (" +
+                    line.modifiers
+                      .map((m: { name: string; qty?: number }) =>
+                        m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name,
+                      )
+                      .join(", ") +
+                  ")"
+                  : ""),
+              qty: newQty,
+            }))
+          : []; // sin ítems nuevos → no imprimimos comanda para no duplicar
+
       const printSnapshot = {
         ticket: sale.ticket_number,
         header,
-        items: cart.map((l) => ({
-          name: l.name + (l.modifiers && l.modifiers.length
-            ? " (" + l.modifiers.map((m: { name: string; qty?: number }) => m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name).join(", ") + ")"
-            : ""),
-          qty: l.qty,
-        })),
+        items: printItems,
         customer,
         notes,
         address: orderType === "domicilio" ? address : "",
@@ -982,17 +1007,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         created_at: sale.created_at,
       };
 
+      // Actualizar baseline: lo que hay en el carrito ahora ya se considera impreso.
+      const newBaseline: Record<string, number> = {};
+      for (const l of cart) newBaseline[l.key] = (newBaseline[l.key] ?? 0) + l.qty;
+      printedQtyRef.current = newBaseline;
+
       // 1º DB ya guardada · 2º KDS realtime · 3º Impresión física en background.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
 
-      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
-      void printComanda(printSnapshot).then((printed) => {
-        if (printed) toast.success(`Impresión #${sale.ticket_number} enviada`);
-        else toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
-      }).catch((e) => {
-        console.error("[print] comanda", e);
-      });
+      if (printItems.length === 0) {
+        toast.success(`Pedido #${sale.ticket_number} actualizado (sin ítems nuevos para imprimir)`);
+      } else {
+        toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+        void printComanda(printSnapshot).then((printed) => {
+          if (printed) toast.success(`Impresión #${sale.ticket_number} enviada`);
+          else toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+        }).catch((e) => {
+          console.error("[print] comanda", e);
+        });
+      }
 
       // Limpiar estado local y regresar al panel principal
       setCart([]);
