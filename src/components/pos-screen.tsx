@@ -17,7 +17,7 @@ import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, typ
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
-import { useSidebar } from "@/components/ui/sidebar";
+
 
 
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
