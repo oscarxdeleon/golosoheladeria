@@ -1720,11 +1720,57 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             : null
         }
         onClose={() => setModalProduct(null)}
-        onConfirm={(mods, unitExtra) => {
-          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra);
+        onConfirm={(mods, unitExtra, note) => {
+          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra, note);
           setModalProduct(null);
         }}
       />
+
+      <Dialog open={!!noteProduct} onOpenChange={(o) => !o && setNoteProduct(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="font-display text-xl flex items-center gap-2">
+              <StickyNote className="h-5 w-5" /> {noteProduct?.name}
+            </DialogTitle>
+            <DialogDescription>Agrega una nota para este producto antes de enviarlo al carrito.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Nota adicional</label>
+              <Textarea
+                autoFocus
+                placeholder="Ej: sin azúcar, extra cremoso, con topping…"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+                rows={3}
+                maxLength={200}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium mr-2">Cantidad</label>
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setNoteQty((q) => Math.max(1, q - 1))}>
+                <Minus className="h-4 w-4" />
+              </Button>
+              <span className="w-10 text-center text-lg font-semibold">{noteQty}</span>
+              <Button size="icon" variant="outline" className="h-9 w-9" onClick={() => setNoteQty((q) => q + 1)}>
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setNoteProduct(null)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                if (noteProduct) addWithNote(noteProduct, noteText, noteQty);
+                setNoteProduct(null);
+              }}
+            >
+              Agregar al carrito
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
