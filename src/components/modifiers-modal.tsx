@@ -36,7 +36,7 @@ interface Modifier {
 interface Props {
   product: { id: string; name: string; price: number; modifier_group_ids: string[] } | null;
   onClose: () => void;
-  onConfirm: (mods: SelectedModifier[], unitExtra: number) => void;
+  onConfirm: (mods: SelectedModifier[], unitExtra: number, note?: string) => void;
 }
 
 export function ModifiersModal({ product, onClose, onConfirm }: Props) {
