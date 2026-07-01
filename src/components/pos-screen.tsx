@@ -512,6 +512,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   useEffect(() => {
     if (!pendingSale) return;
+    // No hidrates el carrito mientras el usuario está en pleno guardado —
+    // podría reintroducir ítems recién guardados sobre un cart ya limpio.
+    if (paying) return;
     setPendingSaleId(pendingSale.id);
     setCustomer(pendingSale.customer_name ?? "");
     setNotes(pendingSale.notes ?? "");
@@ -525,7 +528,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         modifiers: [],
       })),
     );
-  }, [pendingSale]);
+  }, [pendingSale, paying]);
+
 
   // Cargar pedido pendiente del Kiosko (al ser seleccionado desde el panel)
   const { data: kioskSale } = useQuery({
@@ -945,20 +949,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         created_at: sale.created_at,
       };
 
-      // 1º DB ya guardada · 2º KDS realtime (invalidate) · 3º Impresión física.
+      // 1º DB ya guardada · 2º KDS realtime (invalidate) · 3º Impresión física en background.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
-      qc.invalidateQueries({ queryKey: ["pending-sale"] });
 
-      // Esperamos el envío a la impresora ANTES de limpiar el estado y
-      // navegar — así el primer clic siempre dispara la impresión.
-      const printed = await printComanda(printSnapshot);
-      if (printed) {
-        toast.success(`Comanda #${sale.ticket_number} enviada a cocina, KDS e impresora`);
-      } else {
-        toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
-      }
-
+      // Impresión en segundo plano — NO bloquea la respuesta del botón ni la
+      // navegación. Si el servidor de impresión está lento o caído, el POS
+      // igual libera al cajero de inmediato (evita el bug de "no responde a
+      // la primera").
+      toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
+      void printComanda(printSnapshot).then((printed) => {
+        if (printed) toast.success(`Impresión #${sale.ticket_number} enviada`);
+        else toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+      }).catch((e) => {
+        console.error("[print] comanda", e);
+      });
 
       // Limpiar estado local y regresar al panel principal
       setCart([]);
@@ -969,6 +974,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       setNeighborhood("");
       setFieldErrors({});
       setPendingSaleId(null);
+      // Invalidar la venta pendiente DESPUÉS de limpiar el cart, para que
+      // el useEffect que hidrata `cart` desde `pendingSale` no reintroduzca
+      // los ítems recién guardados en la pantalla ya vaciada.
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
 
       if (onSaved) {
         onSaved();
@@ -978,6 +987,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         else if (orderType === "domicilio") navigate({ to: "/domicilio" });
         else if (orderType === "kiosko") navigate({ to: "/kiosko" });
       }
+
 
     } catch (err) {
       console.error(err);
