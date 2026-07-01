@@ -259,6 +259,10 @@ export function PublicOrder({
     lines.push(`*Subtotal:* ${formatMoney(subtotal)}`);
     if (deliveryFee > 0) lines.push(`*Domicilio:* ${formatMoney(deliveryFee)}`);
     lines.push(`*Total a Pagar:* ${formatMoney(total)}`);
+    if (payMethod === "Nequi" || payMethod === "Bancolombia") {
+      lines.push("");
+      lines.push(`*¡ENVIANOS EL COMPROBANTE DE PAGO!!*`);
+    }
     return lines.join("\n");
   }
 
