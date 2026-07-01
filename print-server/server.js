@@ -325,10 +325,14 @@ async function buildPersonalizedTicketRaw(p) {
 
 
   out += ALIGN_L + FEED(4) + CUT;
-  return Buffer.from(out, "binary");
+  const textBuf = Buffer.from(out, "binary");
+  if (logoBuf) {
+    // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
+    return Buffer.concat([Buffer.from(INIT, "binary"), logoBuf, textBuf]);
+  }
+  return textBuf;
 }
 
-// ---------- Comanda de cocina ----------
 function buildComandaRaw(p) {
   let out = INIT;
   out += ALIGN_C + BOLD_ON;
