@@ -24,10 +24,11 @@ const PORT = Number(process.env.PORT || 3001);
 const PRINTER_TYPE = (process.env.PRINTER_TYPE || "usb").toLowerCase();
 const PRINTER_IP = process.env.PRINTER_IP || "192.168.1.50";
 const PRINTER_PORT = Number(process.env.PRINTER_PORT || 9100);
+const WIDTH = Number(process.env.PRINTER_WIDTH || 42); // 42 para 80mm, 32 para 58mm
 
 const money = (n) => "$" + Math.round(Number(n || 0)).toLocaleString("es-CO");
 
-// ---------- Render ESC/POS plano (sin librerías) ----------
+// ---------- ESC/POS helpers ----------
 const ESC = "\x1B";
 const GS = "\x1D";
 const INIT = ESC + "@";
@@ -35,16 +36,21 @@ const BOLD_ON = ESC + "E\x01";
 const BOLD_OFF = ESC + "E\x00";
 const ALIGN_L = ESC + "a\x00";
 const ALIGN_C = ESC + "a\x01";
+const ALIGN_R = ESC + "a\x02";
 const SIZE_NORMAL = GS + "!" + "\x00";
 const SIZE_DOUBLE_H = GS + "!" + "\x01"; // doble alto
+const SIZE_DOUBLE_W = GS + "!" + "\x10"; // doble ancho
 const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 const FEED = (n) => "\n".repeat(n);
-const LINE = "-".repeat(42) + "\n";
+const DASH_LINE = "-".repeat(WIDTH) + "\n";
+const DOT_LINE = ".".repeat(WIDTH) + "\n";
+const STAR_LINE = "*".repeat(WIDTH) + "\n";
+const EQ_LINE = "=".repeat(WIDTH) + "\n";
 
-function row(left, right, width = 42) {
+function row(left, right, width = WIDTH) {
   const l = String(left ?? "");
   const r = String(right ?? "");
   const space = Math.max(1, width - l.length - r.length);
@@ -73,179 +79,220 @@ function wrapText(text, width) {
   return lines.length ? lines : [""];
 }
 
-function centerLine(text, width = 42) {
+function centerLine(text, width = WIDTH) {
   const t = String(text ?? "").trim();
+  if (!t) return "";
   const pad = Math.max(0, Math.floor((width - t.length) / 2));
   return " ".repeat(pad) + t + "\n";
 }
 
+// ---------- Ticket personalizado Goloso ----------
+const DEFAULT_CFG = {
+  show_logo: true,
+  show_business_name: true,
+  show_nit: true,
+  show_address: true,
+  show_phone: true,
+  show_email: true,
+  show_ticket_number: true,
+  show_date: true,
+  show_customer: true,
+  show_customer_address: true,
+  show_customer_phone: true,
+  show_payment_method: true,
+  show_subtotal: true,
+  show_tax: true,
+  show_delivery_fee: true,
+  show_cash_received: true,
+  show_thanks: true,
+  show_decorations: true,
+  title_text: "TICKET DE VENTA",
+  number_prefix: "TV-",
+  thanks_text: "¡Gracias por Preferirnos!",
+  extra_footer: "",
+};
+
+function mergeCfg(cfg) {
+  return { ...DEFAULT_CFG, ...(cfg || {}) };
+}
+
 function buildPersonalizedTicketRaw(p) {
+  const cfg = mergeCfg(p.ticket_config);
   let out = INIT;
   if (p.open_drawer) out += DRAWER;
 
-  const business = (p.business_name || "Heladería Goloso").toUpperCase();
-  const ticketNo = `TV-${String(p.ticket ?? 0).padStart(6, "0")}`;
-  const created = new Date(p.created_at || Date.now()).toLocaleString("es-CO");
-  const received = Number(p.cash_received ?? p.total ?? 0);
-  const change = Math.max(0, received - Number(p.total || 0));
+  // ==== ENCABEZADO / MARCA ====
+  if (cfg.show_decorations) {
+    out += ALIGN_C + BOLD_ON + STAR_LINE + BOLD_OFF;
+  }
 
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE;
-  for (const line of wrapText(business, 21)) out += line + "\n";
-  out += SIZE_NORMAL + BOLD_OFF;
-  if (p.nit) out += centerLine(`NIT: ${p.nit}`);
-  if (p.address_biz) for (const line of wrapText(p.address_biz, 36)) out += centerLine(line);
-  if (p.phone_biz) out += centerLine(`Tel: ${p.phone_biz}`);
-  if (p.email_biz) out += centerLine(p.email_biz);
+  if (cfg.show_business_name) {
+    const business = String(p.business_name || "Heladería Goloso").toUpperCase();
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE;
+    for (const line of wrapText(business, Math.floor(WIDTH / 2))) out += line + "\n";
+    out += SIZE_NORMAL + BOLD_OFF;
+  }
 
-  out += ALIGN_L + LINE;
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "TICKET DE VENTA\n" + SIZE_NORMAL;
-  out += BOLD_ON + `No. ${ticketNo}\n` + BOLD_OFF + ALIGN_L;
-  out += LINE;
+  if (cfg.show_decorations) {
+    out += ALIGN_C + centerLine("~ Endulzando tus momentos ~");
+  }
 
-  out += BOLD_ON + "Fecha: " + BOLD_OFF + created + "\n";
-  out += BOLD_ON + "Cliente: " + BOLD_OFF + (p.customer || "Mostrador") + "\n";
-  if (p.address) out += BOLD_ON + "Direccion: " + BOLD_OFF + p.address + "\n";
-  if (p.phone) out += BOLD_ON + "Telefono: " + BOLD_OFF + p.phone + "\n";
-  if (p.payment_method) out += BOLD_ON + "Forma de Pago: " + BOLD_OFF + p.payment_method + "\n";
-  out += LINE;
+  if (cfg.show_nit && p.nit) out += ALIGN_C + centerLine(`NIT: ${p.nit}`);
+  if (cfg.show_address && p.address_biz)
+    for (const line of wrapText(p.address_biz, WIDTH - 6)) out += centerLine(line);
+  if (cfg.show_phone && p.phone_biz) out += centerLine(`Tel: ${p.phone_biz}`);
+  if (cfg.show_email && p.email_biz) out += centerLine(p.email_biz);
 
-  out += BOLD_ON + "CANT  DETALLE                  TOTAL\n" + BOLD_OFF;
-  out += LINE;
+  // Encabezado libre opcional
+  if (p.ticket_header) {
+    out += ALIGN_C;
+    for (const line of wrapText(p.ticket_header, WIDTH)) out += centerLine(line);
+  }
+
+  out += ALIGN_L + DASH_LINE;
+
+  // ==== TITULO Y NUMERO ====
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + (cfg.title_text || "TICKET DE VENTA") + "\n" + SIZE_NORMAL + BOLD_OFF;
+  if (cfg.show_ticket_number) {
+    const num = `${cfg.number_prefix || "TV-"}${String(p.ticket ?? 0).padStart(6, "0")}`;
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `No. ${num}\n` + SIZE_NORMAL + BOLD_OFF;
+  }
+  out += ALIGN_L + DASH_LINE;
+
+  // ==== METADATOS ====
+  if (cfg.show_date) {
+    const created = new Date(p.created_at || Date.now()).toLocaleString("es-CO");
+    out += BOLD_ON + "Fecha:      " + BOLD_OFF + created + "\n";
+  }
+  if (p.user_name) out += BOLD_ON + "Cajero:     " + BOLD_OFF + p.user_name + "\n";
+  if (cfg.show_customer) out += BOLD_ON + "Cliente:    " + BOLD_OFF + (p.customer || "Mostrador") + "\n";
+  if (cfg.show_customer_address && p.address) {
+    const lines = wrapText(p.address, WIDTH - 12);
+    out += BOLD_ON + "Direccion:  " + BOLD_OFF + lines[0] + "\n";
+    for (const extra of lines.slice(1)) out += "            " + extra + "\n";
+  }
+  if (cfg.show_customer_phone && p.phone) out += BOLD_ON + "Telefono:   " + BOLD_OFF + p.phone + "\n";
+  if (cfg.show_payment_method && p.payment_method)
+    out += BOLD_ON + "Forma Pago: " + BOLD_OFF + p.payment_method + "\n";
+
+  out += DASH_LINE;
+
+  // ==== ITEMS ====
+  const nameCol = WIDTH - 6 - 10; // qty(4) + espacio(2) + total(10)
+  out += BOLD_ON + "CANT  " + "DETALLE".padEnd(nameCol) + " " + "TOTAL".padStart(10) + "\n" + BOLD_OFF;
+  out += DOT_LINE;
   for (const item of p.items || []) {
     const qty = String(Number(item.qty || 0)).padEnd(4).slice(0, 4);
     const total = money((item.unit_price || 0) * (item.qty || 0));
-    const nameLines = wrapText(String(item.name || "").toUpperCase(), 24);
-    out += `${qty}  ${nameLines[0].padEnd(24).slice(0, 24)} ${total.padStart(10)}\n`;
+    const nameLines = wrapText(String(item.name || "").toUpperCase(), nameCol);
+    out += BOLD_ON + `${qty}  ${nameLines[0].padEnd(nameCol).slice(0, nameCol)} ${total.padStart(10)}\n` + BOLD_OFF;
     for (const extra of nameLines.slice(1)) out += `      ${extra}\n`;
+    if (item.modifiers && Array.isArray(item.modifiers)) {
+      for (const mod of item.modifiers) {
+        for (const line of wrapText(`+ ${mod}`, WIDTH - 8)) out += `      ${line}\n`;
+      }
+    }
+    if (item.unit_price != null) {
+      out += `      ${money(item.unit_price)} c/u\n`;
+    }
   }
-  out += LINE;
+  out += DOT_LINE;
 
-  if (p.subtotal != null) out += row("Subtotal:", money(p.subtotal));
-  if (Number(p.tax) > 0) out += row("Impuesto:", money(p.tax));
-  if (Number(p.deliveryFee) > 0) out += row("Domicilio:", money(p.deliveryFee));
+  // ==== TOTALES ====
+  if (cfg.show_subtotal && p.subtotal != null) out += row("Subtotal:", money(p.subtotal));
+  if (cfg.show_tax && Number(p.tax) > 0) out += row("Impuesto:", money(p.tax));
+  if (cfg.show_delivery_fee && Number(p.deliveryFee) > 0) out += row("Domicilio:", money(p.deliveryFee));
 
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE + "TOTAL\n";
-  out += money(p.total) + "\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
-  out += LINE;
-  out += row("Recibido:", money(received));
-  out += row("Cambio:", money(change));
-  out += LINE;
+  out += ALIGN_L + EQ_LINE;
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE + "TOTAL\n" + SIZE_NORMAL + BOLD_OFF;
+  out += ALIGN_C + BOLD_ON + SIZE_TRIPLE + money(p.total) + "\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
+  out += EQ_LINE;
 
+  if (cfg.show_cash_received && p.cash_received != null) {
+    const received = Number(p.cash_received ?? p.total ?? 0);
+    const change = Math.max(0, received - Number(p.total || 0));
+    out += row("Recibido:", money(received));
+    out += BOLD_ON + row("Cambio:", money(change)) + BOLD_OFF;
+    out += DASH_LINE;
+  }
+
+  // ==== NOTAS ====
   if (p.notes) {
     out += BOLD_ON + "NOTAS DEL PEDIDO:\n" + BOLD_OFF;
-    for (const line of wrapText(p.notes, 42)) out += line + "\n";
-    out += LINE;
+    for (const line of wrapText(p.notes, WIDTH)) out += line + "\n";
+    out += DASH_LINE;
   }
 
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H;
-  for (const line of wrapText(p.footer_text || "¡Gracias por Preferirnos!", 21)) out += line + "\n";
-  out += SIZE_NORMAL + BOLD_OFF;
-  out += centerLine("* HELADERIA GOLOSO *");
-  out += FEED(4) + CUT;
+  // ==== PIE ====
+  if (cfg.show_thanks) {
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H;
+    for (const line of wrapText(cfg.thanks_text || "¡Gracias por Preferirnos!", Math.floor(WIDTH / 2)))
+      out += line + "\n";
+    out += SIZE_NORMAL + BOLD_OFF;
+  }
+
+  if (cfg.extra_footer) {
+    out += ALIGN_C;
+    for (const line of String(cfg.extra_footer).split("\n"))
+      for (const w of wrapText(line, WIDTH)) out += centerLine(w);
+  }
+
+  if (p.ticket_footer) {
+    out += ALIGN_C;
+    for (const line of String(p.ticket_footer).split("\n"))
+      for (const w of wrapText(line, WIDTH)) out += centerLine(w);
+  }
+
+  if (cfg.show_decorations) {
+    out += ALIGN_C + centerLine("* HELADERIA GOLOSO *");
+    out += ALIGN_C + STAR_LINE;
+  }
+
+  out += ALIGN_L + FEED(4) + CUT;
   return Buffer.from(out, "binary");
 }
 
-function buildRaw(p) {
+// ---------- Comanda de cocina ----------
+function buildComandaRaw(p) {
   let out = INIT;
-
-  if (p.type === "drawer") {
-    return Buffer.from(INIT + DRAWER, "binary");
-  }
-
-  if (p.type === "comanda") {
-    // ===== COMANDA: letras grandes, negrita, alta legibilidad =====
-    out += ALIGN_C + BOLD_ON;
-    if (p.business_name) out += SIZE_DOUBLE + p.business_name.toUpperCase() + "\n" + SIZE_NORMAL;
-    out += SIZE_TRIPLE + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
-    out += SIZE_NORMAL + new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
-    if (p.user_name) out += `Cajero: ${p.user_name}\n`;
-    out += BOLD_OFF + ALIGN_L + LINE;
-    if (p.header) out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + `*** ${p.header.toUpperCase()} ***\n` + BOLD_OFF + SIZE_NORMAL + ALIGN_L;
-    out += BOLD_ON;
-    if (p.customer) out += SIZE_DOUBLE_H + `Cliente: ${p.customer}\n` + SIZE_NORMAL;
-    if (p.address) out += SIZE_DOUBLE_H + `Dir: ${p.address}\n` + SIZE_NORMAL;
-    if (p.phone) out += SIZE_DOUBLE_H + `Tel: ${p.phone}\n` + SIZE_NORMAL;
-    out += BOLD_OFF + LINE;
-    for (const i of p.items || []) {
-      out += BOLD_ON + SIZE_DOUBLE + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
-      out += "-".repeat(42) + "\n";
-    }
-    if (p.notes) {
-      out += "\n" + BOLD_ON + SIZE_DOUBLE_H + "OBSERVACION:\n" + SIZE_NORMAL + BOLD_OFF;
-      out += BOLD_ON + SIZE_DOUBLE_H + String(p.notes).toUpperCase() + "\n" + SIZE_NORMAL + BOLD_OFF;
-    }
-    out += "\n" + ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "*** ENVIAR A COCINA ***\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
-    out += FEED(4) + CUT;
-    return Buffer.from(out, "binary");
-  }
-
-  if (p.type === "ticket") {
-    return buildPersonalizedTicketRaw(p);
-  }
-
-  const title =
-    p.type === "precuenta"
-      ? "PRECUENTA"
-      : p.type === "comprobante"
-        ? `PEDIDO #${p.ticket ?? ""}`
-        : (p.business_name || "Heladería Goloso");
-
-  out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + title.toUpperCase() + "\n" + BOLD_OFF + SIZE_NORMAL;
-  if (p.nit) out += `NIT: ${p.nit}\n`;
-  if (p.address_biz) out += `${p.address_biz}\n`;
-  if (p.phone_biz) out += `Tel: ${p.phone_biz}\n`;
-  if (p.email_biz) out += `${p.email_biz}\n`;
-  out += LINE;
-  if (p.type !== "precuenta") {
-    out += ALIGN_C + BOLD_ON + `TICKET DE VENTA  No. TV-${String(p.ticket ?? 0).padStart(6, "0")}\n` + BOLD_OFF + ALIGN_L;
-    out += LINE;
-  }
-  out += new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
+  out += ALIGN_C + BOLD_ON;
+  if (p.business_name) out += SIZE_DOUBLE + String(p.business_name).toUpperCase() + "\n" + SIZE_NORMAL;
+  out += SIZE_TRIPLE + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
+  out += SIZE_NORMAL + new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
   if (p.user_name) out += `Cajero: ${p.user_name}\n`;
-  if (p.header) out += BOLD_ON + p.header + "\n" + BOLD_OFF;
-  if (p.customer) out += `Cliente: ${p.customer}\n`;
-  if (p.address) out += `Dir: ${p.address}\n`;
-  if (p.phone) out += `Tel: ${p.phone}\n`;
-  out += LINE;
-  out += BOLD_ON + row("CANT  DETALLE", "TOTAL") + BOLD_OFF;
-  out += LINE;
-
+  out += BOLD_OFF + ALIGN_L + DASH_LINE;
+  if (p.header)
+    out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + `*** ${String(p.header).toUpperCase()} ***\n` + BOLD_OFF + SIZE_NORMAL + ALIGN_L;
+  out += BOLD_ON;
+  if (p.customer) out += SIZE_DOUBLE_H + `Cliente: ${p.customer}\n` + SIZE_NORMAL;
+  if (p.address) out += SIZE_DOUBLE_H + `Dir: ${p.address}\n` + SIZE_NORMAL;
+  if (p.phone) out += SIZE_DOUBLE_H + `Tel: ${p.phone}\n` + SIZE_NORMAL;
+  out += BOLD_OFF + DASH_LINE;
   for (const i of p.items || []) {
-    out += row(`${i.qty} x ${i.name}`, money((i.unit_price || 0) * (i.qty || 0)));
-  }
-  out += LINE;
-
-  if (p.type === "comprobante") {
-    if (p.subtotal != null) out += row("Subtotal", money(p.subtotal));
-    if (Number(p.deliveryFee) > 0) out += row("Domicilio", money(p.deliveryFee));
-    out += BOLD_ON + row("TOTAL", money(p.total)) + BOLD_OFF + LINE;
-    out += ALIGN_C + SIZE_DOUBLE + BOLD_ON;
-    out += "FAVOR PASAR A CAJA\n";
-    out += "A CANCELAR ANTES\n";
-    out += "DE RECIBIR SU\n";
-    out += "PEDIDO\n";
-    out += BOLD_OFF + SIZE_NORMAL;
-    if (p.cashierMessage) out += "\n" + p.cashierMessage + "\n";
-  } else {
-    if (p.subtotal != null) out += row("Subtotal", money(p.subtotal));
-    if (Number(p.tax) > 0) out += row("Impuesto", money(p.tax));
-    if (Number(p.deliveryFee) > 0) out += row("Domicilio", money(p.deliveryFee));
-    out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + `TOTAL  ${money(p.total)}\n` + BOLD_OFF + SIZE_NORMAL + ALIGN_L;
-    if (p.payment_method) out += BOLD_ON + `Forma de Pago: ${p.payment_method}\n` + BOLD_OFF;
-    if (p.cash_received != null) {
-      const rec = Number(p.cash_received) || 0;
-      const change = Math.max(0, rec - Number(p.total || 0));
-      out += row("Recibido:", money(rec));
-      out += row("Cambio:", money(change));
+    out += BOLD_ON + SIZE_DOUBLE + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
+    if (i.modifiers && Array.isArray(i.modifiers)) {
+      for (const mod of i.modifiers) out += BOLD_ON + SIZE_DOUBLE_H + `  + ${String(mod).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
     }
-    out += LINE + ALIGN_C + BOLD_ON + (p.footer_text || "¡Gracias por Preferirnos!") + "\n" + BOLD_OFF + ALIGN_L;
+    out += DASH_LINE;
   }
-
+  if (p.notes) {
+    out += "\n" + BOLD_ON + SIZE_DOUBLE_H + "OBSERVACION:\n" + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE_H + String(p.notes).toUpperCase() + "\n" + SIZE_NORMAL + BOLD_OFF;
+  }
+  out += "\n" + ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "*** ENVIAR A COCINA ***\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
   out += FEED(4) + CUT;
   return Buffer.from(out, "binary");
 }
 
-// ---------- Envío a impresora ----------
+// ---------- Router de plantillas ----------
+function buildRaw(p) {
+  if (p.type === "drawer") return Buffer.from(INIT + DRAWER, "binary");
+  if (p.type === "comanda") return buildComandaRaw(p);
+  // Todos los demás tipos usan el ticket personalizado Goloso.
+  return buildPersonalizedTicketRaw(p);
+}
+
+// ---------- Envío ----------
 function sendRaw(buf, ip, port) {
   return new Promise((resolve, reject) => {
     const sock = new net.Socket();
@@ -288,7 +335,6 @@ async function sendUsb(buf) {
 
 async function printJob(payload) {
   const buf = buildRaw(payload);
-  // Si el payload trae una IP destino, siempre va por red (independiente del PRINTER_TYPE)
   if (payload.printer_ip) {
     const ip = String(payload.printer_ip);
     const port = Number(payload.printer_port || 9100);
@@ -314,7 +360,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
 
   if (req.method === "GET" && req.url === "/health") {
-    return send(200, { ok: true, printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT });
+    return send(200, { ok: true, printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
   }
 
   if (req.method === "GET" && req.url === "/test") {
@@ -322,10 +368,22 @@ const server = http.createServer(async (req, res) => {
       await printJob({
         type: "ticket",
         ticket: 999,
-        header: "PRUEBA",
-        items: [{ name: "Prueba de impresión", qty: 1, unit_price: 1000 }],
-        subtotal: 1000, total: 1000, payment_method: "Test",
-        user_name: "Servidor", created_at: new Date().toISOString(),
+        business_name: "Heladería Goloso",
+        nit: "900.123.456-7",
+        address_biz: "Cra 10 #20-30, Bogotá",
+        phone_biz: "300 000 0000",
+        email_biz: "hola@heladeriagoloso.com",
+        customer: "Cliente de Prueba",
+        items: [
+          { name: "Copa Goloso Especial", qty: 2, unit_price: 15000, modifiers: ["Chocolate", "Fresa"] },
+          { name: "Malteada de Fresa", qty: 1, unit_price: 12000 },
+        ],
+        subtotal: 42000, tax: 0, total: 42000,
+        cash_received: 50000,
+        payment_method: "Efectivo",
+        user_name: "Servidor",
+        created_at: new Date().toISOString(),
+        ticket_config: DEFAULT_CFG,
       });
       return send(200, { ok: true });
     } catch (e) {
@@ -357,5 +415,6 @@ const server = http.createServer(async (req, res) => {
 server.listen(PORT, () => {
   console.log(`Goloso print-server escuchando en http://localhost:${PORT}`);
   console.log(`Modo: ${PRINTER_TYPE}${PRINTER_TYPE !== "usb" ? ` ${PRINTER_IP}:${PRINTER_PORT}` : ""}`);
+  console.log(`Ancho: ${WIDTH} columnas`);
   console.log(`Prueba rápida: abre http://localhost:${PORT}/test en el navegador`);
 });
