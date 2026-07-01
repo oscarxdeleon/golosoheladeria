@@ -1356,32 +1356,33 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                     setNoteProduct(p);
                   }
                 }}
-                className="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-primary shadow ring-1 ring-primary/20 hover:bg-primary hover:text-primary-foreground transition"
+                className="absolute left-1.5 top-1.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-white/95 text-primary shadow ring-1 ring-primary/20 hover:bg-primary hover:text-primary-foreground transition"
                 title="Agregar con nota"
               >
-                <StickyNote className="h-4 w-4" />
+                <StickyNote className="h-3.5 w-3.5" />
               </button>
               {p.is_favorite && (
                 <span
                   aria-label="Producto destacado"
-                  className="absolute right-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-yellow-300 to-amber-500 text-white shadow-lg ring-2 ring-white"
+                  className="absolute right-1.5 top-1.5 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-amber-400 text-white shadow ring-1 ring-white"
                 >
-                  <Star className="h-4 w-4 fill-white" strokeWidth={2.5} />
+                  <Star className="h-3 w-3 fill-white" strokeWidth={2.5} />
                 </span>
               )}
-              <div className="aspect-square w-full overflow-hidden bg-white p-2 flex items-center justify-center">
+              <div className="aspect-square w-full overflow-hidden bg-white p-1.5 flex items-center justify-center">
                 {p.image_url ? (
-                  <img src={p.image_url} alt={p.name} className="max-h-[70%] max-w-[70%] object-contain transition group-hover:scale-105" loading="lazy" />
+                  <img src={p.image_url} alt={p.name} className="max-h-[75%] max-w-[75%] object-contain transition group-hover:scale-105" loading="lazy" />
                 ) : (
-                  <div className="flex h-full w-full items-center justify-center text-3xl font-display text-primary/40 bg-gradient-to-br from-secondary/30 to-accent/20 rounded-lg">
+                  <div className="flex h-full w-full items-center justify-center text-2xl font-display text-primary/40 bg-gradient-to-br from-secondary/30 to-accent/20 rounded-lg">
                     {p.name.charAt(0).toUpperCase()}
                   </div>
                 )}
               </div>
-              <div className="p-3">
-                <div className={`leading-tight line-clamp-2 text-sm ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
-                <div className={`mt-1 font-display text-lg text-primary ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
+              <div className="px-2 py-1.5">
+                <div className={`leading-tight line-clamp-2 text-[11px] sm:text-xs ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
+                <div className={`mt-0.5 font-display text-sm sm:text-base text-primary tabular-nums ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
+            </div>
             </div>
             );
           })}
