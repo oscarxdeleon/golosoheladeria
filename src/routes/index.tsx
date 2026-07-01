@@ -9,7 +9,7 @@ export const Route = createFileRoute("/")({
 
 const ROLE_HOME: Record<string, string> = {
   admin: "/dashboard",
-  cajero: "/pos",
+  cajero: "/mesas",
   mesero: "/mesas",
   domiciliario: "/domicilios",
 };
