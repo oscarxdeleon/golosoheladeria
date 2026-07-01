@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Smartphone, Landmark, ShoppingBag, Utensils, ArrowLeft } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Smartphone, Landmark, ShoppingBag, Utensils, ArrowLeft, BellRing } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
@@ -61,6 +61,27 @@ export function PublicOrder({
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [callingWaiter, setCallingWaiter] = useState(false);
+  const [waiterCalledAt, setWaiterCalledAt] = useState<number | null>(null);
+
+  async function callWaiter() {
+    if (!tableId || callingWaiter) return;
+    if (waiterCalledAt && Date.now() - waiterCalledAt < 30000) {
+      toast.info("Ya avisamos al mesero. Espera un momento por favor.");
+      return;
+    }
+    setCallingWaiter(true);
+    try {
+      const { error } = await supabase.rpc("create_waiter_call", { _table_id: tableId, _reason: undefined });
+      if (error) throw error;
+      setWaiterCalledAt(Date.now());
+      toast.success("¡Listo! Un mesero irá a tu mesa en un momento.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo llamar al mesero");
+    } finally {
+      setCallingWaiter(false);
+    }
+  }
 
   function resetKiosk() {
     if (resetTimerRef.current) {
@@ -564,6 +585,17 @@ export function PublicOrder({
               <ShoppingCart className="h-4 w-4" />
               <span className="hidden sm:inline">Ver carrito</span>
               <Badge variant="secondary" className="ml-1">{itemCount}</Badge>
+            </Button>
+          )}
+          {source === "table_qr" && tableId && (
+            <Button
+              size="sm"
+              onClick={callWaiter}
+              disabled={callingWaiter}
+              className="gap-1 bg-amber-500 hover:bg-amber-600 text-white font-bold shadow-lg animate-pulse"
+            >
+              <BellRing className="h-4 w-4" />
+              <span>Llamar al Mesero</span>
             </Button>
           )}
           <PwaInstallButton className="h-8 gap-1 px-3 text-xs bg-gradient-primary text-primary-foreground shadow-glow" />
