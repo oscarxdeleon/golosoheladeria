@@ -273,10 +273,14 @@ function ProductosPage() {
         return isNaN(n) ? 0 : n;
       };
 
+      const toTitle = (s: string) => {
+        const t = s.trim().toLowerCase();
+        return t ? t.charAt(0).toUpperCase() + t.slice(1) : t;
+      };
       const items = rowsRaw
         .map((r) => ({
-          name: String(r[kName!] ?? "").trim(),
-          category: kCat ? String(r[kCat] ?? "").trim() : "",
+          name: String(r[kName!] ?? "").trim().toUpperCase(),
+          category: kCat ? toTitle(String(r[kCat] ?? "")) : "",
           price: parsePrice(r[kPrice!]),
         }))
         .filter((r) => r.name && r.price > 0);
