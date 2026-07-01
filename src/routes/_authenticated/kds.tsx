@@ -27,6 +27,8 @@ interface Pending {
   ticket_number: number;
   user_name: string | null;
   customer_name: string | null;
+  customer_phone: string | null;
+  source: string | null;
   notes: string | null;
   order_type: string;
   created_at: string;
