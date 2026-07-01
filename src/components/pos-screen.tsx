@@ -33,6 +33,41 @@ const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color
   kiosko: { label: "Kiosko", icon: Monitor, color: "bg-purple-500 text-white" },
 };
 
+export interface TicketConfig {
+  show_logo: boolean;
+  show_business_name: boolean;
+  show_nit: boolean;
+  show_address: boolean;
+  show_phone: boolean;
+  show_email: boolean;
+  show_ticket_number: boolean;
+  show_date: boolean;
+  show_customer: boolean;
+  show_customer_address: boolean;
+  show_customer_phone: boolean;
+  show_payment_method: boolean;
+  show_subtotal: boolean;
+  show_tax: boolean;
+  show_delivery_fee: boolean;
+  show_cash_received: boolean;
+  show_thanks: boolean;
+  show_decorations: boolean;
+  title_text: string;
+  number_prefix: string;
+  thanks_text: string;
+  extra_footer: string;
+}
+
+export const DEFAULT_TICKET_CONFIG: TicketConfig = {
+  show_logo: true, show_business_name: true, show_nit: true, show_address: true,
+  show_phone: true, show_email: true, show_ticket_number: true, show_date: true,
+  show_customer: true, show_customer_address: true, show_customer_phone: true,
+  show_payment_method: true, show_subtotal: true, show_tax: true, show_delivery_fee: true,
+  show_cash_received: true, show_thanks: true, show_decorations: true,
+  title_text: "TICKET DE VENTA", number_prefix: "TV-",
+  thanks_text: "¡Gracias por Preferirnos!", extra_footer: "",
+};
+
 export interface Branding {
   business_name: string;
   nit?: string | null;
@@ -42,9 +77,11 @@ export interface Branding {
   logo_url?: string | null;
   ticket_header?: string | null;
   ticket_footer?: string | null;
+  ticket_config?: Partial<TicketConfig> | null;
 }
 
 const DEFAULT_BRANDING: Branding = { business_name: "Heladería Goloso" };
+
 
 function brandHeaderHTML(b: Branding) {
   const lines: string[] = [];
