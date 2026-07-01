@@ -1322,7 +1322,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent">
             <TabsTrigger
               value="all"
-              className="font-display font-extrabold uppercase tracking-wide text-sm sm:text-base px-4 py-2 rounded-xl data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
+              className="font-display font-extrabold uppercase tracking-wide text-sm px-3 py-1.5 rounded-xl data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
             >
               Todo
             </TabsTrigger>
@@ -1330,7 +1330,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               <TabsTrigger
                 key={c.id}
                 value={c.id}
-                className="font-display font-extrabold uppercase tracking-wide text-sm sm:text-base px-4 py-2 rounded-xl data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
+                className="font-display font-extrabold uppercase tracking-wide text-sm px-3 py-1.5 rounded-xl data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-glow"
               >
                 {c.name}
               </TabsTrigger>
