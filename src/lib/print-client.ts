@@ -30,6 +30,8 @@ export type PrintPayload = {
   phone_biz?: string;
   email_biz?: string;
   footer_text?: string;
+  logo_url?: string;
+  ticket_template?: "goloso_personalizado";
   cash_received?: number;
   printer_ip?: string;
   printer_port?: number;

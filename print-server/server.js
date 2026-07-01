@@ -39,6 +39,7 @@ const SIZE_NORMAL = GS + "!" + "\x00";
 const SIZE_DOUBLE_H = GS + "!" + "\x01"; // doble alto
 const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
+const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 const FEED = (n) => "\n".repeat(n);
 const LINE = "-".repeat(42) + "\n";
@@ -50,8 +51,106 @@ function row(left, right, width = 42) {
   return l + " ".repeat(space) + r + "\n";
 }
 
+function wrapText(text, width) {
+  const words = String(text ?? "").replace(/\s+/g, " ").trim().split(" ").filter(Boolean);
+  const lines = [];
+  let line = "";
+  for (const word of words) {
+    if (!line) {
+      line = word;
+    } else if ((line + " " + word).length <= width) {
+      line += " " + word;
+    } else {
+      lines.push(line);
+      line = word;
+    }
+    while (line.length > width) {
+      lines.push(line.slice(0, width));
+      line = line.slice(width);
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function centerLine(text, width = 42) {
+  const t = String(text ?? "").trim();
+  const pad = Math.max(0, Math.floor((width - t.length) / 2));
+  return " ".repeat(pad) + t + "\n";
+}
+
+function buildPersonalizedTicketRaw(p) {
+  let out = INIT;
+  if (p.open_drawer) out += DRAWER;
+
+  const business = (p.business_name || "Heladería Goloso").toUpperCase();
+  const ticketNo = `TV-${String(p.ticket ?? 0).padStart(6, "0")}`;
+  const created = new Date(p.created_at || Date.now()).toLocaleString("es-CO");
+  const received = Number(p.cash_received ?? p.total ?? 0);
+  const change = Math.max(0, received - Number(p.total || 0));
+
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE;
+  for (const line of wrapText(business, 21)) out += line + "\n";
+  out += SIZE_NORMAL + BOLD_OFF;
+  if (p.nit) out += centerLine(`NIT: ${p.nit}`);
+  if (p.address_biz) for (const line of wrapText(p.address_biz, 36)) out += centerLine(line);
+  if (p.phone_biz) out += centerLine(`Tel: ${p.phone_biz}`);
+  if (p.email_biz) out += centerLine(p.email_biz);
+
+  out += ALIGN_L + LINE;
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "TICKET DE VENTA\n" + SIZE_NORMAL;
+  out += BOLD_ON + `No. ${ticketNo}\n` + BOLD_OFF + ALIGN_L;
+  out += LINE;
+
+  out += BOLD_ON + "Fecha: " + BOLD_OFF + created + "\n";
+  out += BOLD_ON + "Cliente: " + BOLD_OFF + (p.customer || "Mostrador") + "\n";
+  if (p.address) out += BOLD_ON + "Direccion: " + BOLD_OFF + p.address + "\n";
+  if (p.phone) out += BOLD_ON + "Telefono: " + BOLD_OFF + p.phone + "\n";
+  if (p.payment_method) out += BOLD_ON + "Forma de Pago: " + BOLD_OFF + p.payment_method + "\n";
+  out += LINE;
+
+  out += BOLD_ON + "CANT  DETALLE                  TOTAL\n" + BOLD_OFF;
+  out += LINE;
+  for (const item of p.items || []) {
+    const qty = String(Number(item.qty || 0)).padEnd(4).slice(0, 4);
+    const total = money((item.unit_price || 0) * (item.qty || 0));
+    const nameLines = wrapText(String(item.name || "").toUpperCase(), 24);
+    out += `${qty}  ${nameLines[0].padEnd(24).slice(0, 24)} ${total.padStart(10)}\n`;
+    for (const extra of nameLines.slice(1)) out += `      ${extra}\n`;
+  }
+  out += LINE;
+
+  if (p.subtotal != null) out += row("Subtotal:", money(p.subtotal));
+  if (Number(p.tax) > 0) out += row("Impuesto:", money(p.tax));
+  if (Number(p.deliveryFee) > 0) out += row("Domicilio:", money(p.deliveryFee));
+
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE + "TOTAL\n";
+  out += money(p.total) + "\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
+  out += LINE;
+  out += row("Recibido:", money(received));
+  out += row("Cambio:", money(change));
+  out += LINE;
+
+  if (p.notes) {
+    out += BOLD_ON + "NOTAS DEL PEDIDO:\n" + BOLD_OFF;
+    for (const line of wrapText(p.notes, 42)) out += line + "\n";
+    out += LINE;
+  }
+
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H;
+  for (const line of wrapText(p.footer_text || "¡Gracias por Preferirnos!", 21)) out += line + "\n";
+  out += SIZE_NORMAL + BOLD_OFF;
+  out += centerLine("* HELADERIA GOLOSO *");
+  out += FEED(4) + CUT;
+  return Buffer.from(out, "binary");
+}
+
 function buildRaw(p) {
   let out = INIT;
+
+  if (p.type === "drawer") {
+    return Buffer.from(INIT + DRAWER, "binary");
+  }
 
   if (p.type === "comanda") {
     // ===== COMANDA: letras grandes, negrita, alta legibilidad =====
@@ -78,6 +177,10 @@ function buildRaw(p) {
     out += "\n" + ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "*** ENVIAR A COCINA ***\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
     out += FEED(4) + CUT;
     return Buffer.from(out, "binary");
+  }
+
+  if (p.type === "ticket") {
+    return buildPersonalizedTicketRaw(p);
   }
 
   const title =
