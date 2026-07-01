@@ -356,7 +356,9 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
         logo_url: branch?.logo_url ?? settings?.logo_url ?? null,
         ticket_header: branch?.ticket_header ?? settings?.ticket_header ?? null,
         ticket_footer: branch?.ticket_footer ?? settings?.ticket_footer ?? null,
+        ticket_config: (settings as { ticket_config?: Record<string, unknown> | null } | null)?.ticket_config ?? null,
       };
+
       return { sale, items: (items ?? []) as SaleItem[], branding };
     },
   });
