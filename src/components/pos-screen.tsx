@@ -512,6 +512,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
   useEffect(() => {
     if (!pendingSale) return;
+    // No hidrates el carrito mientras el usuario está en pleno guardado —
+    // podría reintroducir ítems recién guardados sobre un cart ya limpio.
+    if (paying) return;
     setPendingSaleId(pendingSale.id);
     setCustomer(pendingSale.customer_name ?? "");
     setNotes(pendingSale.notes ?? "");
@@ -525,7 +528,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         modifiers: [],
       })),
     );
-  }, [pendingSale]);
+  }, [pendingSale, paying]);
+
 
   // Cargar pedido pendiente del Kiosko (al ser seleccionado desde el panel)
   const { data: kioskSale } = useQuery({
