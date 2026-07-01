@@ -21,6 +21,7 @@ interface SaleItem {
 }
 interface Pending {
   id: string; ticket_number: number; user_name: string | null; customer_name: string | null;
+  customer_phone: string | null; source: string | null;
   notes: string | null; order_type: string; created_at: string; table_id: string | null;
   delivery_address: string | null; status: string; branch_id: string | null;
   sale_items: SaleItem[];
