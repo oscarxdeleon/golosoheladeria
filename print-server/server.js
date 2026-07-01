@@ -206,15 +206,15 @@ function buildPersonalizedTicketRaw(p) {
     out += BOLD_ON + "Fecha:      " + BOLD_OFF + created + "\n";
   }
   if (p.user_name) out += BOLD_ON + "Cajero:     " + BOLD_OFF + p.user_name + "\n";
-  if (cfg.show_customer) out += BOLD_ON + "Cliente:    " + BOLD_OFF + (p.customer || "Mostrador") + "\n";
+  if (cfg.show_customer) out += BOLD_ON + "Cliente:    " + BOLD_OFF + String(p.customer || "Mostrador").toUpperCase() + "\n";
   if (cfg.show_customer_address && p.address) {
-    const lines = wrapText(p.address, WIDTH - 12);
+    const lines = wrapText(String(p.address).toUpperCase(), WIDTH - 12);
     out += BOLD_ON + "Direccion:  " + BOLD_OFF + lines[0] + "\n";
     for (const extra of lines.slice(1)) out += "            " + extra + "\n";
   }
-  if (cfg.show_customer_phone && p.phone) out += BOLD_ON + "Telefono:   " + BOLD_OFF + p.phone + "\n";
+  if (cfg.show_customer_phone && p.phone) out += BOLD_ON + "Telefono:   " + BOLD_OFF + String(p.phone).toUpperCase() + "\n";
   if (cfg.show_payment_method && p.payment_method)
-    out += BOLD_ON + "Forma Pago: " + BOLD_OFF + p.payment_method + "\n";
+    out += BOLD_ON + "Forma Pago: " + BOLD_OFF + String(p.payment_method).toUpperCase() + "\n";
 
   out += DASH_LINE;
 
