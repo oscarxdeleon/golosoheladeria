@@ -57,13 +57,13 @@ const main = [
 ];
 
 const orden = [
+  { to: "/kds", label: "KDS", icon: ChefHat, key: "kds" },
   { to: "/mesas", label: "Mesas", icon: Utensils, key: "mesas" },
   { to: "/llevar", label: "Para llevar", icon: ShoppingBag, key: "llevar" },
   { to: "/domicilio", label: "A domicilio", icon: Bike, key: "domicilio" },
-  { to: "/domicilios", label: "Despacho domicilios", icon: Bike, key: "domicilios" },
   { to: "/kiosko", label: "Autopedido", icon: Monitor, key: "kiosko" },
   { to: "/pedidos-online", label: "Pedidos en línea", icon: BellRing, key: "pedidos-online" },
-  { to: "/kds", label: "KDS", icon: Monitor, key: "kds" },
+  { to: "/domicilios", label: "Despacho domicilios", icon: Truck, key: "domicilios" },
   { to: "/clientes", label: "Clientes", icon: Users, key: "clientes" },
   { to: "/crm", label: "CRM", icon: Contact2, key: "crm" },
 ];
