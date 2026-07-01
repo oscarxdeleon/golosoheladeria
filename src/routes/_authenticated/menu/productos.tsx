@@ -328,8 +328,28 @@ function ProductosPage() {
           <p className="text-muted-foreground">Items que se venden en la caja</p>
         </div>
         {isAdmin && (
-          <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-            <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-1" /> Plantilla Excel
+            </Button>
+            <Button variant="outline" asChild>
+              <label className="cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Importar Excel
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) importFromExcel(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </Button>
+            <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+              <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
+
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="space-y-4">
