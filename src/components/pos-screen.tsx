@@ -517,12 +517,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType, tableId, initialCustomer, initialPhone, initialAddress, initialNeighborhood]);
 
-  // Colapsar sidebar al entrar al POS para maximizar el área de productos
+  // Enfocar buscador al entrar al POS (sidebar queda como el usuario lo tenga)
   useEffect(() => {
-    setSidebarOpen(false);
     const t = setTimeout(() => searchRef.current?.focus(), 250);
     return () => clearTimeout(t);
-  }, [setSidebarOpen]);
+  }, []);
+
 
   // Atajos de teclado: F2 buscar, Esc limpiar búsqueda
   useEffect(() => {
