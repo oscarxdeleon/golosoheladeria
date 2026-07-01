@@ -12,7 +12,9 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, ImagePlus, Star, Copy } from "lucide-react";
+import { Plus, Trash2, Pencil, ImagePlus, Star, Copy, FileSpreadsheet, Download } from "lucide-react";
+import * as XLSX from "xlsx";
+
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 
@@ -222,6 +224,94 @@ function ProductosPage() {
     qc.invalidateQueries({ queryKey: ["public-products"] });
   }
 
+  function downloadTemplate() {
+    const rows = [
+      { "NOMBRE PRODUCTO": "Cono 1 Sabor", "CATEGORIA": "Helado", "PRECIO": 5000 },
+      { "NOMBRE PRODUCTO": "Malteada Fresa", "CATEGORIA": "Malteadas", "PRECIO": 12000 },
+    ];
+    const ws = XLSX.utils.json_to_sheet(rows, { header: ["NOMBRE PRODUCTO", "CATEGORIA", "PRECIO"] });
+    ws["!cols"] = [{ wch: 30 }, { wch: 20 }, { wch: 12 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Productos");
+    XLSX.writeFile(wb, "plantilla-productos.xlsx");
+  }
+
+  async function importFromExcel(file: File) {
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf, { type: "array" });
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rowsRaw = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      if (!rowsRaw.length) { toast.error("El archivo está vacío"); return; }
+
+      const norm = (s: string) => s.toString().trim().toLowerCase().replace(/\s+/g, " ");
+      const findKey = (obj: Record<string, unknown>, candidates: string[]) => {
+        const keys = Object.keys(obj);
+        for (const c of candidates) {
+          const k = keys.find((k) => norm(k) === norm(c));
+          if (k) return k;
+        }
+        return null;
+      };
+
+      const first = rowsRaw[0];
+      const kName = findKey(first, ["NOMBRE PRODUCTO", "NOMBRE", "PRODUCTO", "NAME"]);
+      const kCat = findKey(first, ["CATEGORIA", "CATEGORÍA", "CATEGORY"]);
+      const kPrice = findKey(first, ["PRECIO", "PRICE", "VALOR"]);
+      if (!kName || !kPrice) { toast.error("El Excel debe tener columnas: NOMBRE PRODUCTO, CATEGORIA, PRECIO"); return; }
+
+      const parsePrice = (v: unknown) => {
+        if (typeof v === "number") return v;
+        const s = String(v ?? "").replace(/[^0-9.,-]/g, "").replace(/\.(?=\d{3}(\D|$))/g, "").replace(",", ".");
+        const n = Number(s);
+        return isNaN(n) ? 0 : n;
+      };
+
+      const items = rowsRaw
+        .map((r) => ({
+          name: String(r[kName!] ?? "").trim(),
+          category: kCat ? String(r[kCat] ?? "").trim() : "",
+          price: parsePrice(r[kPrice!]),
+        }))
+        .filter((r) => r.name && r.price > 0);
+
+      if (!items.length) { toast.error("No se encontraron filas válidas"); return; }
+
+      toast.info(`Importando ${items.length} productos...`);
+
+      // Cache/crea categorías por nombre
+      const catCache = new Map<string, string>();
+      for (const c of cats) catCache.set(norm(c.name), c.id);
+      const uniqueCats = Array.from(new Set(items.map((i) => norm(i.category)).filter(Boolean)));
+      for (const cn of uniqueCats) {
+        if (catCache.has(cn)) continue;
+        const original = items.find((i) => norm(i.category) === cn)!.category;
+        const { data, error } = await supabase.from("categories").insert({ name: original }).select("id").single();
+        if (!error && data) catCache.set(cn, data.id);
+      }
+
+      const payload = items.map((i) => ({
+        name: i.name,
+        price: i.price,
+        category_id: i.category ? catCache.get(norm(i.category)) ?? null : null,
+        active: true,
+        show_in_online: true,
+      }));
+
+      const { error } = await supabase.from("products").insert(payload);
+      if (error) { toast.error(`Error al importar: ${error.message}`); return; }
+
+      toast.success(`✅ ${payload.length} productos importados`);
+      qc.invalidateQueries({ queryKey: ["products-all"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["public-products"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+    } catch (e) {
+      toast.error(`Error leyendo Excel: ${(e as Error).message}`);
+    }
+  }
+
+
 
 
   const branchSelected = (bid: string) => {
@@ -238,8 +328,28 @@ function ProductosPage() {
           <p className="text-muted-foreground">Items que se venden en la caja</p>
         </div>
         {isAdmin && (
-          <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-            <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" onClick={downloadTemplate}>
+              <Download className="h-4 w-4 mr-1" /> Plantilla Excel
+            </Button>
+            <Button variant="outline" asChild>
+              <label className="cursor-pointer">
+                <FileSpreadsheet className="h-4 w-4 mr-1" /> Importar Excel
+                <input
+                  type="file"
+                  accept=".xlsx,.xls,.csv"
+                  className="hidden"
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) importFromExcel(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </Button>
+            <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+              <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
+
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="space-y-4">
@@ -377,8 +487,10 @@ function ProductosPage() {
 
               <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
-          </Dialog>
+            </Dialog>
+          </div>
         )}
+
       </div>
       <Card>
         <CardContent className="p-0">
