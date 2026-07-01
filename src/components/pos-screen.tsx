@@ -836,11 +836,27 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   }
 
   async function saveComanda() {
+    if (paying) {
+      console.warn("[pos] saveComanda ignorado: ya hay una operación en curso");
+      return;
+    }
     if (!user) return toast.error("Inicia sesión para guardar el pedido");
     if (!effectiveSessionId) return toast.error("No hay caja abierta en esta sede");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (!validateDelivery()) return;
+    console.log("[pos] saveComanda inicio · user=", user.id, "· pendingSaleId=", pendingSaleId, "· items=", cart.length);
     setPaying(true);
+
+    // Watchdog: si algo se cuelga (red, RLS que no responde, token vencido)
+    // liberamos el botón a los 15s con un mensaje claro para el cajero. Esto
+    // evita el bug "no responde a la primera" que dejaba `paying=true` para
+    // siempre cuando una llamada de Supabase no resolvía.
+    const watchdog = window.setTimeout(() => {
+      console.error("[pos] saveComanda: watchdog disparado a los 15s — liberando UI");
+      setPaying(false);
+      toast.error("La operación tardó demasiado. Reintenta o recarga la página.");
+    }, 15000);
+
     try {
       let sale: { id: string; ticket_number: number; created_at: string };
       if (pendingSaleId) {
@@ -865,10 +881,43 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,created_at")
-          .single();
+          .maybeSingle();
         if (error) throw new Error(error.message || "No se pudo actualizar el pedido");
-        sale = data;
-        await supabase.from("sale_items").delete().eq("sale_id", pendingSaleId);
+        if (!data) {
+          // Sin permiso o el pedido pertenece a otro usuario — reiniciamos flujo como venta nueva
+          console.warn("[pos] update devolvió 0 filas (posible RLS), reintentando como INSERT");
+          setPendingSaleId(null);
+          const ins = await supabase
+            .from("sales")
+            .insert({
+              user_id: user.id,
+              user_name: profile?.full_name ?? user.email,
+              subtotal,
+              tax,
+              total,
+              payment_method: "Pendiente",
+              status: "pending",
+              source: "pos",
+              printed_at: new Date().toISOString(),
+              customer_name: customer || null,
+              notes: notes || null,
+              order_type: orderType,
+              table_id: tableId ?? null,
+              branch_id: activeBranchId,
+              delivery_address: orderType === "domicilio" ? address : null,
+              delivery_phone: orderType === "domicilio" ? phone : null,
+              delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
+              delivery_fee: deliveryFee,
+              cash_session_id: effectiveSessionId,
+            })
+            .select("id,ticket_number,created_at")
+            .single();
+          if (ins.error) throw new Error(ins.error.message || "No se pudo guardar el pedido");
+          sale = ins.data;
+        } else {
+          sale = data;
+          await supabase.from("sale_items").delete().eq("sale_id", pendingSaleId);
+        }
       } else {
         const { data, error } = await supabase
           .from("sales")
@@ -904,6 +953,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         setPendingSaleId(sale.id);
       }
 
+      console.log("[pos] saveComanda · sale guardado #", sale.ticket_number);
+
       const items = cart.map((l) => ({
         sale_id: sale.id,
         product_id: l.product_id,
@@ -919,19 +970,19 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         throw new Error(e2.message || "No se pudieron guardar los productos");
       }
 
-      // Marcar mesa como ocupada si aplica
+      // Marcar mesa como ocupada si aplica (el trigger DB también lo hace;
+      // este UPDATE es idempotente y no debe bloquear el flujo si falla).
       if (orderType === "mesa" && tableId) {
-        await supabase
+        supabase
           .from("restaurant_tables")
           .update({ status: "occupied", occupied_at: new Date().toISOString() })
-          .eq("id", tableId);
-        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+          .eq("id", tableId)
+          .then(({ error: tErr }) => {
+            if (tErr) console.warn("[pos] no se pudo marcar mesa ocupada (trigger cubre):", tErr.message);
+            qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+          });
       }
 
-      // Snapshot inmediato de los productos (con modificadores y notas) y
-      // datos de la orden — NO depende de estado de React que aún no se haya
-      // re-renderizado. Esto evita la race condition donde la primera
-      // impresión se disparaba sin payload completo.
       const printSnapshot = {
         ticket: sale.ticket_number,
         header,
@@ -949,14 +1000,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         created_at: sale.created_at,
       };
 
-      // 1º DB ya guardada · 2º KDS realtime (invalidate) · 3º Impresión física en background.
+      // 1º DB ya guardada · 2º KDS realtime · 3º Impresión física en background.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
 
-      // Impresión en segundo plano — NO bloquea la respuesta del botón ni la
-      // navegación. Si el servidor de impresión está lento o caído, el POS
-      // igual libera al cajero de inmediato (evita el bug de "no responde a
-      // la primera").
       toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
       void printComanda(printSnapshot).then((printed) => {
         if (printed) toast.success(`Impresión #${sale.ticket_number} enviada`);
@@ -974,10 +1021,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       setNeighborhood("");
       setFieldErrors({});
       setPendingSaleId(null);
-      // Invalidar la venta pendiente DESPUÉS de limpiar el cart, para que
-      // el useEffect que hidrata `cart` desde `pendingSale` no reintroduzca
-      // los ítems recién guardados en la pantalla ya vaciada.
       qc.invalidateQueries({ queryKey: ["pending-sale"] });
+
+      // CRÍTICO: liberamos `paying` ANTES de navegar. Antes se hacía en el
+      // `finally`, pero al navegar el componente se desmonta y el setState
+      // no llega — si el usuario volvía a la misma mesa (mismo componente
+      // recuperado por React) veía el botón atascado en "Enviando…".
+      window.clearTimeout(watchdog);
+      setPaying(false);
 
       if (onSaved) {
         onSaved();
@@ -987,15 +1038,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         else if (orderType === "domicilio") navigate({ to: "/domicilio" });
         else if (orderType === "kiosko") navigate({ to: "/kiosko" });
       }
-
-
     } catch (err) {
-      console.error(err);
+      console.error("[pos] saveComanda error", err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
-    } finally {
+      window.clearTimeout(watchdog);
       setPaying(false);
     }
   }
+
 
 
   async function handlePrecuenta() {
