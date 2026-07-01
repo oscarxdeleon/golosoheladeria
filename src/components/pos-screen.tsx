@@ -1286,13 +1286,34 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
           {filtered.map((p) => (
-            <button
+            <div
               key={p.id}
               onClick={() => add(p)}
-              className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98] ${
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") add(p); }}
+              className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98] cursor-pointer ${
                 p.is_favorite ? "border-yellow-400 ring-2 ring-yellow-300/60 shadow-md" : ""
               }`}
             >
+              <button
+                type="button"
+                aria-label="Agregar con nota"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNoteText("");
+                  setNoteQty(1);
+                  if (p.modifier_group_ids && p.modifier_group_ids.length > 0) {
+                    setModalProduct(p);
+                  } else {
+                    setNoteProduct(p);
+                  }
+                }}
+                className="absolute left-2 top-2 z-10 flex h-7 w-7 items-center justify-center rounded-full bg-white/95 text-primary shadow ring-1 ring-primary/20 hover:bg-primary hover:text-primary-foreground transition"
+                title="Agregar con nota"
+              >
+                <StickyNote className="h-4 w-4" />
+              </button>
               {p.is_favorite && (
                 <span
                   aria-label="Producto destacado"
@@ -1314,7 +1335,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 <div className={`leading-tight line-clamp-2 text-sm ${p.is_favorite ? "font-bold" : "font-medium"}`}>{p.name}</div>
                 <div className={`mt-1 font-display text-lg text-primary ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
-            </button>
+            </div>
           ))}
           {filtered.length === 0 && (
             <p className="col-span-full text-center text-sm text-muted-foreground py-12">
