@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
