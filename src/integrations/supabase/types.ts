@@ -1015,6 +1015,7 @@ export type Database = {
         Row: {
           id: string
           modifiers: Json
+          notes: string | null
           product_id: string | null
           product_name: string
           qty: number
@@ -1026,6 +1027,7 @@ export type Database = {
         Insert: {
           id?: string
           modifiers?: Json
+          notes?: string | null
           product_id?: string | null
           product_name: string
           qty?: number
@@ -1037,6 +1039,7 @@ export type Database = {
         Update: {
           id?: string
           modifiers?: Json
+          notes?: string | null
           product_id?: string | null
           product_name?: string
           qty?: number

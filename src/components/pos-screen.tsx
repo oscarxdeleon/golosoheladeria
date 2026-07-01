@@ -24,7 +24,7 @@ export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; modifier_group_ids?: string[] | null; }
 interface SaleModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
-interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; }
+interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; notes?: string; }
 
 const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color: string }> = {
   mesa: { label: "Mesa", icon: Utensils, color: "bg-primary text-primary-foreground" },
@@ -815,7 +815,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           unit_price: l.unit_price,
           subtotal: l.unit_price * l.qty,
           modifiers: JSON.parse(JSON.stringify(l.modifiers ?? [])),
+          notes: l.notes?.trim() ? l.notes.trim() : null,
         }));
+
         const { error: e2 } = await supabase.from("sale_items").insert(items);
         if (e2) {
           console.error("[pay] insert items error", e2);
@@ -1039,7 +1041,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         unit_price: l.unit_price,
         subtotal: l.unit_price * l.qty,
         modifiers: JSON.parse(JSON.stringify(l.modifiers ?? [])),
+        notes: l.notes?.trim() ? l.notes.trim() : null,
       }));
+
       const { error: e2 } = await supabase.from("sale_items").insert(items);
       if (e2) {
         console.error("save items error", e2);
@@ -1322,20 +1326,29 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               <p className="text-sm text-muted-foreground text-center py-8">Toca un producto para agregarlo</p>
             )}
             {cart.map((l) => (
-              <div key={l.key} className="flex items-center gap-2 rounded-lg bg-muted/50 p-2">
-                <div className="flex-1">
-                <div className="font-medium text-sm whitespace-pre-line">{l.name}</div>
-                  <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)} c/u</div>
+              <div key={l.key} className="space-y-1.5 rounded-lg bg-muted/50 p-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm whitespace-pre-line">{l.name}</div>
+                    <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)} c/u</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => dec(l.key)}><Minus className="h-3 w-3" /></Button>
+                    <span className="w-6 text-center text-sm">{l.qty}</span>
+                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setCart((p) => p.map((x) => x.key === l.key ? { ...x, qty: x.qty + 1 } : x))}><Plus className="h-3 w-3" /></Button>
+                  </div>
+                  <div className="w-20 text-right text-sm font-medium">{formatMoney(l.unit_price * l.qty)}</div>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(l.key)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => dec(l.key)}><Minus className="h-3 w-3" /></Button>
-                  <span className="w-6 text-center text-sm">{l.qty}</span>
-                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setCart((p) => p.map((x) => x.key === l.key ? { ...x, qty: x.qty + 1 } : x))}><Plus className="h-3 w-3" /></Button>
-                </div>
-                <div className="w-20 text-right text-sm font-medium">{formatMoney(l.unit_price * l.qty)}</div>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(l.key)}><Trash2 className="h-3 w-3" /></Button>
+                <Input
+                  value={l.notes ?? ""}
+                  onChange={(e) => setCart((p) => p.map((x) => x.key === l.key ? { ...x, notes: e.target.value } : x))}
+                  placeholder="📝 Nota (opcional): ej. sin azúcar, extra topping…"
+                  className="h-8 text-xs bg-background/80"
+                />
               </div>
             ))}
+
           </div>
 
           <div className="space-y-2 border-t pt-3">
