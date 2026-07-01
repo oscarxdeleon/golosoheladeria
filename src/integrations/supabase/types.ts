@@ -1456,11 +1456,69 @@ export type Database = {
         }
         Relationships: []
       }
+      waiter_calls: {
+        Row: {
+          attended_at: string | null
+          attended_by: string | null
+          attended_by_name: string | null
+          branch_id: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          status: string
+          table_id: string | null
+          table_label: string | null
+          table_number: number | null
+        }
+        Insert: {
+          attended_at?: string | null
+          attended_by?: string | null
+          attended_by_name?: string | null
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          table_id?: string | null
+          table_label?: string | null
+          table_number?: number | null
+        }
+        Update: {
+          attended_at?: string | null
+          attended_by?: string | null
+          attended_by_name?: string | null
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          status?: string
+          table_id?: string | null
+          table_label?: string | null
+          table_number?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "waiter_calls_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waiter_calls_table_id_fkey"
+            columns: ["table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
+      attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
       close_cash_session: {
         Args: { _closing_notes?: string; _counted_amount: number }
         Returns: {
@@ -1536,6 +1594,10 @@ export type Database = {
         }
       }
       create_public_order: { Args: { _payload: Json }; Returns: Json }
+      create_waiter_call: {
+        Args: { _reason?: string; _table_id: string }
+        Returns: Json
+      }
       get_active_cash_session: {
         Args: { _branch_id?: string }
         Returns: {
