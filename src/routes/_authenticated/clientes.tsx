@@ -10,10 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Search, Star, Users, TrendingUp, Phone, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Star, Users, TrendingUp, Phone, MapPin, FileDown, Upload } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { z } from "zod";
+import * as XLSX from "xlsx";
+import { useRef } from "react";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Goloso POS" }] }),
@@ -128,16 +130,87 @@ function ClientesPage() {
     qc.invalidateQueries({ queryKey: ["customers"] });
   }
 
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [importing, setImporting] = useState(false);
+
+  function downloadTemplate() {
+    const ws = XLSX.utils.aoa_to_sheet([
+      ["NOMBRE", "DIRECCION", "TELEFONO"],
+      ["JUAN PEREZ", "CALLE 10 # 5-20", "3001234567"],
+    ]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Clientes");
+    XLSX.writeFile(wb, "plantilla-clientes.xlsx");
+  }
+
+  async function importFromExcel(file: File) {
+    setImporting(true);
+    try {
+      const buf = await file.arrayBuffer();
+      const wb = XLSX.read(buf);
+      const ws = wb.Sheets[wb.SheetNames[0]];
+      const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(ws, { defval: "" });
+      const norm = (s: unknown) => String(s ?? "").trim().toUpperCase();
+      const normPhone = (s: unknown) => String(s ?? "").replace(/[^0-9]/g, "");
+
+      const existingPhones = new Set(
+        (data ?? []).map((c) => (c.phone ?? "").replace(/[^0-9]/g, "")).filter(Boolean),
+      );
+      const existingNames = new Set((data ?? []).map((c) => c.name.toUpperCase()));
+
+      const toInsert: { name: string; address: string | null; phone: string | null }[] = [];
+      let skipped = 0;
+      for (const r of rows) {
+        const name = norm(r["NOMBRE"] ?? r["nombre"] ?? r["Nombre"]);
+        const address = norm(r["DIRECCION"] ?? r["DIRECCIÓN"] ?? r["direccion"] ?? r["Direccion"]);
+        const phone = normPhone(r["TELEFONO"] ?? r["TELÉFONO"] ?? r["telefono"] ?? r["Telefono"]);
+        if (!name) { skipped++; continue; }
+        if ((phone && existingPhones.has(phone)) || existingNames.has(name)) { skipped++; continue; }
+        toInsert.push({ name, address: address || null, phone: phone || null });
+        if (phone) existingPhones.add(phone);
+        existingNames.add(name);
+      }
+
+      if (toInsert.length === 0) {
+        toast.info(`Sin clientes nuevos. Omitidos: ${skipped}`);
+      } else {
+        const { error } = await supabase.from("customers").insert(toInsert);
+        if (error) throw error;
+        toast.success(`${toInsert.length} clientes importados · Omitidos: ${skipped}`);
+        qc.invalidateQueries({ queryKey: ["customers"] });
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al importar");
+    } finally {
+      setImporting(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-3xl">Clientes y fidelización</h1>
-        <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEdit({})}>
-              <Plus className="h-4 w-4 mr-1" /> Nuevo cliente
-            </Button>
-          </DialogTrigger>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={downloadTemplate}>
+            <FileDown className="h-4 w-4 mr-1" /> Plantilla Excel
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && importFromExcel(e.target.files[0])}
+          />
+          <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando…" : "Importar Excel"}
+          </Button>
+          <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEdit({})}>
+                <Plus className="h-4 w-4 mr-1" /> Nuevo cliente
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{edit?.id ? "Editar cliente" : "Nuevo cliente"}</DialogTitle>
@@ -174,6 +247,7 @@ function ClientesPage() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
+        </div>
       </div>
 
       <div className="grid gap-3 sm:grid-cols-3">
