@@ -347,7 +347,7 @@ function UserForm({
           </div>
         )}
         <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground">
-          <b>Cajero:</b> POS, Kiosko, Pedidos en línea, Caja. <br />
+          <b>Cajero:</b> POS, Autopedido, Pedidos en línea, Caja. <br />
           <b>Mesero:</b> Plano de mesas, Para llevar, A domicilio, KDS. <br />
           <b>Domiciliario:</b> Despacho de domicilios. <br />
           <b>Administrador:</b> Acceso total al sistema.

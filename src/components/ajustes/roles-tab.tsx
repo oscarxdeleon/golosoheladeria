@@ -13,7 +13,7 @@ import { ShieldCheck, ShoppingCart, Utensils, Bike } from "lucide-react";
 
 const ROLES: { value: AppRole; label: string; desc: string; icon: typeof ShieldCheck }[] = [
   { value: "admin", label: "Administrador", desc: "Acceso total al sistema.", icon: ShieldCheck },
-  { value: "cajero", label: "Cajero", desc: "POS, Kiosko, Pedidos en línea y cierre de caja a ciegas.", icon: ShoppingCart },
+  { value: "cajero", label: "Cajero", desc: "POS, Autopedido, Pedidos en línea y cierre de caja a ciegas.", icon: ShoppingCart },
   { value: "mesero", label: "Mesero", desc: "Plano de mesas y envío de comandas al KDS.", icon: Utensils },
   { value: "domiciliario", label: "Domiciliario", desc: "Despacho y entrega de pedidos a domicilio.", icon: Bike },
 ];

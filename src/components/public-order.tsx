@@ -280,7 +280,7 @@ export function PublicOrder({
         table_id: tableId ?? null,
         branch_id: branch?.id ?? null,
         branch_slug: branchSlug ?? branch?.slug ?? null,
-        user_name: source === "kiosk" ? `Kiosko${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
+        user_name: source === "kiosk" ? `Autopedido${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
         customer_name: customerName || null,
         customer_phone: phone || null,
         delivery_address: isDelivery ? address : null,
@@ -462,7 +462,7 @@ export function PublicOrder({
           <div className="flex-1 leading-tight">
             <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}{branch?.name ? <span className="text-primary"> · {branch.name}</span> : null}</div>
             <div className="text-xs text-muted-foreground">
-              {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Kiosko"}`}
+              {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Autopedido"}`}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
               {source === "online_menu" && "Menú en línea · A domicilio"}
             </div>

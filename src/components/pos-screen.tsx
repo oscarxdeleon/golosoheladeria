@@ -30,7 +30,7 @@ const TYPE_META: Record<OrderType, { label: string; icon: typeof Utensils; color
   mesa: { label: "Mesa", icon: Utensils, color: "bg-primary text-primary-foreground" },
   llevar: { label: "Para llevar", icon: ShoppingBag, color: "bg-amber-500 text-white" },
   domicilio: { label: "A domicilio", icon: Bike, color: "bg-blue-500 text-white" },
-  kiosko: { label: "Kiosko", icon: Monitor, color: "bg-purple-500 text-white" },
+  kiosko: { label: "Autopedido", icon: Monitor, color: "bg-purple-500 text-white" },
 };
 
 export interface TicketConfig {
@@ -440,7 +440,7 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
 interface Props {
   orderType: OrderType;
   tableId?: string | null;
-  /** ID de una venta pendiente del Kiosko a cargar para cobrar en caja. */
+  /** ID de una venta pendiente del Autopedido a cargar para cobrar en caja. */
   kioskSaleId?: string | null;
   title?: string;
   /** Modo mesero (tablet): oculta pagos, precuenta y caja. Solo Guardar/KDS. */
@@ -599,7 +599,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   }, [pendingSale, paying]);
 
 
-  // Cargar pedido pendiente del Kiosko (al ser seleccionado desde el panel)
+  // Cargar pedido pendiente del Autopedido (al ser seleccionado desde el panel)
   const { data: kioskSale } = useQuery({
     queryKey: ["kiosk-sale", kioskSaleId],
     enabled: !!kioskSaleId,
@@ -858,12 +858,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       // PASO 3: Mostrar modal de confirmación post-venta
       // (la impresión y la redirección quedan a cargo del cajero desde el modal)
       // ───────────────────────────────────────────────────────────────
-      const redirectTo: "/mesas" | "/llevar" | "/domicilio" | "/kiosko" | null =
-        orderType === "mesa" ? "/mesas"
-        : orderType === "llevar" ? "/llevar"
-        : orderType === "domicilio" ? "/domicilio"
-        : orderType === "kiosko" ? "/kiosko"
-        : null;
+      // Tras finalizar cualquier venta (mesa/llevar/domicilio/autopedido)
+      // volvemos al Panel de Mesas, que es la pantalla principal del cajero.
+      const redirectTo: "/mesas" = "/mesas";
 
       setSuccessDialog({
         ticket: sale.ticket_number,
@@ -1192,7 +1189,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const meta = TYPE_META[orderType];
   const Icon = meta.icon;
   const header = title
-    ?? (kioskSale ? `Kiosko · Pedido #${kioskSale.ticket_number}` : mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
+    ?? (kioskSale ? `Autopedido · Pedido #${kioskSale.ticket_number}` : mesa ? `${mesa.label ?? `Mesa ${mesa.number}`}` : meta.label);
 
   // Guard: no intentar dibujar la pantalla hasta que estén listos el usuario
   // y la sede activa. Esto evita TypeError por dereferenciar `user`/`activeBranch`

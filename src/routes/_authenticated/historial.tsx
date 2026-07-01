@@ -59,7 +59,7 @@ const TYPE_LABEL: Record<string, string> = {
   mesa: "Mesa",
   llevar: "Para llevar",
   domicilio: "A domicilio",
-  kiosko: "Kiosko",
+  kiosko: "Autopedido",
   online: "En línea",
 };
 
@@ -235,7 +235,7 @@ function HistorialPage() {
               <SelectItem value="mesa">Mesa</SelectItem>
               <SelectItem value="llevar">Para llevar</SelectItem>
               <SelectItem value="domicilio">A domicilio</SelectItem>
-              <SelectItem value="kiosko">Kiosko</SelectItem>
+              <SelectItem value="kiosko">Autopedido</SelectItem>
               <SelectItem value="online">En línea</SelectItem>
             </SelectContent>
           </Select>

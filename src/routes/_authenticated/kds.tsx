@@ -41,7 +41,7 @@ const TYPE_ICON: Record<string, typeof Utensils> = {
   mesa: Utensils, llevar: ShoppingBag, domicilio: Bike, kiosko: Monitor,
 };
 const TYPE_LABEL: Record<string, string> = {
-  mesa: "Mesa", llevar: "Para llevar", domicilio: "Domicilio", kiosko: "Kiosko",
+  mesa: "Mesa", llevar: "Para llevar", domicilio: "Domicilio", kiosko: "Autopedido",
 };
 
 function useTicker(intervalMs = 1000) {

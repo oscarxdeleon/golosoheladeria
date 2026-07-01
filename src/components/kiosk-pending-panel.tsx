@@ -69,7 +69,7 @@ export function KioskPendingPanel({ onSelect }: { onSelect: (saleId: string) => 
         <div className="flex items-center gap-2">
           <div className="flex items-center gap-2 font-display text-lg">
             <Monitor className="h-5 w-5 text-purple-600" />
-            Pedidos Kiosko · Pendientes de pago
+            Pedidos Autopedido · Pendientes de pago
           </div>
           <Badge className="bg-purple-600 text-white">{orders.length}</Badge>
           <div className="relative ml-auto w-full sm:w-56">

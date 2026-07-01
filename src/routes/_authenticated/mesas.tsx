@@ -179,7 +179,7 @@ function MesasPage() {
           Para llevar
         </Button>
         <Button
-          onClick={() => navigate({ to: "/domicilios" })}
+          onClick={() => navigate({ to: "/domicilio" })}
           className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-sky-600 hover:bg-sky-700 text-white"
         >
           <Bike className="h-8 w-8 mr-2" />
@@ -191,9 +191,10 @@ function MesasPage() {
           className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-fuchsia-600 hover:bg-fuchsia-700 text-white"
         >
           <Monitor className="h-8 w-8 mr-2" />
-          Kiosko
+          Autopedido
         </Button>
       </div>
+
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>

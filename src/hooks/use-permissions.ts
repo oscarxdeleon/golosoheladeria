@@ -18,7 +18,7 @@ export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
   { key: "llevar", label: "Para llevar", group: "Pedidos" },
   { key: "domicilio", label: "A domicilio (POS)", group: "Pedidos" },
   { key: "domicilios", label: "Despacho domicilios", group: "Pedidos" },
-  { key: "kiosko", label: "Pedidos Kiosko", group: "Pedidos" },
+  { key: "kiosko", label: "Pedidos Autopedido", group: "Pedidos" },
   { key: "pedidos-online", label: "Pedidos en línea", group: "Pedidos" },
   { key: "kds", label: "KDS / Cocina", group: "Pedidos" },
   { key: "clientes", label: "Clientes", group: "Pedidos" },
