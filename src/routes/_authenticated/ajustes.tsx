@@ -1404,11 +1404,7 @@ function KdsLinkTab() {
   const branch = branches.find((b) => b.id === selectedId);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const slug = branch?.slug ?? "";
-  const url = branch
-    ? slug
-      ? `${origin}/kds?sede=${encodeURIComponent(slug)}`
-      : `${origin}/kds`
-    : "";
+  const url = branch && slug ? `${origin}/kds-live?sede=${encodeURIComponent(slug)}` : "";
 
   function copyLink() {
     if (!url) return;
