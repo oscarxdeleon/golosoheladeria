@@ -484,6 +484,21 @@ export function PublicOrder({
             Hacer otro pedido
           </Button>
         )}
+        {source === "table_qr" && tableId && (
+          <div className="mt-6 flex flex-col items-center gap-2">
+            <Button
+              size="lg"
+              variant="outline"
+              className="h-14 px-6 text-lg border-2 border-amber-500 text-amber-700 hover:bg-amber-50 animate-pulse"
+              onClick={callWaiter}
+              disabled={callingWaiter}
+            >
+              <BellRing className="h-6 w-6 mr-2" />
+              {callingWaiter ? "Llamando…" : "Llamar al mesero"}
+            </Button>
+            <p className="text-xs text-muted-foreground">¿Necesitas algo más? Toca para avisar.</p>
+          </div>
+        )}
       </div>
     );
   }
