@@ -377,9 +377,7 @@ async function buildRaw(p) {
   return await buildPersonalizedTicketRaw(p);
 }
 
-  }
-  return ticketBuf;
-}
+
 
 // ---------- Envío ----------
 function sendRaw(buf, ip, port) {
