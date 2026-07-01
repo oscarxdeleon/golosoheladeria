@@ -254,13 +254,13 @@ function CashBox({
   return (
     <div className={`rounded-2xl bg-gradient-to-br ${accent} p-5 shadow-sm ring-1 ${ring}`}>
       <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold opacity-80">{label}</span>
+        <span className="font-display text-sm font-extrabold uppercase tracking-wide">{label}</span>
         <span className="opacity-80">{icon}</span>
       </div>
       <div className="mt-2 font-display text-3xl font-extrabold tracking-tight">
         {formatMoney(value)}
       </div>
-      {hint && <div className="mt-2 text-[11px] font-medium opacity-70">{hint}</div>}
+      {hint && <div className="mt-2 text-[11px] font-bold uppercase tracking-wide opacity-80">{hint}</div>}
     </div>
   );
 }
