@@ -12,8 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, ImagePlus, Star, Copy, FileSpreadsheet, Download } from "lucide-react";
+import { Plus, Trash2, Pencil, ImagePlus, Star, Copy, FileSpreadsheet, Download, FileText, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { useServerFn } from "@tanstack/react-start";
+import { parseMenuPdfText } from "@/lib/menu-pdf.functions";
+
 
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
