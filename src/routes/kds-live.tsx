@@ -66,18 +66,26 @@ function KdsLive() {
     return () => { supabase.removeChannel(ch); };
   }, [qc, sede]);
 
-  async function markItemReady(saleId: string, itemId: string) {
+  async function markItemReady(sale: Pending, itemId: string) {
+    const saleId = sale.id;
     qc.setQueryData<Pending[]>(["kds-public", sede], (old) =>
       (old ?? []).map((s) => s.id !== saleId ? s : { ...s, sale_items: s.sale_items.map((i) => i.id === itemId ? { ...i, ready_at: new Date().toISOString() } : i) })
     );
     const { error } = await supabase.rpc("kds_public_mark_item_ready", { p_item_id: itemId });
-    if (error) { toast.error("No se pudo marcar"); qc.invalidateQueries({ queryKey: ["kds-public", sede] }); }
+    if (error) { toast.error("No se pudo marcar"); qc.invalidateQueries({ queryKey: ["kds-public", sede] }); return; }
+    const pendingCount = sale.sale_items.filter((i) => i.id !== itemId && !i.ready_at).length;
+    if (pendingCount === 0) {
+      const notified = notifyCustomerReady(sale);
+      if (notified) toast.success("WhatsApp enviado al cliente");
+    }
   }
 
-  async function markAllReady(saleId: string) {
-    const { error } = await supabase.rpc("kds_public_mark_all_ready", { p_sale_id: saleId });
+  async function markAllReady(sale: Pending) {
+    const { error } = await supabase.rpc("kds_public_mark_all_ready", { p_sale_id: sale.id });
     if (error) { toast.error("Error al despachar"); return; }
     toast.success("Pedido listo");
+    const notified = notifyCustomerReady(sale);
+    if (notified) toast.success("WhatsApp enviado al cliente");
     qc.invalidateQueries({ queryKey: ["kds-public", sede] });
   }
 
