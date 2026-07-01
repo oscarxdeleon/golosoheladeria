@@ -373,11 +373,12 @@ function buildComandaRaw(p) {
     if (p.phone) out += `Tel: ${String(p.phone).toUpperCase()}\n`;
     out += BOLD_OFF + DASH_LINE;
   }
-  // Items en tamaño DOBLE (alto+ancho) con negrita — máxima legibilidad en cocina
+  // Items en doble alto (30% menor que doble alto+ancho previo) con negrita.
   for (const i of p.items || []) {
-    out += BOLD_ON + SIZE_DOUBLE + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE_H + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
     if (i.modifiers && Array.isArray(i.modifiers)) {
-      for (const mod of i.modifiers) out += BOLD_ON + SIZE_DOUBLE_H + `  + ${String(mod).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
+      // Modificadores en tamaño normal (50% menor que doble alto previo) con negrita.
+      for (const mod of i.modifiers) out += BOLD_ON + `  + ${String(mod).toUpperCase()}\n` + BOLD_OFF;
     }
   }
   out += DASH_LINE;
