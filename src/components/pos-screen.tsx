@@ -1564,11 +1564,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               <label className="text-sm font-medium">Recibido</label>
               <Input
                 autoFocus
-                type="number"
-                inputMode="decimal"
+                type="text"
+                inputMode="numeric"
                 placeholder="0"
-                value={cashReceived}
-                onChange={(e) => setCashReceived(e.target.value)}
+                value={cashReceived === "" ? "" : Number(cashReceived).toLocaleString("es-CO")}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setCashReceived(digits);
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && Number(cashReceived) >= total && !paying) {
                     pay("Efectivo");
@@ -1576,6 +1579,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                   }
                 }}
               />
+
             </div>
             <div className="grid grid-cols-4 gap-2">
               <Button variant="outline" size="sm" onClick={() => setCashReceived(String(total))}>
