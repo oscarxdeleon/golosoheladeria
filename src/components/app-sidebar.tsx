@@ -25,6 +25,8 @@ import {
   ScanFace,
   Receipt as ReceiptIcon,
   TrendingDown,
+  ChefHat,
+  Truck,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
