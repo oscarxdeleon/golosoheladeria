@@ -70,8 +70,12 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
 
   // qty per modifier id
   const [picked, setPicked] = useState<Record<string, number>>({});
+  const [note, setNote] = useState("");
   useEffect(() => {
-    if (open) setPicked({});
+    if (open) {
+      setPicked({});
+      setNote("");
+    }
   }, [open, product?.id]);
 
   const countsByGroup = useMemo(() => {
