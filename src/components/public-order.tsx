@@ -522,8 +522,9 @@ export function PublicOrder({
     <div className="min-h-screen bg-muted/30 pb-32">
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          {settings?.logo_url ? (
-            <img src={settings.logo_url} alt="logo" className="h-10 w-10 rounded-lg object-contain bg-white" />
+          {(branch?.logo_url || settings?.logo_url) ? (
+            <img src={branch?.logo_url || settings?.logo_url} alt="logo" className="h-10 w-10 rounded-lg object-contain bg-white" />
+
           ) : (
             <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
               <IceCream className="h-5 w-5" />
