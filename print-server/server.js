@@ -190,10 +190,17 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
 }
 
 
-function buildPersonalizedTicketRaw(p) {
+async function buildPersonalizedTicketRaw(p) {
   const cfg = mergeCfg(p.ticket_config);
   let out = INIT;
   if (p.open_drawer) out += DRAWER;
+
+  // ==== LOGO (raster) ====
+  let logoBuf = null;
+  if (cfg.show_logo && p.logo_url) {
+    logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
+    if (!logoBuf) console.warn("[logo] no se incluirá en el ticket (fallo al rasterizar)", p.logo_url);
+  }
 
   // ==== ENCABEZADO / MARCA ====
   if (cfg.show_decorations) {
@@ -206,6 +213,7 @@ function buildPersonalizedTicketRaw(p) {
     for (const line of wrapText(business, Math.floor(WIDTH / 2))) out += line + "\n";
     out += SIZE_NORMAL + BOLD_OFF;
   }
+
 
   if (cfg.show_nit && p.nit) out += ALIGN_C + centerLine(`NIT: ${p.nit}`);
   if (cfg.show_address && p.address_biz)
