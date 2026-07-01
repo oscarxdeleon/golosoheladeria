@@ -92,7 +92,8 @@ function KdsPage() {
     return () => { supabase.removeChannel(ch); };
   }, [qc, activeBranchId]);
 
-  async function markItemReady(saleId: string, itemId: string) {
+  async function markItemReady(sale: Pending, itemId: string) {
+    const saleId = sale.id;
     // Optimistic update
     qc.setQueryData<Pending[]>(["kds-pending", activeBranchId], (old) =>
       (old ?? []).map((s) =>
@@ -106,10 +107,19 @@ function KdsPage() {
     if (error) {
       toast.error("No se pudo marcar el ítem");
       qc.invalidateQueries({ queryKey: ["kds-pending", activeBranchId] });
+      return;
+    }
+    // Si con este ítem el pedido queda 100% listo, notificar al cliente (Autopedido)
+    const pendingCount = sale.sale_items.filter((i) => i.id !== itemId && !i.ready_at).length;
+    if (pendingCount === 0) {
+      const notified = notifyCustomerReady(sale);
+      if (notified) toast.success("WhatsApp enviado al cliente");
     }
   }
 
-  async function markAllReady(saleId: string, items: SaleItem[]) {
+  async function markAllReady(sale: Pending) {
+    const saleId = sale.id;
+    const items = sale.sale_items;
     if (!activeBranchId) {
       toast.error("Selecciona una sede para actualizar la comanda");
       return;
@@ -134,6 +144,8 @@ function KdsPage() {
     // Trigger auto-updates sales.status, but force-set just in case all were already ready
     await supabase.from("sales").update({ status: "ready", kds_ack_at: new Date().toISOString() }).eq("id", saleId).eq("branch_id", activeBranchId);
     toast.success("Pedido listo para servir");
+    const notified = notifyCustomerReady(sale);
+    if (notified) toast.success("WhatsApp enviado al cliente");
   }
 
   return (
