@@ -1285,17 +1285,28 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         </Tabs>
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
-          {filtered.map((p) => (
+          {filtered.map((p) => {
+            const openAdd = () => {
+              setNoteText("");
+              setNoteQty(1);
+              if (p.modifier_group_ids && p.modifier_group_ids.length > 0) {
+                setModalProduct(p);
+              } else {
+                setNoteProduct(p);
+              }
+            };
+            return (
             <div
               key={p.id}
-              onClick={() => add(p)}
+              onClick={openAdd}
               role="button"
               tabIndex={0}
-              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") add(p); }}
+              onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") openAdd(); }}
               className={`group relative flex flex-col overflow-hidden rounded-xl border bg-card text-left transition hover:border-primary hover:shadow-md active:scale-[0.98] cursor-pointer ${
                 p.is_favorite ? "border-yellow-400 ring-2 ring-yellow-300/60 shadow-md" : ""
               }`}
             >
+
               <button
                 type="button"
                 aria-label="Agregar con nota"
