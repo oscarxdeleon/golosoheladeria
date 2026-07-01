@@ -1041,7 +1041,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         unit_price: l.unit_price,
         subtotal: l.unit_price * l.qty,
         modifiers: JSON.parse(JSON.stringify(l.modifiers ?? [])),
+        notes: l.notes?.trim() ? l.notes.trim() : null,
       }));
+
       const { error: e2 } = await supabase.from("sale_items").insert(items);
       if (e2) {
         console.error("save items error", e2);
