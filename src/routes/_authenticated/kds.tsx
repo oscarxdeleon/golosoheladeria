@@ -67,7 +67,7 @@ function KdsPage() {
       if (!activeBranchId) return [];
       const { data, error } = await supabase
         .from("sales")
-        .select("id,ticket_number,user_name,customer_name,notes,order_type,created_at,table_id,delivery_address,status,branch_id,sale_items(id,product_name,qty,ready_at,modifiers),restaurant_tables(number,label)")
+        .select("id,ticket_number,user_name,customer_name,customer_phone,source,notes,order_type,created_at,table_id,delivery_address,status,branch_id,sale_items(id,product_name,qty,ready_at,modifiers),restaurant_tables(number,label)")
         .eq("branch_id", activeBranchId)
         .in("status", ["pending", "confirmed"])
         .order("created_at", { ascending: true });
