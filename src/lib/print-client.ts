@@ -41,11 +41,24 @@ export type PrintPayload = {
 
 
 const LS_KEY = "LOCAL_PRINT_URL";
+const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
+
+function normalizePrintUrl(raw: string | null | undefined): string | null {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (url.pathname === "/" || url.pathname === "") url.pathname = "/print";
+    return url.toString();
+  } catch {
+    return value.endsWith("/print") ? value : value.replace(/\/+$/, "") + "/print";
+  }
+}
 
 export function getLocalPrintUrl(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.localStorage.getItem(LS_KEY);
+    return normalizePrintUrl(window.localStorage.getItem(LS_KEY));
   } catch {
     return null;
   }
@@ -54,7 +67,8 @@ export function getLocalPrintUrl(): string | null {
 export function setLocalPrintUrl(url: string | null) {
   if (typeof window === "undefined") return;
   try {
-    if (url) window.localStorage.setItem(LS_KEY, url);
+    const normalized = normalizePrintUrl(url);
+    if (normalized) window.localStorage.setItem(LS_KEY, normalized);
     else window.localStorage.removeItem(LS_KEY);
   } catch {
     /* noop */
@@ -81,7 +95,7 @@ export async function bootstrapLocalPrintUrl(): Promise<string | null> {
         .select("local_print_url")
         .limit(1)
         .maybeSingle();
-      const url = (data as { local_print_url?: string | null } | null)?.local_print_url ?? null;
+      const url = normalizePrintUrl((data as { local_print_url?: string | null } | null)?.local_print_url ?? null);
       if (url) setLocalPrintUrl(url);
       return url;
     } catch {
@@ -96,26 +110,42 @@ export async function bootstrapLocalPrintUrl(): Promise<string | null> {
  * Se ejecuta en segundo plano: nunca lanza.
  */
 export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
-  let url = getLocalPrintUrl();
-  if (!url) url = await bootstrapLocalPrintUrl();
-  if (!url) return false;
+  const configuredUrl = getLocalPrintUrl() ?? (await bootstrapLocalPrintUrl());
+  const candidates = Array.from(
+    new Set(
+      [
+        normalizePrintUrl(configuredUrl),
+        DEFAULT_LOCAL_PRINT_URL,
+        "http://127.0.0.1:3001/print",
+      ].filter(Boolean) as string[],
+    ),
+  );
 
-  try {
+  for (const url of candidates) {
     const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 3500);
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-      signal: ctrl.signal,
-      mode: "cors",
-    });
-    clearTimeout(t);
-    return res.ok;
-  } catch (e) {
-    console.warn("[print] servidor local no disponible", e);
-    return false;
+    const t = setTimeout(() => ctrl.abort(), 12000);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: ctrl.signal,
+        mode: "cors",
+      });
+      if (res.ok) {
+        if (url !== configuredUrl) setLocalPrintUrl(url);
+        clearTimeout(t);
+        return true;
+      }
+      console.warn(`[print] servidor local respondió ${res.status} en ${url}`);
+    } catch (e) {
+      console.warn(`[print] servidor local no disponible en ${url}`, e);
+    } finally {
+      clearTimeout(t);
+    }
   }
+
+  return false;
 }
 
 /** Imprime HTML usando un iframe oculto (fallback al diálogo del navegador).
@@ -193,8 +223,6 @@ export function printSilent(
  * cerrada al imprimir comandas.
  */
 export async function kickCashDrawer(opts: { printer_ip?: string; printer_port?: number } = {}): Promise<boolean> {
-  const url = getLocalPrintUrl();
-  if (!url) return false;
   return sendToLocalPrinter({
     type: "drawer",
     header: "DRAWER",

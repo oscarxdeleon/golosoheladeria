@@ -318,24 +318,33 @@ function precuentaHTML(o: {
   </body></html>`;
 }
 
-async function fetchCajaPrinter(): Promise<{ ip?: string; port?: number }> {
+async function fetchPrinterByArea(areas: string[]): Promise<{ ip?: string; port?: number }> {
   try {
     const { data } = await supabase
       .from("printers")
       .select("ip,port,active,area")
-      .eq("area", "caja")
       .eq("active", true)
-      .limit(1);
-    const p = data?.[0];
+      .in("area", areas);
+    const p = areas
+      .map((area) => data?.find((printer) => printer.area === area))
+      .find(Boolean);
     return { ip: p?.ip ?? undefined, port: p?.port ?? undefined };
   } catch (e) {
-    console.warn("[print] no se pudo consultar impresora de caja", e);
+    console.warn("[print] no se pudo consultar impresora", e);
     return {};
   }
 }
 
+async function fetchCajaPrinter(): Promise<{ ip?: string; port?: number }> {
+  return fetchPrinterByArea(["caja"]);
+}
+
+async function fetchComandaPrinter(): Promise<{ ip?: string; port?: number }> {
+  return fetchPrinterByArea(["cocina", "barra", "caja"]);
+}
+
 export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
-  const { ip, port } = await fetchCajaPrinter();
+  const { ip, port } = await fetchComandaPrinter();
   const b = o.branding ?? DEFAULT_BRANDING;
   const payload: PrintPayload = {
     type: "comanda", ticket: o.ticket, header: o.header,
