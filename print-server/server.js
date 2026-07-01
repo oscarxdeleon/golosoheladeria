@@ -232,7 +232,7 @@ async function buildPersonalizedTicketRaw(p) {
   // ==== TITULO Y NUMERO ====
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + (cfg.title_text || "TICKET DE VENTA") + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (cfg.show_ticket_number) {
-    const num = `${cfg.number_prefix || "TV-"}${String(p.ticket ?? 0).padStart(6, "0")}`;
+    const num = String(p.ticket ?? 0).padStart(6, "0");
     out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `No. ${num}\n` + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
@@ -242,7 +242,7 @@ async function buildPersonalizedTicketRaw(p) {
     const created = new Date(p.created_at || Date.now()).toLocaleString("es-CO");
     out += BOLD_ON + "Fecha:      " + BOLD_OFF + created + "\n";
   }
-  if (p.user_name) out += BOLD_ON + "Cajero:     " + BOLD_OFF + p.user_name + "\n";
+  // Se omite el nombre del cajero por solicitud del cliente.
   if (cfg.show_customer) out += BOLD_ON + "Cliente:    " + BOLD_OFF + String(p.customer || "Mostrador").toUpperCase() + "\n";
   if (cfg.show_customer_address && p.address) {
     const lines = wrapText(String(p.address).toUpperCase(), WIDTH - 12);
@@ -352,11 +352,11 @@ function buildComandaRaw(p) {
     if (p.phone) out += `Tel: ${String(p.phone).toUpperCase()}\n`;
     out += BOLD_OFF + DASH_LINE;
   }
-  // Items en tamaño NORMAL con negrita — legibles pero compactos
+  // Items en tamaño DOBLE (alto+ancho) con negrita — máxima legibilidad en cocina
   for (const i of p.items || []) {
-    out += BOLD_ON + `${i.qty} X ${String(i.name).toUpperCase()}\n` + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
     if (i.modifiers && Array.isArray(i.modifiers)) {
-      for (const mod of i.modifiers) out += `  + ${String(mod).toUpperCase()}\n`;
+      for (const mod of i.modifiers) out += BOLD_ON + SIZE_DOUBLE_H + `  + ${String(mod).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
     }
   }
   out += DASH_LINE;
@@ -448,7 +448,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
 
   if (req.method === "GET" && req.url === "/health") {
-    return send(200, { ok: true, version: "1.4.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+    return send(200, { ok: true, version: "1.5.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
   }
 
   // Diagnóstico del logo: GET /logo-test?url=https://...
