@@ -356,6 +356,8 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     phone_biz: b.phone ?? undefined,
     email_biz: b.email ?? undefined,
     footer_text: b.ticket_footer ?? undefined,
+    logo_url: b.logo_url ?? undefined,
+    ticket_template: "goloso_personalizado",
     printer_ip: printerIp,
     printer_port: printerPort,
     open_drawer: openDrawer,
