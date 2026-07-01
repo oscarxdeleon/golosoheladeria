@@ -240,7 +240,7 @@ function StatCard({ icon, label, value }: { icon: React.ReactNode; label: string
       <CardContent className="flex items-center gap-3 p-5">
         <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 text-primary">{icon}</div>
         <div>
-          <div className="text-xs uppercase tracking-wide text-muted-foreground">{label}</div>
+          <div className="font-display text-xs font-extrabold uppercase tracking-widest text-muted-foreground">{label}</div>
           <div className="font-display text-2xl font-bold">{value}</div>
         </div>
       </CardContent>
