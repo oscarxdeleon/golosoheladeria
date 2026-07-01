@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TabletPedidosRouteImport } from './routes/tablet-pedidos'
+import { Route as MisPuntosRouteImport } from './routes/mis-puntos'
 import { Route as MenuRouteImport } from './routes/menu'
 import { Route as KioskRouteImport } from './routes/kiosk'
 import { Route as KdsLiveRouteImport } from './routes/kds-live'
@@ -56,6 +57,11 @@ import { Route as SSlugTTableNumberRouteImport } from './routes/s.$slug.t.$table
 const TabletPedidosRoute = TabletPedidosRouteImport.update({
   id: '/tablet-pedidos',
   path: '/tablet-pedidos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MisPuntosRoute = MisPuntosRouteImport.update({
+  id: '/mis-puntos',
+  path: '/mis-puntos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MenuRoute = MenuRouteImport.update({
@@ -281,6 +287,7 @@ export interface FileRoutesByFullPath {
   '/kds-live': typeof KdsLiveRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
+  '/mis-puntos': typeof MisPuntosRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/asistencia': typeof AuthenticatedAsistenciaRoute
@@ -325,6 +332,7 @@ export interface FileRoutesByTo {
   '/kds-live': typeof KdsLiveRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
+  '/mis-puntos': typeof MisPuntosRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/asistencia': typeof AuthenticatedAsistenciaRoute
@@ -370,6 +378,7 @@ export interface FileRoutesById {
   '/kds-live': typeof KdsLiveRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
+  '/mis-puntos': typeof MisPuntosRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
   '/_authenticated/asistencia': typeof AuthenticatedAsistenciaRoute
@@ -416,6 +425,7 @@ export interface FileRouteTypes {
     | '/kds-live'
     | '/kiosk'
     | '/menu'
+    | '/mis-puntos'
     | '/tablet-pedidos'
     | '/ajustes'
     | '/asistencia'
@@ -460,6 +470,7 @@ export interface FileRouteTypes {
     | '/kds-live'
     | '/kiosk'
     | '/menu'
+    | '/mis-puntos'
     | '/tablet-pedidos'
     | '/ajustes'
     | '/asistencia'
@@ -504,6 +515,7 @@ export interface FileRouteTypes {
     | '/kds-live'
     | '/kiosk'
     | '/menu'
+    | '/mis-puntos'
     | '/tablet-pedidos'
     | '/_authenticated/ajustes'
     | '/_authenticated/asistencia'
@@ -550,6 +562,7 @@ export interface RootRouteChildren {
   KdsLiveRoute: typeof KdsLiveRoute
   KioskRoute: typeof KioskRoute
   MenuRoute: typeof MenuRoute
+  MisPuntosRoute: typeof MisPuntosRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
@@ -563,6 +576,13 @@ declare module '@tanstack/react-router' {
       path: '/tablet-pedidos'
       fullPath: '/tablet-pedidos'
       preLoaderRoute: typeof TabletPedidosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mis-puntos': {
+      id: '/mis-puntos'
+      path: '/mis-puntos'
+      fullPath: '/mis-puntos'
+      preLoaderRoute: typeof MisPuntosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/menu': {
@@ -952,6 +972,7 @@ const rootRouteChildren: RootRouteChildren = {
   KdsLiveRoute: KdsLiveRoute,
   KioskRoute: KioskRoute,
   MenuRoute: MenuRoute,
+  MisPuntosRoute: MisPuntosRoute,
   TabletPedidosRoute: TabletPedidosRoute,
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
