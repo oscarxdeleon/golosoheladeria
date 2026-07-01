@@ -43,6 +43,10 @@ export type PrintPayload = {
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
 
+// Cache en memoria — evita ir a localStorage/supabase en cada impresión.
+let _cachedUrl: string | null | undefined = undefined;
+let _lastGoodUrl: string | null = null;
+
 function normalizePrintUrl(raw: string | null | undefined): string | null {
   const value = String(raw ?? "").trim();
   if (!value) return null;
@@ -56,9 +60,11 @@ function normalizePrintUrl(raw: string | null | undefined): string | null {
 }
 
 export function getLocalPrintUrl(): string | null {
+  if (_cachedUrl !== undefined) return _cachedUrl;
   if (typeof window === "undefined") return null;
   try {
-    return normalizePrintUrl(window.localStorage.getItem(LS_KEY));
+    _cachedUrl = normalizePrintUrl(window.localStorage.getItem(LS_KEY));
+    return _cachedUrl;
   } catch {
     return null;
   }
@@ -68,6 +74,7 @@ export function setLocalPrintUrl(url: string | null) {
   if (typeof window === "undefined") return;
   try {
     const normalized = normalizePrintUrl(url);
+    _cachedUrl = normalized;
     if (normalized) window.localStorage.setItem(LS_KEY, normalized);
     else window.localStorage.removeItem(LS_KEY);
   } catch {
@@ -78,9 +85,7 @@ export function setLocalPrintUrl(url: string | null) {
 let _bootstrapPromise: Promise<string | null> | null = null;
 /**
  * Si no hay URL en localStorage, la lee UNA VEZ desde la tabla `settings`
- * (columna `local_print_url`) y la persiste en localStorage. Esto permite
- * que la configuración sobreviva a limpiezas del navegador y se comparta
- * entre navegadores/PCs.
+ * (columna `local_print_url`) y la persiste en localStorage.
  */
 export async function bootstrapLocalPrintUrl(): Promise<string | null> {
   if (typeof window === "undefined") return null;
@@ -105,47 +110,66 @@ export async function bootstrapLocalPrintUrl(): Promise<string | null> {
   return _bootstrapPromise;
 }
 
+// Dispara bootstrap en segundo plano lo antes posible.
+if (typeof window !== "undefined") {
+  void bootstrapLocalPrintUrl();
+}
+
 /**
- * Envía el payload al servidor local. Devuelve true si el servidor respondió OK.
- * Se ejecuta en segundo plano: nunca lanza.
+ * Envía el payload al servidor local. Intenta todos los candidatos en
+ * PARALELO (el primero que responda gana) con timeout corto.
+ * Nunca lanza.
  */
 export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
-  const configuredUrl = getLocalPrintUrl() ?? (await bootstrapLocalPrintUrl());
+  // 1) Si ya conocemos una URL que funcionó, intentarla PRIMERO sin esperar bootstrap.
+  const primary = _lastGoodUrl ?? getLocalPrintUrl();
   const candidates = Array.from(
     new Set(
       [
-        normalizePrintUrl(configuredUrl),
+        primary,
         DEFAULT_LOCAL_PRINT_URL,
         "http://127.0.0.1:3001/print",
-      ].filter(Boolean) as string[],
+      ]
+        .map((u) => normalizePrintUrl(u))
+        .filter(Boolean) as string[],
     ),
   );
 
-  for (const url of candidates) {
-    const ctrl = new AbortController();
-    const t = setTimeout(() => ctrl.abort(), 12000);
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: ctrl.signal,
-        mode: "cors",
-      });
-      if (res.ok) {
-        if (url !== configuredUrl) setLocalPrintUrl(url);
-        clearTimeout(t);
-        return true;
-      }
-      console.warn(`[print] servidor local respondió ${res.status} en ${url}`);
-    } catch (e) {
-      console.warn(`[print] servidor local no disponible en ${url}`, e);
-    } finally {
-      clearTimeout(t);
-    }
-  }
+  // Timeout corto: la LAN local responde en <200ms; si no, es que no existe.
+  const TIMEOUT_MS = 4000;
+  const body = JSON.stringify(payload);
 
-  return false;
+  const attempts = candidates.map((url) => {
+    const ctrl = new AbortController();
+    const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+    return fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body,
+      signal: ctrl.signal,
+      mode: "cors",
+      keepalive: true,
+    })
+      .then((res) => {
+        clearTimeout(t);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        _lastGoodUrl = url;
+        if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
+        return true as const;
+      })
+      .catch((e) => {
+        clearTimeout(t);
+        throw e;
+      });
+  });
+
+  try {
+    // El primero que responda OK gana; ignoramos el resto.
+    return await Promise.any(attempts);
+  } catch {
+    console.warn("[print] ningún servidor local respondió; se usará fallback");
+    return false;
+  }
 }
 
 /** Imprime HTML usando un iframe oculto (fallback al diálogo del navegador).
