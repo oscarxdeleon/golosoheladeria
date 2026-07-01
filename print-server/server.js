@@ -242,7 +242,7 @@ async function buildPersonalizedTicketRaw(p) {
     const created = new Date(p.created_at || Date.now()).toLocaleString("es-CO");
     out += BOLD_ON + "Fecha:      " + BOLD_OFF + created + "\n";
   }
-  if (p.user_name) out += BOLD_ON + "Cajero:     " + BOLD_OFF + p.user_name + "\n";
+  // Se omite el nombre del cajero por solicitud del cliente.
   if (cfg.show_customer) out += BOLD_ON + "Cliente:    " + BOLD_OFF + String(p.customer || "Mostrador").toUpperCase() + "\n";
   if (cfg.show_customer_address && p.address) {
     const lines = wrapText(String(p.address).toUpperCase(), WIDTH - 12);
