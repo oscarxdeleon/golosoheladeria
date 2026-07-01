@@ -116,7 +116,8 @@ function HistorialPage() {
         .eq("sale_id", saleId);
       const { data: settings } = await supabase
         .from("settings")
-        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
+        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config")
+
         .maybeSingle();
       let branch: Record<string, unknown> | null = null;
       if (sale.branch_id) {
@@ -139,7 +140,9 @@ function HistorialPage() {
         logo_url: (branch?.logo_url as string | null) ?? settings?.logo_url ?? null,
         ticket_header: (branch?.ticket_header as string | null) ?? settings?.ticket_header ?? null,
         ticket_footer: (branch?.ticket_footer as string | null) ?? settings?.ticket_footer ?? null,
+        ticket_config: (settings?.ticket_config as Record<string, unknown> | null) ?? null,
       };
+
       const its = (items ?? []).map((i) => ({
         name: i.product_name,
         qty: Number(i.qty),
@@ -325,7 +328,7 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
       let branding: Branding | null = null;
       const { data: settings } = await supabase
         .from("settings")
-        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
+        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config")
         .maybeSingle();
       type BranchInfo = {
         name?: string; nit?: string | null; address?: string | null; neighborhood?: string | null;
@@ -353,7 +356,9 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
         logo_url: branch?.logo_url ?? settings?.logo_url ?? null,
         ticket_header: branch?.ticket_header ?? settings?.ticket_header ?? null,
         ticket_footer: branch?.ticket_footer ?? settings?.ticket_footer ?? null,
+        ticket_config: (settings as { ticket_config?: Record<string, unknown> | null } | null)?.ticket_config ?? null,
       };
+
       return { sale, items: (items ?? []) as SaleItem[], branding };
     },
   });
