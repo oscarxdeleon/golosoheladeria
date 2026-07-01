@@ -523,7 +523,7 @@ export function PublicOrder({
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           {(branch?.logo_url || settings?.logo_url) ? (
-            <img src={branch?.logo_url || settings?.logo_url} alt="logo" className="h-10 w-10 rounded-lg object-contain bg-white" />
+            <img src={branch?.logo_url || settings?.logo_url || undefined} alt="logo" className="h-10 w-10 rounded-lg object-contain bg-white" />
 
           ) : (
             <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
