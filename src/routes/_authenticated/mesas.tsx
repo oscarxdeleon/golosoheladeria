@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Monitor } from "lucide-react";
+import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Smartphone } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
@@ -173,24 +173,23 @@ function MesasPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <Button
           onClick={() => navigate({ to: "/llevar" })}
-          className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-amber-500 hover:bg-amber-600 text-white"
+          className="h-28 text-2xl font-extrabold uppercase tracking-wide shadow-md hover:shadow-lg transition bg-amber-500 hover:bg-amber-600 text-white [&_svg]:size-10"
         >
-          <ShoppingBag className="h-8 w-8 mr-2" />
+          <ShoppingBag className="mr-3" />
           Para llevar
         </Button>
         <Button
           onClick={() => navigate({ to: "/domicilio" })}
-          className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-sky-600 hover:bg-sky-700 text-white"
+          className="h-28 text-2xl font-extrabold uppercase tracking-wide shadow-md hover:shadow-lg transition bg-sky-600 hover:bg-sky-700 text-white [&_svg]:size-10"
         >
-          <Bike className="h-8 w-8 mr-2" />
+          <Bike className="mr-3" />
           A domicilio
-          <span className="ml-2 text-xs opacity-80">(incluye online)</span>
         </Button>
         <Button
           onClick={() => navigate({ to: "/kiosko" })}
-          className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-fuchsia-600 hover:bg-fuchsia-700 text-white"
+          className="h-28 text-2xl font-extrabold uppercase tracking-wide shadow-md hover:shadow-lg transition bg-emerald-600 hover:bg-emerald-700 text-white [&_svg]:size-10"
         >
-          <Monitor className="h-8 w-8 mr-2" />
+          <Smartphone className="mr-3" />
           Autopedido
         </Button>
       </div>
