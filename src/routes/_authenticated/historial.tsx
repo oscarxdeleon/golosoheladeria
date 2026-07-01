@@ -140,7 +140,9 @@ function HistorialPage() {
         logo_url: (branch?.logo_url as string | null) ?? settings?.logo_url ?? null,
         ticket_header: (branch?.ticket_header as string | null) ?? settings?.ticket_header ?? null,
         ticket_footer: (branch?.ticket_footer as string | null) ?? settings?.ticket_footer ?? null,
+        ticket_config: (settings?.ticket_config as Record<string, unknown> | null) ?? null,
       };
+
       const its = (items ?? []).map((i) => ({
         name: i.product_name,
         qty: Number(i.qty),
