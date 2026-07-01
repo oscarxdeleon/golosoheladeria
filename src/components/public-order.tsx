@@ -317,7 +317,73 @@ export function PublicOrder({
       setTicketNumber(result.ticket_number);
       setConfirmOpen(true);
       setCartOpen(false);
+
+      // Auto-impresión (comanda + comprobante) para AUTOPEDIDO y pedidos en línea
+      if (source === "kiosk" || source === "online_menu") {
+        const br = branch as { name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null } | null | undefined;
+        const st = settings as { business_name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null; footer_text?: string | null; email?: string | null } | null | undefined;
+        const printItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
+        const header = source === "kiosk"
+          ? `PEDIDO AUTOPEDIDO${kioskService === "llevar" ? " · PARA LLEVAR" : kioskService === "comer_aqui" ? " · COMER AQUÍ" : ""}`
+          : "PEDIDO EN LÍNEA";
+        const business_name = br?.name?.trim() || st?.business_name || "Heladería Goloso";
+        const address_biz = br?.address || st?.address || "";
+        const phone_biz = br?.phone || st?.phone || "";
+        const nit = br?.nit || st?.nit || "";
+        const logo_url = br?.logo_url || st?.logo_url || undefined;
+        const footer_text = st?.footer_text || "Gracias por su compra";
+        const created_at = new Date().toISOString();
+        const cashReceivedNum = Number(cashAmount.replace(/[^\d]/g, "")) || total;
+
+        // Comanda cocina
+        void sendToLocalPrinter({
+          type: "comanda",
+          ticket: result.ticket_number,
+          header,
+          items: printItems,
+          customer: customerName || undefined,
+          notes: payload.notes ?? undefined,
+          address: isDelivery ? address : undefined,
+          phone: phone || undefined,
+          created_at,
+          business_name,
+          nit,
+          address_biz,
+          phone_biz,
+          logo_url,
+          ticket_template: "goloso_personalizado",
+        });
+
+        // Comprobante/recibo cliente
+        void sendToLocalPrinter({
+          type: "comprobante",
+          ticket: result.ticket_number,
+          header: "COMPROBANTE DE PEDIDO",
+          items: printItems,
+          subtotal,
+          deliveryFee,
+          total,
+          payment_method: payMethod,
+          cash_received: payMethod === "Efectivo" ? cashReceivedNum : undefined,
+          customer: customerName || undefined,
+          notes: payload.notes ?? undefined,
+          address: isDelivery ? address : undefined,
+          phone: phone || undefined,
+          created_at,
+          business_name,
+          nit,
+          address_biz,
+          phone_biz,
+          email_biz: st?.email ?? undefined,
+          footer_text,
+          logo_url,
+          ticket_template: "goloso_personalizado",
+          cashierMessage: "Conserve este comprobante.\nGracias por su compra.",
+        });
+      }
+
       setCart([]);
+
       setCustomerName("");
       setPhone("");
       setAddress("");
