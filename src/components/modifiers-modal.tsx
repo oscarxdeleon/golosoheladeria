@@ -136,7 +136,7 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
         price: Number(m.price),
         qty: picked[m.id]!,
       }));
-    onConfirm(selected, unitExtra);
+    onConfirm(selected, unitExtra, note.trim() || undefined);
   }
 
   if (!product) return null;
