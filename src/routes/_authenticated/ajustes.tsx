@@ -56,13 +56,32 @@ const DAYS: Array<{ key: string; label: string }> = [
 ];
 
 interface Schedule { open: boolean; from: string; to: string; }
+interface TicketConfigForm {
+  show_logo: boolean; show_business_name: boolean; show_nit: boolean; show_address: boolean;
+  show_phone: boolean; show_email: boolean; show_ticket_number: boolean; show_date: boolean;
+  show_customer: boolean; show_customer_address: boolean; show_customer_phone: boolean;
+  show_payment_method: boolean; show_subtotal: boolean; show_tax: boolean; show_delivery_fee: boolean;
+  show_cash_received: boolean; show_thanks: boolean; show_decorations: boolean;
+  title_text: string; number_prefix: string; thanks_text: string; extra_footer: string;
+}
+const DEFAULT_TICKET_CFG: TicketConfigForm = {
+  show_logo: true, show_business_name: true, show_nit: true, show_address: true,
+  show_phone: true, show_email: true, show_ticket_number: true, show_date: true,
+  show_customer: true, show_customer_address: true, show_customer_phone: true,
+  show_payment_method: true, show_subtotal: true, show_tax: true, show_delivery_fee: true,
+  show_cash_received: true, show_thanks: true, show_decorations: true,
+  title_text: "TICKET DE VENTA", number_prefix: "TV-",
+  thanks_text: "¡Gracias por Preferirnos!", extra_footer: "",
+};
 interface Settings {
   id: number; business_name: string; nit: string | null; address: string | null; city: string | null;
   phone: string | null; logo_url: string | null; menu_link: string | null;
   schedules: Record<string, Schedule>; delivery_fee: number;
   ticket_header: string | null; ticket_footer: string | null;
   nequi_number: string | null; bancolombia_account: string | null;
+  ticket_config: Partial<TicketConfigForm> | null;
 }
+
 
 function AjustesPage() {
   const { isAdmin } = useAuth();
