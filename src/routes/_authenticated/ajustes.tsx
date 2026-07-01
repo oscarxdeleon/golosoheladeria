@@ -405,13 +405,48 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
     if (typeof window === "undefined") return "";
     try { return window.localStorage.getItem("LOCAL_PRINT_URL") ?? ""; } catch { return ""; }
   });
-  function saveLocalUrl() {
+  // Carga la URL persistida en la BD (settings.local_print_url) al montar,
+  // así sobrevive a que se borre localStorage o se abra en otro navegador.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase
+        .from("settings")
+        .select("id, local_print_url")
+        .limit(1)
+        .maybeSingle();
+      if (cancelled) return;
+      const url = (data as { local_print_url?: string | null } | null)?.local_print_url ?? "";
+      if (url) {
+        setLocalUrl(url);
+        try { window.localStorage.setItem("LOCAL_PRINT_URL", url); } catch { /* noop */ }
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  async function saveLocalUrl() {
+    const value = localUrl.trim();
     try {
-      if (localUrl.trim()) window.localStorage.setItem("LOCAL_PRINT_URL", localUrl.trim());
+      if (value) window.localStorage.setItem("LOCAL_PRINT_URL", value);
       else window.localStorage.removeItem("LOCAL_PRINT_URL");
-      toast.success(localUrl.trim() ? "Impresión silenciosa activada" : "Impresión silenciosa desactivada");
-    } catch { toast.error("No se pudo guardar"); }
+    } catch { /* noop */ }
+    // Persistimos también en la BD para que no se pierda al cerrar el navegador.
+    try {
+      const { data: row } = await supabase.from("settings").select("id").limit(1).maybeSingle();
+      if (row?.id) {
+        const { error } = await supabase.from("settings").update({ local_print_url: value || null }).eq("id", row.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.from("settings").insert({ local_print_url: value || null });
+        if (error) throw error;
+      }
+      toast.success(value ? "Impresión silenciosa guardada" : "Impresión silenciosa desactivada");
+    } catch (e) {
+      console.error(e);
+      toast.error("Guardado local, pero no se pudo sincronizar con la base de datos");
+    }
   }
+
   async function testLocal() {
     const url = localUrl.trim();
     if (!url) return toast.error("Ingresa la URL primero");
