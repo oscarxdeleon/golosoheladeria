@@ -73,6 +73,9 @@ function ProductosPage() {
   const [dupBranch, setDupBranch] = useState(true);
   const [dupCopyModsRecipe, setDupCopyModsRecipe] = useState(true);
   const [dupSaving, setDupSaving] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const parseMenu = useServerFn(parseMenuPdfText);
+
 
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["categories"],
