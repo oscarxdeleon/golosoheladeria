@@ -116,6 +116,51 @@ function mergeCfg(cfg) {
   return { ...DEFAULT_CFG, ...(cfg || {}) };
 }
 
+// ---------- Logo (raster ESC/POS GS v 0) ----------
+const _logoCache = new Map();
+
+async function fetchLogoRaster(url, maxWidthPx = 384) {
+  if (!url) return null;
+  const cacheKey = `${url}|${maxWidthPx}`;
+  if (_logoCache.has(cacheKey)) return _logoCache.get(cacheKey);
+  try {
+    const { Jimp } = await import("jimp").then((m) => ({ Jimp: m.default ?? m.Jimp ?? m }));
+    const img = await Jimp.read(url);
+    // Escalar manteniendo proporción a un múltiplo de 8 en ancho
+    let w = Math.min(img.bitmap.width, maxWidthPx);
+    w = Math.floor(w / 8) * 8;
+    if (w < 8) return null;
+    const ratio = w / img.bitmap.width;
+    const h = Math.max(1, Math.round(img.bitmap.height * ratio));
+    img.resize(w, h).greyscale().contrast(0.2);
+    const bytesPerRow = w / 8;
+    const raster = Buffer.alloc(bytesPerRow * h, 0);
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const idx = (y * w + x) * 4;
+        const lum = img.bitmap.data[idx]; // grayscale => R=G=B
+        const alpha = img.bitmap.data[idx + 3];
+        const isBlack = alpha > 64 && lum < 160;
+        if (isBlack) {
+          const byteIdx = y * bytesPerRow + (x >> 3);
+          raster[byteIdx] |= 0x80 >> (x & 7);
+        }
+      }
+    }
+    const xL = bytesPerRow & 0xff;
+    const xH = (bytesPerRow >> 8) & 0xff;
+    const yL = h & 0xff;
+    const yH = (h >> 8) & 0xff;
+    const header = Buffer.from([0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
+    const buf = Buffer.concat([Buffer.from(ALIGN_C, "binary"), header, raster, Buffer.from("\n", "binary")]);
+    _logoCache.set(cacheKey, buf);
+    return buf;
+  } catch (e) {
+    console.warn("[logo] no se pudo cargar", url, e?.message || e);
+    return null;
+  }
+}
+
 function buildPersonalizedTicketRaw(p) {
   const cfg = mergeCfg(p.ticket_config);
   let out = INIT;
@@ -285,11 +330,16 @@ function buildComandaRaw(p) {
 }
 
 // ---------- Router de plantillas ----------
-function buildRaw(p) {
+async function buildRaw(p) {
   if (p.type === "drawer") return Buffer.from(INIT + DRAWER, "binary");
   if (p.type === "comanda") return buildComandaRaw(p);
-  // Todos los demás tipos usan el ticket personalizado Goloso.
-  return buildPersonalizedTicketRaw(p);
+  const cfg = mergeCfg(p.ticket_config);
+  const ticketBuf = buildPersonalizedTicketRaw(p);
+  if (cfg.show_logo && p.logo_url) {
+    const logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
+    if (logoBuf) return Buffer.concat([Buffer.from(INIT, "binary"), logoBuf, ticketBuf]);
+  }
+  return ticketBuf;
 }
 
 // ---------- Envío ----------
@@ -334,7 +384,7 @@ async function sendUsb(buf) {
 }
 
 async function printJob(payload) {
-  const buf = buildRaw(payload);
+  const buf = await buildRaw(payload);
   if (payload.printer_ip) {
     const ip = String(payload.printer_ip);
     const port = Number(payload.printer_port || 9100);
