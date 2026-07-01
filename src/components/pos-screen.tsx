@@ -320,28 +320,54 @@ function precuentaHTML(o: {
   </body></html>`;
 }
 
-async function fetchPrinterByArea(areas: string[]): Promise<{ ip?: string; port?: number }> {
-  try {
-    const { data } = await supabase
-      .from("printers")
-      .select("ip,port,active,area")
-      .eq("active", true)
-      .in("area", areas);
-    const p = areas
-      .map((area) => data?.find((printer) => printer.area === area))
-      .find(Boolean);
-    return { ip: p?.ip ?? undefined, port: p?.port ?? undefined };
-  } catch (e) {
-    console.warn("[print] no se pudo consultar impresora", e);
-    return {};
-  }
+// Cache en memoria de las impresoras por área. Evita hacer un round-trip
+// a Supabase por cada impresión (comanda + ticket = 2 queries).
+type PrinterCfg = { ip?: string; port?: number; open_drawer_on_print?: boolean };
+type PrintersRow = { ip: string | null; port: number | null; open_drawer_on_print: boolean | null; area: string | null; active: boolean | null };
+let _printersCache: PrintersRow[] | null = null;
+let _printersFetchedAt = 0;
+const PRINTERS_TTL_MS = 60_000;
+let _printersInflight: Promise<PrintersRow[]> | null = null;
+
+async function loadPrinters(): Promise<PrintersRow[]> {
+  const now = Date.now();
+  if (_printersCache && now - _printersFetchedAt < PRINTERS_TTL_MS) return _printersCache;
+  if (_printersInflight) return _printersInflight;
+  _printersInflight = (async () => {
+    try {
+      const { data } = await supabase
+        .from("printers")
+        .select("ip,port,open_drawer_on_print,active,area")
+        .eq("active", true);
+      _printersCache = (data as PrintersRow[] | null) ?? [];
+      _printersFetchedAt = Date.now();
+      return _printersCache;
+    } catch (e) {
+      console.warn("[print] no se pudo consultar impresora", e);
+      return _printersCache ?? [];
+    } finally {
+      _printersInflight = null;
+    }
+  })();
+  return _printersInflight;
 }
 
-async function fetchCajaPrinter(): Promise<{ ip?: string; port?: number }> {
+export function invalidatePrintersCache() {
+  _printersCache = null;
+  _printersFetchedAt = 0;
+}
+
+async function fetchPrinterByArea(areas: string[]): Promise<PrinterCfg> {
+  const data = await loadPrinters();
+  const p = areas.map((area) => data.find((printer) => printer.area === area)).find(Boolean);
+  return { ip: p?.ip ?? undefined, port: p?.port ?? undefined, open_drawer_on_print: p?.open_drawer_on_print ?? undefined };
+}
+
+async function fetchCajaPrinter(): Promise<PrinterCfg> {
   return fetchPrinterByArea(["caja"]);
 }
 
-async function fetchComandaPrinter(): Promise<{ ip?: string; port?: number }> {
+async function fetchComandaPrinter(): Promise<PrinterCfg> {
   return fetchPrinterByArea(["cocina", "barra", "caja"]);
 }
 
