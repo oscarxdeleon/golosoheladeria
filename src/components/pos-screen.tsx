@@ -201,9 +201,9 @@ body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:15px;padding:4mm;
 .cash .ln .lf{display:flex;align-items:center;gap:6px;font-weight:900}
 .cash .ln .lf svg{width:20px;height:20px}
 .cash .ln .rv{font-weight:700}
-.thanks{text-align:center;font-family:'Brush Script MT','Lucida Handwriting','Segoe Script',cursive;font-style:italic;font-weight:700;font-size:28px;margin:10px 0 4px;white-space:pre-line;line-height:1.15}
-.deco{text-align:center;font-size:15px;letter-spacing:4px;margin:6px 0 2px}
-.deco-bot{text-align:center;font-size:10px;letter-spacing:3px;margin-top:4px;text-transform:uppercase;font-weight:700;color:#000}`;
+.thanks{text-align:center;font-family:'Brush Script MT','Lucida Handwriting','Segoe Script',cursive;font-style:italic;font-weight:700;font-size:22px;margin:10px 0 4px;white-space:nowrap;line-height:1.15;overflow:hidden}
+.deco{display:none}
+.deco-bot{display:none}`;
 
 
 export function ticketHTML(o: {
