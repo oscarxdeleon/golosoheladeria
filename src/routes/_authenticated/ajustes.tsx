@@ -18,6 +18,7 @@ import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Lin
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
+import { FidelizacionTab } from "@/components/ajustes/fidelizacion-tab";
 import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
@@ -102,6 +103,7 @@ function AjustesPage() {
           <TabsTrigger value="impr">Impresoras</TabsTrigger>
           <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
           <TabsTrigger value="domi">Domicilio</TabsTrigger>
+          <TabsTrigger value="fidel">Fidelización</TabsTrigger>
           <TabsTrigger value="roles">Roles</TabsTrigger>
         </TabsList>
         <TabsContent value="estab"><SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary></TabsContent>
@@ -113,6 +115,7 @@ function AjustesPage() {
         <TabsContent value="impr"><SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="pagos"><SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="domi"><SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary></TabsContent>
+        <TabsContent value="fidel"><SectionErrorBoundary label="Fidelización"><FidelizacionTab /></SectionErrorBoundary></TabsContent>
         <TabsContent value="roles"><SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary></TabsContent>
       </Tabs>
     </div>

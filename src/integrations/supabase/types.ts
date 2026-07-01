@@ -1250,6 +1250,12 @@ export type Database = {
           id: number
           local_print_url: string | null
           logo_url: string | null
+          loyalty_enabled: boolean
+          loyalty_expiration_days: number
+          loyalty_min_redeem: number
+          loyalty_point_value: number
+          loyalty_points_per_1000: number
+          loyalty_welcome_text: string | null
           menu_link: string | null
           nequi_number: string | null
           nit: string | null
@@ -1272,6 +1278,12 @@ export type Database = {
           id?: number
           local_print_url?: string | null
           logo_url?: string | null
+          loyalty_enabled?: boolean
+          loyalty_expiration_days?: number
+          loyalty_min_redeem?: number
+          loyalty_point_value?: number
+          loyalty_points_per_1000?: number
+          loyalty_welcome_text?: string | null
           menu_link?: string | null
           nequi_number?: string | null
           nit?: string | null
@@ -1294,6 +1306,12 @@ export type Database = {
           id?: number
           local_print_url?: string | null
           logo_url?: string | null
+          loyalty_enabled?: boolean
+          loyalty_expiration_days?: number
+          loyalty_min_redeem?: number
+          loyalty_point_value?: number
+          loyalty_points_per_1000?: number
+          loyalty_welcome_text?: string | null
           menu_link?: string | null
           nequi_number?: string | null
           nit?: string | null
@@ -1572,6 +1590,7 @@ export type Database = {
         Returns: undefined
       }
       kds_public_pending: { Args: { p_slug: string }; Returns: Json }
+      lookup_customer_loyalty: { Args: { _phone: string }; Returns: Json }
       move_table: {
         Args: {
           _force?: boolean

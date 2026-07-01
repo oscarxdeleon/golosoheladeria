@@ -263,6 +263,17 @@ export function PublicOrder({
       lines.push("");
       lines.push(`*¡ENVIANOS EL COMPROBANTE DE PAGO!!*`);
     }
+    // Loyalty block
+    const loyaltyEnabled = (settings as { loyalty_enabled?: boolean } | null | undefined)?.loyalty_enabled ?? true;
+    const perK = Number((settings as { loyalty_points_per_1000?: number } | null | undefined)?.loyalty_points_per_1000 ?? 1);
+    if (loyaltyEnabled && perK > 0 && phone) {
+      const pts = Math.floor(total / 1000) * perK;
+      if (pts > 0) {
+        lines.push("");
+        lines.push(`⭐ *Ganaste ${pts} puntos Goloso Club*`);
+        lines.push(`Consulta tu saldo: ${typeof window !== "undefined" ? window.location.origin : ""}/mis-puntos`);
+      }
+    }
     return lines.join("\n");
   }
 
