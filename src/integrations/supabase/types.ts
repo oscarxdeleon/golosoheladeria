@@ -1202,6 +1202,7 @@ export type Database = {
           phone: string | null
           schedules: Json
           tax_rate: number
+          ticket_config: Json
           ticket_footer: string | null
           ticket_header: string | null
           updated_at: string
@@ -1223,6 +1224,7 @@ export type Database = {
           phone?: string | null
           schedules?: Json
           tax_rate?: number
+          ticket_config?: Json
           ticket_footer?: string | null
           ticket_header?: string | null
           updated_at?: string
@@ -1244,6 +1246,7 @@ export type Database = {
           phone?: string | null
           schedules?: Json
           tax_rate?: number
+          ticket_config?: Json
           ticket_footer?: string | null
           ticket_header?: string | null
           updated_at?: string
