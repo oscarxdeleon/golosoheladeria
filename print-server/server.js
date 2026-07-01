@@ -124,8 +124,28 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
   const cacheKey = `${url}|${maxWidthPx}`;
   if (_logoCache.has(cacheKey)) return _logoCache.get(cacheKey);
   try {
-    const { Jimp } = await import("jimp").then((m) => ({ Jimp: m.default ?? m.Jimp ?? m }));
-    const img = await Jimp.read(url);
+    // 1) Descargar bytes de la imagen con fetch nativo (más robusto que Jimp.read(url))
+    const controller = new AbortController();
+    const to = setTimeout(() => controller.abort(), 8000);
+    let bytes;
+    try {
+      const res = await fetch(url, { signal: controller.signal, redirect: "follow" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const ab = await res.arrayBuffer();
+      bytes = Buffer.from(ab);
+    } finally {
+      clearTimeout(to);
+    }
+    if (!bytes || bytes.length < 8) {
+      console.warn("[logo] respuesta vacía", url);
+      return null;
+    }
+
+    // 2) Cargar en Jimp desde el buffer (evita el fetch interno de Jimp que a
+    //    veces falla con HTTPS/CDNs).
+    const jimpMod = await import("jimp");
+    const Jimp = jimpMod.default ?? jimpMod.Jimp ?? jimpMod;
+    const img = await Jimp.read(bytes);
     // Escalar manteniendo proporción a un múltiplo de 8 en ancho
     let w = Math.min(img.bitmap.width, maxWidthPx);
     w = Math.floor(w / 8) * 8;
@@ -140,6 +160,7 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
         const idx = (y * w + x) * 4;
         const lum = img.bitmap.data[idx]; // grayscale => R=G=B
         const alpha = img.bitmap.data[idx + 3];
+        // Fondos transparentes se consideran blancos (no imprimen).
         const isBlack = alpha > 64 && lum < 160;
         if (isBlack) {
           const byteIdx = y * bytesPerRow + (x >> 3);
@@ -152,14 +173,22 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
     const yL = h & 0xff;
     const yH = (h >> 8) & 0xff;
     const header = Buffer.from([0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
-    const buf = Buffer.concat([Buffer.from(ALIGN_C, "binary"), header, raster, Buffer.from("\n", "binary")]);
+    const buf = Buffer.concat([
+      Buffer.from(ALIGN_C, "binary"),
+      header,
+      raster,
+      Buffer.from("\n", "binary"),
+      Buffer.from(ALIGN_L, "binary"),
+    ]);
     _logoCache.set(cacheKey, buf);
+    console.log(`[logo] listo ${w}x${h}px (${bytes.length}B origen) desde ${url}`);
     return buf;
   } catch (e) {
     console.warn("[logo] no se pudo cargar", url, e?.message || e);
     return null;
   }
 }
+
 
 function buildPersonalizedTicketRaw(p) {
   const cfg = mergeCfg(p.ticket_config);
@@ -405,7 +434,20 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
 
   if (req.method === "GET" && req.url === "/health") {
-    return send(200, { ok: true, printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+    return send(200, { ok: true, version: "1.3.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+  }
+
+  // Diagnóstico del logo: GET /logo-test?url=https://...
+  if (req.method === "GET" && req.url?.startsWith("/logo-test")) {
+    try {
+      const u = new URL(req.url, "http://localhost");
+      const url = u.searchParams.get("url");
+      if (!url) return send(400, { ok: false, error: "Falta ?url=" });
+      const buf = await fetchLogoRaster(url, WIDTH >= 42 ? 384 : 288);
+      return send(200, { ok: !!buf, bytes: buf?.length ?? 0, url });
+    } catch (e) {
+      return send(500, { ok: false, error: String(e?.message || e) });
+    }
   }
 
   if (req.method === "GET" && req.url === "/test") {
