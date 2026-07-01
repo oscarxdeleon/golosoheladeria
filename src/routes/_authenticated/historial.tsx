@@ -105,6 +105,100 @@ function HistorialPage() {
 
   const totalSum = filtered.reduce((s, x) => s + Number(x.total ?? 0), 0);
 
+  async function reprintSale(saleId: string, kind: "comanda" | "ticket") {
+    const t = toast.loading(kind === "comanda" ? "Reimprimiendo comanda…" : "Reimprimiendo ticket…");
+    try {
+      const { data: sale, error } = await supabase.from("sales").select("*").eq("id", saleId).single();
+      if (error || !sale) throw error ?? new Error("Venta no encontrada");
+      const { data: items } = await supabase
+        .from("sale_items")
+        .select("product_name,qty,unit_price,modifiers")
+        .eq("sale_id", saleId);
+      const { data: settings } = await supabase
+        .from("settings")
+        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
+        .maybeSingle();
+      let branch: Record<string, unknown> | null = null;
+      if (sale.branch_id) {
+        const { data: b } = await supabase
+          .from("branches")
+          .select("name,nit,address,neighborhood,phone,email,logo_url,ticket_header,ticket_footer")
+          .eq("id", sale.branch_id)
+          .maybeSingle();
+        branch = (b ?? null) as Record<string, unknown> | null;
+      }
+      const branding: Branding = {
+        business_name: (branch?.name as string) || settings?.business_name || "Heladería Goloso",
+        nit: (branch?.nit as string | null) ?? settings?.nit ?? null,
+        address:
+          [branch?.address, branch?.neighborhood].filter(Boolean).join(" · ") ||
+          settings?.address ||
+          null,
+        phone: (branch?.phone as string | null) ?? settings?.phone ?? null,
+        email: (branch?.email as string | null) ?? null,
+        logo_url: (branch?.logo_url as string | null) ?? settings?.logo_url ?? null,
+        ticket_header: (branch?.ticket_header as string | null) ?? settings?.ticket_header ?? null,
+        ticket_footer: (branch?.ticket_footer as string | null) ?? settings?.ticket_footer ?? null,
+      };
+      const its = (items ?? []).map((i) => ({
+        name: i.product_name,
+        qty: Number(i.qty),
+        unit_price: Number(i.unit_price),
+      }));
+      const header = TYPE_LABEL[sale.order_type] ?? sale.order_type ?? "Pedido";
+      if (kind === "comanda") {
+        const args = {
+          ticket: sale.ticket_number,
+          header,
+          items: its.map((i) => ({ name: i.name, qty: i.qty })),
+          customer: sale.customer_name ?? "",
+          notes: sale.notes ?? "",
+          address: sale.delivery_address ?? "",
+          phone: sale.customer_phone ?? "",
+          user_name: sale.user_name ?? "",
+          created_at: sale.created_at,
+          branding,
+        };
+        const ok = await printComanda(args);
+        if (!ok) {
+          const w = window.open("", "_blank", "width=420,height=720");
+          if (w) { w.document.write(comandaHTML(args)); w.document.close(); setTimeout(() => w.print(), 350); }
+        }
+        toast.success("Comanda enviada", { id: t });
+      } else {
+        const args = {
+          ticket: sale.ticket_number,
+          header,
+          items: its,
+          subtotal: Number(sale.subtotal ?? sale.total),
+          tax: Number(sale.tax ?? 0),
+          deliveryFee: Number(sale.delivery_fee ?? 0),
+          total: Number(sale.total ?? 0),
+          payment_method: sale.payment_method ?? "—",
+          customer: sale.customer_name ?? "",
+          user_name: sale.user_name ?? "",
+          created_at: sale.created_at,
+          address: sale.delivery_address ?? "",
+          phone: sale.customer_phone ?? "",
+          cash_received: Number(sale.total ?? 0),
+          notes: sale.notes ?? "",
+          branding,
+        };
+        try {
+          await printTicketFinal(args);
+        } catch {
+          const w = window.open("", "_blank", "width=420,height=720");
+          if (w) { w.document.write(ticketHTML(args)); w.document.close(); setTimeout(() => w.print(), 350); }
+        }
+        toast.success("Ticket enviado", { id: t });
+      }
+    } catch (e) {
+      console.error(e);
+      toast.error("No se pudo reimprimir", { id: t });
+    }
+  }
+
+
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -183,9 +277,21 @@ function HistorialPage() {
                   <TableCell>{s.payment_method ?? "—"}</TableCell>
                   <TableCell className="text-right font-medium">{formatMoney(s.total)}</TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
-                      <Receipt className="h-4 w-4 mr-1" /> Ver
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      <Button
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-white"
+                        onClick={() => reprintSale(s.id, "comanda")}
+                      >
+                        <ChefHat className="h-4 w-4 mr-1" /> Comanda
+                      </Button>
+                      <Button size="sm" onClick={() => reprintSale(s.id, "ticket")}>
+                        <Printer className="h-4 w-4 mr-1" /> Ticket
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
+                        <Receipt className="h-4 w-4 mr-1" /> Ver
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
