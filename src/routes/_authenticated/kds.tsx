@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
+import { notifyCustomerReady } from "@/lib/customer-ready-notify";
 
 export const Route = createFileRoute("/_authenticated/kds")({
   head: () => ({ meta: [{ title: "KDS · Goloso POS" }] }),
