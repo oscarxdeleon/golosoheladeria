@@ -53,6 +53,7 @@ function AuthedLayout() {
               <Outlet />
             </main>
             <OnlineOrdersNotifier />
+            <WaiterCallsNotifier />
           </div>
         </div>
       </SidebarProvider>
