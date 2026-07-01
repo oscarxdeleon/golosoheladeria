@@ -84,6 +84,7 @@ const egresos = [
 
 const admin = [
   { to: "/mesas-admin", label: "Gestión de mesas", icon: LayoutGrid, key: "mesas-admin" },
+  { to: "/repartidores", label: "Repartidores", icon: Bike, key: "usuarios" },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace, key: "asistencia" },
   { to: "/usuarios", label: "Usuarios", icon: Users, key: "usuarios" },
   { to: "/ajustes", label: "Ajustes", icon: Settings, key: "ajustes" },
