@@ -123,13 +123,13 @@ export function AppSidebar() {
       <SidebarContent>
         {fMain.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Operación</SidebarGroupLabel>
+            <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Operación</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {fMain.map((i) => (
                   <SidebarMenuItem key={i.to}>
                     <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                      <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -140,13 +140,13 @@ export function AppSidebar() {
 
         {fOrden.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Pedidos</SidebarGroupLabel>
+            <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Pedidos</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {fOrden.map((i) => (
                   <SidebarMenuItem key={i.to}>
                     <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                      <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -159,7 +159,7 @@ export function AppSidebar() {
           <Collapsible defaultOpen={menuOpenDefault} className="group/collapsible">
             <SidebarGroup>
               <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="cursor-pointer">
+                <SidebarGroupLabel className="cursor-pointer font-display font-bold uppercase tracking-widest text-primary/80">
                   Menú
                   <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
                 </SidebarGroupLabel>
@@ -170,7 +170,7 @@ export function AppSidebar() {
                     {fMenu.map((i) => (
                       <SidebarMenuItem key={i.to}>
                         <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                          <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                          <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}
@@ -183,13 +183,13 @@ export function AppSidebar() {
 
         {fEgresos.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Egresos</SidebarGroupLabel>
+            <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Egresos</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {fEgresos.map((i) => (
                   <SidebarMenuItem key={i.to}>
                     <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                      <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
@@ -200,13 +200,13 @@ export function AppSidebar() {
 
         {fAdmin.length > 0 && (
           <SidebarGroup>
-            <SidebarGroupLabel>Administración</SidebarGroupLabel>
+            <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Administración</SidebarGroupLabel>
             <SidebarGroupContent>
               <SidebarMenu>
                 {fAdmin.map((i) => (
                   <SidebarMenuItem key={i.to}>
                     <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                      <Link to={i.to}><i.icon /><span>{i.label}</span></Link>
+                      <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>
                 ))}
