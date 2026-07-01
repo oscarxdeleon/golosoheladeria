@@ -13,6 +13,8 @@ import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Sm
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
+import { sendToLocalPrinter } from "@/lib/print-client";
+
 
 type KioskService = "llevar" | "comer_aqui";
 
