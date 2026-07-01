@@ -331,15 +331,49 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   } catch (e) {
     console.warn("[print] no se pudo consultar config de impresora", e);
   }
-  // El TICKET se imprime con el diseño HTML EXACTO (logo, tipografía, íconos
-  // y footer) usando un iframe — así el resultado impreso coincide 1:1 con la
-  // vista previa. El servidor local ESC/POS produce un formato genérico, por
-  // lo que solo lo usamos para el pulso de apertura del cajón monedero.
+
+  const b = o.branding ?? DEFAULT_BRANDING;
+  const payload: PrintPayload = {
+    type: "ticket",
+    ticket: o.ticket,
+    header: o.header,
+    items: o.items,
+    subtotal: o.subtotal,
+    tax: o.tax,
+    deliveryFee: o.deliveryFee,
+    total: o.total,
+    payment_method: o.payment_method,
+    customer: o.customer,
+    notes: o.notes,
+    address: o.address,
+    phone: o.phone,
+    user_name: o.user_name,
+    created_at: o.created_at,
+    cash_received: o.cash_received,
+    business_name: b.business_name,
+    nit: b.nit ?? undefined,
+    address_biz: b.address ?? undefined,
+    phone_biz: b.phone ?? undefined,
+    email_biz: b.email ?? undefined,
+    footer_text: b.ticket_footer ?? undefined,
+    printer_ip: printerIp,
+    printer_port: printerPort,
+    open_drawer: openDrawer,
+  };
+
+  // 1) Intento silencioso vía servidor de impresión local (ESC/POS).
+  const ok = await sendToLocalPrinter(payload);
+  if (ok) return;
+
+  // 2) Fallback: si NO hay servidor local configurado, imprime por iframe
+  //    (esto abrirá el diálogo del navegador solo como último recurso).
+  console.warn("[print] servidor local no disponible — usando fallback HTML");
   printHTMLFallback(ticketHTML(o));
   if (openDrawer && printerIp) {
     void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
   }
 }
+
 
 function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
   const payload: PrintPayload = {
