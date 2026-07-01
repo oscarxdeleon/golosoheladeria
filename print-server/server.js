@@ -178,10 +178,6 @@ function buildPersonalizedTicketRaw(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  if (cfg.show_decorations) {
-    out += ALIGN_C + centerLine("~ Endulzando tus momentos ~");
-  }
-
   if (cfg.show_nit && p.nit) out += ALIGN_C + centerLine(`NIT: ${p.nit}`);
   if (cfg.show_address && p.address_biz)
     for (const line of wrapText(p.address_biz, WIDTH - 6)) out += centerLine(line);
@@ -210,15 +206,15 @@ function buildPersonalizedTicketRaw(p) {
     out += BOLD_ON + "Fecha:      " + BOLD_OFF + created + "\n";
   }
   if (p.user_name) out += BOLD_ON + "Cajero:     " + BOLD_OFF + p.user_name + "\n";
-  if (cfg.show_customer) out += BOLD_ON + "Cliente:    " + BOLD_OFF + (p.customer || "Mostrador") + "\n";
+  if (cfg.show_customer) out += BOLD_ON + "Cliente:    " + BOLD_OFF + String(p.customer || "Mostrador").toUpperCase() + "\n";
   if (cfg.show_customer_address && p.address) {
-    const lines = wrapText(p.address, WIDTH - 12);
+    const lines = wrapText(String(p.address).toUpperCase(), WIDTH - 12);
     out += BOLD_ON + "Direccion:  " + BOLD_OFF + lines[0] + "\n";
     for (const extra of lines.slice(1)) out += "            " + extra + "\n";
   }
-  if (cfg.show_customer_phone && p.phone) out += BOLD_ON + "Telefono:   " + BOLD_OFF + p.phone + "\n";
+  if (cfg.show_customer_phone && p.phone) out += BOLD_ON + "Telefono:   " + BOLD_OFF + String(p.phone).toUpperCase() + "\n";
   if (cfg.show_payment_method && p.payment_method)
-    out += BOLD_ON + "Forma Pago: " + BOLD_OFF + p.payment_method + "\n";
+    out += BOLD_ON + "Forma Pago: " + BOLD_OFF + String(p.payment_method).toUpperCase() + "\n";
 
   out += DASH_LINE;
 
@@ -270,10 +266,8 @@ function buildPersonalizedTicketRaw(p) {
 
   // ==== PIE ====
   if (cfg.show_thanks) {
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H;
-    for (const line of wrapText(cfg.thanks_text || "¡Gracias por Preferirnos!", Math.floor(WIDTH / 2)))
-      out += line + "\n";
-    out += SIZE_NORMAL + BOLD_OFF;
+    const oneLine = String(cfg.thanks_text || "¡Gracias por Preferirnos!").replace(/\s+/g, " ").trim();
+    out += ALIGN_C + BOLD_ON + centerLine(oneLine) + BOLD_OFF;
   }
 
   if (cfg.extra_footer) {
@@ -289,9 +283,9 @@ function buildPersonalizedTicketRaw(p) {
   }
 
   if (cfg.show_decorations) {
-    out += ALIGN_C + centerLine("* HELADERIA GOLOSO *");
     out += ALIGN_C + STAR_LINE;
   }
+
 
   out += ALIGN_L + FEED(4) + CUT;
   return Buffer.from(out, "binary");
@@ -301,30 +295,30 @@ function buildPersonalizedTicketRaw(p) {
 function buildComandaRaw(p) {
   let out = INIT;
   out += ALIGN_C + BOLD_ON;
-  if (p.business_name) out += SIZE_DOUBLE + String(p.business_name).toUpperCase() + "\n" + SIZE_NORMAL;
-  out += SIZE_TRIPLE + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
-  out += SIZE_NORMAL + new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
+  if (p.business_name) out += BOLD_ON + String(p.business_name).toUpperCase() + "\n";
+  out += SIZE_DOUBLE + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
+  out += new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
   if (p.user_name) out += `Cajero: ${p.user_name}\n`;
   out += BOLD_OFF + ALIGN_L + DASH_LINE;
   if (p.header)
-    out += ALIGN_C + SIZE_DOUBLE + BOLD_ON + `*** ${String(p.header).toUpperCase()} ***\n` + BOLD_OFF + SIZE_NORMAL + ALIGN_L;
+    out += ALIGN_C + BOLD_ON + `*** ${String(p.header).toUpperCase()} ***\n` + BOLD_OFF + ALIGN_L;
   out += BOLD_ON;
-  if (p.customer) out += SIZE_DOUBLE_H + `Cliente: ${p.customer}\n` + SIZE_NORMAL;
-  if (p.address) out += SIZE_DOUBLE_H + `Dir: ${p.address}\n` + SIZE_NORMAL;
-  if (p.phone) out += SIZE_DOUBLE_H + `Tel: ${p.phone}\n` + SIZE_NORMAL;
+  if (p.customer) out += `Cliente: ${String(p.customer).toUpperCase()}\n`;
+  if (p.address) out += `Dir: ${String(p.address).toUpperCase()}\n`;
+  if (p.phone) out += `Tel: ${String(p.phone).toUpperCase()}\n`;
   out += BOLD_OFF + DASH_LINE;
   for (const i of p.items || []) {
-    out += BOLD_ON + SIZE_DOUBLE + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE_H + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
     if (i.modifiers && Array.isArray(i.modifiers)) {
-      for (const mod of i.modifiers) out += BOLD_ON + SIZE_DOUBLE_H + `  + ${String(mod).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
+      for (const mod of i.modifiers) out += BOLD_ON + `  + ${String(mod).toUpperCase()}\n` + BOLD_OFF;
     }
     out += DASH_LINE;
   }
   if (p.notes) {
-    out += "\n" + BOLD_ON + SIZE_DOUBLE_H + "OBSERVACION:\n" + SIZE_NORMAL + BOLD_OFF;
-    out += BOLD_ON + SIZE_DOUBLE_H + String(p.notes).toUpperCase() + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += "\n" + BOLD_ON + "OBSERVACION:\n" + BOLD_OFF;
+    out += BOLD_ON + String(p.notes).toUpperCase() + "\n" + BOLD_OFF;
   }
-  out += "\n" + ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "*** ENVIAR A COCINA ***\n" + SIZE_NORMAL + BOLD_OFF + ALIGN_L;
+  out += "\n" + ALIGN_C + BOLD_ON + "*** ENVIAR A COCINA ***\n" + BOLD_OFF + ALIGN_L;
   out += FEED(4) + CUT;
   return Buffer.from(out, "binary");
 }
