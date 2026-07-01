@@ -191,12 +191,26 @@ function ClientesPage() {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-3xl">Clientes y fidelización</h1>
-        <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
-          <DialogTrigger asChild>
-            <Button onClick={() => setEdit({})}>
-              <Plus className="h-4 w-4 mr-1" /> Nuevo cliente
-            </Button>
-          </DialogTrigger>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" onClick={downloadTemplate}>
+            <FileDown className="h-4 w-4 mr-1" /> Plantilla Excel
+          </Button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={(e) => e.target.files?.[0] && importFromExcel(e.target.files[0])}
+          />
+          <Button variant="outline" disabled={importing} onClick={() => fileRef.current?.click()}>
+            <Upload className="h-4 w-4 mr-1" /> {importing ? "Importando…" : "Importar Excel"}
+          </Button>
+          <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
+            <DialogTrigger asChild>
+              <Button onClick={() => setEdit({})}>
+                <Plus className="h-4 w-4 mr-1" /> Nuevo cliente
+              </Button>
+            </DialogTrigger>
           <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>{edit?.id ? "Editar cliente" : "Nuevo cliente"}</DialogTitle>
