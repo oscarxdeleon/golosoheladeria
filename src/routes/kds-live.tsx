@@ -169,7 +169,7 @@ function KdsLive() {
                   <span>Cajero: {s.user_name ?? "—"}</span>
                   <span>{new Date(s.created_at).toLocaleTimeString("es-CO")}</span>
                 </div>
-                <Button className="w-full" variant={allReady ? "secondary" : "default"} onClick={() => markAllReady(s.id)}>
+                <Button className="w-full" variant={allReady ? "secondary" : "default"} onClick={() => markAllReady(s)}>
                   <CheckCheck className="h-4 w-4 mr-1" />{allReady ? "Despachar pedido" : "Despachar todo"}
                 </Button>
               </CardContent>
