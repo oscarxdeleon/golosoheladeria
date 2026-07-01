@@ -506,6 +506,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType, tableId, initialCustomer, initialPhone, initialAddress, initialNeighborhood]);
 
+  // Colapsar sidebar al entrar al POS para maximizar el área de productos
+  useEffect(() => {
+    setSidebarOpen(false);
+    const t = setTimeout(() => searchRef.current?.focus(), 250);
+    return () => clearTimeout(t);
+  }, [setSidebarOpen]);
+
+  // Atajos de teclado: F2 buscar, Esc limpiar búsqueda
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F2") { e.preventDefault(); searchRef.current?.focus(); searchRef.current?.select(); }
+      if (e.key === "Escape" && document.activeElement === searchRef.current) { setSearch(""); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+
 
   const { data: cats = [] } = useQuery({
     queryKey: ["categories", "pos"],
