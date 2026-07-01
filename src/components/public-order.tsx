@@ -383,41 +383,41 @@ export function PublicOrder({
   }
 
   if (source === "kiosk" && !kioskService) {
+    const kioskLogo = (branch as { logo_url?: string | null } | null | undefined)?.logo_url || settings?.logo_url;
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
-        <div className="min-h-full flex flex-col items-center justify-between py-10 px-6 md:py-16 md:px-12">
-          {/* Logo protagonista */}
-          <div className="flex flex-col items-center text-center w-full">
-            {settings?.logo_url ? (
+      <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
+        <div className="h-full w-full flex flex-col items-center justify-between py-4 px-4 sm:py-6 sm:px-8 md:py-10">
+          {/* Logo protagonista (a color desde la sede) */}
+          <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
+            {kioskLogo ? (
               <img
-                src={settings.logo_url}
+                src={kioskLogo}
                 alt="Heladería Goloso"
-                className="max-h-[38vh] max-w-[85vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite]"
+                className="max-h-[32vh] max-w-[70vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite]"
               />
             ) : (
-              <div className="h-48 w-48 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
-                <IceCream className="h-24 w-24" />
+              <div className="h-32 w-32 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
+                <IceCream className="h-16 w-16" />
               </div>
             )}
-            <p className="text-slate-600 text-lg md:text-2xl mt-6 font-medium">
+            <p className="text-slate-600 text-sm sm:text-base md:text-lg mt-3 font-medium">
               Toca una opción para empezar tu pedido
             </p>
           </div>
 
-          {/* Botones premium */}
-          <div className="w-full max-w-5xl mx-auto mt-10 grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+          {/* Botones premium — compactos para caber en móvil/tablet */}
+          <div className="w-full max-w-4xl mx-auto grid grid-cols-2 gap-3 sm:gap-5">
             <button
               type="button"
               onClick={() => setKioskService("comer_aqui")}
-              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 text-white px-8 py-12 md:py-16 shadow-2xl ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300"
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-400 via-sky-500 to-indigo-600 text-white px-4 py-5 sm:py-8 shadow-2xl ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-sky-300"
             >
-              <span className="pointer-events-none absolute -top-20 -right-20 h-56 w-56 rounded-full bg-white/20 blur-2xl" />
-              <span className="pointer-events-none absolute -bottom-24 -left-16 h-56 w-56 rounded-full bg-indigo-300/30 blur-2xl" />
-              <div className="relative flex flex-col items-center gap-5">
-                <div className="rounded-3xl bg-white/20 backdrop-blur-sm p-6 shadow-inner group-hover:scale-110 group-active:scale-100 transition-transform duration-300">
-                  <Utensils className="!h-20 !w-20 md:!h-24 md:!w-24 drop-shadow-lg" strokeWidth={2.2} />
+              <span className="pointer-events-none absolute -top-16 -right-16 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-2 sm:gap-3">
+                <div className="rounded-2xl bg-white/20 backdrop-blur-sm p-3 sm:p-4 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <Utensils className="!h-9 !w-9 sm:!h-12 sm:!w-12 md:!h-14 md:!w-14 drop-shadow-lg" strokeWidth={2.2} />
                 </div>
-                <div className="font-display font-black text-3xl md:text-4xl tracking-wide drop-shadow">
+                <div className="font-display font-black text-lg sm:text-2xl md:text-3xl tracking-wide drop-shadow">
                   COMER AQUÍ
                 </div>
               </div>
@@ -426,15 +426,14 @@ export function PublicOrder({
             <button
               type="button"
               onClick={() => setKioskService("llevar")}
-              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-400 via-orange-500 to-fuchsia-600 text-white px-8 py-12 md:py-16 shadow-2xl ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-300"
+              className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-amber-400 via-orange-500 to-fuchsia-600 text-white px-4 py-5 sm:py-8 shadow-2xl ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-orange-300"
             >
-              <span className="pointer-events-none absolute -top-20 -left-20 h-56 w-56 rounded-full bg-white/20 blur-2xl" />
-              <span className="pointer-events-none absolute -bottom-24 -right-16 h-56 w-56 rounded-full bg-fuchsia-300/30 blur-2xl" />
-              <div className="relative flex flex-col items-center gap-5">
-                <div className="rounded-3xl bg-white/20 backdrop-blur-sm p-6 shadow-inner group-hover:scale-110 group-active:scale-100 transition-transform duration-300">
-                  <ShoppingBag className="!h-20 !w-20 md:!h-24 md:!w-24 drop-shadow-lg" strokeWidth={2.2} />
+              <span className="pointer-events-none absolute -top-16 -left-16 h-40 w-40 rounded-full bg-white/20 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-2 sm:gap-3">
+                <div className="rounded-2xl bg-white/20 backdrop-blur-sm p-3 sm:p-4 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <ShoppingBag className="!h-9 !w-9 sm:!h-12 sm:!w-12 md:!h-14 md:!w-14 drop-shadow-lg" strokeWidth={2.2} />
                 </div>
-                <div className="font-display font-black text-3xl md:text-4xl tracking-wide drop-shadow">
+                <div className="font-display font-black text-lg sm:text-2xl md:text-3xl tracking-wide drop-shadow">
                   PARA LLEVAR
                 </div>
               </div>
@@ -444,6 +443,7 @@ export function PublicOrder({
       </div>
     );
   }
+
 
 
 
