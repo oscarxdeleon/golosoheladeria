@@ -12,21 +12,29 @@ function useAlertLoop() {
   const ctxRef = useRef<AudioContext | null>(null);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  function ensureCtx() {
+    let ctx = ctxRef.current;
+    if (!ctx) {
+      const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
+      ctx = new AC();
+      ctxRef.current = ctx;
+    }
+    if (ctx.state === "suspended") {
+      void ctx.resume().catch(() => { /* noop */ });
+    }
+    return ctx;
+  }
+
   function playOnce() {
     try {
-      let ctx = ctxRef.current;
-      if (!ctx) {
-        const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-        ctx = new AC();
-        ctxRef.current = ctx;
-      }
+      const ctx = ensureCtx();
       // Triple tono ascendente para que se escuche con ruido de fondo
       const freqs = [880, 1180, 1480];
       freqs.forEach((f, i) => {
-        const start = ctx!.currentTime + i * 0.18;
-        const o = ctx!.createOscillator();
-        const g = ctx!.createGain();
-        o.connect(g); g.connect(ctx!.destination);
+        const start = ctx.currentTime + i * 0.18;
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        o.connect(g); g.connect(ctx.destination);
         o.type = "square"; o.frequency.value = f;
         g.gain.setValueAtTime(0.0001, start);
         g.gain.exponentialRampToValueAtTime(0.45, start + 0.02);
@@ -47,6 +55,24 @@ function useAlertLoop() {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
+  }, []);
+
+  // Desbloquear AudioContext en el primer gesto del usuario (política del navegador)
+  useEffect(() => {
+    const unlock = () => {
+      try {
+        const ctx = ensureCtx();
+        // Reproducir un tick silencioso para armar el contexto
+        const o = ctx.createOscillator();
+        const g = ctx.createGain();
+        g.gain.value = 0.0001;
+        o.connect(g); g.connect(ctx.destination);
+        o.start(); o.stop(ctx.currentTime + 0.01);
+      } catch { /* noop */ }
+    };
+    const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart"];
+    events.forEach((e) => window.addEventListener(e, unlock, { once: false, passive: true }));
+    return () => events.forEach((e) => window.removeEventListener(e, unlock));
   }, []);
 
   useEffect(() => () => {
