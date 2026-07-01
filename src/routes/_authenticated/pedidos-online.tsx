@@ -416,24 +416,81 @@ function OnlineOrdersPage() {
         `¿Enviar ticket digital por WhatsApp al cliente?\n\nNúmero: ${payOrder.customer_phone}`,
       );
       if (wantWA) {
-        const sedeName = activeBranch?.name?.trim() || (settings as { business_name?: string } | null | undefined)?.business_name || "Heladería Goloso";
-        const sedeAddr = activeBranch?.address ? `\n📍 ${activeBranch.address}` : "";
-        const sedePhoneTxt = activeBranch?.phone ? `\n📞 ${activeBranch.phone}` : "";
-        const lines = its.map((i) => `• ${i.qty} × ${i.product_name} — ${formatMoney(i.unit_price * i.qty)}`).join("\n");
-        const msg = [
-          `🍦 *${sedeName}*${sedeAddr}${sedePhoneTxt}`,
-          ``,
-          `*Ticket de venta #${payOrder.ticket_number}*`,
-          new Date().toLocaleString("es-CO"),
-          payOrder.customer_name ? `Cliente: ${payOrder.customer_name}` : null,
-          ``,
-          lines,
-          ``,
-          `*TOTAL PAGADO: ${formatMoney(payOrder.total)}*`,
-          `Método de pago: ${method}`,
-          ``,
-          `¡Gracias por tu compra! 💛`,
-        ].filter(Boolean).join("\n");
+        const s = (settings ?? {}) as { business_name?: string; nit?: string; address?: string; phone?: string; ticket_footer?: string };
+        const bizName = (activeBranch?.name?.trim() || s.business_name || "Heladería Goloso").toUpperCase();
+        const bizNit = s.nit || "";
+        const bizAddr = activeBranch?.address || s.address || "";
+        const bizPhone = activeBranch?.phone || s.phone || "";
+        const footer = s.ticket_footer || "¡Gracias por Preferirnos!";
+
+        const W = 32; // ancho monoespaciado tipo ticket 80mm
+        const center = (t: string) => {
+          const s2 = t.trim();
+          if (s2.length >= W) return s2;
+          const pad = Math.floor((W - s2.length) / 2);
+          return " ".repeat(pad) + s2;
+        };
+        const dash = "-".repeat(W);
+        const row = (l: string, r: string) => {
+          const left = l;
+          const right = r;
+          const space = Math.max(1, W - left.length - right.length);
+          return left + " ".repeat(space) + right;
+        };
+        const wrap = (t: string, w = W) => {
+          const words = t.split(/\s+/);
+          const out: string[] = [];
+          let cur = "";
+          for (const wd of words) {
+            if ((cur + " " + wd).trim().length > w) { if (cur) out.push(cur); cur = wd; }
+            else cur = (cur ? cur + " " : "") + wd;
+          }
+          if (cur) out.push(cur);
+          return out;
+        };
+
+        const lines: string[] = [];
+        lines.push(center(bizName));
+        if (bizNit) lines.push(center(`NIT: ${bizNit}`));
+        if (bizAddr) wrap(bizAddr).forEach((l) => lines.push(center(l)));
+        if (bizPhone) lines.push(center(`TEL: ${bizPhone}`));
+        lines.push(dash);
+        lines.push(center(`TICKET DE VENTA`));
+        lines.push(center(`TV-${String(payOrder.ticket_number).padStart(6, "0")}`));
+        lines.push(center(new Date(payOrder.created_at).toLocaleString("es-CO")));
+        lines.push(dash);
+        if (payOrder.customer_name) lines.push(`CLIENTE: ${payOrder.customer_name.toUpperCase()}`);
+        if (payOrder.delivery_address) wrap(`DIR: ${payOrder.delivery_address.toUpperCase()}`).forEach((l) => lines.push(l));
+        if (payOrder.customer_phone) lines.push(`TEL:     ${payOrder.customer_phone.toUpperCase()}`);
+        lines.push(`PAGO:    ${method.toUpperCase()}`);
+        lines.push(dash);
+        lines.push(row("CANT  DESCRIPCION", "TOTAL"));
+        lines.push(dash);
+        for (const i of its) {
+          const qty = String(i.qty).padEnd(4, " ");
+          const money = formatMoney(i.unit_price * i.qty);
+          const nameMax = W - qty.length - 1 - money.length - 1;
+          const nameLines = wrap(i.product_name.toUpperCase(), Math.max(6, nameMax));
+          lines.push(row(`${qty} ${nameLines[0]}`, money));
+          for (let k = 1; k < nameLines.length; k++) lines.push("     " + nameLines[k]);
+        }
+        lines.push(dash);
+        lines.push(row("SUBTOTAL", formatMoney(Number(payOrder.subtotal ?? 0))));
+        if (Number(payOrder.delivery_fee ?? 0) > 0) {
+          lines.push(row("DOMICILIO", formatMoney(Number(payOrder.delivery_fee))));
+        }
+        lines.push(row("TOTAL", formatMoney(Number(payOrder.total ?? 0))));
+        if (method === "Efectivo") {
+          const received = Number(amountReceived.replace(/[^\d.]/g, "")) || Number(payOrder.total ?? 0);
+          const change = Math.max(0, received - Number(payOrder.total ?? 0));
+          lines.push(row("RECIBIDO", formatMoney(received)));
+          lines.push(row("CAMBIO", formatMoney(change)));
+        }
+        lines.push(dash);
+        lines.push(center(footer));
+
+        const ticketBlock = "```\n" + lines.join("\n") + "\n```";
+        const msg = `🧾 *TICKET DE VENTA #${payOrder.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
         window.open(waLink(payOrder.customer_phone!, msg), "_blank", "noopener");
       }
     } else if (!phoneDigits) {
