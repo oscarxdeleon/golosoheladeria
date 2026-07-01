@@ -388,25 +388,10 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   return ok;
 }
 export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
-  let printerIp: string | undefined;
-  let printerPort: number | undefined;
-  let openDrawer = false;
-  try {
-    const { data: cajaPrinters } = await supabase
-      .from("printers")
-      .select("ip,port,open_drawer_on_print,active,area")
-      .eq("area", "caja")
-      .eq("active", true)
-      .limit(1);
-    const p = cajaPrinters?.[0];
-    if (p) {
-      printerIp = p.ip ?? undefined;
-      printerPort = p.port ?? undefined;
-      openDrawer = !!p.open_drawer_on_print;
-    }
-  } catch (e) {
-    console.warn("[print] no se pudo consultar config de impresora", e);
-  }
+  const cajaCfg = await fetchCajaPrinter();
+  const printerIp = cajaCfg.ip;
+  const printerPort = cajaCfg.port;
+  const openDrawer = !!cajaCfg.open_drawer_on_print;
 
   const b = o.branding ?? DEFAULT_BRANDING;
   const payload: PrintPayload = {
