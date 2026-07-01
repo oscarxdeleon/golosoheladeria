@@ -14,7 +14,7 @@ import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { sendToLocalPrinter } from "@/lib/print-client";
-import { PwaInstallButton } from "@/components/pwa-install-button";
+
 
 
 type KioskService = "llevar" | "comer_aqui";
@@ -549,7 +549,6 @@ export function PublicOrder({
               <Badge variant="secondary" className="ml-1">{itemCount}</Badge>
             </Button>
           )}
-          <PwaInstallButton className="h-8 gap-1 px-3 text-xs bg-gradient-primary text-primary-foreground shadow-glow" />
 
 
 
