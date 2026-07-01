@@ -858,12 +858,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       // PASO 3: Mostrar modal de confirmación post-venta
       // (la impresión y la redirección quedan a cargo del cajero desde el modal)
       // ───────────────────────────────────────────────────────────────
-      const redirectTo: "/mesas" | "/llevar" | "/domicilio" | "/kiosko" | null =
-        orderType === "mesa" ? "/mesas"
-        : orderType === "llevar" ? "/llevar"
-        : orderType === "domicilio" ? "/domicilio"
-        : orderType === "kiosko" ? "/kiosko"
-        : null;
+      // Tras finalizar cualquier venta (mesa/llevar/domicilio/autopedido)
+      // volvemos al Panel de Mesas, que es la pantalla principal del cajero.
+      const redirectTo: "/mesas" = "/mesas";
 
       setSuccessDialog({
         ticket: sale.ticket_number,
