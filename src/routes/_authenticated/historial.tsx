@@ -116,7 +116,8 @@ function HistorialPage() {
         .eq("sale_id", saleId);
       const { data: settings } = await supabase
         .from("settings")
-        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
+        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config")
+
         .maybeSingle();
       let branch: Record<string, unknown> | null = null;
       if (sale.branch_id) {
