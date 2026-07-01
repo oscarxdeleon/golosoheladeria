@@ -330,11 +330,16 @@ function buildComandaRaw(p) {
 }
 
 // ---------- Router de plantillas ----------
-function buildRaw(p) {
+async function buildRaw(p) {
   if (p.type === "drawer") return Buffer.from(INIT + DRAWER, "binary");
   if (p.type === "comanda") return buildComandaRaw(p);
-  // Todos los demás tipos usan el ticket personalizado Goloso.
-  return buildPersonalizedTicketRaw(p);
+  const cfg = mergeCfg(p.ticket_config);
+  const ticketBuf = buildPersonalizedTicketRaw(p);
+  if (cfg.show_logo && p.logo_url) {
+    const logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
+    if (logoBuf) return Buffer.concat([Buffer.from(INIT, "binary"), logoBuf, ticketBuf]);
+  }
+  return ticketBuf;
 }
 
 // ---------- Envío ----------
