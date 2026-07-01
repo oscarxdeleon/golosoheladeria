@@ -59,13 +59,45 @@ export function setLocalPrintUrl(url: string | null) {
   }
 }
 
+let _bootstrapPromise: Promise<string | null> | null = null;
+/**
+ * Si no hay URL en localStorage, la lee UNA VEZ desde la tabla `settings`
+ * (columna `local_print_url`) y la persiste en localStorage. Esto permite
+ * que la configuración sobreviva a limpiezas del navegador y se comparta
+ * entre navegadores/PCs.
+ */
+export async function bootstrapLocalPrintUrl(): Promise<string | null> {
+  if (typeof window === "undefined") return null;
+  const existing = getLocalPrintUrl();
+  if (existing) return existing;
+  if (_bootstrapPromise) return _bootstrapPromise;
+  _bootstrapPromise = (async () => {
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase
+        .from("settings")
+        .select("local_print_url")
+        .limit(1)
+        .maybeSingle();
+      const url = (data as { local_print_url?: string | null } | null)?.local_print_url ?? null;
+      if (url) setLocalPrintUrl(url);
+      return url;
+    } catch {
+      return null;
+    }
+  })();
+  return _bootstrapPromise;
+}
+
 /**
  * Envía el payload al servidor local. Devuelve true si el servidor respondió OK.
  * Se ejecuta en segundo plano: nunca lanza.
  */
 export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
-  const url = getLocalPrintUrl();
+  let url = getLocalPrintUrl();
+  if (!url) url = await bootstrapLocalPrintUrl();
   if (!url) return false;
+
   try {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), 3500);
