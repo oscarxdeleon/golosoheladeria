@@ -1383,7 +1383,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 <div className={`mt-0.5 font-display text-sm sm:text-base text-primary tabular-nums ${p.is_favorite ? "font-bold" : ""}`}>{formatMoney(p.price)}</div>
               </div>
             </div>
-            </div>
             );
           })}
 
