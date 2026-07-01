@@ -178,10 +178,6 @@ function buildPersonalizedTicketRaw(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  if (cfg.show_decorations) {
-    out += ALIGN_C + centerLine("~ Endulzando tus momentos ~");
-  }
-
   if (cfg.show_nit && p.nit) out += ALIGN_C + centerLine(`NIT: ${p.nit}`);
   if (cfg.show_address && p.address_biz)
     for (const line of wrapText(p.address_biz, WIDTH - 6)) out += centerLine(line);
