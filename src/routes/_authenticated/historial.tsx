@@ -183,9 +183,21 @@ function HistorialPage() {
                   <TableCell>{s.payment_method ?? "—"}</TableCell>
                   <TableCell className="text-right font-medium">{formatMoney(s.total)}</TableCell>
                   <TableCell className="text-right">
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
-                      <Receipt className="h-4 w-4 mr-1" /> Ver
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-1">
+                      <Button
+                        size="sm"
+                        className="bg-amber-500 hover:bg-amber-600 text-white"
+                        onClick={() => reprintSale(s.id, "comanda")}
+                      >
+                        <ChefHat className="h-4 w-4 mr-1" /> Comanda
+                      </Button>
+                      <Button size="sm" onClick={() => reprintSale(s.id, "ticket")}>
+                        <Printer className="h-4 w-4 mr-1" /> Ticket
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
+                        <Receipt className="h-4 w-4 mr-1" /> Ver
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
