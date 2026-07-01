@@ -1322,20 +1322,29 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               <p className="text-sm text-muted-foreground text-center py-8">Toca un producto para agregarlo</p>
             )}
             {cart.map((l) => (
-              <div key={l.key} className="flex items-center gap-2 rounded-lg bg-muted/50 p-2">
-                <div className="flex-1">
-                <div className="font-medium text-sm whitespace-pre-line">{l.name}</div>
-                  <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)} c/u</div>
+              <div key={l.key} className="space-y-1.5 rounded-lg bg-muted/50 p-2">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <div className="font-medium text-sm whitespace-pre-line">{l.name}</div>
+                    <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)} c/u</div>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => dec(l.key)}><Minus className="h-3 w-3" /></Button>
+                    <span className="w-6 text-center text-sm">{l.qty}</span>
+                    <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setCart((p) => p.map((x) => x.key === l.key ? { ...x, qty: x.qty + 1 } : x))}><Plus className="h-3 w-3" /></Button>
+                  </div>
+                  <div className="w-20 text-right text-sm font-medium">{formatMoney(l.unit_price * l.qty)}</div>
+                  <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(l.key)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
-                <div className="flex items-center gap-1">
-                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => dec(l.key)}><Minus className="h-3 w-3" /></Button>
-                  <span className="w-6 text-center text-sm">{l.qty}</span>
-                  <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setCart((p) => p.map((x) => x.key === l.key ? { ...x, qty: x.qty + 1 } : x))}><Plus className="h-3 w-3" /></Button>
-                </div>
-                <div className="w-20 text-right text-sm font-medium">{formatMoney(l.unit_price * l.qty)}</div>
-                <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(l.key)}><Trash2 className="h-3 w-3" /></Button>
+                <Input
+                  value={l.notes ?? ""}
+                  onChange={(e) => setCart((p) => p.map((x) => x.key === l.key ? { ...x, notes: e.target.value } : x))}
+                  placeholder="📝 Nota (opcional): ej. sin azúcar, extra topping…"
+                  className="h-8 text-xs bg-background/80"
+                />
               </div>
             ))}
+
           </div>
 
           <div className="space-y-2 border-t pt-3">
