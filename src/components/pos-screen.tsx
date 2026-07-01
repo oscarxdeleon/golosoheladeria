@@ -173,7 +173,7 @@ body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:15px;padding:4mm;
 .logo-wrap{text-align:center;margin:0 0 4px}
 .logo{max-width:60mm;max-height:36mm;object-fit:contain;display:block;margin:0 auto}
 .biz-name{font-size:30px;margin:6px 0 8px;text-align:center;font-weight:900;letter-spacing:1px;text-transform:uppercase;font-family:'Arial Black','Helvetica',sans-serif;line-height:1.05}
-.biz-meta{display:flex;align-items:center;justify-content:flex-start;gap:10px;font-size:17px;font-weight:700;line-height:1.3;margin:4px 0;padding-left:14mm}
+.biz-meta{display:flex;align-items:center;justify-content:center;gap:8px;font-size:17px;font-weight:700;line-height:1.3;margin:4px 0;text-align:center}
 .biz-meta svg{flex-shrink:0;width:18px;height:18px}
 .dots,.dashed{border:0;border-top:1.5px dashed #000;margin:8px 0;width:100%;height:0}
 .ticket-no{text-align:center;font-weight:900;font-size:22px;letter-spacing:1px;font-family:'Arial Black','Impact',sans-serif;text-transform:uppercase;margin:6px 0;line-height:1.1}
