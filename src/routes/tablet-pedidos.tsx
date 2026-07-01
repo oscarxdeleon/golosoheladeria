@@ -199,19 +199,14 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
   );
 
   async function handleOpen(m: Mesa) {
-    if (m.status === "free") {
-      await supabase
-        .from("restaurant_tables")
-        .update({
-          status: "occupied",
-          current_guests: m.seats,
-          occupied_at: new Date().toISOString(),
-        })
-        .eq("id", m.id);
-      qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-    }
+    // No marcamos la mesa como ocupada al abrirla. La mesa cambia a
+    // "ocupada" únicamente cuando se guarda un pedido con al menos un
+    // producto (trigger DB `auto_occupy_table_on_sale_item`). Así, si el
+    // mesero abre una mesa por error y sale sin agregar nada, la mesa
+    // sigue mostrándose como Libre.
     onSelect(m);
   }
+
 
   if (!activeBranchId) {
     return <p className="text-center text-sm text-muted-foreground py-10">Selecciona una sede para ver las mesas.</p>;
