@@ -389,8 +389,9 @@ function ProductosPage() {
       // Carga dinámica de pdfjs para no impactar SSR
       const pdfjs: typeof import("pdfjs-dist") = await import("pdfjs-dist");
       // Worker vía CDN oficial
-      // @ts-expect-error - GlobalWorkerOptions typing
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+      (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc =
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+
       const buf = await file.arrayBuffer();
       const pdf = await pdfjs.getDocument({ data: buf }).promise;
       let fullText = "";
