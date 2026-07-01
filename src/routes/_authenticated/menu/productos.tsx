@@ -277,20 +277,38 @@ function ProductosPage() {
 
       if (!items.length) { toast.error("No se encontraron filas válidas"); return; }
 
-      toast.info(`Importando ${items.length} productos...`);
+      // Omitir productos ya existentes (por nombre, case-insensitive)
+      const { data: existing } = await supabase.from("products").select("name");
+      const existingSet = new Set((existing ?? []).map((p) => norm(p.name)));
+      const toCreate: typeof items = [];
+      const skipped: string[] = [];
+      const seen = new Set<string>();
+      for (const it of items) {
+        const key = norm(it.name);
+        if (existingSet.has(key) || seen.has(key)) { skipped.push(it.name); continue; }
+        seen.add(key);
+        toCreate.push(it);
+      }
+
+      if (!toCreate.length) {
+        toast.info(`Todos los productos (${items.length}) ya existen. No se creó ninguno.`);
+        return;
+      }
+
+      toast.info(`Importando ${toCreate.length} productos${skipped.length ? ` (${skipped.length} omitidos por existir)` : ""}...`);
 
       // Cache/crea categorías por nombre
       const catCache = new Map<string, string>();
       for (const c of cats) catCache.set(norm(c.name), c.id);
-      const uniqueCats = Array.from(new Set(items.map((i) => norm(i.category)).filter(Boolean)));
+      const uniqueCats = Array.from(new Set(toCreate.map((i) => norm(i.category)).filter(Boolean)));
       for (const cn of uniqueCats) {
         if (catCache.has(cn)) continue;
-        const original = items.find((i) => norm(i.category) === cn)!.category;
+        const original = toCreate.find((i) => norm(i.category) === cn)!.category;
         const { data, error } = await supabase.from("categories").insert({ name: original }).select("id").single();
         if (!error && data) catCache.set(cn, data.id);
       }
 
-      const payload = items.map((i) => ({
+      const payload = toCreate.map((i) => ({
         name: i.name,
         price: i.price,
         category_id: i.category ? catCache.get(norm(i.category)) ?? null : null,
@@ -301,7 +319,8 @@ function ProductosPage() {
       const { error } = await supabase.from("products").insert(payload);
       if (error) { toast.error(`Error al importar: ${error.message}`); return; }
 
-      toast.success(`✅ ${payload.length} productos importados`);
+      toast.success(`✅ ${payload.length} productos importados${skipped.length ? ` · ${skipped.length} omitidos` : ""}`);
+
       qc.invalidateQueries({ queryKey: ["products-all"] });
       qc.invalidateQueries({ queryKey: ["products"] });
       qc.invalidateQueries({ queryKey: ["public-products"] });
