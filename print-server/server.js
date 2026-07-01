@@ -190,10 +190,17 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
 }
 
 
-function buildPersonalizedTicketRaw(p) {
+async function buildPersonalizedTicketRaw(p) {
   const cfg = mergeCfg(p.ticket_config);
   let out = INIT;
   if (p.open_drawer) out += DRAWER;
+
+  // ==== LOGO (raster) ====
+  let logoBuf = null;
+  if (cfg.show_logo && p.logo_url) {
+    logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
+    if (!logoBuf) console.warn("[logo] no se incluirá en el ticket (fallo al rasterizar)", p.logo_url);
+  }
 
   // ==== ENCABEZADO / MARCA ====
   if (cfg.show_decorations) {
@@ -206,6 +213,7 @@ function buildPersonalizedTicketRaw(p) {
     for (const line of wrapText(business, Math.floor(WIDTH / 2))) out += line + "\n";
     out += SIZE_NORMAL + BOLD_OFF;
   }
+
 
   if (cfg.show_nit && p.nit) out += ALIGN_C + centerLine(`NIT: ${p.nit}`);
   if (cfg.show_address && p.address_biz)
@@ -317,37 +325,46 @@ function buildPersonalizedTicketRaw(p) {
 
 
   out += ALIGN_L + FEED(4) + CUT;
-  return Buffer.from(out, "binary");
+  const textBuf = Buffer.from(out, "binary");
+  if (logoBuf) {
+    // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
+    return Buffer.concat([Buffer.from(INIT, "binary"), logoBuf, textBuf]);
+  }
+  return textBuf;
 }
 
-// ---------- Comanda de cocina ----------
+// ---------- Comanda de cocina (fuente compacta) ----------
 function buildComandaRaw(p) {
   let out = INIT;
+  // Encabezado compacto
   out += ALIGN_C + BOLD_ON;
-  if (p.business_name) out += BOLD_ON + String(p.business_name).toUpperCase() + "\n";
-  out += SIZE_DOUBLE + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
+  if (p.business_name) out += String(p.business_name).toUpperCase() + "\n";
+  out += SIZE_DOUBLE_H + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
   out += new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
   if (p.user_name) out += `Cajero: ${p.user_name}\n`;
   out += BOLD_OFF + ALIGN_L + DASH_LINE;
   if (p.header)
     out += ALIGN_C + BOLD_ON + `*** ${String(p.header).toUpperCase()} ***\n` + BOLD_OFF + ALIGN_L;
-  out += BOLD_ON;
-  if (p.customer) out += `Cliente: ${String(p.customer).toUpperCase()}\n`;
-  if (p.address) out += `Dir: ${String(p.address).toUpperCase()}\n`;
-  if (p.phone) out += `Tel: ${String(p.phone).toUpperCase()}\n`;
-  out += BOLD_OFF + DASH_LINE;
+  if (p.customer || p.address || p.phone) {
+    out += BOLD_ON;
+    if (p.customer) out += `Cliente: ${String(p.customer).toUpperCase()}\n`;
+    if (p.address) out += `Dir: ${String(p.address).toUpperCase()}\n`;
+    if (p.phone) out += `Tel: ${String(p.phone).toUpperCase()}\n`;
+    out += BOLD_OFF + DASH_LINE;
+  }
+  // Items en tamaño NORMAL con negrita — legibles pero compactos
   for (const i of p.items || []) {
-    out += BOLD_ON + SIZE_DOUBLE_H + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + `${i.qty} X ${String(i.name).toUpperCase()}\n` + BOLD_OFF;
     if (i.modifiers && Array.isArray(i.modifiers)) {
-      for (const mod of i.modifiers) out += BOLD_ON + `  + ${String(mod).toUpperCase()}\n` + BOLD_OFF;
+      for (const mod of i.modifiers) out += `  + ${String(mod).toUpperCase()}\n`;
     }
+  }
+  out += DASH_LINE;
+  if (p.notes) {
+    out += BOLD_ON + "OBSERVACION: " + BOLD_OFF + String(p.notes).toUpperCase() + "\n";
     out += DASH_LINE;
   }
-  if (p.notes) {
-    out += "\n" + BOLD_ON + "OBSERVACION:\n" + BOLD_OFF;
-    out += BOLD_ON + String(p.notes).toUpperCase() + "\n" + BOLD_OFF;
-  }
-  out += "\n" + ALIGN_C + BOLD_ON + "*** ENVIAR A COCINA ***\n" + BOLD_OFF + ALIGN_L;
+  out += ALIGN_C + BOLD_ON + "*** ENVIAR A COCINA ***\n" + BOLD_OFF + ALIGN_L;
   out += FEED(4) + CUT;
   return Buffer.from(out, "binary");
 }
@@ -356,14 +373,11 @@ function buildComandaRaw(p) {
 async function buildRaw(p) {
   if (p.type === "drawer") return Buffer.from(INIT + DRAWER, "binary");
   if (p.type === "comanda") return buildComandaRaw(p);
-  const cfg = mergeCfg(p.ticket_config);
-  const ticketBuf = buildPersonalizedTicketRaw(p);
-  if (cfg.show_logo && p.logo_url) {
-    const logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
-    if (logoBuf) return Buffer.concat([Buffer.from(INIT, "binary"), logoBuf, ticketBuf]);
-  }
-  return ticketBuf;
+  // El logo se inyecta dentro de buildPersonalizedTicketRaw
+  return await buildPersonalizedTicketRaw(p);
 }
+
+
 
 // ---------- Envío ----------
 function sendRaw(buf, ip, port) {
@@ -434,7 +448,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
 
   if (req.method === "GET" && req.url === "/health") {
-    return send(200, { ok: true, version: "1.3.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+    return send(200, { ok: true, version: "1.4.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
   }
 
   // Diagnóstico del logo: GET /logo-test?url=https://...

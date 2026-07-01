@@ -119,20 +119,20 @@ export function comandaHTML(o: {
     @page{size:80mm auto;margin:0}
     @media print{html,body{width:80mm;margin:0!important;padding:0!important}}
     html,body{width:80mm}
-    body{font-family:'Arial Black','Helvetica',sans-serif;font-size:14px;padding:4mm 3mm;width:74mm;margin:0;color:#000;font-weight:900;line-height:1.25}
-    h1{font-size:22px;margin:0 0 4px;text-align:center;font-weight:900;letter-spacing:1px}
-    .sede{font-size:14px;text-align:center;font-weight:900;text-transform:uppercase;margin:0 0 3px;letter-spacing:1px}
-    h2{font-size:16px;margin:5px 0;font-weight:900;text-transform:uppercase;text-align:center;border:2px solid #000;padding:4px 0;letter-spacing:1px}
-    table{width:100%;border-collapse:collapse;margin-top:4px}
-    td{vertical-align:top;padding:5px 0;border-bottom:1.5px dashed #000}
-    td.qty{font-size:22px;font-weight:900;width:60px;text-align:right;padding-right:10px}
-    td.name{font-size:16px;font-weight:900;text-transform:uppercase;line-height:1.15;white-space:pre-line}
-    hr{border:none;border-top:1.5px dashed #000;margin:4px 0}
-    .meta{font-size:12px;font-weight:900;margin:2px 0}
-    .meta.big{font-size:14px}
-    .notes{margin-top:6px;font-size:14px;font-weight:900;border:2px solid #000;padding:6px;line-height:1.2;text-transform:uppercase}
-    .notes .lbl{font-size:12px;letter-spacing:1px;border-bottom:1.5px solid #000;padding-bottom:2px;margin-bottom:3px}
-    .footer{margin-top:8px;text-align:center;font-size:13px;font-weight:900}
+    body{font-family:'Arial','Helvetica',sans-serif;font-size:11px;padding:4mm 3mm;width:74mm;margin:0;color:#000;font-weight:700;line-height:1.2}
+    h1{font-size:15px;margin:0 0 3px;text-align:center;font-weight:900;letter-spacing:0.5px}
+    .sede{font-size:11px;text-align:center;font-weight:900;text-transform:uppercase;margin:0 0 2px}
+    h2{font-size:12px;margin:4px 0;font-weight:900;text-transform:uppercase;text-align:center;border:1.5px solid #000;padding:3px 0;letter-spacing:0.5px}
+    table{width:100%;border-collapse:collapse;margin-top:3px}
+    td{vertical-align:top;padding:3px 0;border-bottom:1px dashed #000}
+    td.qty{font-size:13px;font-weight:900;width:36px;text-align:right;padding-right:8px}
+    td.name{font-size:12px;font-weight:800;text-transform:uppercase;line-height:1.15;white-space:pre-line}
+    hr{border:none;border-top:1px dashed #000;margin:3px 0}
+    .meta{font-size:10px;font-weight:700;margin:1px 0}
+    .meta.big{font-size:11px;font-weight:800}
+    .notes{margin-top:5px;font-size:11px;font-weight:800;border:1.5px solid #000;padding:4px;line-height:1.2;text-transform:uppercase}
+    .notes .lbl{font-size:10px;letter-spacing:0.5px;border-bottom:1px solid #000;padding-bottom:2px;margin-bottom:2px}
+    .footer{margin-top:6px;text-align:center;font-size:11px;font-weight:900}
 
   </style></head>
   <body>
