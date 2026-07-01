@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft } from "lucide-react";
+import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Monitor } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
@@ -169,6 +169,32 @@ function MesasPage() {
   return (
     <BranchCashGuard>
     <div className="space-y-6">
+      {/* Accesos rápidos a otros canales de venta */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+        <Button
+          onClick={() => navigate({ to: "/llevar" })}
+          className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-amber-500 hover:bg-amber-600 text-white"
+        >
+          <ShoppingBag className="h-8 w-8 mr-2" />
+          Para llevar
+        </Button>
+        <Button
+          onClick={() => navigate({ to: "/domicilios" })}
+          className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-sky-600 hover:bg-sky-700 text-white"
+        >
+          <Bike className="h-8 w-8 mr-2" />
+          A domicilio
+          <span className="ml-2 text-xs opacity-80">(incluye online)</span>
+        </Button>
+        <Button
+          onClick={() => navigate({ to: "/kiosko" })}
+          className="h-24 text-lg font-semibold shadow-md hover:shadow-lg transition bg-fuchsia-600 hover:bg-fuchsia-700 text-white"
+        >
+          <Monitor className="h-8 w-8 mr-2" />
+          Kiosko
+        </Button>
+      </div>
+
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="font-display text-3xl">Mapa de mesas</h1>
@@ -189,6 +215,7 @@ function MesasPage() {
           )}
         </div>
       </div>
+
 
       <Card>
         <CardContent className="p-6">

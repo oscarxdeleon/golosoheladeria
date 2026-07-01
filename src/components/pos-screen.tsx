@@ -10,7 +10,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
@@ -1422,6 +1422,52 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               <Save className="h-4 w-4 mr-1" /> {paying ? "Enviando…" : (meseroMode ? "Guardar y enviar a KDS" : "Guardar / KDS")}
             </Button>
           </div>
+
+          {cart.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+              onClick={async () => {
+                const ticketNo = pendingSale?.ticket_number ?? kioskSale?.ticket_number ?? 0;
+                const items = cart.map((l) => ({
+                  name:
+                    l.name +
+                    (l.modifiers && l.modifiers.length
+                      ? " (" +
+                        l.modifiers
+                          .map((m) => (m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name))
+                          .join(", ") +
+                        ")"
+                      : ""),
+                  qty: l.qty,
+                }));
+                const snap = {
+                  ticket: ticketNo,
+                  header,
+                  items,
+                  customer,
+                  notes,
+                  address: orderType === "domicilio" ? address : "",
+                  phone: orderType === "domicilio" ? phone : "",
+                  user_name: profile?.full_name ?? user.email ?? "",
+                  created_at: new Date().toISOString(),
+                  branding,
+                };
+                const t = toast.loading("Reimprimiendo comanda…");
+                const ok = await printComanda(snap);
+                if (ok) toast.success("Comanda reimpresa", { id: t });
+                else {
+                  const w = window.open("", "_blank", "width=420,height=640");
+                  if (w) { w.document.write(comandaHTML(snap)); w.document.close(); setTimeout(() => w.print(), 350); }
+                  toast.success("Comanda reimpresa (navegador)", { id: t });
+                }
+              }}
+            >
+              <ChefHat className="h-4 w-4 mr-1" /> Reimprimir comanda
+            </Button>
+          )}
+
 
 
           {!meseroMode && (
