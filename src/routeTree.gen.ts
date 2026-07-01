@@ -43,6 +43,7 @@ import { Route as AuthenticatedAsistenciaRouteImport } from './routes/_authentic
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
 import { Route as SSlugIndexRouteImport } from './routes/s.$slug.index'
 import { Route as SSlugMenuRouteImport } from './routes/s.$slug.menu'
+import { Route as SSlugManifestDotwebmanifestRouteImport } from './routes/s.$slug.manifest[.]webmanifest'
 import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
 import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
@@ -221,6 +222,12 @@ const SSlugMenuRoute = SSlugMenuRouteImport.update({
   path: '/menu',
   getParentRoute: () => SSlugRoute,
 } as any)
+const SSlugManifestDotwebmanifestRoute =
+  SSlugManifestDotwebmanifestRouteImport.update({
+    id: '/manifest.webmanifest',
+    path: '/manifest.webmanifest',
+    getParentRoute: () => SSlugRoute,
+  } as any)
 const SSlugKioskRoute = SSlugKioskRouteImport.update({
   id: '/kiosk',
   path: '/kiosk',
@@ -299,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
+  '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
   '/s/$slug/menu': typeof SSlugMenuRoute
   '/s/$slug/': typeof SSlugIndexRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
@@ -340,6 +348,7 @@ export interface FileRoutesByTo {
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
+  '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
   '/s/$slug/menu': typeof SSlugMenuRoute
   '/s/$slug': typeof SSlugIndexRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
@@ -384,6 +393,7 @@ export interface FileRoutesById {
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
+  '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
   '/s/$slug/menu': typeof SSlugMenuRoute
   '/s/$slug/': typeof SSlugIndexRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
@@ -428,6 +438,7 @@ export interface FileRouteTypes {
     | '/menu/productos'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
+    | '/s/$slug/manifest.webmanifest'
     | '/s/$slug/menu'
     | '/s/$slug/'
     | '/s/$slug/t/$tableNumber'
@@ -469,6 +480,7 @@ export interface FileRouteTypes {
     | '/menu/productos'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
+    | '/s/$slug/manifest.webmanifest'
     | '/s/$slug/menu'
     | '/s/$slug'
     | '/s/$slug/t/$tableNumber'
@@ -512,6 +524,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu/productos'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
+    | '/s/$slug/manifest.webmanifest'
     | '/s/$slug/menu'
     | '/s/$slug/'
     | '/s/$slug/t/$tableNumber'
@@ -770,6 +783,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SSlugMenuRouteImport
       parentRoute: typeof SSlugRoute
     }
+    '/s/$slug/manifest.webmanifest': {
+      id: '/s/$slug/manifest.webmanifest'
+      path: '/manifest.webmanifest'
+      fullPath: '/s/$slug/manifest.webmanifest'
+      preLoaderRoute: typeof SSlugManifestDotwebmanifestRouteImport
+      parentRoute: typeof SSlugRoute
+    }
     '/s/$slug/kiosk': {
       id: '/s/$slug/kiosk'
       path: '/kiosk'
@@ -887,6 +907,7 @@ const AuthenticatedRouteRouteWithChildren =
 
 interface SSlugRouteChildren {
   SSlugKioskRoute: typeof SSlugKioskRoute
+  SSlugManifestDotwebmanifestRoute: typeof SSlugManifestDotwebmanifestRoute
   SSlugMenuRoute: typeof SSlugMenuRoute
   SSlugIndexRoute: typeof SSlugIndexRoute
   SSlugTTableNumberRoute: typeof SSlugTTableNumberRoute
@@ -894,6 +915,7 @@ interface SSlugRouteChildren {
 
 const SSlugRouteChildren: SSlugRouteChildren = {
   SSlugKioskRoute: SSlugKioskRoute,
+  SSlugManifestDotwebmanifestRoute: SSlugManifestDotwebmanifestRoute,
   SSlugMenuRoute: SSlugMenuRoute,
   SSlugIndexRoute: SSlugIndexRoute,
   SSlugTTableNumberRoute: SSlugTTableNumberRoute,
