@@ -12,8 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, ImagePlus, Star, Copy, FileSpreadsheet, Download } from "lucide-react";
+import { Plus, Trash2, Pencil, ImagePlus, Star, Copy, FileSpreadsheet, Download, FileText, Loader2 } from "lucide-react";
 import * as XLSX from "xlsx";
+import { useServerFn } from "@tanstack/react-start";
+import { parseMenuPdfText } from "@/lib/menu-pdf.functions";
+
 
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
@@ -70,6 +73,9 @@ function ProductosPage() {
   const [dupBranch, setDupBranch] = useState(true);
   const [dupCopyModsRecipe, setDupCopyModsRecipe] = useState(true);
   const [dupSaving, setDupSaving] = useState(false);
+  const [pdfLoading, setPdfLoading] = useState(false);
+  const parseMenu = useServerFn(parseMenuPdfText);
+
 
   const { data: cats = [] } = useQuery<Category[]>({
     queryKey: ["categories"],
@@ -330,6 +336,87 @@ function ProductosPage() {
     }
   }
 
+  async function bulkInsertItems(items: { name: string; category: string; price: number }[], sourceLabel: string) {
+    const norm = (s: string) => s.toString().trim().toLowerCase().replace(/\s+/g, " ");
+    if (!items.length) { toast.error(`No se encontraron productos en el ${sourceLabel}`); return; }
+
+    const { data: existing } = await supabase.from("products").select("name");
+    const existingSet = new Set((existing ?? []).map((p) => norm(p.name)));
+    const toCreate: typeof items = [];
+    const skipped: string[] = [];
+    const seen = new Set<string>();
+    for (const it of items) {
+      const key = norm(it.name);
+      if (existingSet.has(key) || seen.has(key)) { skipped.push(it.name); continue; }
+      seen.add(key);
+      toCreate.push(it);
+    }
+    if (!toCreate.length) {
+      toast.info(`Todos los productos (${items.length}) ya existen. No se creó ninguno.`);
+      return;
+    }
+    toast.info(`Importando ${toCreate.length} productos${skipped.length ? ` (${skipped.length} omitidos)` : ""}...`);
+
+    const catCache = new Map<string, string>();
+    for (const c of cats) catCache.set(norm(c.name), c.id);
+    const uniqueCats = Array.from(new Set(toCreate.map((i) => norm(i.category)).filter(Boolean)));
+    for (const cn of uniqueCats) {
+      if (catCache.has(cn)) continue;
+      const original = toCreate.find((i) => norm(i.category) === cn)!.category;
+      const { data, error } = await supabase.from("categories").insert({ name: original }).select("id").single();
+      if (!error && data) catCache.set(cn, data.id);
+    }
+    const payload = toCreate.map((i) => ({
+      name: i.name,
+      price: i.price,
+      category_id: i.category ? catCache.get(norm(i.category)) ?? null : null,
+      active: true,
+      show_in_online: true,
+    }));
+    const { error } = await supabase.from("products").insert(payload);
+    if (error) { toast.error(`Error al importar: ${error.message}`); return; }
+    toast.success(`✅ ${payload.length} productos importados${skipped.length ? ` · ${skipped.length} omitidos` : ""}`);
+    qc.invalidateQueries({ queryKey: ["products-all"] });
+    qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["public-products"] });
+    qc.invalidateQueries({ queryKey: ["categories"] });
+  }
+
+  async function importFromPdf(file: File) {
+    setPdfLoading(true);
+    try {
+      toast.info("Leyendo PDF...");
+      // Carga dinámica de pdfjs para no impactar SSR
+      const pdfjs: typeof import("pdfjs-dist") = await import("pdfjs-dist");
+      // Worker vía CDN oficial
+      (pdfjs.GlobalWorkerOptions as { workerSrc: string }).workerSrc =
+        `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`;
+
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjs.getDocument({ data: buf }).promise;
+      let fullText = "";
+      const maxPages = Math.min(pdf.numPages, 20);
+      for (let i = 1; i <= maxPages; i++) {
+        const page = await pdf.getPage(i);
+        const content = await page.getTextContent();
+        const strs = content.items.map((it) => ("str" in it ? (it as { str: string }).str : "")).join(" ");
+        fullText += strs + "\n";
+      }
+      fullText = fullText.trim();
+      if (!fullText) { toast.error("No se pudo extraer texto del PDF"); return; }
+
+      toast.info("Analizando menú con IA...");
+      const result = await parseMenu({ data: { text: fullText } });
+      const items = (result?.items ?? []) as { name: string; category: string; price: number }[];
+      await bulkInsertItems(items, "PDF");
+    } catch (e) {
+      toast.error(`Error PDF: ${(e as Error).message}`);
+    } finally {
+      setPdfLoading(false);
+    }
+  }
+
+
 
 
 
@@ -361,6 +448,24 @@ function ProductosPage() {
                   onChange={(e) => {
                     const f = e.target.files?.[0];
                     if (f) importFromExcel(f);
+                    e.target.value = "";
+                  }}
+                />
+              </label>
+            </Button>
+            <Button variant="outline" asChild disabled={pdfLoading}>
+              <label className={pdfLoading ? "cursor-wait opacity-70" : "cursor-pointer"}>
+                {pdfLoading
+                  ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Procesando PDF...</>
+                  : <><FileText className="h-4 w-4 mr-1" /> Importar PDF</>}
+                <input
+                  type="file"
+                  accept="application/pdf,.pdf"
+                  className="hidden"
+                  disabled={pdfLoading}
+                  onChange={(e) => {
+                    const f = e.target.files?.[0];
+                    if (f) importFromPdf(f);
                     e.target.value = "";
                   }}
                 />
