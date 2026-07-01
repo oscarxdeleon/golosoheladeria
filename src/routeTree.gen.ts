@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TabletPedidosRouteImport } from './routes/tablet-pedidos'
 import { Route as MenuRouteImport } from './routes/menu'
 import { Route as KioskRouteImport } from './routes/kiosk'
+import { Route as KdsLiveRouteImport } from './routes/kds-live'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
@@ -63,6 +64,11 @@ const MenuRoute = MenuRouteImport.update({
 const KioskRoute = KioskRouteImport.update({
   id: '/kiosk',
   path: '/kiosk',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KdsLiveRoute = KdsLiveRouteImport.update({
+  id: '/kds-live',
+  path: '/kds-live',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthRoute = AuthRouteImport.update({
@@ -258,6 +264,7 @@ const SSlugTTableNumberRoute = SSlugTTableNumberRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/kds-live': typeof KdsLiveRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
@@ -299,6 +306,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth': typeof AuthRoute
+  '/kds-live': typeof KdsLiveRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
@@ -341,6 +349,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_authenticated': typeof AuthenticatedRouteRouteWithChildren
   '/auth': typeof AuthRoute
+  '/kds-live': typeof KdsLiveRoute
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/auth'
+    | '/kds-live'
     | '/kiosk'
     | '/menu'
     | '/tablet-pedidos'
@@ -425,6 +435,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/auth'
+    | '/kds-live'
     | '/kiosk'
     | '/menu'
     | '/tablet-pedidos'
@@ -466,6 +477,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_authenticated'
     | '/auth'
+    | '/kds-live'
     | '/kiosk'
     | '/menu'
     | '/tablet-pedidos'
@@ -509,6 +521,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AuthenticatedRouteRoute: typeof AuthenticatedRouteRouteWithChildren
   AuthRoute: typeof AuthRoute
+  KdsLiveRoute: typeof KdsLiveRoute
   KioskRoute: typeof KioskRoute
   MenuRoute: typeof MenuRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
@@ -538,6 +551,13 @@ declare module '@tanstack/react-router' {
       path: '/kiosk'
       fullPath: '/kiosk'
       preLoaderRoute: typeof KioskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/kds-live': {
+      id: '/kds-live'
+      path: '/kds-live'
+      fullPath: '/kds-live'
+      preLoaderRoute: typeof KdsLiveRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth': {
@@ -885,6 +905,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AuthenticatedRouteRoute: AuthenticatedRouteRouteWithChildren,
   AuthRoute: AuthRoute,
+  KdsLiveRoute: KdsLiveRoute,
   KioskRoute: KioskRoute,
   MenuRoute: MenuRoute,
   TabletPedidosRoute: TabletPedidosRoute,

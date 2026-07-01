@@ -1404,11 +1404,7 @@ function KdsLinkTab() {
   const branch = branches.find((b) => b.id === selectedId);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const slug = branch?.slug ?? "";
-  const url = branch
-    ? slug
-      ? `${origin}/kds?sede=${encodeURIComponent(slug)}`
-      : `${origin}/kds`
-    : "";
+  const url = branch && slug ? `${origin}/kds-live?sede=${encodeURIComponent(slug)}` : "";
 
   function copyLink() {
     if (!url) return;
@@ -1468,22 +1464,22 @@ function KdsLinkTab() {
           </Select>
           {branch && !branch.slug && (
             <p className="mt-2 text-xs text-amber-600">
-              Esta sede no tiene "slug" definido. Se usará el enlace genérico. Define un slug en "Sucursales" para personalizarlo.
+              Esta sede no tiene "slug" definido. Define un slug en "Sucursales" para generar el enlace público del KDS.
             </p>
           )}
         </div>
 
-        {branch && (
+        {branch && slug && (
           <div className="grid gap-6 md:grid-cols-2">
             <div className="space-y-3">
               <div>
-                <Label>URL del KDS</Label>
+                <Label>URL pública del KDS</Label>
                 <div className="flex gap-2 mt-1">
                   <Input value={url} readOnly className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
                   <Button onClick={copyLink} variant="outline"><Copy className="h-4 w-4" />Copiar</Button>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Abre esta URL en la pantalla / tablet de cocina. Mostrará las comandas en tiempo real de esta sede. Requiere sesión iniciada con un usuario autorizado.
+                  Abre esta URL en la tablet o pantalla de cocina. <b>No requiere inicio de sesión</b>: muestra las comandas de la sede en tiempo real.
                 </p>
               </div>
               <div className="flex gap-2 flex-wrap">

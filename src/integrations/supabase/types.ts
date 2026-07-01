@@ -1509,6 +1509,15 @@ export type Database = {
         }
         Returns: boolean
       }
+      kds_public_mark_all_ready: {
+        Args: { p_sale_id: string }
+        Returns: undefined
+      }
+      kds_public_mark_item_ready: {
+        Args: { p_item_id: string }
+        Returns: undefined
+      }
+      kds_public_pending: { Args: { p_slug: string }; Returns: Json }
       move_table: {
         Args: {
           _force?: boolean
