@@ -61,6 +61,27 @@ export function PublicOrder({
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [callingWaiter, setCallingWaiter] = useState(false);
+  const [waiterCalledAt, setWaiterCalledAt] = useState<number | null>(null);
+
+  async function callWaiter() {
+    if (!tableId || callingWaiter) return;
+    if (waiterCalledAt && Date.now() - waiterCalledAt < 30000) {
+      toast.info("Ya avisamos al mesero. Espera un momento por favor.");
+      return;
+    }
+    setCallingWaiter(true);
+    try {
+      const { error } = await supabase.rpc("create_waiter_call", { _table_id: tableId, _reason: null });
+      if (error) throw error;
+      setWaiterCalledAt(Date.now());
+      toast.success("¡Listo! Un mesero irá a tu mesa en un momento.");
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo llamar al mesero");
+    } finally {
+      setCallingWaiter(false);
+    }
+  }
 
   function resetKiosk() {
     if (resetTimerRef.current) {
