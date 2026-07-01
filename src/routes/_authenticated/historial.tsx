@@ -328,7 +328,7 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
       let branding: Branding | null = null;
       const { data: settings } = await supabase
         .from("settings")
-        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer")
+        .select("business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config")
         .maybeSingle();
       type BranchInfo = {
         name?: string; nit?: string | null; address?: string | null; neighborhood?: string | null;
