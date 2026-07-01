@@ -1423,6 +1423,52 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             </Button>
           </div>
 
+          {cart.length > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="w-full text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+              onClick={async () => {
+                const ticketNo = pendingSale?.ticket_number ?? kioskSale?.ticket_number ?? 0;
+                const items = cart.map((l) => ({
+                  name:
+                    l.name +
+                    (l.modifiers && l.modifiers.length
+                      ? " (" +
+                        l.modifiers
+                          .map((m) => (m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name))
+                          .join(", ") +
+                        ")"
+                      : ""),
+                  qty: l.qty,
+                }));
+                const snap = {
+                  ticket: ticketNo,
+                  header,
+                  items,
+                  customer,
+                  notes,
+                  address: orderType === "domicilio" ? address : "",
+                  phone: orderType === "domicilio" ? phone : "",
+                  user_name: profile?.full_name ?? user.email ?? "",
+                  created_at: new Date().toISOString(),
+                  branding,
+                };
+                const t = toast.loading("Reimprimiendo comanda…");
+                const ok = await printComanda(snap);
+                if (ok) toast.success("Comanda reimpresa", { id: t });
+                else {
+                  const w = window.open("", "_blank", "width=420,height=640");
+                  if (w) { w.document.write(comandaHTML(snap)); w.document.close(); setTimeout(() => w.print(), 350); }
+                  toast.success("Comanda reimpresa (navegador)", { id: t });
+                }
+              }}
+            >
+              <ChefHat className="h-4 w-4 mr-1" /> Reimprimir comanda
+            </Button>
+          )}
+
+
 
           {!meseroMode && (
             <div className="border-t pt-3">
