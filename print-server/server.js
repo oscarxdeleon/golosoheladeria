@@ -448,7 +448,7 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
 
   if (req.method === "GET" && req.url === "/health") {
-    return send(200, { ok: true, version: "1.3.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+    return send(200, { ok: true, version: "1.4.0", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
   }
 
   // Diagnóstico del logo: GET /logo-test?url=https://...
