@@ -1311,7 +1311,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </div>
         </div>
 
-        <Tabs value={activeCat} onValueChange={setActiveCat}>
+        <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <TabsList className="flex flex-wrap h-auto">
             <TabsTrigger value="all">Todo</TabsTrigger>
             {cats.map((c) => (
@@ -1320,7 +1320,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </TabsList>
         </Tabs>
 
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7">
           {filtered.map((p) => {
             const openAdd = () => {
               setNoteText("");
