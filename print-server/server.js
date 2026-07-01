@@ -118,18 +118,43 @@ function mergeCfg(cfg) {
 
 // ---------- Logo (raster ESC/POS GS v 0) ----------
 const _logoCache = new Map();
+let _jimpModPromise = null;
+async function loadJimp() {
+  if (!_jimpModPromise) {
+    _jimpModPromise = import("jimp")
+      .then((m) => {
+        const J = m.default ?? m.Jimp ?? m;
+        console.log("[logo] Jimp cargado correctamente");
+        return J;
+      })
+      .catch((e) => {
+        console.error("[logo] ERROR: no se pudo cargar 'jimp'. Ejecuta 'npm install' en la carpeta print-server.", e?.message || e);
+        _jimpModPromise = null;
+        return null;
+      });
+  }
+  return _jimpModPromise;
+}
 
 async function fetchLogoRaster(url, maxWidthPx = 384) {
-  if (!url) return null;
+  if (!url) { console.warn("[logo] logo_url vacío en el payload"); return null; }
   const cacheKey = `${url}|${maxWidthPx}`;
   if (_logoCache.has(cacheKey)) return _logoCache.get(cacheKey);
   try {
-    // 1) Descargar bytes de la imagen con fetch nativo (más robusto que Jimp.read(url))
+    const Jimp = await loadJimp();
+    if (!Jimp) return null;
+
+    // 1) Descargar bytes con fetch nativo + User-Agent (algunos CDN bloquean sin UA)
     const controller = new AbortController();
-    const to = setTimeout(() => controller.abort(), 8000);
+    const to = setTimeout(() => controller.abort(), 10000);
     let bytes;
     try {
-      const res = await fetch(url, { signal: controller.signal, redirect: "follow" });
+      const res = await fetch(url, {
+        signal: controller.signal,
+        redirect: "follow",
+        headers: { "User-Agent": "GolosoPrintServer/1.5.1", Accept: "image/*,*/*" },
+      });
+      console.log(`[logo] GET ${url} -> HTTP ${res.status} ${res.headers.get("content-type") || ""}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const ab = await res.arrayBuffer();
       bytes = Buffer.from(ab);
@@ -141,12 +166,8 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
       return null;
     }
 
-    // 2) Cargar en Jimp desde el buffer (evita el fetch interno de Jimp que a
-    //    veces falla con HTTPS/CDNs).
-    const jimpMod = await import("jimp");
-    const Jimp = jimpMod.default ?? jimpMod.Jimp ?? jimpMod;
+    // 2) Cargar en Jimp desde el buffer
     const img = await Jimp.read(bytes);
-    // Escalar manteniendo proporción a un múltiplo de 8 en ancho
     let w = Math.min(img.bitmap.width, maxWidthPx);
     w = Math.floor(w / 8) * 8;
     if (w < 8) return null;
@@ -158,9 +179,8 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const idx = (y * w + x) * 4;
-        const lum = img.bitmap.data[idx]; // grayscale => R=G=B
+        const lum = img.bitmap.data[idx];
         const alpha = img.bitmap.data[idx + 3];
-        // Fondos transparentes se consideran blancos (no imprimen).
         const isBlack = alpha > 64 && lum < 160;
         if (isBlack) {
           const byteIdx = y * bytesPerRow + (x >> 3);
@@ -188,6 +208,7 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
     return null;
   }
 }
+
 
 
 async function buildPersonalizedTicketRaw(p) {
