@@ -475,7 +475,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
-  const { setOpen: setSidebarOpen } = useSidebar();
+  
   const [cart, setCart] = useState<CartLine[]>([]);
   const [customer, setCustomer] = useState(initialCustomer ?? "");
   const [notes, setNotes] = useState("");
