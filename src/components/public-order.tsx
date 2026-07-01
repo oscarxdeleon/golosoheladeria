@@ -72,7 +72,7 @@ export function PublicOrder({
     }
     setCallingWaiter(true);
     try {
-      const { error } = await supabase.rpc("create_waiter_call", { _table_id: tableId, _reason: null });
+      const { error } = await supabase.rpc("create_waiter_call", { _table_id: tableId, _reason: undefined });
       if (error) throw error;
       setWaiterCalledAt(Date.now());
       toast.success("¡Listo! Un mesero irá a tu mesa en un momento.");
