@@ -1273,9 +1273,10 @@ function AutopedidoLinkTab() {
   const slug = branch?.slug ?? "";
   const url = branch
     ? slug
-      ? `${origin}/kiosko?sede=${encodeURIComponent(slug)}`
-      : `${origin}/kiosko`
+      ? `${origin}/kiosk?sede=${encodeURIComponent(slug)}`
+      : `${origin}/kiosk`
     : "";
+
 
   function copyLink() {
     if (!url) return;
