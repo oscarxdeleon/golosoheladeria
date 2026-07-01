@@ -12,10 +12,11 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, ImagePlus, Star, Copy, FileSpreadsheet, Download, FileText, Loader2 } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, Copy, FileSpreadsheet, Download, FileText, Loader2, Camera } from "lucide-react";
 import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { parseMenuPdfText } from "@/lib/menu-pdf.functions";
+import { ImageDropzone } from "@/components/image-dropzone";
 
 
 import { formatMoney } from "@/lib/format";
@@ -490,18 +491,13 @@ function ProductosPage() {
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                {/* Datos básicos */}
-                <div className="flex items-center gap-3">
-                  <div className="h-20 w-20 shrink-0 overflow-hidden rounded-lg border bg-muted flex items-center justify-center">
-                    {editing?.image_url ? <img src={editing.image_url} alt="" className="h-full w-full object-cover" /> : <ImagePlus className="h-6 w-6 text-muted-foreground" />}
-                  </div>
-                  <div className="flex-1">
-                    <Label>Foto del producto</Label>
-                    <Input type="file" accept="image/png,image/jpeg,image/webp,image/bmp" onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadImage(f); }} />
-                    {editing?.image_url && (
-                      <Button type="button" variant="ghost" size="sm" className="mt-1 h-7 text-destructive" onClick={() => setEditing({ ...editing, image_url: null })}>Quitar foto</Button>
-                    )}
-                  </div>
+                {/* Foto del producto */}
+                <div>
+                  <Label className="mb-2 block">Foto del producto</Label>
+                  <ImageDropzone
+                    value={editing?.image_url ?? null}
+                    onChange={(url) => setEditing((prev) => ({ ...(prev ?? {}), image_url: url }))}
+                  />
                 </div>
                 <div><Label>Nombre</Label><Input value={editing?.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
@@ -637,9 +633,19 @@ function ProductosPage() {
               {products.map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
-                    <div className="h-10 w-10 overflow-hidden rounded-md border bg-muted">
+                    <button
+                      type="button"
+                      onClick={() => isAdmin && openEditor(p)}
+                      className="group relative h-10 w-10 overflow-hidden rounded-md border bg-muted"
+                      title={isAdmin ? "Cambiar foto" : ""}
+                    >
                       {p.image_url ? <img src={p.image_url} alt={p.name} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">{p.name.charAt(0)}</div>}
-                    </div>
+                      {isAdmin && (
+                        <span className="absolute inset-0 hidden items-center justify-center bg-black/50 text-white group-hover:flex">
+                          <Camera className="h-4 w-4" />
+                        </span>
+                      )}
+                    </button>
                   </TableCell>
                   <TableCell className="font-medium">
                     <div className="flex items-center gap-1">
