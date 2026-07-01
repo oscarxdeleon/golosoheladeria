@@ -245,10 +245,10 @@ export function ticketHTML(o: {
     .join("");
   const infoRows: string[] = [];
   if (cfg.show_date) infoRows.push(`<div class="label">${SVG.cal} Fecha:</div><div class="val">${fmtDate(o.created_at)}</div>`);
-  if (cfg.show_customer) infoRows.push(`<div class="label">${SVG.user} Cliente:</div><div class="val">${o.customer || "Mostrador"}</div>`);
-  if (cfg.show_customer_address && o.address) infoRows.push(`<div class="label">${SVG.pin} Dirección:</div><div class="val">${o.address}</div>`);
-  if (cfg.show_customer_phone && o.phone) infoRows.push(`<div class="label">${SVG.phone} Teléfono:</div><div class="val">${o.phone}</div>`);
-  if (cfg.show_payment_method) infoRows.push(`<div class="label">${SVG.card} Forma de Pago:</div><div class="val">${o.payment_method}</div>`);
+  if (cfg.show_customer) infoRows.push(`<div class="label">${SVG.user} Cliente:</div><div class="val">${(o.customer || "Mostrador").toUpperCase()}</div>`);
+  if (cfg.show_customer_address && o.address) infoRows.push(`<div class="label">${SVG.pin} Dirección:</div><div class="val">${o.address.toUpperCase()}</div>`);
+  if (cfg.show_customer_phone && o.phone) infoRows.push(`<div class="label">${SVG.phone} Teléfono:</div><div class="val">${o.phone.toUpperCase()}</div>`);
+  if (cfg.show_payment_method) infoRows.push(`<div class="label">${SVG.card} Forma de Pago:</div><div class="val">${(o.payment_method || "").toUpperCase()}</div>`);
   const thanksText = (cfg.thanks_text || b.ticket_footer || "¡Gracias por Preferirnos!");
   return `<!doctype html><html><head><meta charset="utf-8"/><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
