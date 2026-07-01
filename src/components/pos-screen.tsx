@@ -1293,7 +1293,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </div>
           <div className="relative ml-auto w-full sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input placeholder="Buscar producto…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Input
+              ref={searchRef}
+              placeholder="Buscar producto…  (F2)"
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && filtered.length > 0) {
+                  e.preventDefault();
+                  const p = filtered[0];
+                  if (p.modifier_group_ids && p.modifier_group_ids.length > 0) setModalProduct(p);
+                  else { add(p); setSearch(""); }
+                }
+              }}
+            />
           </div>
         </div>
 
