@@ -10,10 +10,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Search, Star, Users, TrendingUp, Phone, MapPin } from "lucide-react";
+import { Plus, Pencil, Trash2, Search, Star, Users, TrendingUp, Phone, MapPin, FileDown, Upload } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { z } from "zod";
+import * as XLSX from "xlsx";
+import { useRef } from "react";
 
 export const Route = createFileRoute("/_authenticated/clientes")({
   head: () => ({ meta: [{ title: "Clientes · Goloso POS" }] }),
