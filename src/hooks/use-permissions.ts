@@ -27,6 +27,7 @@ export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
   { key: "menu/productos", label: "Productos", group: "Menú" },
   { key: "menu/insumos", label: "Insumos", group: "Menú" },
   { key: "menu/modificadores", label: "Modificadores", group: "Menú" },
+  { key: "menu/recetas", label: "Recetas (opcional)", group: "Menú" },
   { key: "inventario", label: "Inventario", group: "Menú" },
   { key: "compras", label: "Compras", group: "Egresos" },
   { key: "gastos", label: "Gastos", group: "Egresos" },

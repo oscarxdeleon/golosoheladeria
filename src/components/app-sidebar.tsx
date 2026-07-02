@@ -75,6 +75,7 @@ const menu = [
   { to: "/menu/productos", label: "Productos", icon: Package, key: "menu/productos" },
   { to: "/menu/insumos", label: "Insumos", icon: Boxes, key: "menu/insumos" },
   { to: "/menu/modificadores", label: "Grupos de modificadores", icon: Layers, key: "menu/modificadores" },
+  { to: "/menu/recetas", label: "Recetas (opcional)", icon: ChefHat, key: "menu/recetas" },
   { to: "/inventario", label: "Inventario y stock", icon: Boxes, key: "inventario" },
 ];
 
