@@ -239,14 +239,25 @@
   }
 }
 
-/* Ocultar badge "Made with Lovable" */
+/* Ocultar badge "Made with Lovable" completamente */
 #lovable-badge,
+#lovable-badge-container,
 a[href*="lovable.dev"],
 a[href*="lovable.app/badge"],
+a[href*="gpteng.co"],
 [data-lovable-badge],
-iframe[src*="lovable.dev/badge"] {
+[class*="lovable-badge"],
+[id*="lovable-badge"],
+iframe[src*="lovable.dev/badge"],
+iframe[src*="lovable.app/badge"] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  position: absolute !important;
+  left: -9999px !important;
+  top: -9999px !important;
 }
+
