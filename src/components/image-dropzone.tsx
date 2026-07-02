@@ -85,7 +85,6 @@ export function ImageDropzone({ value, onChange, bucket = "products", pathPrefix
         ref={inputRef}
         type="file"
         accept="image/png,image/jpeg,image/webp,image/bmp"
-        capture="environment"
         className="hidden"
         onChange={(e) => { const f = e.target.files?.[0]; if (f) upload(f); e.currentTarget.value = ""; }}
       />
