@@ -48,6 +48,7 @@ import { Route as SSlugMenuRouteImport } from './routes/s.$slug.menu'
 import { Route as SSlugManifestDotwebmanifestRouteImport } from './routes/s.$slug.manifest[.]webmanifest'
 import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
 import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
+import { Route as AuthenticatedMenuRecetasRouteImport } from './routes/_authenticated/menu/recetas'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
 import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_authenticated/menu/modificadores'
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
@@ -251,6 +252,12 @@ const AsistenciaTerminalSlugRoute = AsistenciaTerminalSlugRouteImport.update({
   path: '/asistencia/terminal/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedMenuRecetasRoute =
+  AuthenticatedMenuRecetasRouteImport.update({
+    id: '/menu/recetas',
+    path: '/menu/recetas',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedMenuProductosRoute =
   AuthenticatedMenuProductosRouteImport.update({
     id: '/menu/productos',
@@ -319,6 +326,7 @@ export interface FileRoutesByFullPath {
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
+  '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -363,6 +371,7 @@ export interface FileRoutesByTo {
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
+  '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -410,6 +419,7 @@ export interface FileRoutesById {
   '/_authenticated/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
+  '/_authenticated/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -457,6 +467,7 @@ export interface FileRouteTypes {
     | '/menu/insumos'
     | '/menu/modificadores'
     | '/menu/productos'
+    | '/menu/recetas'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -501,6 +512,7 @@ export interface FileRouteTypes {
     | '/menu/insumos'
     | '/menu/modificadores'
     | '/menu/productos'
+    | '/menu/recetas'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -547,6 +559,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu/insumos'
     | '/_authenticated/menu/modificadores'
     | '/_authenticated/menu/productos'
+    | '/_authenticated/menu/recetas'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -844,6 +857,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AsistenciaTerminalSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/menu/recetas': {
+      id: '/_authenticated/menu/recetas'
+      path: '/menu/recetas'
+      fullPath: '/menu/recetas'
+      preLoaderRoute: typeof AuthenticatedMenuRecetasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/menu/productos': {
       id: '/_authenticated/menu/productos'
       path: '/menu/productos'
@@ -911,6 +931,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMenuInsumosRoute: typeof AuthenticatedMenuInsumosRoute
   AuthenticatedMenuModificadoresRoute: typeof AuthenticatedMenuModificadoresRoute
   AuthenticatedMenuProductosRoute: typeof AuthenticatedMenuProductosRoute
+  AuthenticatedMenuRecetasRoute: typeof AuthenticatedMenuRecetasRoute
 }
 
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
@@ -942,6 +963,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMenuInsumosRoute: AuthenticatedMenuInsumosRoute,
   AuthenticatedMenuModificadoresRoute: AuthenticatedMenuModificadoresRoute,
   AuthenticatedMenuProductosRoute: AuthenticatedMenuProductosRoute,
+  AuthenticatedMenuRecetasRoute: AuthenticatedMenuRecetasRoute,
 }
 
 const AuthenticatedRouteRouteWithChildren =
