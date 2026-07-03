@@ -1269,7 +1269,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   }
 
   return (
-    <div className="relative grid gap-4 lg:grid-cols-[1fr,420px]">
+    <div className="relative grid gap-4 pb-28 lg:grid-cols-[1fr,420px] lg:pb-0">
       {meseroMode && paying && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-8 py-6 shadow-2xl">
