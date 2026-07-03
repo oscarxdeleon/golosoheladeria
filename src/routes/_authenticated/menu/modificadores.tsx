@@ -180,7 +180,16 @@ function ModPage() {
                   <ul className="space-y-1">
                     {myMods.map((m) => (
                       <li key={m.id} className="flex items-center justify-between rounded bg-muted/50 px-2 py-1.5 text-sm">
-                        <span>{m.name}</span>
+                        <span className="flex items-center gap-2 min-w-0">
+                          {m.image_url ? (
+                            <img src={m.image_url} alt={m.name} className="h-8 w-8 rounded object-cover bg-white border" loading="lazy" />
+                          ) : (
+                            <span className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
+                              <ImageIcon className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                          <span className="truncate">{m.name}</span>
+                        </span>
                         <span className="flex items-center gap-2">
                           <span className="text-muted-foreground">{formatMoney(m.price)}</span>
                           {isAdmin && (
