@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Trash2, Pencil, Copy } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, ImageIcon } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { ImageDropzone } from "@/components/image-dropzone";
 
 export const Route = createFileRoute("/_authenticated/menu/modificadores")({
   head: () => ({ meta: [{ title: "Modificadores · Goloso POS" }] }),
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/menu/modificadores")({
 });
 
 interface Group { id: string; name: string; min_select: number; max_select: number; required: boolean; }
-interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; }
+interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; image_url?: string | null; }
 
 function ModPage() {
   const qc = useQueryClient();
@@ -108,7 +109,13 @@ function ModPage() {
   }
   async function saveMod() {
     if (!modEdit?.name?.trim() || !modEdit.group_id) return toast.error("Datos incompletos");
-    const payload = { group_id: modEdit.group_id, name: modEdit.name.trim(), price: Number(modEdit.price ?? 0), active: modEdit.active ?? true };
+    const payload = {
+      group_id: modEdit.group_id,
+      name: modEdit.name.trim(),
+      price: Number(modEdit.price ?? 0),
+      active: modEdit.active ?? true,
+      image_url: modEdit.image_url ?? null,
+    };
     const { error } = modEdit.id
       ? await supabase.from("modifiers").update(payload).eq("id", modEdit.id)
       : await supabase.from("modifiers").insert(payload);
@@ -173,7 +180,16 @@ function ModPage() {
                   <ul className="space-y-1">
                     {myMods.map((m) => (
                       <li key={m.id} className="flex items-center justify-between rounded bg-muted/50 px-2 py-1.5 text-sm">
-                        <span>{m.name}</span>
+                        <span className="flex items-center gap-2 min-w-0">
+                          {m.image_url ? (
+                            <img src={m.image_url} alt={m.name} className="h-8 w-8 rounded object-cover bg-white border" loading="lazy" />
+                          ) : (
+                            <span className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
+                              <ImageIcon className="h-3.5 w-3.5" />
+                            </span>
+                          )}
+                          <span className="truncate">{m.name}</span>
+                        </span>
                         <span className="flex items-center gap-2">
                           <span className="text-muted-foreground">{formatMoney(m.price)}</span>
                           {isAdmin && (
@@ -201,6 +217,18 @@ function ModPage() {
             <div className="space-y-3">
               <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
               <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
+              <div>
+                <Label>Foto (opcional)</Label>
+                <ImageDropzone
+                  value={modEdit?.image_url ?? null}
+                  onChange={(url) => setModEdit({ ...modEdit, image_url: url })}
+                  bucket="products"
+                  pathPrefix="mod"
+                  maxDim={400}
+                  quality={0.75}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Se optimiza a máx. 400px para carga rápida.</p>
+              </div>
             </div>
           ) : (
             <Tabs defaultValue="custom">
@@ -211,6 +239,18 @@ function ModPage() {
               <TabsContent value="custom" className="space-y-3 pt-3">
                 <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
                 <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
+                <div>
+                  <Label>Foto (opcional)</Label>
+                  <ImageDropzone
+                    value={modEdit?.image_url ?? null}
+                    onChange={(url) => setModEdit({ ...modEdit, image_url: url })}
+                    bucket="products"
+                    pathPrefix="mod"
+                    maxDim={400}
+                    quality={0.75}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Se optimiza a máx. 400px para carga rápida.</p>
+                </div>
               </TabsContent>
               <TabsContent value="reuse" className="space-y-3 pt-3">
                 <p className="text-xs text-muted-foreground">Copia un modificador existente a este grupo (mantiene nombre y precio).</p>

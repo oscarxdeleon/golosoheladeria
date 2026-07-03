@@ -33,6 +33,7 @@ interface Modifier {
   name: string;
   price: number;
   active: boolean;
+  image_url?: string | null;
 }
 
 interface Props {
@@ -62,7 +63,7 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("modifiers")
-        .select("id,group_id,name,price,active")
+        .select("id,group_id,name,price,active,image_url")
         .in("group_id", groupIds)
         .eq("active", true)
         .order("name");
@@ -177,6 +178,9 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
               checked={isChecked}
               onCheckedChange={(v) => setPicked(v ? { [only.id]: 1 } : {})}
             />
+            {only.image_url && (
+              <img src={only.image_url} alt={only.name} className="h-12 w-12 rounded object-cover bg-white border" loading="lazy" />
+            )}
             <div className="flex-1">
               <div className="text-sm font-medium">Agregar {only.name}</div>
               {Number(only.price) > 0 && (
@@ -254,6 +258,9 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
                               if (!g.required && isChecked) setTimeout(() => clearRadio(g), 0);
                             }}
                           />
+                          {m.image_url && (
+                            <img src={m.image_url} alt={m.name} className="h-10 w-10 rounded object-cover bg-white border" loading="lazy" />
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{m.name}</div>
                             {Number(m.price) > 0 && (
@@ -273,6 +280,9 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
                       const q = picked[m.id] ?? 0;
                       return (
                         <li key={m.id} className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
+                          {m.image_url && (
+                            <img src={m.image_url} alt={m.name} className="h-10 w-10 rounded object-cover bg-white border" loading="lazy" />
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{m.name}</div>
                             {Number(m.price) > 0 && (
