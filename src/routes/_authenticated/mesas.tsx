@@ -21,6 +21,8 @@ import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingB
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
+import mesaLibreImg from "@/assets/mesa_libre.png";
+import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
 
 export const Route = createFileRoute("/_authenticated/mesas")({
   head: () => ({ meta: [{ title: "Mesas · Goloso POS" }] }),
@@ -297,12 +299,18 @@ function MesasPage() {
                 </span>
               </div>
 
-              {/* número grande */}
-              <div className="my-3 flex flex-col items-center">
-                <div className={`font-display text-6xl font-black leading-none tracking-tight ${styles.num}`}>
+              {/* imagen de la mesa + número */}
+              <div className="my-2 flex flex-col items-center">
+                <img
+                  src={status === "occupied" ? mesaOcupadaImg : mesaLibreImg}
+                  alt={status === "occupied" ? "Mesa ocupada" : "Mesa libre"}
+                  className="h-24 w-24 object-contain drop-shadow-none select-none"
+                  draggable={false}
+                />
+                <div className={`mt-1 font-display text-3xl font-black leading-none tracking-tight ${styles.num}`}>
                   {m.number}
                 </div>
-                <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
                   <UsersMini />
                   <span>{m.seats} puestos</span>
                 </div>
