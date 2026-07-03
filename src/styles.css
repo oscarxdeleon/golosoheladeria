@@ -304,4 +304,134 @@ iframe[src*="lovable.app/badge"] {
   font-weight: 600;
 }
 
+/* ===== Ajustes premium visual polish ===== */
+.ajustes-scope [data-slot="card"] {
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  background:
+    linear-gradient(180deg, color-mix(in oklab, var(--color-card) 96%, transparent), var(--color-card));
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, #fff 60%, transparent) inset,
+    0 10px 30px -18px color-mix(in oklab, var(--color-primary) 30%, transparent),
+    0 2px 8px -4px rgb(0 0 0 / 0.05);
+  overflow: hidden;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.ajustes-scope [data-slot="card"]:hover {
+  border-color: color-mix(in oklab, var(--color-primary) 30%, transparent);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, #fff 60%, transparent) inset,
+    0 20px 45px -22px color-mix(in oklab, var(--color-primary) 45%, transparent),
+    0 4px 14px -6px rgb(0 0 0 / 0.08);
+}
+.ajustes-scope [data-slot="card-header"] {
+  position: relative;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 65%, transparent);
+  background:
+    radial-gradient(600px 90px at 0% 0%, color-mix(in oklab, var(--color-primary) 10%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 3%, transparent), transparent);
+}
+.ajustes-scope [data-slot="card-header"]::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background-image: var(--gradient-primary);
+  border-radius: 0 4px 4px 0;
+  opacity: .9;
+}
+.ajustes-scope [data-slot="card-title"] {
+  display: flex;
+  align-items: center;
+  gap: .6rem;
+  font-size: 1.15rem;
+  line-height: 1.2;
+  background: linear-gradient(180deg, var(--color-foreground), color-mix(in oklab, var(--color-foreground) 75%, var(--color-primary)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.ajustes-scope [data-slot="card-title"] svg {
+  color: var(--color-primary);
+  filter: drop-shadow(0 4px 10px color-mix(in oklab, var(--color-primary) 40%, transparent));
+}
+.ajustes-scope [data-slot="card-content"] { padding: 1.25rem 1.5rem 1.5rem; }
+
+.ajustes-scope [data-slot="label"] {
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: color-mix(in oklab, var(--color-foreground) 70%, var(--color-muted-foreground));
+  margin-bottom: .35rem;
+  display: inline-block;
+}
+.ajustes-scope [data-slot="input"],
+.ajustes-scope [data-slot="textarea"],
+.ajustes-scope [data-slot="select-trigger"] {
+  border-radius: .75rem;
+  border-color: color-mix(in oklab, var(--color-border) 80%, transparent);
+  background: color-mix(in oklab, var(--color-card) 60%, transparent);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.ajustes-scope [data-slot="input"]:focus-visible,
+.ajustes-scope [data-slot="textarea"]:focus-visible,
+.ajustes-scope [data-slot="select-trigger"]:focus-visible {
+  border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 18%, transparent);
+  background: var(--color-card);
+}
+.ajustes-scope [data-slot="button"] {
+  border-radius: .8rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  transition: transform .18s ease, box-shadow .2s ease, filter .2s ease;
+}
+.ajustes-scope [data-slot="button"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+}
+.ajustes-scope [data-slot="button"].bg-primary,
+.ajustes-scope [data-slot="button"][class*="bg-primary"] {
+  background-image: var(--gradient-primary);
+  box-shadow: 0 10px 24px -12px color-mix(in oklab, var(--color-primary) 60%, transparent);
+}
+.ajustes-scope [data-slot="badge"] {
+  border-radius: 999px;
+  font-family: var(--font-editorial);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: .2rem .65rem;
+}
+.ajustes-scope [role="tablist"] { gap: .4rem; }
+.ajustes-scope [role="tab"][data-state="active"] {
+  transform: translateY(-1px);
+}
+.ajustes-scope [data-slot="switch"][data-state="checked"] {
+  background-image: var(--gradient-primary);
+}
+.ajustes-scope table { border-radius: .75rem; overflow: hidden; }
+.ajustes-scope thead tr {
+  background: color-mix(in oklab, var(--color-primary) 6%, transparent);
+}
+.ajustes-scope thead th {
+  font-family: var(--font-editorial);
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: color-mix(in oklab, var(--color-foreground) 70%, var(--color-muted-foreground));
+}
+.ajustes-scope tbody tr {
+  transition: background .2s ease;
+}
+.ajustes-scope tbody tr:hover {
+  background: color-mix(in oklab, var(--color-primary) 5%, transparent);
+}
+
+/* Small decorative separator between form groups inside a card */
+.ajustes-scope [data-slot="card-content"] > * + [data-slot="card-title"],
+.ajustes-scope [data-slot="card-content"] hr {
+  border-color: color-mix(in oklab, var(--color-border) 60%, transparent);
+}
+
+
 
