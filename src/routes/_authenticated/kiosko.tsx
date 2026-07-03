@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Monitor, Banknote, ShoppingBag, Utensils, Inbox } from "lucide-react";
+import autopedidoCharacter from "@/assets/autopedido_character.png";
 import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
 
