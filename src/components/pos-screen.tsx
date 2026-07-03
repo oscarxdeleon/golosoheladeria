@@ -467,9 +467,13 @@ interface Props {
   initialPhone?: string;
   initialAddress?: string;
   initialNeighborhood?: string;
+  /** Imagen decorativa opcional para el encabezado (aparece entre el título y el buscador). */
+  headerImage?: string;
+  /** Texto alternativo de la imagen del encabezado. */
+  headerImageAlt?: string;
 }
 
-export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
@@ -1289,19 +1293,27 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
         </div>
       )}
       <div className="space-y-4">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <div className="flex items-center gap-2">
-            <Badge className={meta.color}>
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center sm:gap-4">
+          <div className="flex min-w-0 items-center gap-2">
+            <Badge className={`${meta.color} shrink-0`}>
               <Icon className="h-3 w-3 mr-1" /> {meta.label}
             </Badge>
-            <h1 className="font-display text-2xl">{header}</h1>
+            <h1 className="font-display text-2xl font-extrabold tracking-tight truncate">{header}</h1>
           </div>
-          <div className="relative ml-auto w-full sm:w-72">
+          {headerImage && (
+            <img
+              src={headerImage}
+              alt={headerImageAlt ?? ""}
+              className="hidden sm:block h-16 md:h-20 w-auto object-contain select-none shrink-0 mx-auto drop-shadow-sm"
+              draggable={false}
+            />
+          )}
+          <div className="relative col-span-2 w-full sm:col-auto sm:ml-auto sm:w-72">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input
               ref={searchRef}
               placeholder="Buscar producto…  (F2)"
-              className="pl-9"
+              className="pl-9 rounded-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
