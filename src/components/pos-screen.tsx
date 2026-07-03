@@ -17,6 +17,8 @@ import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } fr
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
+import { PaymentMethodButton } from "@/components/payment-method-button";
+
 
 
 
@@ -1672,9 +1674,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                   // así evitamos botones "muertos" por estados de carga o sincronización.
                   const isDisabled = paying || !hasOrder;
                   return (
-                    <Button
+                    <PaymentMethodButton
                       key={m.id}
-                      type="button"
+                      methodName={m.name}
                       disabled={isDisabled}
                       onClick={() => {
                         try {
@@ -1690,12 +1692,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                           toast.error("No se pudo iniciar el cobro. Recarga la mesa e intenta de nuevo.");
                         }
                       }}
-                      variant={isCash ? "default" : "secondary"}
-                    >
-                      {isCash && <Banknote className="h-4 w-4 mr-1" />}
-                      {m.name}
-                    </Button>
+                    />
                   );
+
                 })}
                 {methods.length === 0 && (
                   <div className="col-span-2 text-xs text-muted-foreground text-center py-2">
@@ -1973,12 +1972,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
               const isDisabled = paying || !hasOrder;
               return (
-                <Button
+                <PaymentMethodButton
                   key={m.id}
-                  type="button"
+                  methodName={m.name}
                   disabled={isDisabled}
-                  variant={isCash ? "default" : "secondary"}
-                  className="h-14"
                   onClick={() => {
                     try {
                       if (isDisabled) return;
@@ -1994,10 +1991,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                       toast.error("No se pudo iniciar el cobro.");
                     }
                   }}
-                >
-                  {isCash && <Banknote className="h-4 w-4 mr-1" />}
-                  {m.name}
-                </Button>
+                />
+
               );
             })}
             {methods.length === 0 && (
