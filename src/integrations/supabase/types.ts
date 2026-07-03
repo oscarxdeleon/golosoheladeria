@@ -707,6 +707,7 @@ export type Database = {
           id: string
           image_url: string | null
           is_favorite: boolean
+          is_linked: boolean
           min_stock: number
           modifier_group_ids: string[] | null
           name: string
@@ -715,6 +716,7 @@ export type Database = {
           show_in_online: boolean
           sku: string | null
           sold_by_weight: boolean
+          source_product_id: string | null
           stock: number
           track_stock: boolean
         }
@@ -727,6 +729,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_favorite?: boolean
+          is_linked?: boolean
           min_stock?: number
           modifier_group_ids?: string[] | null
           name: string
@@ -735,6 +738,7 @@ export type Database = {
           show_in_online?: boolean
           sku?: string | null
           sold_by_weight?: boolean
+          source_product_id?: string | null
           stock?: number
           track_stock?: boolean
         }
@@ -747,6 +751,7 @@ export type Database = {
           id?: string
           image_url?: string | null
           is_favorite?: boolean
+          is_linked?: boolean
           min_stock?: number
           modifier_group_ids?: string[] | null
           name?: string
@@ -755,6 +760,7 @@ export type Database = {
           show_in_online?: boolean
           sku?: string | null
           sold_by_weight?: boolean
+          source_product_id?: string | null
           stock?: number
           track_stock?: boolean
         }
@@ -764,6 +770,13 @@ export type Database = {
             columns: ["category_id"]
             isOneToOne: false
             referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "products_source_product_id_fkey"
+            columns: ["source_product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
             referencedColumns: ["id"]
           },
         ]
@@ -1707,6 +1720,10 @@ export type Database = {
       release_table: {
         Args: { _reason: string; _table_id: string }
         Returns: Json
+      }
+      resync_product_from_parent: {
+        Args: { _child_id: string }
+        Returns: undefined
       }
       terminal_list_employees: {
         Args: { _slug: string }

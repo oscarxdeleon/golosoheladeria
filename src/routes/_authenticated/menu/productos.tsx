@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Star, Copy, FileSpreadsheet, Download, FileText, Loader2, Camera } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, Copy, FileSpreadsheet, Download, FileText, Loader2, Camera, Link2, Link2Off, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { parseMenuPdfText } from "@/lib/menu-pdf.functions";
@@ -43,6 +44,8 @@ interface Product {
   available_branch_ids?: string[] | null;
   modifier_group_ids?: string[] | null;
   recipe?: RecipeItem[] | null;
+  source_product_id?: string | null;
+  is_linked?: boolean;
 }
 
 interface Category { id: string; name: string; }
@@ -110,7 +113,19 @@ function ProductosPage() {
     if (!editing.name?.trim()) return toast.error("Nombre requerido");
     const recipe = showRecipe ? (editing.recipe ?? []).filter((r) => r.supply_id && Number(r.qty) > 0) : [];
     const modifier_group_ids = showMods ? (editing.modifier_group_ids ?? []) : [];
-    const payload = {
+
+    // Si es un hijo vinculado, confirmar desvinculación antes de guardar
+    const isLinkedChild = !!editing.id && !!editing.source_product_id && editing.is_linked !== false;
+    if (isLinkedChild) {
+      const ok = confirm(
+        "Este producto está vinculado a la sede principal y hereda sus cambios.\n\n" +
+        "Si lo editas aquí, dejará de sincronizarse automáticamente con la sede principal.\n\n" +
+        "¿Deseas continuar y personalizarlo para esta sede?"
+      );
+      if (!ok) return;
+    }
+
+    const payload: Record<string, unknown> = {
       name: editing.name.trim(),
       price: Number(editing.price ?? 0),
       category_id: editing.category_id ?? null,
@@ -125,12 +140,24 @@ function ProductosPage() {
       modifier_group_ids: modifier_group_ids.length > 0 ? modifier_group_ids : null,
       recipe,
     };
+    if (isLinkedChild) payload.is_linked = false;
+
     const { error } = editing.id
       ? await supabase.from("products").update(payload as never).eq("id", editing.id)
       : await supabase.from("products").insert(payload as never);
     if (error) return toast.error(error.message);
-    toast.success("Guardado");
+    toast.success(isLinkedChild ? "Guardado y desvinculado de la sede principal" : "Guardado");
     setEditing(null);
+    qc.invalidateQueries({ queryKey: ["products-all"] });
+    qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["public-products"] });
+  }
+
+  async function resyncFromParent(childId: string) {
+    if (!confirm("Volver a sincronizar este producto con la sede principal. Se sobrescribirán los cambios personalizados (excepto el stock). ¿Continuar?")) return;
+    const { error } = await supabase.rpc("resync_product_from_parent", { _child_id: childId } as never);
+    if (error) return toast.error(error.message);
+    toast.success("Producto resincronizado con la sede principal");
     qc.invalidateQueries({ queryKey: ["products-all"] });
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["public-products"] });
@@ -490,6 +517,44 @@ function ProductosPage() {
 
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
+              {editing?.id && (() => {
+                const isChild = !!editing.source_product_id;
+                const isLinked = editing.is_linked !== false;
+                if (isChild && isLinked) {
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
+                      <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-primary">Vinculado a la sede principal</div>
+                        <div className="text-muted-foreground">Este producto hereda automáticamente los cambios de la sede principal. Si lo editas aquí, dejará de sincronizarse.</div>
+                      </div>
+                    </div>
+                  );
+                }
+                if (isChild && !isLinked) {
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
+                      <Link2Off className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-amber-700 dark:text-amber-500">Personalizado (desvinculado)</div>
+                        <div className="text-muted-foreground">Los cambios en la sede principal ya no se aplican a este producto.</div>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" onClick={() => resyncFromParent(editing.id!)}>
+                        <RefreshCw className="h-3 w-3 mr-1" /> Resincronizar
+                      </Button>
+                    </div>
+                  );
+                }
+                if (!isChild) {
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border bg-muted/40 p-3 text-xs">
+                      <Link2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="text-muted-foreground">Los cambios se aplicarán automáticamente a las copias vinculadas en las sucursales.</div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               <div className="space-y-4">
                 {/* Foto del producto */}
                 <div>
@@ -648,9 +713,15 @@ function ProductosPage() {
                     </button>
                   </TableCell>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
                       {p.is_favorite && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
                       {p.name}
+                      {p.source_product_id && p.is_linked !== false && (
+                        <Badge variant="outline" className="ml-1 gap-1 border-primary/40 text-primary text-[10px] px-1.5 py-0"><Link2 className="h-2.5 w-2.5" />Vinculado</Badge>
+                      )}
+                      {p.source_product_id && p.is_linked === false && (
+                        <Badge variant="outline" className="ml-1 gap-1 border-amber-500/40 text-amber-700 dark:text-amber-500 text-[10px] px-1.5 py-0"><Link2Off className="h-2.5 w-2.5" />Personalizado</Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{cats.find((c) => c.id === p.category_id)?.name ?? "—"}</TableCell>
@@ -659,6 +730,9 @@ function ProductosPage() {
                   <TableCell className="text-right">
                     {isAdmin && (
                       <>
+                        {p.source_product_id && p.is_linked === false && (
+                          <Button size="icon" variant="ghost" className="text-primary" onClick={() => resyncFromParent(p.id)} title="Resincronizar con la sede principal"><RefreshCw className="h-4 w-4" /></Button>
+                        )}
                         <Button size="icon" variant="ghost" onClick={() => openEditor(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="text-primary hover:bg-primary/10" onClick={() => openDuplicate(p)} title="Duplicar producto"><Copy className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)} title="Eliminar"><Trash2 className="h-4 w-4" /></Button>
