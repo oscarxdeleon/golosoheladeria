@@ -121,7 +121,11 @@ if (typeof window !== "undefined") {
  * Nunca lanza.
  */
 export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
-  // 1) Si ya conocemos una URL que funcionó, intentarla PRIMERO sin esperar bootstrap.
+  // Intentar SECUENCIALMENTE los candidatos. Antes se hacían en paralelo con
+  // Promise.any, pero si dos URLs apuntaban al mismo servidor (p. ej.
+  // localhost y 127.0.0.1) éste recibía DOS solicitudes e imprimía el
+  // ticket/comanda dos veces. Ahora probamos uno a uno y paramos en el
+  // primero que responda OK.
   const primary = _lastGoodUrl ?? getLocalPrintUrl();
   const candidates = Array.from(
     new Set(
@@ -135,41 +139,34 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     ),
   );
 
-  // Timeout corto: la LAN local responde en <200ms; si no, es que no existe.
   const TIMEOUT_MS = 4000;
   const body = JSON.stringify(payload);
 
-  const attempts = candidates.map((url) => {
+  for (const url of candidates) {
     const ctrl = new AbortController();
     const t = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-    return fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-      signal: ctrl.signal,
-      mode: "cors",
-      keepalive: true,
-    })
-      .then((res) => {
-        clearTimeout(t);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        _lastGoodUrl = url;
-        if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
-        return true as const;
-      })
-      .catch((e) => {
-        clearTimeout(t);
-        throw e;
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: ctrl.signal,
+        mode: "cors",
+        keepalive: true,
       });
-  });
-
-  try {
-    // El primero que responda OK gana; ignoramos el resto.
-    return await Promise.any(attempts);
-  } catch {
-    console.warn("[print] ningún servidor local respondió; se usará fallback");
-    return false;
+      clearTimeout(t);
+      if (!res.ok) continue;
+      _lastGoodUrl = url;
+      if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
+      return true;
+    } catch {
+      clearTimeout(t);
+      // seguir con el siguiente candidato
+    }
   }
+
+  console.warn("[print] ningún servidor local respondió; se usará fallback");
+  return false;
 }
 
 /** Imprime HTML usando un iframe oculto (fallback al diálogo del navegador).
