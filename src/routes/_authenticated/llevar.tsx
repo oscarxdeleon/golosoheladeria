@@ -14,7 +14,7 @@ export const Route = createFileRoute("/_authenticated/llevar")({
           <img
             src={paraLlevarImg}
             alt="Para llevar"
-            className="w-full max-w-3xl object-contain select-none"
+            className="w-full max-w-xs sm:max-w-sm object-contain select-none"
             draggable={false}
           />
         </div>
