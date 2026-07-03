@@ -45,6 +45,62 @@ const STATUS_LABEL: Record<Status, string> = {
   reserved: "Reservada",
 };
 
+const STATUS_STYLES: Record<Status, {
+  bg: string; bar: string; dot: string; chip: string; num: string; glow: string;
+}> = {
+  free: {
+    bg: "bg-emerald-50/60 dark:bg-emerald-950/30 ring-1 ring-emerald-500/15 hover:ring-emerald-500/40",
+    bar: "bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500",
+    dot: "bg-emerald-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-emerald-500/60",
+    chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+    num: "text-emerald-700 dark:text-emerald-300",
+    glow: "bg-emerald-400/30",
+  },
+  occupied: {
+    bg: "bg-rose-50/70 dark:bg-rose-950/30 ring-1 ring-rose-500/20 hover:ring-rose-500/50",
+    bar: "bg-gradient-to-r from-rose-500 via-red-500 to-orange-500",
+    dot: "bg-rose-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-rose-500/70",
+    chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
+    num: "text-rose-700 dark:text-rose-300",
+    glow: "bg-rose-400/30",
+  },
+  reserved: {
+    bg: "bg-amber-50/70 dark:bg-amber-950/30 ring-1 ring-amber-500/20 hover:ring-amber-500/50",
+    bar: "bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-500",
+    dot: "bg-amber-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-amber-500/60",
+    chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
+    num: "text-amber-700 dark:text-amber-300",
+    glow: "bg-amber-400/30",
+  },
+};
+
+const STAT_CHIP_STYLES: Record<"emerald" | "rose" | "amber", string> = {
+  emerald: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 ring-emerald-500/20",
+  rose: "bg-rose-500/10 text-rose-700 dark:text-rose-300 ring-rose-500/20",
+  amber: "bg-amber-500/10 text-amber-700 dark:text-amber-300 ring-amber-500/20",
+};
+
+function StatChip({ color, label, value }: { color: "emerald" | "rose" | "amber"; label: string; value: number }) {
+  return (
+    <div className={`inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold ring-1 backdrop-blur ${STAT_CHIP_STYLES[color]}`}>
+      <span className={`h-1.5 w-1.5 rounded-full bg-current`} />
+      <span className="uppercase tracking-wider">{label}</span>
+      <span className="rounded-md bg-background/70 px-1.5 py-0.5 text-[11px] font-bold text-foreground">{value}</span>
+    </div>
+  );
+}
+
+function UsersMini() {
+  return (
+    <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+      <circle cx="9" cy="7" r="4" />
+      <path d="M22 21v-2a4 4 0 0 0-3-3.87" />
+      <path d="M16 3.13a4 4 0 0 1 0 7.75" />
+    </svg>
+  );
+}
+
 function MesasPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
