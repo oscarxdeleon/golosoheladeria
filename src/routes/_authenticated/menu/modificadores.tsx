@@ -217,6 +217,18 @@ function ModPage() {
             <div className="space-y-3">
               <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
               <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
+              <div>
+                <Label>Foto (opcional)</Label>
+                <ImageDropzone
+                  value={modEdit?.image_url ?? null}
+                  onChange={(url) => setModEdit({ ...modEdit, image_url: url })}
+                  bucket="products"
+                  pathPrefix="mod"
+                  maxDim={400}
+                  quality={0.75}
+                />
+                <p className="text-xs text-muted-foreground mt-1">Se optimiza a máx. 400px para carga rápida.</p>
+              </div>
             </div>
           ) : (
             <Tabs defaultValue="custom">
@@ -227,6 +239,18 @@ function ModPage() {
               <TabsContent value="custom" className="space-y-3 pt-3">
                 <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
                 <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
+                <div>
+                  <Label>Foto (opcional)</Label>
+                  <ImageDropzone
+                    value={modEdit?.image_url ?? null}
+                    onChange={(url) => setModEdit({ ...modEdit, image_url: url })}
+                    bucket="products"
+                    pathPrefix="mod"
+                    maxDim={400}
+                    quality={0.75}
+                  />
+                  <p className="text-xs text-muted-foreground mt-1">Se optimiza a máx. 400px para carga rápida.</p>
+                </div>
               </TabsContent>
               <TabsContent value="reuse" className="space-y-3 pt-3">
                 <p className="text-xs text-muted-foreground">Copia un modificador existente a este grupo (mantiene nombre y precio).</p>
