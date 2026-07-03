@@ -1304,7 +1304,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             <img
               src={headerImage}
               alt={headerImageAlt ?? ""}
-              className="hidden sm:block h-16 md:h-20 w-auto object-contain select-none shrink-0 mx-auto drop-shadow-sm"
+              className="hidden sm:block h-[72px] md:h-[90px] w-auto object-contain select-none shrink-0 mx-auto bg-transparent border-0 shadow-none"
               draggable={false}
             />
           )}
