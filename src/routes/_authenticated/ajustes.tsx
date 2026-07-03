@@ -84,19 +84,263 @@ interface Settings {
 }
 
 
-const TABS: Array<{ value: string; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }> = [
-  { value: "estab",       label: "Establecimiento",   icon: Store,        hint: "Datos generales del negocio" },
-  { value: "ticket",      label: "Ticket",            icon: Receipt,      hint: "Diseño del recibo de venta" },
-  { value: "suc",         label: "Sucursales",        icon: Building2,    hint: "Gestión de tus sedes" },
-  { value: "sede-edit",   label: "Editar sede",       icon: Pencil,       hint: "Modificar información de sede" },
-  { value: "kiosko-link", label: "Autopedido",        icon: QrCode,       hint: "Link y QR de autoservicio" },
-  { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Link para pantalla de cocina" },
-  { value: "impr",        label: "Impresoras",        icon: Printer,      hint: "Impresoras térmicas" },
-  { value: "pagos",       label: "Medios de pago",    icon: CreditCard,   hint: "Métodos aceptados" },
-  { value: "domi",        label: "Domicilio",         icon: Bike,         hint: "Tarifas de entrega" },
-  { value: "fidel",       label: "Fidelización",      icon: Award,        hint: "Puntos y recompensas" },
-  { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos por rol" },
+type TabDef = {
+  value: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  hint: string;
+  group: "negocio" | "ventas" | "operaciones" | "personal";
+  accent: string;
+  hidden?: boolean;
+};
+
+const TABS: TabDef[] = [
+  { value: "estab",       label: "Establecimiento",   icon: Store,        hint: "Datos generales, horarios y marca del negocio",       group: "negocio",     accent: "from-indigo-500 to-violet-500" },
+  { value: "suc",         label: "Sucursales",        icon: Building2,    hint: "Administra todas tus sedes y sus datos",              group: "negocio",     accent: "from-sky-500 to-blue-600" },
+  { value: "sede-edit",   label: "Editar sede",       icon: Pencil,       hint: "Modificar información de una sede específica",         group: "negocio",     accent: "from-slate-500 to-slate-700", hidden: true },
+  { value: "ticket",      label: "Ticket",            icon: Receipt,      hint: "Personaliza el diseño y contenido del recibo",         group: "ventas",      accent: "from-amber-500 to-orange-600" },
+  { value: "pagos",       label: "Medios de pago",    icon: CreditCard,   hint: "Métodos aceptados y cuentas para transferencias",     group: "ventas",      accent: "from-emerald-500 to-teal-600" },
+  { value: "domi",        label: "Domicilio",         icon: Bike,         hint: "Tarifas de entrega y zonas de reparto",               group: "ventas",      accent: "from-cyan-500 to-sky-600" },
+  { value: "fidel",       label: "Fidelización",      icon: Award,        hint: "Sistema de puntos y recompensas para clientes",       group: "ventas",      accent: "from-pink-500 to-rose-600" },
+  { value: "impr",        label: "Impresoras",        icon: Printer,      hint: "Configura impresoras térmicas por área",              group: "operaciones", accent: "from-fuchsia-500 to-purple-600" },
+  { value: "kiosko-link", label: "Autopedido",        icon: QrCode,       hint: "Enlace y QR para el kiosco de autoservicio",          group: "operaciones", accent: "from-violet-500 to-indigo-600" },
+  { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Pantalla de cocina para ver comandas en vivo",        group: "operaciones", accent: "from-orange-500 to-red-600" },
+  { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
 ];
+
+const GROUPS: Array<{ id: TabDef["group"]; label: string; description: string }> = [
+  { id: "negocio",     label: "Negocio",          description: "Identidad, sucursales y marca" },
+  { id: "ventas",      label: "Ventas y cobros",  description: "Ticket, pagos, domicilio y fidelización" },
+  { id: "operaciones", label: "Operaciones",      description: "Impresoras, KDS y autopedido" },
+  { id: "personal",    label: "Personal",         description: "Roles, permisos y accesos" },
+];
+
+function AjustesPage() {
+  useAuth();
+  const [tab, setTab] = useState<string | null>(null);
+  const [editBranchId, setEditBranchId] = useState<string | null>(null);
+  const [query, setQuery] = useState("");
+  const goEditBranch = (id: string) => { setEditBranchId(id); setTab("sede-edit"); };
+
+  const activeTab = tab ? (TABS.find((t) => t.value === tab) ?? null) : null;
+  const visibleTabs = TABS.filter((t) => !t.hidden);
+  const q = query.trim().toLowerCase();
+  const filtered = visibleTabs.filter((t) => !q || t.label.toLowerCase().includes(q) || t.hint.toLowerCase().includes(q));
+
+  return (
+    <div className="ajustes-scope min-h-full">
+      {activeTab ? (
+        <SectionView activeTab={activeTab} allTabs={visibleTabs} onBack={() => setTab(null)} onSelect={setTab}>
+          {tab === "estab"       && <SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary>}
+          {tab === "ticket"      && <SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary>}
+          {tab === "suc"         && <SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary>}
+          {tab === "sede-edit"   && <SectionErrorBoundary label="Editar sede"><EditarSedeTab initialBranchId={editBranchId} /></SectionErrorBoundary>}
+          {tab === "kiosko-link" && <SectionErrorBoundary label="Link de Autopedido"><AutopedidoLinkTab /></SectionErrorBoundary>}
+          {tab === "kds-link"    && <SectionErrorBoundary label="Link de KDS"><KdsLinkTab /></SectionErrorBoundary>}
+          {tab === "impr"        && <SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary>}
+          {tab === "pagos"       && <SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary>}
+          {tab === "domi"        && <SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary>}
+          {tab === "fidel"       && <SectionErrorBoundary label="Fidelización"><FidelizacionTab /></SectionErrorBoundary>}
+          {tab === "roles"       && <SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary>}
+        </SectionView>
+      ) : (
+        <HubView query={query} setQuery={setQuery} filtered={filtered} allTabs={visibleTabs} onSelect={setTab} />
+      )}
+    </div>
+  );
+}
+
+function HubView({
+  query, setQuery, filtered, allTabs, onSelect,
+}: {
+  query: string;
+  setQuery: (v: string) => void;
+  filtered: TabDef[];
+  allTabs: TabDef[];
+  onSelect: (v: string) => void;
+}) {
+  return (
+    <div className="space-y-8 pb-10">
+      <div className="relative overflow-hidden rounded-3xl border border-primary/20 bg-gradient-hero p-[1px] shadow-2xl">
+        <div className="relative rounded-[calc(1.5rem-1px)] bg-background/85 backdrop-blur-xl">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-70"
+            style={{ backgroundImage: "radial-gradient(1100px 260px at 8% -20%, color-mix(in oklab, var(--color-primary) 24%, transparent), transparent 60%), radial-gradient(800px 260px at 100% 120%, color-mix(in oklab, var(--color-primary) 20%, transparent), transparent 60%)" }}
+          />
+          <div className="relative flex flex-col gap-6 p-6 sm:p-10">
+            <div className="flex items-start gap-5">
+              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-xl shadow-primary/30 ring-1 ring-white/20">
+                <SettingsIcon className="h-8 w-8" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                  <Sparkles className="h-3 w-3" /> Panel de control
+                </div>
+                <h1 className="font-display mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.05] bg-gradient-to-br from-foreground via-foreground to-primary/70 bg-clip-text text-transparent">
+                  Ajustes del sistema
+                </h1>
+                <p className="mt-2 text-sm sm:text-base text-muted-foreground max-w-2xl">
+                  Configura cada detalle de tu POS — identidad de marca, sucursales, tickets,
+                  impresoras, pagos, fidelización y más — desde un único centro de control.
+                </p>
+              </div>
+            </div>
+            <div className="relative max-w-xl">
+              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Buscar ajuste… (p. ej. impresoras, ticket, roles)"
+                className="h-12 w-full rounded-2xl border border-border/70 bg-card/70 pl-11 pr-4 text-sm font-medium shadow-sm outline-none backdrop-blur transition-all placeholder:text-muted-foreground/70 focus:border-primary/50 focus:bg-card focus:shadow-lg focus:shadow-primary/10"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {query.trim() ? (
+        <div>
+          <div className="mb-3 flex items-baseline justify-between px-1">
+            <h2 className="font-display text-lg font-bold tracking-tight">
+              Resultados
+              <span className="ml-2 text-sm font-medium text-muted-foreground">
+                {filtered.length} de {allTabs.length}
+              </span>
+            </h2>
+            <button onClick={() => setQuery("")} className="text-xs font-semibold text-primary hover:underline">Limpiar</button>
+          </div>
+          {filtered.length === 0 ? (
+            <div className="rounded-2xl border border-dashed p-10 text-center text-sm text-muted-foreground">
+              No encontramos ningún ajuste con ese nombre.
+            </div>
+          ) : (
+            <CardsGrid tabs={filtered} onSelect={onSelect} />
+          )}
+        </div>
+      ) : (
+        GROUPS.map((g) => {
+          const items = allTabs.filter((t) => t.group === g.id);
+          if (items.length === 0) return null;
+          return (
+            <section key={g.id} className="space-y-4">
+              <div className="flex items-end justify-between gap-4 px-1">
+                <div>
+                  <h2 className="font-display text-xl sm:text-2xl font-extrabold tracking-tight">{g.label}</h2>
+                  <p className="text-xs sm:text-sm text-muted-foreground">{g.description}</p>
+                </div>
+                <div className="hidden sm:block h-px flex-1 bg-gradient-to-r from-border/80 via-border/40 to-transparent mb-2" />
+                <span className="hidden sm:inline-flex items-center gap-1 rounded-full border bg-card px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+                  {items.length} {items.length === 1 ? "opción" : "opciones"}
+                </span>
+              </div>
+              <CardsGrid tabs={items} onSelect={onSelect} />
+            </section>
+          );
+        })
+      )}
+    </div>
+  );
+}
+
+function CardsGrid({ tabs, onSelect }: { tabs: TabDef[]; onSelect: (v: string) => void }) {
+  return (
+    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      {tabs.map((t) => (
+        <SettingCard key={t.value} tab={t} onClick={() => onSelect(t.value)} />
+      ))}
+    </div>
+  );
+}
+
+function SettingCard({ tab, onClick }: { tab: TabDef; onClick: () => void }) {
+  const Icon = tab.icon;
+  return (
+    <button
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+    >
+      <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${tab.accent} opacity-10 blur-2xl transition-opacity duration-300 group-hover:opacity-25`} />
+      <div className="relative flex items-start gap-4">
+        <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${tab.accent} text-white shadow-lg ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-105`}>
+          <Icon className="h-6 w-6" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-base font-bold tracking-tight leading-tight">{tab.label}</h3>
+          <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">{tab.hint}</p>
+        </div>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/60 transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
+      </div>
+    </button>
+  );
+}
+
+function SectionView({
+  activeTab, allTabs, onBack, onSelect, children,
+}: {
+  activeTab: TabDef;
+  allTabs: TabDef[];
+  onBack: () => void;
+  onSelect: (v: string) => void;
+  children: React.ReactNode;
+}) {
+  const Icon = activeTab.icon;
+  return (
+    <div className="space-y-6 pb-10">
+      <div className="sticky top-0 z-20 -mx-4 border-b border-border/60 bg-background/80 px-4 py-3 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
+        <div className="flex items-center gap-3">
+          <button onClick={onBack} className="inline-flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 text-xs font-semibold text-muted-foreground shadow-sm transition-all hover:border-primary/40 hover:text-foreground">
+            <ArrowLeft className="h-3.5 w-3.5" /> Ajustes
+          </button>
+          <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />
+          <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-xs font-bold shadow-sm">
+            <Icon className="h-3.5 w-3.5 text-primary" />
+            <span className="font-display">{activeTab.label}</span>
+          </div>
+        </div>
+      </div>
+
+      <div className="relative overflow-hidden rounded-2xl border border-border/70 bg-card/70 p-5 shadow-sm sm:p-6">
+        <div className={`pointer-events-none absolute -right-24 -top-24 h-56 w-56 rounded-full bg-gradient-to-br ${activeTab.accent} opacity-10 blur-3xl`} />
+        <div className="relative flex items-center gap-4">
+          <div className={`grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-to-br ${activeTab.accent} text-white shadow-lg ring-1 ring-white/20`}>
+            <Icon className="h-7 w-7" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight leading-tight">{activeTab.label}</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">{activeTab.hint}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="rounded-2xl border bg-card/60 p-2 shadow-sm backdrop-blur">
+        <div className="flex w-full gap-1.5 overflow-x-auto scroll-smooth [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden">
+          {allTabs.map((t) => {
+            const TIcon = t.icon;
+            const active = t.value === activeTab.value;
+            return (
+              <button
+                key={t.value}
+                onClick={() => onSelect(t.value)}
+                title={t.hint}
+                className={`group relative flex shrink-0 items-center gap-2 rounded-xl border px-3.5 py-2 text-sm font-medium transition-all ${
+                  active
+                    ? "border-primary/30 bg-gradient-primary text-primary-foreground shadow-lg shadow-primary/25"
+                    : "border-transparent bg-transparent text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                }`}
+              >
+                <TIcon className="h-4 w-4" />
+                <span className="font-display font-semibold tracking-tight">{t.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      <div>{children}</div>
+    </div>
+  );
+}
 
 function AjustesPage() {
   const { isAdmin } = useAuth();
