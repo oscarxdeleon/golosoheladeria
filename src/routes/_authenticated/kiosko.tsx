@@ -84,7 +84,7 @@ function AutopedidoInbox() {
           <img
             src={autopedidoCharacter}
             alt="Personaje Goloso con tablet de autopedidos"
-            className="mx-auto h-40 md:h-56 lg:h-64 w-auto object-contain select-none drop-shadow-[0_20px_25px_rgba(147,51,234,0.25)]"
+            className="mx-auto h-48 md:h-64 lg:h-72 w-auto object-contain select-none bg-transparent border-0 shadow-none"
             draggable={false}
           />
         </div>
