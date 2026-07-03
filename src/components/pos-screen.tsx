@@ -17,7 +17,7 @@ import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } fr
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
-import { PaymentMethodButton } from "@/components/payment-method-button";
+import { CashPayPad } from "@/components/cash-pay-pad";
 
 
 
@@ -1674,9 +1674,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                   // así evitamos botones "muertos" por estados de carga o sincronización.
                   const isDisabled = paying || !hasOrder;
                   return (
-                    <PaymentMethodButton
+                    <Button
                       key={m.id}
-                      methodName={m.name}
+                      type="button"
                       disabled={isDisabled}
                       onClick={() => {
                         try {
@@ -1692,8 +1692,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                           toast.error("No se pudo iniciar el cobro. Recarga la mesa e intenta de nuevo.");
                         }
                       }}
-                    />
+                      variant={isCash ? "default" : "secondary"}
+                    >
+                      {isCash && <Banknote className="h-4 w-4 mr-1" />}
+                      {m.name}
+                    </Button>
                   );
+
 
                 })}
                 {methods.length === 0 && (
@@ -1741,26 +1746,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               />
 
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Button variant="outline" size="sm" onClick={() => setCashReceived(String(total))}>
-                Exacto
-              </Button>
-              {[1000, 2000, 5000].map((v) => (
-                <Button
-                  key={v}
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setCashReceived(String((Number(cashReceived) || 0) + v))}
-                >
-                  +{formatMoney(v)}
-                </Button>
-              ))}
-              {[20000, 50000, 100000].map((v) => (
-                <Button key={v} variant="outline" size="sm" onClick={() => setCashReceived(String(Math.max(total, v)))}>
-                  {formatMoney(v)}
-                </Button>
-              ))}
-            </div>
+            <CashPayPad
+              total={total}
+              cashReceived={cashReceived}
+              onSetReceived={setCashReceived}
+              disabled={paying}
+            />
+
 
 
             {cashReceived !== "" && (
@@ -1972,10 +1964,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
               const isDisabled = paying || !hasOrder;
               return (
-                <PaymentMethodButton
+                <Button
                   key={m.id}
-                  methodName={m.name}
+                  type="button"
                   disabled={isDisabled}
+                  variant={isCash ? "default" : "secondary"}
+                  className="h-14"
                   onClick={() => {
                     try {
                       if (isDisabled) return;
@@ -1991,9 +1985,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                       toast.error("No se pudo iniciar el cobro.");
                     }
                   }}
-                />
-
+                >
+                  {isCash && <Banknote className="h-4 w-4 mr-1" />}
+                  {m.name}
+                </Button>
               );
+
             })}
             {methods.length === 0 && (
               <div className="col-span-2 py-3 text-center text-xs text-muted-foreground">
