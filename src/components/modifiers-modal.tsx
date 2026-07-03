@@ -33,6 +33,7 @@ interface Modifier {
   name: string;
   price: number;
   active: boolean;
+  image_url?: string | null;
 }
 
 interface Props {
