@@ -627,3 +627,92 @@ iframe[src*="lovable.app/badge"] {
   border-color: rgba(0, 0, 0, 0.35);
 }
 
+/* ===== Cash Pay Pad Tiles (Colombian bills) ===== */
+.cash-tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 0.25rem;
+  width: 100%;
+  min-height: 6.5rem;
+  padding: 0.75rem 0.9rem;
+  border-radius: 1rem;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  background: #ffffff;
+  color: #0f172a;
+  font-family: var(--font-display, "Sora", system-ui, sans-serif);
+  cursor: pointer;
+  isolation: isolate;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -3px 0 rgba(0, 0, 0, 0.08) inset,
+    0 10px 20px -10px rgba(15, 23, 42, 0.35),
+    0 2px 4px rgba(15, 23, 42, 0.08);
+  transition:
+    transform 160ms cubic-bezier(0.2, 0.8, 0.2, 1),
+    box-shadow 200ms ease,
+    filter 200ms ease;
+}
+.cash-tile::before {
+  content: "";
+  position: absolute;
+  inset: 3px 3px 55% 3px;
+  border-radius: 0.85rem 0.85rem 0.4rem 0.4rem;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0));
+  pointer-events: none;
+  z-index: 0;
+}
+.cash-tile > * { position: relative; z-index: 1; }
+.cash-tile:hover:not(:disabled) {
+  transform: translateY(-2px);
+  filter: brightness(1.03);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -3px 0 rgba(0, 0, 0, 0.08) inset,
+    0 16px 26px -12px rgba(15, 23, 42, 0.4),
+    0 4px 8px rgba(15, 23, 42, 0.12);
+}
+.cash-tile:active:not(:disabled) {
+  transform: translateY(2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.1) inset,
+    0 4px 10px -4px rgba(15, 23, 42, 0.3);
+}
+.cash-tile:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 3px rgba(255, 255, 255, 0.9),
+    0 0 0 5px rgba(59, 130, 246, 0.65),
+    0 10px 20px -10px rgba(15, 23, 42, 0.35);
+}
+.cash-tile:disabled { cursor: not-allowed; opacity: 0.55; }
+
+.cash-tile__stack {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.05rem;
+  line-height: 1.05;
+}
+.cash-tile__title {
+  font-weight: 900;
+  font-size: 1.1rem;
+  letter-spacing: 0.01em;
+  color: #0b2447;
+}
+
+.cash-tile--white { background: #f7f8fa; }
+.cash-tile--exact {
+  background: linear-gradient(180deg, #22c55e 0%, #15803d 100%);
+  border-color: rgba(0, 50, 20, 0.35);
+}
+.cash-tile--exact::before {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.45), rgba(255, 255, 255, 0));
+}
+.cash-tile--bill {
+  border-width: 1.5px;
+}
+
