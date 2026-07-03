@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import logoAsset from "@/assets/logo-goloso.png.asset.json";
+import logoUrl from "@/assets/logo-goloso.png";
 
 import { useEffect, useState } from "react";
 import { z } from "zod";
