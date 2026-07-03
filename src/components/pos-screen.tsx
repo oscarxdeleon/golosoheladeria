@@ -1977,10 +1977,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
               const isDisabled = paying || !hasOrder;
               return (
-                <PaymentMethodButton
+                <Button
                   key={m.id}
-                  methodName={m.name}
+                  type="button"
                   disabled={isDisabled}
+                  variant={isCash ? "default" : "secondary"}
+                  className="h-14"
                   onClick={() => {
                     try {
                       if (isDisabled) return;
@@ -1996,9 +1998,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                       toast.error("No se pudo iniciar el cobro.");
                     }
                   }}
-                />
-
+                >
+                  {isCash && <Banknote className="h-4 w-4 mr-1" />}
+                  {m.name}
+                </Button>
               );
+
             })}
             {methods.length === 0 && (
               <div className="col-span-2 py-3 text-center text-xs text-muted-foreground">
