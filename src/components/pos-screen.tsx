@@ -1746,26 +1746,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               />
 
             </div>
-            <div className="grid grid-cols-4 gap-2">
-              <Button variant="outline" size="sm" onClick={() => setCashReceived(String(total))}>
-                Exacto
-              </Button>
-              {[1000, 2000, 5000].map((v) => (
-                <Button
-                  key={v}
-                  variant="secondary"
-                  size="sm"
-                  onClick={() => setCashReceived(String((Number(cashReceived) || 0) + v))}
-                >
-                  +{formatMoney(v)}
-                </Button>
-              ))}
-              {[20000, 50000, 100000].map((v) => (
-                <Button key={v} variant="outline" size="sm" onClick={() => setCashReceived(String(Math.max(total, v)))}>
-                  {formatMoney(v)}
-                </Button>
-              ))}
-            </div>
+            <CashPayPad
+              total={total}
+              cashReceived={cashReceived}
+              onSetReceived={setCashReceived}
+              disabled={paying}
+            />
+
 
 
             {cashReceived !== "" && (
