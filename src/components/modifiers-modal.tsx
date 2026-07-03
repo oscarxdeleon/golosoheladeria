@@ -258,6 +258,9 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
                               if (!g.required && isChecked) setTimeout(() => clearRadio(g), 0);
                             }}
                           />
+                          {m.image_url && (
+                            <img src={m.image_url} alt={m.name} className="h-10 w-10 rounded object-cover bg-white border" loading="lazy" />
+                          )}
                           <div className="flex-1 min-w-0">
                             <div className="text-sm font-medium truncate">{m.name}</div>
                             {Number(m.price) > 0 && (
