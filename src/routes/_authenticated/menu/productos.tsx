@@ -12,7 +12,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Star, Copy, FileSpreadsheet, Download, FileText, Loader2, Camera } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, Copy, FileSpreadsheet, Download, FileText, Loader2, Camera, Link2, Link2Off, RefreshCw } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { parseMenuPdfText } from "@/lib/menu-pdf.functions";
@@ -43,6 +44,8 @@ interface Product {
   available_branch_ids?: string[] | null;
   modifier_group_ids?: string[] | null;
   recipe?: RecipeItem[] | null;
+  source_product_id?: string | null;
+  is_linked?: boolean;
 }
 
 interface Category { id: string; name: string; }
@@ -110,7 +113,19 @@ function ProductosPage() {
     if (!editing.name?.trim()) return toast.error("Nombre requerido");
     const recipe = showRecipe ? (editing.recipe ?? []).filter((r) => r.supply_id && Number(r.qty) > 0) : [];
     const modifier_group_ids = showMods ? (editing.modifier_group_ids ?? []) : [];
-    const payload = {
+
+    // Si es un hijo vinculado, confirmar desvinculación antes de guardar
+    const isLinkedChild = !!editing.id && !!editing.source_product_id && editing.is_linked !== false;
+    if (isLinkedChild) {
+      const ok = confirm(
+        "Este producto está vinculado a la sede principal y hereda sus cambios.\n\n" +
+        "Si lo editas aquí, dejará de sincronizarse automáticamente con la sede principal.\n\n" +
+        "¿Deseas continuar y personalizarlo para esta sede?"
+      );
+      if (!ok) return;
+    }
+
+    const payload: Record<string, unknown> = {
       name: editing.name.trim(),
       price: Number(editing.price ?? 0),
       category_id: editing.category_id ?? null,
@@ -125,12 +140,24 @@ function ProductosPage() {
       modifier_group_ids: modifier_group_ids.length > 0 ? modifier_group_ids : null,
       recipe,
     };
+    if (isLinkedChild) payload.is_linked = false;
+
     const { error } = editing.id
       ? await supabase.from("products").update(payload as never).eq("id", editing.id)
       : await supabase.from("products").insert(payload as never);
     if (error) return toast.error(error.message);
-    toast.success("Guardado");
+    toast.success(isLinkedChild ? "Guardado y desvinculado de la sede principal" : "Guardado");
     setEditing(null);
+    qc.invalidateQueries({ queryKey: ["products-all"] });
+    qc.invalidateQueries({ queryKey: ["products"] });
+    qc.invalidateQueries({ queryKey: ["public-products"] });
+  }
+
+  async function resyncFromParent(childId: string) {
+    if (!confirm("Volver a sincronizar este producto con la sede principal. Se sobrescribirán los cambios personalizados (excepto el stock). ¿Continuar?")) return;
+    const { error } = await supabase.rpc("resync_product_from_parent", { _child_id: childId } as never);
+    if (error) return toast.error(error.message);
+    toast.success("Producto resincronizado con la sede principal");
     qc.invalidateQueries({ queryKey: ["products-all"] });
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["public-products"] });
