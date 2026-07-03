@@ -42,12 +42,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible";
-import { ChevronDown, LayoutGrid } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const main = [
@@ -106,7 +101,7 @@ export function AppSidebar() {
   const fMenu = filter(menu);
   const fEgresos = filter(egresos);
   const fAdmin = filter(admin);
-  const menuOpenDefault = fMenu.some((m) => isActive(m.to));
+  
 
   return (
     <Sidebar collapsible="icon">
@@ -159,29 +154,20 @@ export function AppSidebar() {
         )}
 
         {fMenu.length > 0 && (
-          <Collapsible defaultOpen={menuOpenDefault} className="group/collapsible">
-            <SidebarGroup>
-              <CollapsibleTrigger asChild>
-                <SidebarGroupLabel className="cursor-pointer font-display font-bold uppercase tracking-widest text-primary/80">
-                  Menú
-                  <ChevronDown className="ml-auto h-4 w-4 transition-transform group-data-[state=closed]/collapsible:-rotate-90" />
-                </SidebarGroupLabel>
-              </CollapsibleTrigger>
-              <CollapsibleContent>
-                <SidebarGroupContent>
-                  <SidebarMenu>
-                    {fMenu.map((i) => (
-                      <SidebarMenuItem key={i.to}>
-                        <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
-                          <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
-                        </SidebarMenuButton>
-                      </SidebarMenuItem>
-                    ))}
-                  </SidebarMenu>
-                </SidebarGroupContent>
-              </CollapsibleContent>
-            </SidebarGroup>
-          </Collapsible>
+          <SidebarGroup>
+            <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Menú</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {fMenu.map((i) => (
+                  <SidebarMenuItem key={i.to}>
+                    <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                      <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
         )}
 
         {fEgresos.length > 0 && (

@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
@@ -84,28 +84,79 @@ interface Settings {
 }
 
 
+const TABS: Array<{ value: string; label: string; icon: React.ComponentType<{ className?: string }>; hint: string }> = [
+  { value: "estab",       label: "Establecimiento",   icon: Store,        hint: "Datos generales del negocio" },
+  { value: "ticket",      label: "Ticket",            icon: Receipt,      hint: "Diseño del recibo de venta" },
+  { value: "suc",         label: "Sucursales",        icon: Building2,    hint: "Gestión de tus sedes" },
+  { value: "sede-edit",   label: "Editar sede",       icon: Pencil,       hint: "Modificar información de sede" },
+  { value: "kiosko-link", label: "Autopedido",        icon: QrCode,       hint: "Link y QR de autoservicio" },
+  { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Link para pantalla de cocina" },
+  { value: "impr",        label: "Impresoras",        icon: Printer,      hint: "Impresoras térmicas" },
+  { value: "pagos",       label: "Medios de pago",    icon: CreditCard,   hint: "Métodos aceptados" },
+  { value: "domi",        label: "Domicilio",         icon: Bike,         hint: "Tarifas de entrega" },
+  { value: "fidel",       label: "Fidelización",      icon: Award,        hint: "Puntos y recompensas" },
+  { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos por rol" },
+];
+
 function AjustesPage() {
   const { isAdmin } = useAuth();
   const [tab, setTab] = useState("estab");
   const [editBranchId, setEditBranchId] = useState<string | null>(null);
   const goEditBranch = (id: string) => { setEditBranchId(id); setTab("sede-edit"); };
+  const activeTab = TABS.find((t) => t.value === tab) ?? TABS[0];
   return (
-    <div className="space-y-4">
-      <h1 className="font-display text-3xl">Ajustes</h1>
-      <Tabs value={tab} onValueChange={setTab}>
-        <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="estab">Establecimiento</TabsTrigger>
-          <TabsTrigger value="ticket">Ticket</TabsTrigger>
-          <TabsTrigger value="suc">Sucursales</TabsTrigger>
-          <TabsTrigger value="sede-edit">Editar Sede</TabsTrigger>
-          <TabsTrigger value="kiosko-link">Link de Autopedido</TabsTrigger>
-          <TabsTrigger value="kds-link">Link de KDS</TabsTrigger>
-          <TabsTrigger value="impr">Impresoras</TabsTrigger>
-          <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
-          <TabsTrigger value="domi">Domicilio</TabsTrigger>
-          <TabsTrigger value="fidel">Fidelización</TabsTrigger>
-          <TabsTrigger value="roles">Roles</TabsTrigger>
-        </TabsList>
+    <div className="space-y-6">
+      {/* Hero premium */}
+      <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-hero p-[1px] shadow-2xl">
+        <div className="relative rounded-[calc(1rem-1px)] bg-background/85 backdrop-blur-xl">
+          <div className="pointer-events-none absolute inset-0 opacity-60"
+               style={{ backgroundImage: "radial-gradient(1000px 200px at 10% -20%, color-mix(in oklab, var(--color-primary) 22%, transparent), transparent 60%), radial-gradient(700px 220px at 100% 120%, color-mix(in oklab, var(--color-primary) 18%, transparent), transparent 60%)" }} />
+          <div className="relative flex flex-col gap-4 p-6 sm:p-8 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-4">
+              <div className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-lg shadow-primary/30 ring-1 ring-white/20">
+                <SettingsIcon className="h-7 w-7" />
+              </div>
+              <div className="min-w-0">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-primary">
+                  <Sparkles className="h-3 w-3" /> Panel de control
+                </div>
+                <h1 className="font-display mt-2 text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground via-foreground to-primary/70 bg-clip-text text-transparent">
+                  Ajustes del sistema
+                </h1>
+                <p className="mt-1 text-sm text-muted-foreground max-w-xl">
+                  Personaliza cada rincón de tu POS: identidad de marca, sucursales, tickets, impresoras, pagos, fidelización y más.
+                </p>
+              </div>
+            </div>
+            <div className="hidden sm:flex flex-col items-end gap-1 pr-1">
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Sección activa</span>
+              <div className="inline-flex items-center gap-2 rounded-full border bg-card px-3 py-1.5 shadow-sm">
+                <activeTab.icon className="h-4 w-4 text-primary" />
+                <span className="font-display text-sm font-semibold">{activeTab.label}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <Tabs value={tab} onValueChange={setTab} className="space-y-5">
+        {/* Nav segmentado premium */}
+        <div className="rounded-2xl border bg-card/60 p-2 shadow-sm backdrop-blur">
+          <TabsList className="flex h-auto w-full flex-wrap gap-1.5 bg-transparent p-0">
+            {TABS.map((t) => (
+              <TabsTrigger
+                key={t.value}
+                value={t.value}
+                title={t.hint}
+                className="group relative flex items-center gap-2 rounded-xl border border-transparent bg-transparent px-3.5 py-2 text-sm font-medium text-muted-foreground transition-all hover:bg-muted/60 hover:text-foreground data-[state=active]:border-primary/25 data-[state=active]:bg-gradient-primary data-[state=active]:text-primary-foreground data-[state=active]:shadow-lg data-[state=active]:shadow-primary/25"
+              >
+                <t.icon className="h-4 w-4" />
+                <span className="font-display font-semibold tracking-tight">{t.label}</span>
+              </TabsTrigger>
+            ))}
+          </TabsList>
+        </div>
+
         <TabsContent value="estab"><SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary></TabsContent>
         <TabsContent value="ticket"><SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary></TabsContent>
         <TabsContent value="suc"><SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary></TabsContent>
