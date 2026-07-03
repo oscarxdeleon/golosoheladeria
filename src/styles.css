@@ -433,5 +433,62 @@ iframe[src*="lovable.app/badge"] {
   border-color: color-mix(in oklab, var(--color-border) 60%, transparent);
 }
 
+/* Dialogs */
+.ajustes-scope [data-slot="dialog-content"],
+[data-slot="dialog-overlay"] + [data-slot="dialog-content"] {
+  border-radius: 1.25rem;
+}
+.ajustes-scope [data-slot="dialog-title"] {
+  font-family: var(--font-serif);
+  font-variation-settings: "SOFT" 50, "opsz" 48;
+  letter-spacing: -0.025em;
+  font-weight: 600;
+  font-size: 1.35rem;
+}
+
+/* Checkbox + Radio */
+.ajustes-scope [data-slot="checkbox"],
+.ajustes-scope [data-slot="radio-group-item"] {
+  border-color: color-mix(in oklab, var(--color-border) 90%, transparent);
+  transition: box-shadow .18s ease, border-color .18s ease, background .18s ease;
+}
+.ajustes-scope [data-slot="checkbox"][data-state="checked"],
+.ajustes-scope [data-slot="radio-group-item"][data-state="checked"] {
+  background-image: var(--gradient-primary);
+  border-color: transparent;
+  box-shadow: 0 4px 12px -4px color-mix(in oklab, var(--color-primary) 55%, transparent);
+}
+
+/* Select trigger chevron */
+.ajustes-scope [data-slot="select-content"] {
+  border-radius: 1rem;
+  box-shadow: 0 20px 40px -20px color-mix(in oklab, var(--color-primary) 30%, transparent), 0 4px 12px -4px rgb(0 0 0 / 0.08);
+}
+.ajustes-scope [data-slot="select-item"] {
+  border-radius: .6rem;
+  margin: 2px 4px;
+}
+.ajustes-scope [data-slot="select-item"][data-state="checked"] {
+  background: color-mix(in oklab, var(--color-primary) 12%, transparent);
+  color: var(--color-primary);
+  font-weight: 600;
+}
+
+/* Dropdown menu */
+.ajustes-scope [data-slot="dropdown-menu-content"] {
+  border-radius: 1rem;
+  box-shadow: 0 20px 40px -20px color-mix(in oklab, var(--color-primary) 30%, transparent), 0 4px 12px -4px rgb(0 0 0 / 0.08);
+}
+.ajustes-scope [data-slot="dropdown-menu-item"] {
+  border-radius: .55rem;
+  margin: 2px 4px;
+}
+
+/* Search inputs get a subtle icon-slot spacing */
+.ajustes-scope input[type="search"] {
+  padding-left: 2.5rem;
+}
+
+
 
 
