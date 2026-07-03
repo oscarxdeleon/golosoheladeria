@@ -109,7 +109,13 @@ function ModPage() {
   }
   async function saveMod() {
     if (!modEdit?.name?.trim() || !modEdit.group_id) return toast.error("Datos incompletos");
-    const payload = { group_id: modEdit.group_id, name: modEdit.name.trim(), price: Number(modEdit.price ?? 0), active: modEdit.active ?? true };
+    const payload = {
+      group_id: modEdit.group_id,
+      name: modEdit.name.trim(),
+      price: Number(modEdit.price ?? 0),
+      active: modEdit.active ?? true,
+      image_url: modEdit.image_url ?? null,
+    };
     const { error } = modEdit.id
       ? await supabase.from("modifiers").update(payload).eq("id", modEdit.id)
       : await supabase.from("modifiers").insert(payload);
