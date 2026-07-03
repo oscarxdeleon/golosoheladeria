@@ -178,6 +178,9 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
               checked={isChecked}
               onCheckedChange={(v) => setPicked(v ? { [only.id]: 1 } : {})}
             />
+            {only.image_url && (
+              <img src={only.image_url} alt={only.name} className="h-12 w-12 rounded object-cover bg-white border" loading="lazy" />
+            )}
             <div className="flex-1">
               <div className="text-sm font-medium">Agregar {only.name}</div>
               {Number(only.price) > 0 && (
