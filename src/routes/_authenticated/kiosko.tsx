@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Monitor, Banknote, ShoppingBag, Utensils, Inbox } from "lucide-react";
-import autopedidoCharacter from "@/assets/autopedido_character.png";
+import autopedidoCharacterAsset from "@/assets/autopedidos_character.png.asset.json";
+const autopedidoCharacter = autopedidoCharacterAsset.url;
 import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
 
@@ -69,7 +70,7 @@ function AutopedidoInbox() {
               <Monitor className="h-3.5 w-3.5" /> Autoservicio · Tiempo real
             </span>
             <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-purple-700 via-fuchsia-600 to-indigo-600 bg-clip-text text-transparent">
-              Toma tu Pedido
+              Autopedidos
             </h1>
             <p className="max-w-lg text-sm md:text-base text-muted-foreground">
               Bandeja en tiempo real de pedidos de autoservicio pendientes de pago.
@@ -83,7 +84,7 @@ function AutopedidoInbox() {
           <img
             src={autopedidoCharacter}
             alt="Personaje Goloso con tablet de autopedidos"
-            className="mx-auto h-40 md:h-56 lg:h-64 w-auto object-contain select-none drop-shadow-[0_20px_25px_rgba(147,51,234,0.25)]"
+            className="mx-auto h-48 md:h-64 lg:h-72 w-auto object-contain select-none bg-transparent border-0 shadow-none"
             draggable={false}
           />
         </div>
