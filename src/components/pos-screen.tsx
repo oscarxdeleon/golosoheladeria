@@ -491,6 +491,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   const [noteQty, setNoteQty] = useState(1);
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
+  const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [successDialog, setSuccessDialog] = useState<null | {
     ticket: number;
     method: string;
@@ -1268,7 +1269,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   }
 
   return (
-    <div className="relative grid gap-4 lg:grid-cols-[1fr,420px]">
+    <div className="relative grid gap-4 pb-28 lg:grid-cols-[1fr,420px] lg:pb-0">
       {meseroMode && paying && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-8 py-6 shadow-2xl">
@@ -1856,6 +1857,101 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               Agregar al carrito
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sticky footer (móvil/tablet) — resumen + acciones siempre visibles */}
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-background/95 shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-background/80 lg:hidden">
+        <div className="mx-auto flex max-w-3xl items-center gap-2 px-3 py-2.5 pb-[max(0.625rem,env(safe-area-inset-bottom))]">
+          <div className="min-w-0 flex-1">
+            <div className="flex items-baseline gap-2">
+              <span className="truncate text-[11px] uppercase tracking-wide text-muted-foreground">
+                {cart.reduce((a, l) => a + l.qty, 0)} items · Sub {formatMoney(subtotal)}
+              </span>
+            </div>
+            <div className="font-display text-2xl leading-tight text-primary tabular-nums">
+              {formatMoney(total)}
+            </div>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            disabled={paying || cart.length === 0}
+            onClick={saveComanda}
+            className="h-11 shrink-0 border-primary text-primary"
+          >
+            <Save className="h-4 w-4 sm:mr-1" />
+            <span className="hidden sm:inline">Guardar</span>
+          </Button>
+          {!meseroMode && (
+            <Button
+              size="sm"
+              disabled={paying || (cart.length === 0 && !pendingSaleId)}
+              onClick={() => setPayDialogOpen(true)}
+              className="h-11 shrink-0 bg-gradient-primary px-4 font-bold"
+            >
+              <Banknote className="h-4 w-4 mr-1" /> Cobrar
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {/* Selector rápido de método de pago */}
+      <Dialog open={payDialogOpen} onOpenChange={(o) => { if (!paying) setPayDialogOpen(o); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-primary" /> Cobrar {formatMoney(total)}
+            </DialogTitle>
+            <DialogDescription>
+              {cart.reduce((a, l) => a + l.qty, 0)} productos · Subtotal {formatMoney(subtotal)}
+              {deliveryFee > 0 ? ` · Domicilio ${formatMoney(deliveryFee)}` : ""}
+            </DialogDescription>
+          </DialogHeader>
+          {!effectiveSessionId && (
+            <div className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+              Abre caja para poder cobrar.
+            </div>
+          )}
+          <div className="grid grid-cols-2 gap-2">
+            {methods.map((m: { id: string; name: string }) => {
+              const isCash = m.name.toLowerCase().includes("efectivo");
+              const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
+              const isDisabled = paying || !hasOrder;
+              return (
+                <Button
+                  key={m.id}
+                  type="button"
+                  disabled={isDisabled}
+                  variant={isCash ? "default" : "secondary"}
+                  className="h-14"
+                  onClick={() => {
+                    try {
+                      if (isDisabled) return;
+                      setPayDialogOpen(false);
+                      if (isCash) {
+                        setCashReceived("");
+                        setCashDialogOpen(true);
+                      } else {
+                        void pay(m.name);
+                      }
+                    } catch (err) {
+                      console.error("[pos] payment click error", err);
+                      toast.error("No se pudo iniciar el cobro.");
+                    }
+                  }}
+                >
+                  {isCash && <Banknote className="h-4 w-4 mr-1" />}
+                  {m.name}
+                </Button>
+              );
+            })}
+            {methods.length === 0 && (
+              <div className="col-span-2 py-3 text-center text-xs text-muted-foreground">
+                No hay métodos de pago configurados.
+              </div>
+            )}
+          </div>
         </DialogContent>
       </Dialog>
 
