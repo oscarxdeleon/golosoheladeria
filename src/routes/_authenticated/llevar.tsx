@@ -3,12 +3,21 @@ import { PosScreen } from "@/components/pos-screen";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { LlevarPendingPanel } from "@/components/llevar-pending-panel";
 import { Button } from "@/components/ui/button";
+import paraLlevarImg from "@/assets/para_llevar.png";
 
 export const Route = createFileRoute("/_authenticated/llevar")({
   head: () => ({ meta: [{ title: "Para llevar · Goloso POS" }] }),
   component: () => (
     <BranchCashGuard extraMessage="Solicita al cajero iniciar el turno para poder operar.">
       <div className="space-y-4">
+        <div className="flex justify-center">
+          <img
+            src={paraLlevarImg}
+            alt="Para llevar"
+            className="w-full max-w-3xl object-contain select-none"
+            draggable={false}
+          />
+        </div>
         <LlevarPendingPanel />
         <PosScreen orderType="llevar" />
       </div>
