@@ -47,32 +47,37 @@ const STATUS_LABEL: Record<Status, string> = {
   reserved: "Reservada",
 };
 
+// El número siempre se pinta en un azul premium para máxima legibilidad y
+// consistencia visual, sin importar el estado. El estado se comunica con la
+// franja superior, el chip y el punto animado.
+const TABLE_NUMBER_COLOR = "text-sky-600 dark:text-sky-400";
+
 const STATUS_STYLES: Record<Status, {
   bg: string; bar: string; dot: string; chip: string; num: string; glow: string;
 }> = {
   free: {
-    bg: "bg-emerald-50/60 dark:bg-emerald-950/30 ring-1 ring-emerald-500/15 hover:ring-emerald-500/40",
+    bg: "bg-emerald-50/50 dark:bg-emerald-950/25 ring-1 ring-emerald-500/15 hover:ring-emerald-500/45",
     bar: "bg-gradient-to-r from-emerald-400 via-emerald-500 to-teal-500",
     dot: "bg-emerald-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-emerald-500/60",
     chip: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
-    num: "text-emerald-700 dark:text-emerald-300",
-    glow: "bg-emerald-400/30",
+    num: TABLE_NUMBER_COLOR,
+    glow: "bg-emerald-400/25",
   },
   occupied: {
-    bg: "bg-rose-50/70 dark:bg-rose-950/30 ring-1 ring-rose-500/20 hover:ring-rose-500/50",
+    bg: "bg-rose-50/60 dark:bg-rose-950/25 ring-1 ring-rose-500/20 hover:ring-rose-500/50",
     bar: "bg-gradient-to-r from-rose-500 via-red-500 to-orange-500",
     dot: "bg-rose-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-rose-500/70",
     chip: "bg-rose-500/10 text-rose-700 dark:text-rose-300",
-    num: "text-rose-700 dark:text-rose-300",
-    glow: "bg-rose-400/30",
+    num: TABLE_NUMBER_COLOR,
+    glow: "bg-rose-400/25",
   },
   reserved: {
-    bg: "bg-amber-50/70 dark:bg-amber-950/30 ring-1 ring-amber-500/20 hover:ring-amber-500/50",
+    bg: "bg-amber-50/60 dark:bg-amber-950/25 ring-1 ring-amber-500/20 hover:ring-amber-500/50",
     bar: "bg-gradient-to-r from-amber-400 via-orange-400 to-yellow-500",
     dot: "bg-amber-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-amber-500/60",
     chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
-    num: "text-amber-700 dark:text-amber-300",
-    glow: "bg-amber-400/30",
+    num: TABLE_NUMBER_COLOR,
+    glow: "bg-amber-400/25",
   },
 };
 
@@ -307,7 +312,7 @@ function MesasPage() {
                   className="h-24 w-24 object-contain drop-shadow-none select-none"
                   draggable={false}
                 />
-                <div className={`mt-1 font-display text-3xl font-black leading-none tracking-tight ${styles.num}`}>
+                <div className={`mt-1 font-display text-4xl font-black leading-none tracking-tight tabular-nums drop-shadow-[0_1px_0_rgba(2,132,199,0.15)] ${styles.num}`}>
                   {m.number}
                 </div>
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
