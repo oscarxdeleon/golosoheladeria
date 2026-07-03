@@ -1,0 +1,1 @@
+ALTER TABLE public.modifiers ADD COLUMN IF NOT EXISTS image_url text;

@@ -610,6 +610,7 @@ export type Database = {
           active: boolean
           group_id: string
           id: string
+          image_url: string | null
           name: string
           price: number
         }
@@ -617,6 +618,7 @@ export type Database = {
           active?: boolean
           group_id: string
           id?: string
+          image_url?: string | null
           name: string
           price?: number
         }
@@ -624,6 +626,7 @@ export type Database = {
           active?: boolean
           group_id?: string
           id?: string
+          image_url?: string | null
           name?: string
           price?: number
         }
