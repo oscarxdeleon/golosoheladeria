@@ -1427,6 +1427,51 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
 
+          {/* Barra de acciones rápidas — siempre visible arriba del pedido */}
+          <div className="sticky top-0 z-10 -mx-4 -mt-3 border-b bg-card/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+            <div className="mb-1.5 flex items-center justify-between text-xs">
+              <span className="text-muted-foreground">{cart.reduce((a, l) => a + l.qty, 0)} items · Sub {formatMoney(subtotal)}</span>
+              <span className="font-display text-lg text-primary tabular-nums leading-none">{formatMoney(total)}</span>
+            </div>
+            <div className={meseroMode ? "grid grid-cols-1 gap-1.5" : "grid grid-cols-3 gap-1.5"}>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={paying || cart.length === 0}
+                onClick={saveComanda}
+                className="h-10 border-primary text-primary hover:bg-primary/10"
+              >
+                <Save className="h-4 w-4 sm:mr-1" />
+                <span className="hidden sm:inline">Guardar</span>
+              </Button>
+              {!meseroMode && (
+                <>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={cart.length === 0}
+                    onClick={handlePrecuenta}
+                    className="h-10"
+                  >
+                    <Printer className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Precuenta</span>
+                  </Button>
+                  <Button
+                    size="sm"
+                    disabled={paying || (cart.length === 0 && !pendingSaleId)}
+                    onClick={() => setPayDialogOpen(true)}
+                    className="h-10 bg-gradient-primary font-bold"
+                  >
+                    <Banknote className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Cobrar</span>
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+
+
+
 
           <div className="max-h-[40vh] space-y-2 overflow-auto">
             {cart.length === 0 && (
