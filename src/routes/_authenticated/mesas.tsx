@@ -21,10 +21,8 @@ import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingB
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
-import mesaLibreAsset from "@/assets/mesa_libre.png.asset.json";
-import mesaOcupadaAsset from "@/assets/mesa_ocupada.png.asset.json";
-const mesaLibreImg = mesaLibreAsset.url;
-const mesaOcupadaImg = mesaOcupadaAsset.url;
+import mesaLibreImg from "@/assets/mesa_libre.png";
+import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
 
 export const Route = createFileRoute("/_authenticated/mesas")({
   head: () => ({ meta: [{ title: "Mesas · Goloso POS" }] }),
