@@ -263,5 +263,44 @@ iframe[src*="lovable.app/badge"] {
   position: absolute !important;
   left: -9999px !important;
   top: -9999px !important;
+
+/* ===== Ajustes premium typography scope ===== */
+.ajustes-scope {
+  font-family: var(--font-editorial);
+  font-feature-settings: "ss01", "ss02", "cv11";
+  letter-spacing: -0.005em;
 }
+.ajustes-scope h1,
+.ajustes-scope h2,
+.ajustes-scope .font-display {
+  font-family: var(--font-serif);
+  font-optical-sizing: auto;
+  font-variation-settings: "SOFT" 30, "WONK" 0, "opsz" 96;
+  letter-spacing: -0.035em;
+  font-weight: 600;
+}
+.ajustes-scope h3,
+.ajustes-scope h4,
+.ajustes-scope [data-slot="card-title"] {
+  font-family: var(--font-serif);
+  font-variation-settings: "SOFT" 50, "opsz" 40;
+  letter-spacing: -0.025em;
+  font-weight: 550;
+}
+.ajustes-scope label,
+.ajustes-scope [data-slot="label"] {
+  font-family: var(--font-editorial);
+  font-weight: 600;
+  letter-spacing: 0.005em;
+}
+.ajustes-scope [role="tab"] {
+  font-family: var(--font-editorial);
+  letter-spacing: -0.01em;
+}
+.ajustes-scope .tab-serif {
+  font-family: var(--font-serif);
+  font-variation-settings: "SOFT" 50, "opsz" 28;
+  font-weight: 600;
+}
+
 
