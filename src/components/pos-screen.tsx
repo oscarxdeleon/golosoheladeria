@@ -927,32 +927,27 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       // volvemos al Panel de Mesas, que es la pantalla principal del cajero.
       const redirectTo: "/mesas" = "/mesas";
 
-      setSuccessDialog({
+      // Imprimir ticket automáticamente (sin diálogo de confirmación).
+      const ticketPayload: Parameters<typeof printTicketFinal>[0] = {
         ticket: sale.ticket_number,
-        method: sale.payment_method,
+        header: snapshotHeader,
+        items: snapshotItems,
+        subtotal,
+        tax,
+        deliveryFee,
         total: Number(sale.total),
-        redirectTo,
-        printPayload: {
-          ticket: sale.ticket_number,
-          header: snapshotHeader,
-          items: snapshotItems,
-          subtotal,
-          tax,
-          deliveryFee,
-          total: Number(sale.total),
-          payment_method: sale.payment_method,
-          customer: snapshotCustomer,
-          user_name: snapshotUserName,
-          created_at: sale.created_at,
-          address: snapshotAddress,
-          phone: snapshotPhone,
-          notes: snapshotNotes,
-          cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
-          branding,
-        },
-
-
-      });
+        payment_method: sale.payment_method,
+        customer: snapshotCustomer,
+        user_name: snapshotUserName,
+        created_at: sale.created_at,
+        address: snapshotAddress,
+        phone: snapshotPhone,
+        notes: snapshotNotes,
+        cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
+        branding,
+      };
+      setTimeout(() => { void printTicketFinal(ticketPayload); }, 0);
+      setTimeout(() => navigate({ to: redirectTo }), 50);
 
 
     } catch (err) {
