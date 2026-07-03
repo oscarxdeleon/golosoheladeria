@@ -60,7 +60,7 @@ export function TicketPreview({
   }, []);
 
   const footerText = (settings?.ticket_footer ?? "¡Gracias por Preferirnos!").trim();
-  const logoSrc = settings?.logo_url || logoAsset.url;
+  const logoSrc = settings?.logo_url || logoUrl;
 
   const lines: SaleLine[] = sale.lines;
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);
