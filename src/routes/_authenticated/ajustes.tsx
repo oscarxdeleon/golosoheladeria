@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ArrowRight, ChevronRight } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
