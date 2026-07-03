@@ -12,12 +12,9 @@ import { Utensils, ShoppingBag, Bike, Users, ArrowLeft, LogOut } from "lucide-re
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 
-import logoAsset from "@/assets/logo-goloso.png.asset.json";
-import tableFreeAsset from "@/assets/mesa_libre.png.asset.json";
-import tableOccupiedAsset from "@/assets/mesa_ocupada.png.asset.json";
-
-const tableFree = tableFreeAsset.url;
-const tableOccupied = tableOccupiedAsset.url;
+import logoUrl from "@/assets/logo-goloso.png";
+import tableFree from "@/assets/mesa_libre.png";
+import tableOccupied from "@/assets/mesa_ocupada.png";
 
 export const Route = createFileRoute("/tablet-pedidos")({
   ssr: false,
@@ -65,7 +62,7 @@ function TabletShell() {
     <BranchCashGuard allowLogout extraMessage="Tu tablet quedará disponible automáticamente cuando el cajero abra el turno.">
     <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
-        <img src={logoAsset.url} alt="Goloso" className="h-10 w-10 object-contain" />
+        <img src={logoUrl} alt="Goloso" className="h-10 w-10 object-contain" />
         <div className="leading-tight">
           <div className="font-display text-lg">Goloso · Meseros</div>
           <div className="text-xs text-muted-foreground">Tablet de pedidos</div>

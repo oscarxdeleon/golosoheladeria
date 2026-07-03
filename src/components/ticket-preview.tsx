@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/format";
 import { IdCard, MapPin, Phone, Calendar, User, CreditCard, Banknote } from "lucide-react";
-import logoAsset from "@/assets/logo-goloso.png.asset.json";
+import logoUrl from "@/assets/logo-goloso.png";
 
 interface SaleLine { name: string; qty: number; unit_price: number; }
 
@@ -60,7 +60,7 @@ export function TicketPreview({
   }, []);
 
   const footerText = (settings?.ticket_footer ?? "¡Gracias por Preferirnos!").trim();
-  const logoSrc = settings?.logo_url || logoAsset.url;
+  const logoSrc = settings?.logo_url || logoUrl;
 
   const lines: SaleLine[] = sale.lines;
   const subtotal = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);

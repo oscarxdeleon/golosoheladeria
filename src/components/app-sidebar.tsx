@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import logoAsset from "@/assets/logo-goloso.png.asset.json";
+import logoUrl from "@/assets/logo-goloso.png";
 import { usePermissions } from "@/hooks/use-permissions";
 
 import {
@@ -112,7 +112,7 @@ export function AppSidebar() {
     <Sidebar collapsible="icon">
       <SidebarHeader>
         <div className="flex items-center gap-2 px-2 py-3">
-          <img src={logoAsset.url} alt="Goloso" className="h-9 w-9 shrink-0 object-contain" />
+          <img src={logoUrl} alt="Goloso" className="h-9 w-9 shrink-0 object-contain" />
           {!collapsed && (
             <div className="leading-tight">
               <div className="font-display text-base font-semibold">Goloso</div>
