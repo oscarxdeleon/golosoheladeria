@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, ArrowLeft, Bike, Phone, MapPin, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import domicilioMotoImg from "@/assets/domicilio_moto.png";
 
 export const Route = createFileRoute("/_authenticated/domicilio")({
   head: () => ({ meta: [{ title: "A domicilio · Goloso POS" }] }),
@@ -142,6 +143,14 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
 
   return (
     <div className="mx-auto max-w-3xl p-4 space-y-4">
+      <div className="flex justify-center">
+        <img
+          src={domicilioMotoImg}
+          alt="Repartidor Goloso"
+          className="w-full max-w-xs sm:max-w-sm object-contain select-none"
+          draggable={false}
+        />
+      </div>
       <div className="flex items-center gap-3">
         <div className="w-12 h-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-lg">
           <Bike className="w-6 h-6" />
