@@ -378,11 +378,8 @@ function OnlineOrdersPage() {
 
     toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
 
-    // 1) Preguntar si imprimir el ticket de venta
-    const wantPrint = window.confirm(
-      `Pago registrado por ${formatMoney(Number(payOrder.total))} (${method}).\n\n¿Imprimir ticket de venta físico?`,
-    );
-    if (wantPrint) {
+    // Imprimir ticket de venta automáticamente — SIEMPRE, sin diálogo de confirmación.
+    {
       const header = payOrder.order_type === "domicilio" ? "DOMICILIO" : payOrder.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
       const ticketPayload: PrintPayload = {
         type: "ticket",
@@ -406,7 +403,7 @@ function OnlineOrdersPage() {
         phone: payOrder.customer_phone ?? "", notes: `Pago: ${method}`,
         subtotal: Number(payOrder.subtotal ?? 0), delivery_fee: Number(payOrder.delivery_fee ?? 0),
         total: Number(payOrder.total ?? 0), created_at: payOrder.created_at,
-      }));
+      }), { silent: true });
     }
 
     // 2) Preguntar si enviar ticket digital por WhatsApp
