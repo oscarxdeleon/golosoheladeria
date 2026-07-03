@@ -424,14 +424,16 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     open_drawer: openDrawer,
   };
 
-  // 1) Intento silencioso vía servidor de impresión local (ESC/POS).
+  // Impresión SIEMPRE silenciosa vía servidor de impresión local (ESC/POS).
+  // No abrimos NUNCA el diálogo del navegador — el cajero no debe ser
+  // interrumpido con ventanas emergentes ni selección de impresora.
   const ok = await sendToLocalPrinter(payload);
-  if (ok) return;
-
-  // 2) Fallback: si NO hay servidor local configurado, imprime por iframe
-  //    (esto abrirá el diálogo del navegador solo como último recurso).
-  console.warn("[print] servidor local no disponible — usando fallback HTML");
-  printHTMLFallback(ticketHTML(o));
+  if (!ok) {
+    console.warn(
+      "[print] ticket no impreso: servidor local no disponible. " +
+        'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
+    );
+  }
   if (openDrawer && printerIp) {
     void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
   }
