@@ -172,7 +172,7 @@ html,body{width:80mm}
 *{box-sizing:border-box}
 body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:15px;padding:4mm;width:72mm;margin:0;color:#000;line-height:1.35}
 .logo-wrap{text-align:center;margin:0 0 4px}
-.logo{max-width:60mm;max-height:36mm;object-fit:contain;display:block;margin:0 auto}
+.logo{width:40mm;height:40mm;object-fit:contain;display:block;margin:0 auto;background:#fff}
 .biz-name{font-size:30px;margin:6px 0 8px;text-align:center;font-weight:900;letter-spacing:1px;text-transform:uppercase;font-family:'Arial Black','Helvetica',sans-serif;line-height:1.05}
 .biz-meta{display:flex;align-items:center;justify-content:center;gap:8px;font-size:17px;font-weight:700;line-height:1.3;margin:4px 0;text-align:center}
 .biz-meta svg{flex-shrink:0;width:18px;height:18px}
