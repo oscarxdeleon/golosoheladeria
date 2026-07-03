@@ -9,6 +9,19 @@
 @import "@fontsource-variable/fraunces";
 @import "@fontsource-variable/plus-jakarta-sans";
 
+/* Hide Lovable "Made with Lovable" badge on published site */
+#lovable-badge,
+a#lovable-badge,
+a[href*="lovable.dev"][href*="utm"],
+a[href*="lovable.dev/?utm"],
+[data-lovable-badge],
+.lovable-badge {
+  display: none !important;
+  visibility: hidden !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
