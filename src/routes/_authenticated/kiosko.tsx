@@ -60,35 +60,27 @@ function AutopedidoInbox() {
   });
 
   return (
-    <div className="space-y-6">
-      <div className="relative overflow-hidden rounded-3xl border border-purple-200/60 bg-gradient-to-br from-purple-50 via-fuchsia-50 to-indigo-50 dark:from-purple-950/40 dark:via-fuchsia-950/20 dark:to-indigo-950/40 dark:border-purple-900/50">
-        <div className="pointer-events-none absolute -top-16 -right-10 h-64 w-64 rounded-full bg-purple-400/20 blur-3xl" />
-        <div className="pointer-events-none absolute -bottom-20 -left-10 h-64 w-64 rounded-full bg-fuchsia-400/20 blur-3xl" />
-        <div className="relative flex flex-col-reverse gap-4 p-6 md:flex-row md:items-center md:gap-6 md:p-8">
-          <div className="flex-1 min-w-0 space-y-3">
-            <span className="inline-flex items-center gap-2 rounded-full bg-white/70 dark:bg-white/10 px-3 py-1 text-xs font-semibold uppercase tracking-wider text-purple-700 dark:text-purple-200 backdrop-blur">
-              <Monitor className="h-3.5 w-3.5" /> Autoservicio · Tiempo real
-            </span>
-            <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-purple-700 via-fuchsia-600 to-indigo-600 bg-clip-text text-transparent">
-              Autopedidos
-            </h1>
-            <p className="max-w-lg text-sm md:text-base text-muted-foreground">
-              Bandeja en tiempo real de pedidos de autoservicio pendientes de pago.
-            </p>
-            <div>
-              <Badge className="bg-purple-600 text-white text-base px-3 py-1 shadow-sm">
-                {orders.length} pendiente{orders.length === 1 ? "" : "s"}
-              </Badge>
-            </div>
-          </div>
-          <img
-            src={autopedidoCharacter}
-            alt="Personaje Goloso con tablet de autopedidos"
-            className="mx-auto h-48 md:h-64 lg:h-72 w-auto object-contain select-none bg-transparent border-0 shadow-none"
-            draggable={false}
-          />
+    <div className="space-y-4">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center sm:gap-4">
+        <div className="flex min-w-0 items-center gap-2">
+          <Badge className="bg-purple-600 text-white shrink-0">
+            <Monitor className="h-3 w-3 mr-1" /> Autopedidos
+          </Badge>
+          <h1 className="font-display text-2xl font-extrabold tracking-tight truncate">Autopedidos</h1>
+        </div>
+        <img
+          src={autopedidoCharacter}
+          alt="Personaje Goloso con tablet de autopedidos"
+          className="hidden sm:block h-[72px] md:h-[90px] w-auto object-contain select-none shrink-0 mx-auto bg-transparent border-0 shadow-none"
+          draggable={false}
+        />
+        <div className="col-span-2 sm:col-auto sm:ml-auto">
+          <Badge variant="secondary" className="text-xs px-2.5 py-1">
+            {orders.length} pendiente{orders.length === 1 ? "" : "s"}
+          </Badge>
         </div>
       </div>
+
 
 
       <Card>
