@@ -63,7 +63,7 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
     queryFn: async () => {
       const { data } = await supabase
         .from("modifiers")
-        .select("id,group_id,name,price,active")
+        .select("id,group_id,name,price,active,image_url")
         .in("group_id", groupIds)
         .eq("active", true)
         .order("name");
