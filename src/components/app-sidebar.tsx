@@ -106,14 +106,30 @@ export function AppSidebar() {
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader>
-        <div className="flex items-center gap-2 px-2 py-3">
-          <img src={logoUrl} alt="Goloso" className="h-9 w-9 shrink-0 object-contain" />
-          {!collapsed && (
-            <div className="leading-tight">
-              <div className="font-display text-base font-semibold">Goloso</div>
-              <div className="text-xs text-muted-foreground">POS Heladería</div>
+        <div className="relative mx-1 my-2 overflow-hidden rounded-2xl border border-primary/20 bg-gradient-hero p-[1px] shadow-[0_10px_30px_-12px_color-mix(in_oklab,var(--color-primary)_55%,transparent)]">
+          <div className="relative flex items-center gap-3 rounded-[calc(1rem-1px)] bg-sidebar/85 px-2.5 py-2.5 backdrop-blur-xl">
+            {/* halos decorativos */}
+            <div className="pointer-events-none absolute inset-0 opacity-80"
+                 style={{ backgroundImage: "radial-gradient(140px 60px at 0% 0%, color-mix(in oklab, var(--color-primary) 30%, transparent), transparent 70%), radial-gradient(120px 60px at 100% 100%, color-mix(in oklab, var(--color-secondary) 25%, transparent), transparent 70%)" }} />
+            {/* Logo 3D */}
+            <div className="relative shrink-0">
+              <div className="absolute -inset-1 rounded-2xl bg-gradient-primary opacity-70 blur-md" aria-hidden />
+              <div className="relative grid h-11 w-11 place-items-center rounded-2xl bg-gradient-to-br from-white to-white/60 p-[2px] shadow-[inset_0_1px_0_0_rgba(255,255,255,0.9),inset_0_-6px_10px_-6px_rgba(0,0,0,0.25),0_10px_20px_-8px_color-mix(in_oklab,var(--color-primary)_60%,transparent)] ring-1 ring-white/40">
+                <img src={logoUrl} alt="Goloso" className="h-9 w-9 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.25)]" />
+              </div>
             </div>
-          )}
+            {!collapsed && (
+              <div className="relative min-w-0 leading-tight">
+                <div className="font-display text-[19px] font-extrabold tracking-tight bg-gradient-to-br from-foreground via-foreground to-primary bg-clip-text text-transparent drop-shadow-[0_1px_0_rgba(255,255,255,0.6)]">
+                  Goloso
+                </div>
+                <div className="mt-0.5 inline-flex items-center gap-1 rounded-full border border-primary/30 bg-primary/10 px-1.5 py-[1px] text-[9px] font-bold uppercase tracking-[0.16em] text-primary">
+                  <span className="h-1 w-1 rounded-full bg-primary shadow-[0_0_6px_var(--color-primary)]" />
+                  POS Heladería
+                </div>
+              </div>
+            )}
+          </div>
         </div>
 
       </SidebarHeader>
