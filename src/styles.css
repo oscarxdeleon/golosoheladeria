@@ -263,6 +263,7 @@ iframe[src*="lovable.app/badge"] {
   position: absolute !important;
   left: -9999px !important;
   top: -9999px !important;
+}
 
 /* ===== Ajustes premium typography scope ===== */
 .ajustes-scope {
