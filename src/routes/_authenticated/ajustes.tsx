@@ -167,32 +167,31 @@ function HubView({
             className="pointer-events-none absolute inset-0 opacity-70"
             style={{ backgroundImage: "radial-gradient(1100px 260px at 8% -20%, color-mix(in oklab, var(--color-primary) 24%, transparent), transparent 60%), radial-gradient(800px 260px at 100% 120%, color-mix(in oklab, var(--color-primary) 20%, transparent), transparent 60%)" }}
           />
-          <div className="relative flex flex-col gap-6 p-6 sm:p-10">
-            <div className="flex items-start gap-5">
-              <div className="grid h-16 w-16 shrink-0 place-items-center rounded-2xl bg-gradient-primary text-primary-foreground shadow-xl shadow-primary/30 ring-1 ring-white/20">
-                <SettingsIcon className="h-8 w-8" />
+          <div className="relative flex flex-col gap-4 p-5 sm:p-7">
+            <div className="flex items-start gap-4">
+              <div className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-primary text-primary-foreground shadow-lg shadow-primary/30 ring-1 ring-white/20">
+                <SettingsIcon className="h-6 w-6" />
               </div>
               <div className="min-w-0 flex-1">
-                <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
+                <div className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/10 px-2 py-0.5 text-[9px] font-bold uppercase tracking-[0.18em] text-primary">
                   <Sparkles className="h-3 w-3" /> Panel de control
                 </div>
-                <h1 className="font-display mt-3 text-3xl sm:text-5xl font-extrabold tracking-tight leading-[1.05] bg-gradient-to-br from-foreground via-foreground to-primary/70 bg-clip-text text-transparent">
+                <h1 className="font-display mt-2 text-2xl sm:text-3xl font-extrabold tracking-tight leading-[1.05] bg-gradient-to-br from-foreground via-foreground to-primary/70 bg-clip-text text-transparent">
                   Ajustes del sistema
                 </h1>
-                <p className="mt-2 text-sm sm:text-base text-muted-foreground max-w-2xl">
-                  Configura cada detalle de tu POS — identidad de marca, sucursales, tickets,
-                  impresoras, pagos, fidelización y más — desde un único centro de control.
+                <p className="mt-1.5 text-xs sm:text-sm text-muted-foreground max-w-2xl">
+                  Configura cada detalle de tu POS desde un único centro de control.
                 </p>
               </div>
             </div>
             <div className="relative max-w-xl">
-              <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Search className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
               <input
                 type="search"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar ajuste… (p. ej. impresoras, ticket, roles)"
-                className="h-12 w-full rounded-2xl border border-border/70 bg-card/70 pl-11 pr-4 text-sm font-medium shadow-sm outline-none backdrop-blur transition-all placeholder:text-muted-foreground/70 focus:border-primary/50 focus:bg-card focus:shadow-lg focus:shadow-primary/10"
+                className="h-10 w-full rounded-xl border border-border/70 bg-card/70 pl-10 pr-4 text-sm font-medium shadow-sm outline-none backdrop-blur transition-all placeholder:text-muted-foreground/70 focus:border-primary/50 focus:bg-card focus:shadow-lg focus:shadow-primary/10"
               />
             </div>
           </div>
