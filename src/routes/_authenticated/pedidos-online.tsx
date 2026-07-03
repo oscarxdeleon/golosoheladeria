@@ -302,7 +302,7 @@ function OnlineOrdersPage() {
       phone: o.customer_phone ?? "", notes: o.notes ?? "",
       subtotal: Number(o.subtotal ?? 0), delivery_fee: Number(o.delivery_fee ?? 0),
       total: Number(o.total ?? 0), created_at: o.created_at,
-    }));
+    }), { silent: true });
     toast.success(`Pre-cuenta #${o.ticket_number} enviada a impresora`);
   }
 
