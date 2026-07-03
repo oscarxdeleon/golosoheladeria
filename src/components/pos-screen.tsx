@@ -17,6 +17,8 @@ import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } fr
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
+import { PaymentMethodButton } from "@/components/payment-method-button";
+
 
 
 
