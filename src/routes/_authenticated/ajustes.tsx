@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+// Tabs UI no longer used at page level (redesigned with cards + section view).
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ArrowRight, ChevronRight } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight } from "lucide-react";
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
