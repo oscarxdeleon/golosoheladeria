@@ -1,5 +1,5 @@
 import { Link, useRouterState } from "@tanstack/react-router";
-import logoAsset from "@/assets/logo-goloso.png.asset.json";
+import logoUrl from "@/assets/logo-goloso.png";
 import { usePermissions } from "@/hooks/use-permissions";
 
 import {
