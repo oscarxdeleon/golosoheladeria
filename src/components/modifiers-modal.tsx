@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, StickyNote } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 
 export interface SelectedModifier {
@@ -68,87 +70,138 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
     },
   });
 
-  // qty per modifier id
-  const [picked, setPicked] = useState<Record<string, number>>({});
+  // Set of selected modifier ids (qty always 1 with checkbox/radio UI)
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [note, setNote] = useState("");
   useEffect(() => {
     if (open) {
-      setPicked({});
+      setSelected(new Set());
       setNote("");
     }
   }, [open, product?.id]);
 
   const countsByGroup = useMemo(() => {
     const map: Record<string, number> = {};
-    for (const m of mods) {
-      const q = picked[m.id] ?? 0;
-      if (q > 0) map[m.group_id] = (map[m.group_id] ?? 0) + q;
-    }
+    for (const m of mods) if (selected.has(m.id)) map[m.group_id] = (map[m.group_id] ?? 0) + 1;
     return map;
-  }, [picked, mods]);
+  }, [selected, mods]);
 
   const unitExtra = useMemo(
-    () => mods.reduce((s, m) => s + (picked[m.id] ?? 0) * Number(m.price), 0),
-    [mods, picked],
+    () => mods.reduce((s, m) => s + (selected.has(m.id) ? Number(m.price) : 0), 0),
+    [mods, selected],
   );
 
   const validation = useMemo(() => {
     for (const g of groups) {
       const c = countsByGroup[g.id] ?? 0;
-      if (g.required && c < Math.max(1, g.min_select)) {
-        return `${g.name}: selecciona mínimo ${Math.max(1, g.min_select)}`;
-      }
-      if (g.min_select > 0 && c < g.min_select) {
-        return `${g.name}: selecciona mínimo ${g.min_select}`;
-      }
-      if (g.max_select > 0 && c > g.max_select) {
-        return `${g.name}: máximo ${g.max_select}`;
-      }
+      const min = g.required ? Math.max(1, g.min_select) : g.min_select;
+      if (min > 0 && c < min) return `${g.name}: selecciona mínimo ${min}`;
+      if (g.max_select > 0 && c > g.max_select) return `${g.name}: máximo ${g.max_select}`;
     }
     return null;
   }, [groups, countsByGroup]);
 
-  function inc(m: Modifier) {
-    const g = groups.find((gr) => gr.id === m.group_id);
-    const currentGroup = countsByGroup[m.group_id] ?? 0;
-    if (g && g.max_select > 0 && currentGroup >= g.max_select) return;
-    setPicked((p) => ({ ...p, [m.id]: (p[m.id] ?? 0) + 1 }));
+  function toggleCheckbox(m: Modifier, g: ModifierGroup, checked: boolean) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (checked) {
+        const currentGroup = countsByGroup[g.id] ?? 0;
+        if (g.max_select > 0 && currentGroup >= g.max_select) return prev;
+        next.add(m.id);
+      } else {
+        next.delete(m.id);
+      }
+      return next;
+    });
   }
-  function dec(m: Modifier) {
-    setPicked((p) => {
-      const v = (p[m.id] ?? 0) - 1;
-      const next = { ...p };
-      if (v <= 0) delete next[m.id];
-      else next[m.id] = v;
+
+  function setRadio(g: ModifierGroup, modId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      // remove other selections of this group
+      for (const m of mods) if (m.group_id === g.id) next.delete(m.id);
+      next.add(modId);
+      return next;
+    });
+  }
+
+  function clearRadio(g: ModifierGroup) {
+    if (g.required) return;
+    setSelected((prev) => {
+      const next = new Set(prev);
+      for (const m of mods) if (m.group_id === g.id) next.delete(m.id);
       return next;
     });
   }
 
   function confirm() {
     if (validation) return;
-    const selected: SelectedModifier[] = mods
-      .filter((m) => (picked[m.id] ?? 0) > 0)
+    const chosen: SelectedModifier[] = mods
+      .filter((m) => selected.has(m.id))
       .map((m) => ({
         id: m.id,
         group_id: m.group_id,
         group_name: groups.find((g) => g.id === m.group_id)?.name ?? "",
         name: m.name,
         price: Number(m.price),
-        qty: picked[m.id]!,
+        qty: 1,
       }));
-    onConfirm(selected, unitExtra, note.trim() || undefined);
+    onConfirm(chosen, unitExtra, note.trim() || undefined);
   }
 
+  // Detect "single optional modifier" case:
+  // exactly one active modifier across all groups, and that group is optional (not required, min_select == 0)
+  const isSingleOptional =
+    open && groups.length === 1 && mods.length === 1 && !groups[0].required && (groups[0].min_select ?? 0) === 0;
+
   if (!product) return null;
+
+  // Compact single-checkbox layout — replaces the full customization window
+  if (isSingleOptional) {
+    const only = mods[0];
+    const isChecked = selected.has(only.id);
+    return (
+      <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="font-display text-lg">{product.name}</DialogTitle>
+            <DialogDescription className="sr-only">Agregar modificador opcional</DialogDescription>
+          </DialogHeader>
+
+          <label
+            htmlFor={`single-mod-${only.id}`}
+            className="flex items-center gap-3 rounded-lg border bg-muted/40 px-3 py-3 cursor-pointer hover:bg-muted/60 transition"
+          >
+            <Checkbox
+              id={`single-mod-${only.id}`}
+              checked={isChecked}
+              onCheckedChange={(v) => toggleCheckbox(only, groups[0], !!v)}
+            />
+            <div className="flex-1">
+              <div className="text-sm font-medium">Agregar {only.name}</div>
+              {Number(only.price) > 0 && (
+                <div className="text-xs text-muted-foreground">+ {formatMoney(only.price)}</div>
+              )}
+            </div>
+          </label>
+
+          <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
+            <Button variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button onClick={confirm}>
+              Agregar · {formatMoney(Number(product.price) + unitExtra)}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">{product.name}</DialogTitle>
-          <DialogDescription>
-            Personaliza tu producto. Usa los botones <strong>+</strong> y <strong>−</strong> para elegir cantidades.
-          </DialogDescription>
+          <DialogDescription>Personaliza tu producto.</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-5">
@@ -158,58 +211,100 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
           {groups.map((g) => {
             const groupMods = mods.filter((m) => m.group_id === g.id);
             const count = countsByGroup[g.id] ?? 0;
+            const isSingle = g.max_select === 1;
+            const currentRadioId = groupMods.find((m) => selected.has(m.id))?.id ?? "";
+            const limitText = (() => {
+              if (isSingle) return g.required ? "Elige 1 (obligatorio)" : "Elige 1 (opcional)";
+              const parts: string[] = [];
+              if (g.min_select > 0) parts.push(`mín ${g.min_select}`);
+              if (g.max_select > 0) parts.push(`máx ${g.max_select}`);
+              if (g.required && g.min_select === 0) parts.unshift("obligatorio");
+              return parts.length ? parts.join(" · ") : "Opcional";
+            })();
+
             return (
               <div key={g.id} className="space-y-2">
                 <div className="flex items-center justify-between border-b pb-1">
                   <div>
                     <div className="font-medium">{g.name}</div>
-                    <div className="text-xs text-muted-foreground">
-                      {g.required ? "Obligatorio · " : ""}
-                      Mín {g.min_select} · Máx {g.max_select}
-                    </div>
+                    <div className="text-xs text-muted-foreground">{limitText}</div>
                   </div>
                   <Badge variant={count > 0 ? "default" : "secondary"}>{count}</Badge>
                 </div>
-                <ul className="space-y-1.5">
-                  {groupMods.map((m) => {
-                    const q = picked[m.id] ?? 0;
-                    const atMax = g.max_select > 0 && count >= g.max_select;
-                    return (
-                      <li key={m.id} className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
-                        <div className="flex-1 min-w-0">
-                          <div className="text-sm font-medium truncate">{m.name}</div>
-                          {Number(m.price) > 0 && (
-                            <div className="text-xs text-muted-foreground">+ {formatMoney(m.price)}</div>
-                          )}
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            disabled={q === 0}
-                            onClick={() => dec(m)}
+
+                {isSingle ? (
+                  <RadioGroup
+                    value={currentRadioId}
+                    onValueChange={(v) => setRadio(g, v)}
+                    className="space-y-1.5"
+                  >
+                    {groupMods.map((m) => {
+                      const id = `mod-${m.id}`;
+                      const isChecked = currentRadioId === m.id;
+                      return (
+                        <label
+                          key={m.id}
+                          htmlFor={id}
+                          className="flex items-center gap-3 rounded-md bg-muted/40 px-3 py-2 cursor-pointer hover:bg-muted/60 transition"
+                        >
+                          <RadioGroupItem
+                            id={id}
+                            value={m.id}
+                            onClick={() => {
+                              if (!g.required && isChecked) {
+                                // Allow deselect on second click when optional
+                                setTimeout(() => clearRadio(g), 0);
+                              }
+                            }}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="text-sm font-medium truncate">{m.name}</div>
+                            {Number(m.price) > 0 && (
+                              <div className="text-xs text-muted-foreground">+ {formatMoney(m.price)}</div>
+                            )}
+                          </div>
+                        </label>
+                      );
+                    })}
+                    {groupMods.length === 0 && (
+                      <div className="text-xs text-muted-foreground py-1">Sin opciones</div>
+                    )}
+                  </RadioGroup>
+                ) : (
+                  <ul className="space-y-1.5">
+                    {groupMods.map((m) => {
+                      const id = `mod-${m.id}`;
+                      const isChecked = selected.has(m.id);
+                      const atMax = !isChecked && g.max_select > 0 && count >= g.max_select;
+                      return (
+                        <li key={m.id}>
+                          <label
+                            htmlFor={id}
+                            className={`flex items-center gap-3 rounded-md bg-muted/40 px-3 py-2 transition ${
+                              atMax ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-muted/60"
+                            }`}
                           >
-                            <Minus className="h-3 w-3" />
-                          </Button>
-                          <span className="w-7 text-center text-sm font-semibold">{q}</span>
-                          <Button
-                            size="icon"
-                            variant="outline"
-                            className="h-8 w-8"
-                            disabled={atMax}
-                            onClick={() => inc(m)}
-                          >
-                            <Plus className="h-3 w-3" />
-                          </Button>
-                        </div>
-                      </li>
-                    );
-                  })}
-                  {groupMods.length === 0 && (
-                    <li className="text-xs text-muted-foreground py-1">Sin opciones</li>
-                  )}
-                </ul>
+                            <Checkbox
+                              id={id}
+                              checked={isChecked}
+                              disabled={atMax}
+                              onCheckedChange={(v) => toggleCheckbox(m, g, !!v)}
+                            />
+                            <div className="flex-1 min-w-0">
+                              <div className="text-sm font-medium truncate">{m.name}</div>
+                              {Number(m.price) > 0 && (
+                                <div className="text-xs text-muted-foreground">+ {formatMoney(m.price)}</div>
+                              )}
+                            </div>
+                          </label>
+                        </li>
+                      );
+                    })}
+                    {groupMods.length === 0 && (
+                      <li className="text-xs text-muted-foreground py-1">Sin opciones</li>
+                    )}
+                  </ul>
+                )}
               </div>
             );
           })}
