@@ -14,6 +14,8 @@
 @theme inline {
   --font-sans: "Manrope Variable", "Manrope", "Inter", system-ui, sans-serif;
   --font-display: "Sora", "Manrope Variable", system-ui, sans-serif;
+  --font-serif: "Fraunces Variable", "Fraunces", ui-serif, Georgia, serif;
+  --font-editorial: "Plus Jakarta Sans Variable", "Plus Jakarta Sans", "Manrope Variable", system-ui, sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
