@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
@@ -424,14 +424,16 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     open_drawer: openDrawer,
   };
 
-  // 1) Intento silencioso vía servidor de impresión local (ESC/POS).
+  // Impresión SIEMPRE silenciosa vía servidor de impresión local (ESC/POS).
+  // No abrimos NUNCA el diálogo del navegador — el cajero no debe ser
+  // interrumpido con ventanas emergentes ni selección de impresora.
   const ok = await sendToLocalPrinter(payload);
-  if (ok) return;
-
-  // 2) Fallback: si NO hay servidor local configurado, imprime por iframe
-  //    (esto abrirá el diálogo del navegador solo como último recurso).
-  console.warn("[print] servidor local no disponible — usando fallback HTML");
-  printHTMLFallback(ticketHTML(o));
+  if (!ok) {
+    console.warn(
+      "[print] ticket no impreso: servidor local no disponible. " +
+        'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
+    );
+  }
   if (openDrawer && printerIp) {
     void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
   }
@@ -444,7 +446,7 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
     subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
     customer: o.customer, user_name: o.user_name,
   };
-  printSilent(payload, precuentaHTML(o));
+  printSilent(payload, precuentaHTML(o), { silent: true });
 }
 
 
