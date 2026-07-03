@@ -143,21 +143,36 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
 
   return (
     <div className="mx-auto max-w-3xl p-4 space-y-4">
-      <div className="flex justify-center">
-        <img
-          src={domicilioMotoImg}
-          alt="Repartidor Goloso"
-          className="w-full max-w-xs sm:max-w-sm object-contain select-none"
-          draggable={false}
-        />
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="w-12 h-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center shadow-lg">
-          <Bike className="w-6 h-6" />
-        </div>
-        <div>
-          <h1 className="text-2xl font-display leading-tight">Nuevo pedido a domicilio</h1>
-          <p className="text-sm text-muted-foreground">Selecciona o registra al cliente antes de tomar el pedido</p>
+      {/* Encabezado premium compacto — la ilustración vive dentro del hero para
+          ahorrar espacio vertical y que la búsqueda quede visible sin scroll. */}
+      <div className="relative overflow-hidden rounded-3xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-background to-background p-[1px] shadow-xl">
+        <div className="relative rounded-[calc(1.5rem-1px)] bg-background/70 backdrop-blur-xl">
+          <div
+            className="pointer-events-none absolute inset-0 opacity-70"
+            style={{
+              backgroundImage:
+                "radial-gradient(600px 180px at 100% -20%, color-mix(in oklab, #0284c7 22%, transparent), transparent 60%), radial-gradient(500px 180px at -10% 120%, color-mix(in oklab, #0284c7 16%, transparent), transparent 60%)",
+            }}
+          />
+          <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:py-4">
+            <div className="min-w-0">
+              <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-sky-700 dark:text-sky-300">
+                <Bike className="h-3 w-3" /> Domicilios
+              </div>
+              <h1 className="font-display mt-1 text-xl sm:text-2xl font-extrabold tracking-tight leading-tight bg-gradient-to-br from-foreground to-sky-600 bg-clip-text text-transparent">
+                Nuevo pedido a domicilio
+              </h1>
+              <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
+                Busca al cliente o registra uno nuevo para tomar el pedido.
+              </p>
+            </div>
+            <img
+              src={domicilioMotoImg}
+              alt="Repartidor Goloso"
+              className="h-16 w-auto sm:h-20 object-contain select-none drop-shadow-md"
+              draggable={false}
+            />
+          </div>
         </div>
       </div>
 
