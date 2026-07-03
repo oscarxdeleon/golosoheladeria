@@ -105,7 +105,8 @@ function AjustesPage() {
   const goEditBranch = (id: string) => { setEditBranchId(id); setTab("sede-edit"); };
   const activeTab = TABS.find((t) => t.value === tab) ?? TABS[0];
   return (
-    <div className="space-y-6">
+    <div className="ajustes-scope space-y-6">
+
       {/* Hero premium */}
       <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-hero p-[1px] shadow-2xl">
         <div className="relative rounded-[calc(1rem-1px)] bg-background/85 backdrop-blur-xl">
