@@ -25,8 +25,8 @@ export const Route = createFileRoute("/s/$slug/manifest.webmanifest")({
         }
         icons.push(
           { src: "/goloso-icon-192.png", sizes: "192x192", type: "image/png", purpose: "any" },
-          { src: "/goloso-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
-          { src: "/goloso-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
+          { src: "/__l5e/assets-v1/87d5ae2a-93e3-4edd-a1e8-ebf1a5887baf/goloso-icon-512.png", sizes: "512x512", type: "image/png", purpose: "any" },
+          { src: "/__l5e/assets-v1/13c29191-80ad-4e50-a93a-c2159a7a4242/goloso-maskable-512.png", sizes: "512x512", type: "image/png", purpose: "maskable" },
         );
 
         const manifest = {
