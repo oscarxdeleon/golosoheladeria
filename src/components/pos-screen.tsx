@@ -467,9 +467,13 @@ interface Props {
   initialPhone?: string;
   initialAddress?: string;
   initialNeighborhood?: string;
+  /** Imagen decorativa opcional para el encabezado (aparece entre el título y el buscador). */
+  headerImage?: string;
+  /** Texto alternativo de la imagen del encabezado. */
+  headerImageAlt?: string;
 }
 
-export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile } = useAuth();
