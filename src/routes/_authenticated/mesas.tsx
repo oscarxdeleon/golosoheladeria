@@ -193,111 +193,119 @@ function MesasPage() {
       </div>
 
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="font-display text-3xl">Mapa de mesas</h1>
-          <p className="text-sm text-muted-foreground">
-            {activeBranch ? `${activeBranch.name} · ` : ""}Toca una mesa para abrir el menú y tomar el pedido
+      {/* Encabezado premium */}
+      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-primary bg-clip-text text-transparent">Mapa de mesas</h1>
+          <p className="text-sm text-muted-foreground mt-1">
+            {activeBranch ? <span className="font-medium text-foreground/80">{activeBranch.name}</span> : null}
+            {activeBranch ? " · " : ""}Toca una mesa para abrir el menú y tomar el pedido
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary">Libres: {counts.free}</Badge>
-          <Badge className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-            Ocupadas: {counts.occupied}
-          </Badge>
-          <Badge variant="outline">Reservadas: {counts.reserved}</Badge>
+        <div className="flex flex-wrap items-center gap-2">
+          <StatChip color="emerald" label="Libres" value={counts.free} />
+          <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
+          <StatChip color="amber" label="Reservadas" value={counts.reserved} />
           {isAdmin && (
-            <Button size="sm" onClick={() => setCreateOpen(true)}>
+            <Button size="sm" onClick={() => setCreateOpen(true)} className="ml-1 shadow-md">
               <Plus className="h-4 w-4" /> Nueva mesa
             </Button>
           )}
         </div>
       </div>
 
+      {/* Grid de mesas sin recuadro externo */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+        {mesas.map((m) => {
+          const status = m.status;
+          const styles = STATUS_STYLES[status];
+          return (
+            <button
+              key={m.id}
+              onClick={() => openMesa(m)}
+              className={`group relative flex flex-col items-center overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${styles.bg}`}
+              aria-label={`Mesa ${m.number} ${STATUS_LABEL[status]}`}
+            >
+              {/* franja superior de estado */}
+              <span className={`absolute inset-x-0 top-0 h-1 ${styles.bar}`} aria-hidden />
+              {/* halo suave */}
+              <span className={`pointer-events-none absolute -inset-12 opacity-0 blur-3xl transition-opacity duration-300 group-hover:opacity-60 ${styles.glow}`} aria-hidden />
 
-      <Card>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5">
-            {mesas.map((m) => {
-              const occupied = m.status === "occupied";
-              const reserved = m.status === "reserved";
-              return (
-                <button
-                  key={m.id}
-                  onClick={() => openMesa(m)}
-                  className={`group relative flex flex-col items-center rounded-2xl border-2 p-3 transition hover:shadow-lg active:scale-[0.98] ${
-                    occupied
-                      ? "border-destructive/60 bg-destructive/5"
-                      : reserved
-                        ? "border-amber-400 bg-amber-50 dark:bg-amber-950/20"
-                        : "border-success/50 bg-success/5"
-                  }`}
-                >
-                  <img
-                    src={occupied ? tableOccupied : tableFree}
-                    alt={occupied ? "Mesa ocupada" : "Mesa libre"}
-                    loading="lazy"
-                    width={512}
-                    height={512}
-                    className="h-24 w-24 object-contain"
-                  />
-                  <div className="mt-2 font-display text-4xl font-bold leading-none">{m.number}</div>
-                  <Badge
-                    variant={occupied ? "destructive" : reserved ? "outline" : "secondary"}
-                    className="mt-2"
-                  >
-                    {STATUS_LABEL[m.status]}
-                  </Badge>
-                  {occupied && (
-                    <div className="absolute top-2 right-2 flex gap-1">
-                      <span
-                        role="button"
-                        onClick={(e) => { e.stopPropagation(); setMoveFrom(m); }}
-                        className="rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-medium hover:bg-background flex items-center gap-1"
-                        title="Mover mesa"
-                      >
-                        <ArrowRightLeft className="h-3 w-3" /> Mover
-                      </span>
-                      <span
-                        role="button"
-                        onClick={(e) => { e.stopPropagation(); setReleaseMesa(m); setReleaseReason(""); }}
-                        className="rounded-md bg-background/90 px-2 py-0.5 text-[10px] font-medium hover:bg-background flex items-center gap-1"
-                        title="Liberar mesa"
-                      >
-                        <LogOut className="h-3 w-3" /> Liberar
-                      </span>
-                    </div>
+              {/* dot de estado */}
+              <div className="flex w-full items-start justify-between">
+                <span className={`relative inline-flex h-2.5 w-2.5 items-center justify-center rounded-full ${styles.dot}`} aria-hidden>
+                  {status === "occupied" && (
+                    <span className={`absolute inline-flex h-full w-full animate-ping rounded-full opacity-60 ${styles.dot}`} />
                   )}
+                </span>
+                <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider ${styles.chip}`}>
+                  {STATUS_LABEL[status]}
+                </span>
+              </div>
+
+              {/* número grande */}
+              <div className="my-3 flex flex-col items-center">
+                <div className={`font-display text-6xl font-black leading-none tracking-tight ${styles.num}`}>
+                  {m.number}
+                </div>
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
+                  <UsersMini />
+                  <span>{m.seats} puestos</span>
+                </div>
+              </div>
+
+              {/* acciones flotantes */}
+              {status === "occupied" && (
+                <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-1.5">
                   <span
                     role="button"
-                    onClick={(e) => { e.stopPropagation(); setQrMesa(m); }}
-                    className="absolute bottom-2 right-2 rounded-md bg-background/80 p-1 text-foreground hover:bg-background"
-                    aria-label="QR de la mesa"
-                    title="QR para pedir desde el teléfono"
+                    onClick={(e) => { e.stopPropagation(); setMoveFrom(m); }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-background/80 px-2 py-1 text-[11px] font-semibold text-foreground shadow-sm backdrop-blur transition hover:bg-background"
+                    title="Mover mesa"
                   >
-                    <QrCode className="h-3.5 w-3.5" />
+                    <ArrowRightLeft className="h-3 w-3" /> Mover
                   </span>
-                  {isAdmin && (
-                    <span
-                      role="button"
-                      onClick={(e) => eliminar(m, e)}
-                      className="absolute top-2 left-2 rounded-md bg-background/80 p-1 text-destructive opacity-0 group-hover:opacity-100"
-                      aria-label="Eliminar"
-                    >
-                      <Trash2 className="h-3 w-3" />
-                    </span>
-                  )}
-                </button>
-              );
-            })}
-            {mesas.length === 0 && (
-              <div className="col-span-full text-center text-sm text-muted-foreground py-12">
-                Sin mesas. {isAdmin ? "Crea la primera." : "Pide a un admin que cree mesas."}
-              </div>
-            )}
+                  <span
+                    role="button"
+                    onClick={(e) => { e.stopPropagation(); setReleaseMesa(m); setReleaseReason(""); }}
+                    className="inline-flex items-center gap-1 rounded-lg bg-background/80 px-2 py-1 text-[11px] font-semibold text-destructive shadow-sm backdrop-blur transition hover:bg-background"
+                    title="Liberar mesa"
+                  >
+                    <LogOut className="h-3 w-3" /> Liberar
+                  </span>
+                </div>
+              )}
+
+              {/* icono QR discreto */}
+              <span
+                role="button"
+                onClick={(e) => { e.stopPropagation(); setQrMesa(m); }}
+                className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-lg bg-background/70 text-foreground/70 opacity-0 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground group-hover:opacity-100"
+                aria-label="QR de la mesa"
+                title="QR para pedir desde el teléfono"
+              >
+                <QrCode className="h-3.5 w-3.5" />
+              </span>
+              {isAdmin && (
+                <span
+                  role="button"
+                  onClick={(e) => eliminar(m, e)}
+                  className="absolute bottom-2 left-2 grid h-7 w-7 place-items-center rounded-lg bg-background/70 text-destructive opacity-0 shadow-sm backdrop-blur transition hover:bg-background group-hover:opacity-100"
+                  aria-label="Eliminar"
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                </span>
+              )}
+            </button>
+          );
+        })}
+        {mesas.length === 0 && (
+          <div className="col-span-full rounded-2xl border border-dashed border-border/60 bg-muted/30 py-16 text-center text-sm text-muted-foreground">
+            Sin mesas. {isAdmin ? "Crea la primera desde el botón superior." : "Pide a un admin que cree mesas."}
           </div>
-        </CardContent>
-      </Card>
+        )}
+      </div>
+
 
       <Dialog open={createOpen} onOpenChange={setCreateOpen}>
         <DialogContent>
