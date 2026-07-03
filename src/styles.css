@@ -6,6 +6,8 @@
 @import "@fontsource/sora/700.css";
 @import "@fontsource/sora/800.css";
 @import "@fontsource-variable/manrope";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/plus-jakarta-sans";
 
 @custom-variant dark (&:is(.dark *));
 
