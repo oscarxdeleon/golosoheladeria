@@ -113,7 +113,7 @@ export function comandaHTML(o: {
     )
     .join("");
   const logoHTML = b.logo_url
-    ? `<div style="text-align:center;margin:0 0 6px"><img src="${b.logo_url}" alt="logo" style="max-width:48mm;max-height:22mm;object-fit:contain;display:block;margin:0 auto"/></div>`
+    ? `<div style="text-align:center;margin:0 0 6px"><img src="${b.logo_url}" alt="logo" style="width:40mm;height:40mm;object-fit:contain;display:block;margin:0 auto;background:#fff"/></div>`
     : "";
   return `<!doctype html><html><head><title> </title>
   <style>
