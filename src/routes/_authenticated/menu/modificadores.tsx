@@ -11,9 +11,10 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Plus, Trash2, Pencil, Copy } from "lucide-react";
+import { Plus, Trash2, Pencil, Copy, ImageIcon } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { ImageDropzone } from "@/components/image-dropzone";
 
 export const Route = createFileRoute("/_authenticated/menu/modificadores")({
   head: () => ({ meta: [{ title: "Modificadores · Goloso POS" }] }),
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/_authenticated/menu/modificadores")({
 });
 
 interface Group { id: string; name: string; min_select: number; max_select: number; required: boolean; }
-interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; }
+interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; image_url?: string | null; }
 
 function ModPage() {
   const qc = useQueryClient();
