@@ -1672,9 +1672,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                   // así evitamos botones "muertos" por estados de carga o sincronización.
                   const isDisabled = paying || !hasOrder;
                   return (
-                    <Button
+                    <PaymentMethodButton
                       key={m.id}
-                      type="button"
+                      methodName={m.name}
                       disabled={isDisabled}
                       onClick={() => {
                         try {
@@ -1690,12 +1690,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                           toast.error("No se pudo iniciar el cobro. Recarga la mesa e intenta de nuevo.");
                         }
                       }}
-                      variant={isCash ? "default" : "secondary"}
-                    >
-                      {isCash && <Banknote className="h-4 w-4 mr-1" />}
-                      {m.name}
-                    </Button>
+                    />
                   );
+
                 })}
                 {methods.length === 0 && (
                   <div className="col-span-2 text-xs text-muted-foreground text-center py-2">
