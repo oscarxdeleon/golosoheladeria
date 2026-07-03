@@ -446,7 +446,7 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
     subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
     customer: o.customer, user_name: o.user_name,
   };
-  printSilent(payload, precuentaHTML(o));
+  printSilent(payload, precuentaHTML(o), { silent: true });
 }
 
 
