@@ -517,6 +517,44 @@ function ProductosPage() {
 
             <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
+              {editing?.id && (() => {
+                const isChild = !!editing.source_product_id;
+                const isLinked = editing.is_linked !== false;
+                if (isChild && isLinked) {
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border border-primary/30 bg-primary/5 p-3 text-xs">
+                      <Link2 className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-primary">Vinculado a la sede principal</div>
+                        <div className="text-muted-foreground">Este producto hereda automáticamente los cambios de la sede principal. Si lo editas aquí, dejará de sincronizarse.</div>
+                      </div>
+                    </div>
+                  );
+                }
+                if (isChild && !isLinked) {
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 p-3 text-xs">
+                      <Link2Off className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+                      <div className="flex-1">
+                        <div className="font-medium text-amber-700 dark:text-amber-500">Personalizado (desvinculado)</div>
+                        <div className="text-muted-foreground">Los cambios en la sede principal ya no se aplican a este producto.</div>
+                      </div>
+                      <Button type="button" size="sm" variant="outline" onClick={() => resyncFromParent(editing.id!)}>
+                        <RefreshCw className="h-3 w-3 mr-1" /> Resincronizar
+                      </Button>
+                    </div>
+                  );
+                }
+                if (!isChild) {
+                  return (
+                    <div className="flex items-start gap-2 rounded-md border bg-muted/40 p-3 text-xs">
+                      <Link2 className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+                      <div className="text-muted-foreground">Los cambios se aplicarán automáticamente a las copias vinculadas en las sucursales.</div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
               <div className="space-y-4">
                 {/* Foto del producto */}
                 <div>
@@ -675,9 +713,15 @@ function ProductosPage() {
                     </button>
                   </TableCell>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1 flex-wrap">
                       {p.is_favorite && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
                       {p.name}
+                      {p.source_product_id && p.is_linked !== false && (
+                        <Badge variant="outline" className="ml-1 gap-1 border-primary/40 text-primary text-[10px] px-1.5 py-0"><Link2 className="h-2.5 w-2.5" />Vinculado</Badge>
+                      )}
+                      {p.source_product_id && p.is_linked === false && (
+                        <Badge variant="outline" className="ml-1 gap-1 border-amber-500/40 text-amber-700 dark:text-amber-500 text-[10px] px-1.5 py-0"><Link2Off className="h-2.5 w-2.5" />Personalizado</Badge>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{cats.find((c) => c.id === p.category_id)?.name ?? "—"}</TableCell>
@@ -686,6 +730,9 @@ function ProductosPage() {
                   <TableCell className="text-right">
                     {isAdmin && (
                       <>
+                        {p.source_product_id && p.is_linked === false && (
+                          <Button size="icon" variant="ghost" className="text-primary" onClick={() => resyncFromParent(p.id)} title="Resincronizar con la sede principal"><RefreshCw className="h-4 w-4" /></Button>
+                        )}
                         <Button size="icon" variant="ghost" onClick={() => openEditor(p)} title="Editar"><Pencil className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="text-primary hover:bg-primary/10" onClick={() => openDuplicate(p)} title="Duplicar producto"><Copy className="h-4 w-4" /></Button>
                         <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)} title="Eliminar"><Trash2 className="h-4 w-4" /></Button>
