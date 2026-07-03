@@ -70,7 +70,7 @@ function AutopedidoInbox() {
               <Monitor className="h-3.5 w-3.5" /> Autoservicio · Tiempo real
             </span>
             <h1 className="font-display text-4xl md:text-5xl font-extrabold tracking-tight bg-gradient-to-r from-purple-700 via-fuchsia-600 to-indigo-600 bg-clip-text text-transparent">
-              Toma tu Pedido
+              Autopedidos
             </h1>
             <p className="max-w-lg text-sm md:text-base text-muted-foreground">
               Bandeja en tiempo real de pedidos de autoservicio pendientes de pago.
