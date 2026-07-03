@@ -12,12 +12,9 @@ import { Utensils, ShoppingBag, Bike, Users, ArrowLeft, LogOut } from "lucide-re
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 
-import logoAsset from "@/assets/logo-goloso.png.asset.json";
-import tableFreeAsset from "@/assets/mesa_libre.png.asset.json";
-import tableOccupiedAsset from "@/assets/mesa_ocupada.png.asset.json";
-
-const tableFree = tableFreeAsset.url;
-const tableOccupied = tableOccupiedAsset.url;
+import logoUrl from "@/assets/logo-goloso.png";
+import tableFree from "@/assets/mesa_libre.png";
+import tableOccupied from "@/assets/mesa_ocupada.png";
 
 export const Route = createFileRoute("/tablet-pedidos")({
   ssr: false,
