@@ -78,7 +78,7 @@ function AuthPage() {
     <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/15 via-background to-accent/15 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="text-center">
-          <img src={logoAsset.url} alt="Heladería Goloso" className="mx-auto h-28 w-auto object-contain" />
+          <img src={logoUrl} alt="Heladería Goloso" className="mx-auto h-28 w-auto object-contain" />
 
           <CardTitle className="font-display text-2xl">Heladería Goloso</CardTitle>
           <CardDescription>Sistema POS · Acceso de empleados</CardDescription>
