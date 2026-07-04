@@ -333,15 +333,117 @@ function OnlineOrdersPage() {
     setSelectedMethod(null);
     setPaymentRef("");
     setAmountReceived("");
+    setCashDialogOpen(false);
   }
 
-  async function processPayment() {
-    if (!payOrder) return;
-    const method = selectedMethod;
-    if (!method) {
-      toast.error("Selecciona un método de pago antes de confirmar");
-      return;
+  /** Construye el ticket (payload + HTML + mensaje WA) para diferir la impresión. */
+  function buildTicketArtifacts(o: SaleRow, its: ItemRow[], method: string, cashReceived: number) {
+    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
+    const ticketPayload: PrintPayload = {
+      type: "ticket",
+      ticket: o.ticket_number,
+      header: `TICKET DE VENTA · ${header}`,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
+      subtotal: Number(o.subtotal ?? 0),
+      deliveryFee: Number(o.delivery_fee ?? 0),
+      total: Number(o.total ?? 0),
+      payment_method: method,
+      customer: o.customer_name ?? "",
+      address: o.delivery_address ?? "",
+      phone: o.customer_phone ?? "",
+      cash_received: method === "Efectivo" ? cashReceived : Number(o.total ?? 0),
+      created_at: o.created_at,
+    };
+    const printHTML = preCuentaHTML({
+      ticket: o.ticket_number, header: `TICKET DE VENTA · ${header}`,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
+      customer: o.customer_name ?? "", address: o.delivery_address ?? "",
+      phone: o.customer_phone ?? "", notes: `Pago: ${method}`,
+      subtotal: Number(o.subtotal ?? 0), delivery_fee: Number(o.delivery_fee ?? 0),
+      total: Number(o.total ?? 0), created_at: o.created_at,
+    });
+
+    // Mensaje de WhatsApp con formato tipo ticket 80mm
+    const phoneDigits = (o.customer_phone ?? "").replace(/[^\d]/g, "");
+    let waMessage: string | null = null;
+    if (phoneDigits && its.length > 0) {
+      const s = (settings ?? {}) as { business_name?: string; nit?: string; address?: string; phone?: string; ticket_footer?: string };
+      const bizName = (activeBranch?.name?.trim() || s.business_name || "Heladería Goloso").toUpperCase();
+      const bizNit = s.nit || "";
+      const bizAddr = activeBranch?.address || s.address || "";
+      const bizPhone = activeBranch?.phone || s.phone || "";
+      const footer = s.ticket_footer || "¡Gracias por Preferirnos!";
+      const W = 32;
+      const center = (t: string) => {
+        const s2 = t.trim();
+        if (s2.length >= W) return s2;
+        const pad = Math.floor((W - s2.length) / 2);
+        return " ".repeat(pad) + s2;
+      };
+      const dash = "-".repeat(W);
+      const row = (l: string, r: string) => {
+        const space = Math.max(1, W - l.length - r.length);
+        return l + " ".repeat(space) + r;
+      };
+      const wrap = (t: string, w = W) => {
+        const words = t.split(/\s+/);
+        const out: string[] = [];
+        let cur = "";
+        for (const wd of words) {
+          if ((cur + " " + wd).trim().length > w) { if (cur) out.push(cur); cur = wd; }
+          else cur = (cur ? cur + " " : "") + wd;
+        }
+        if (cur) out.push(cur);
+        return out;
+      };
+      const lines: string[] = [];
+      lines.push(center(bizName));
+      if (bizNit) lines.push(center(`NIT: ${bizNit}`));
+      if (bizAddr) wrap(bizAddr).forEach((l) => lines.push(center(l)));
+      if (bizPhone) lines.push(center(`TEL: ${bizPhone}`));
+      lines.push(dash);
+      lines.push(center(`TICKET DE VENTA`));
+      lines.push(center(`TV-${String(o.ticket_number).padStart(6, "0")}`));
+      lines.push(center(new Date(o.created_at).toLocaleString("es-CO")));
+      lines.push(dash);
+      if (o.customer_name) lines.push(`CLIENTE: ${o.customer_name.toUpperCase()}`);
+      if (o.delivery_address) wrap(`DIR: ${o.delivery_address.toUpperCase()}`).forEach((l) => lines.push(l));
+      if (o.customer_phone) lines.push(`TEL:     ${o.customer_phone.toUpperCase()}`);
+      lines.push(`PAGO:    ${method.toUpperCase()}`);
+      lines.push(dash);
+      lines.push(row("CANT  DESCRIPCION", "TOTAL"));
+      lines.push(dash);
+      for (const i of its) {
+        const qty = String(i.qty).padEnd(4, " ");
+        const money = formatMoney(i.unit_price * i.qty);
+        const nameMax = W - qty.length - 1 - money.length - 1;
+        const nameLines = wrap(i.product_name.toUpperCase(), Math.max(6, nameMax));
+        lines.push(row(`${qty} ${nameLines[0]}`, money));
+        for (let k = 1; k < nameLines.length; k++) lines.push("     " + nameLines[k]);
+      }
+      lines.push(dash);
+      lines.push(row("SUBTOTAL", formatMoney(Number(o.subtotal ?? 0))));
+      if (Number(o.delivery_fee ?? 0) > 0) {
+        lines.push(row("DOMICILIO", formatMoney(Number(o.delivery_fee))));
+      }
+      lines.push(row("TOTAL", formatMoney(Number(o.total ?? 0))));
+      if (method === "Efectivo") {
+        const change = Math.max(0, cashReceived - Number(o.total ?? 0));
+        lines.push(row("RECIBIDO", formatMoney(cashReceived)));
+        lines.push(row("CAMBIO", formatMoney(change)));
+      }
+      lines.push(dash);
+      lines.push(center(footer));
+      const ticketBlock = "```\n" + lines.join("\n") + "\n```";
+      waMessage = `🧾 *TICKET DE VENTA #${o.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
     }
+
+    return { printPayload: ticketPayload, printHTML, waMessage, waPhone: o.customer_phone ?? null };
+  }
+
+  /** Cobra el pedido con el método indicado. NO imprime — abre el diálogo de éxito para elegir. */
+  async function payWithMethod(method: string, cashReceivedRaw?: string) {
+    if (!payOrder) return;
     if (!activeBranchId || payOrder.branch_id !== activeBranchId) {
       toast.error("Este pedido pertenece a otra sede. Cambia a la sede correcta para cobrarlo.");
       return;
@@ -350,24 +452,16 @@ function OnlineOrdersPage() {
       toast.error("No hay caja abierta en esta sede");
       return;
     }
-    // Validaciones por método
-    if (method === "Efectivo") {
-      const recv = Number(amountReceived.replace(/[^\d.]/g, ""));
-      if (!recv || recv < Number(payOrder.total)) {
-        toast.error("Ingresa el monto recibido (≥ total)");
-        return;
-      }
-    } else if (method === "Nequi" || method === "Bancolombia" || method === "Transferencia") {
-      if (!paymentRef.trim()) {
-        toast.error(`Ingresa la referencia / últimos 4 dígitos del pago por ${method}`);
-        return;
-      }
+    const cashReceived = Number((cashReceivedRaw ?? amountReceived).replace(/[^\d.]/g, "")) || 0;
+    if (method === "Efectivo" && cashReceived < Number(payOrder.total)) {
+      toast.error("Ingresa el monto recibido (≥ total)");
+      return;
     }
 
     setPaying(true);
     const its = items.filter((i) => i.sale_id === payOrder.id);
     const noteSuffix = method === "Efectivo"
-      ? `Recibido: ${amountReceived}`
+      ? `Recibido: ${cashReceived}`
       : paymentRef ? `Ref: ${paymentRef}` : "";
     const newNotes = [payOrder.notes, noteSuffix].filter(Boolean).join(" · ");
 
@@ -392,121 +486,24 @@ function OnlineOrdersPage() {
 
     toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
 
-    // Imprimir ticket de venta automáticamente — SIEMPRE, sin diálogo de confirmación.
-    {
-      const header = payOrder.order_type === "domicilio" ? "DOMICILIO" : payOrder.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
-      const ticketPayload: PrintPayload = {
-        type: "ticket",
-        ticket: payOrder.ticket_number,
-        header: `TICKET DE VENTA · ${header}`,
-        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-        subtotal: Number(payOrder.subtotal ?? 0),
-        deliveryFee: Number(payOrder.delivery_fee ?? 0),
-        total: Number(payOrder.total ?? 0),
-        payment_method: method,
-        customer: payOrder.customer_name ?? "",
-        address: payOrder.delivery_address ?? "",
-        phone: payOrder.customer_phone ?? "",
-        cash_received: method === "Efectivo" ? Number(amountReceived.replace(/[^\d.]/g, "")) : Number(payOrder.total ?? 0),
-        created_at: payOrder.created_at,
-      };
-      printSilent(ticketPayload, preCuentaHTML({
-        ticket: payOrder.ticket_number, header: `TICKET DE VENTA · ${header}`,
-        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-        customer: payOrder.customer_name ?? "", address: payOrder.delivery_address ?? "",
-        phone: payOrder.customer_phone ?? "", notes: `Pago: ${method}`,
-        subtotal: Number(payOrder.subtotal ?? 0), delivery_fee: Number(payOrder.delivery_fee ?? 0),
-        total: Number(payOrder.total ?? 0), created_at: payOrder.created_at,
-      }), { silent: true });
-    }
+    // Diferimos la impresión y el WhatsApp: se decide desde el diálogo de éxito.
+    const artifacts = buildTicketArtifacts(payOrder, its, method, cashReceived);
+    setSuccessDialog({
+      ticket: payOrder.ticket_number,
+      method,
+      total: Number(payOrder.total ?? 0),
+      ...artifacts,
+    });
 
-    // 2) Preguntar si enviar ticket digital por WhatsApp
-    const phoneDigits = (payOrder.customer_phone ?? "").replace(/[^\d]/g, "");
-    if (phoneDigits && its.length > 0) {
-      const wantWA = window.confirm(
-        `¿Enviar ticket digital por WhatsApp al cliente?\n\nNúmero: ${payOrder.customer_phone}`,
-      );
-      if (wantWA) {
-        const s = (settings ?? {}) as { business_name?: string; nit?: string; address?: string; phone?: string; ticket_footer?: string };
-        const bizName = (activeBranch?.name?.trim() || s.business_name || "Heladería Goloso").toUpperCase();
-        const bizNit = s.nit || "";
-        const bizAddr = activeBranch?.address || s.address || "";
-        const bizPhone = activeBranch?.phone || s.phone || "";
-        const footer = s.ticket_footer || "¡Gracias por Preferirnos!";
+    // Cerramos la UI de cobro pero mantenemos el diálogo de éxito.
+    setPayOrder(null);
+    setSelectedMethod(null);
+    setPaymentRef("");
+    setAmountReceived("");
+    setCashDialogOpen(false);
+    qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
+  }
 
-        const W = 32; // ancho monoespaciado tipo ticket 80mm
-        const center = (t: string) => {
-          const s2 = t.trim();
-          if (s2.length >= W) return s2;
-          const pad = Math.floor((W - s2.length) / 2);
-          return " ".repeat(pad) + s2;
-        };
-        const dash = "-".repeat(W);
-        const row = (l: string, r: string) => {
-          const left = l;
-          const right = r;
-          const space = Math.max(1, W - left.length - right.length);
-          return left + " ".repeat(space) + right;
-        };
-        const wrap = (t: string, w = W) => {
-          const words = t.split(/\s+/);
-          const out: string[] = [];
-          let cur = "";
-          for (const wd of words) {
-            if ((cur + " " + wd).trim().length > w) { if (cur) out.push(cur); cur = wd; }
-            else cur = (cur ? cur + " " : "") + wd;
-          }
-          if (cur) out.push(cur);
-          return out;
-        };
-
-        const lines: string[] = [];
-        lines.push(center(bizName));
-        if (bizNit) lines.push(center(`NIT: ${bizNit}`));
-        if (bizAddr) wrap(bizAddr).forEach((l) => lines.push(center(l)));
-        if (bizPhone) lines.push(center(`TEL: ${bizPhone}`));
-        lines.push(dash);
-        lines.push(center(`TICKET DE VENTA`));
-        lines.push(center(`TV-${String(payOrder.ticket_number).padStart(6, "0")}`));
-        lines.push(center(new Date(payOrder.created_at).toLocaleString("es-CO")));
-        lines.push(dash);
-        if (payOrder.customer_name) lines.push(`CLIENTE: ${payOrder.customer_name.toUpperCase()}`);
-        if (payOrder.delivery_address) wrap(`DIR: ${payOrder.delivery_address.toUpperCase()}`).forEach((l) => lines.push(l));
-        if (payOrder.customer_phone) lines.push(`TEL:     ${payOrder.customer_phone.toUpperCase()}`);
-        lines.push(`PAGO:    ${method.toUpperCase()}`);
-        lines.push(dash);
-        lines.push(row("CANT  DESCRIPCION", "TOTAL"));
-        lines.push(dash);
-        for (const i of its) {
-          const qty = String(i.qty).padEnd(4, " ");
-          const money = formatMoney(i.unit_price * i.qty);
-          const nameMax = W - qty.length - 1 - money.length - 1;
-          const nameLines = wrap(i.product_name.toUpperCase(), Math.max(6, nameMax));
-          lines.push(row(`${qty} ${nameLines[0]}`, money));
-          for (let k = 1; k < nameLines.length; k++) lines.push("     " + nameLines[k]);
-        }
-        lines.push(dash);
-        lines.push(row("SUBTOTAL", formatMoney(Number(payOrder.subtotal ?? 0))));
-        if (Number(payOrder.delivery_fee ?? 0) > 0) {
-          lines.push(row("DOMICILIO", formatMoney(Number(payOrder.delivery_fee))));
-        }
-        lines.push(row("TOTAL", formatMoney(Number(payOrder.total ?? 0))));
-        if (method === "Efectivo") {
-          const received = Number(amountReceived.replace(/[^\d.]/g, "")) || Number(payOrder.total ?? 0);
-          const change = Math.max(0, received - Number(payOrder.total ?? 0));
-          lines.push(row("RECIBIDO", formatMoney(received)));
-          lines.push(row("CAMBIO", formatMoney(change)));
-        }
-        lines.push(dash);
-        lines.push(center(footer));
-
-        const ticketBlock = "```\n" + lines.join("\n") + "\n```";
-        const msg = `🧾 *TICKET DE VENTA #${payOrder.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
-        window.open(waLink(payOrder.customer_phone!, msg), "_blank", "noopener");
-      }
-    } else if (!phoneDigits) {
-      toast.info("Cliente sin WhatsApp registrado · ticket digital no enviado");
-    }
 
     resetPayState();
     qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
