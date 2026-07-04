@@ -9,12 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Smartphone, Landmark, ShoppingBag, Utensils, ArrowLeft, BellRing } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { sendToLocalPrinter } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
+import nequiLogo from "@/assets/nequi-3d.png";
+import bancolombiaLogo from "@/assets/bancolombia-3d.png";
+
+const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
 
 
