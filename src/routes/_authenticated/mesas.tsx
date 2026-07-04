@@ -229,7 +229,7 @@ function MesasPage() {
     <BranchCashGuard>
     <div className="space-y-6">
       {/* Accesos rápidos a otros canales de venta */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Button
           onClick={() => navigate({ to: "/llevar" })}
           className="h-28 text-2xl font-extrabold uppercase tracking-wide shadow-md hover:shadow-lg transition bg-amber-500 hover:bg-amber-600 text-white [&_svg]:size-10"
@@ -243,13 +243,6 @@ function MesasPage() {
         >
           <Bike className="mr-3" />
           A domicilio
-        </Button>
-        <Button
-          onClick={() => navigate({ to: "/kiosko" })}
-          className="h-28 text-2xl font-extrabold uppercase tracking-wide shadow-md hover:shadow-lg transition bg-emerald-600 hover:bg-emerald-700 text-white [&_svg]:size-10"
-        >
-          <Smartphone className="mr-3" />
-          Autopedido
         </Button>
       </div>
 
