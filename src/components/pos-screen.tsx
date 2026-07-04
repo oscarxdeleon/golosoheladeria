@@ -1272,7 +1272,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   }
 
   return (
-    <div className="relative grid gap-4 pb-28 lg:grid-cols-[1fr,420px] lg:pb-0">
+    <div className="relative grid gap-4 pb-32 lg:grid-cols-[1fr,420px]">
       {meseroMode && paying && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-8 py-6 shadow-2xl">
@@ -1438,8 +1438,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
 
-          {/* Barra de acciones rápidas — sticky en desktop dentro del panel, fija abajo en móvil */}
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85 lg:static lg:inset-auto lg:z-10 lg:-mx-4 lg:-mt-3 lg:border-t-0 lg:border-b lg:pb-2 lg:shadow-none lg:sticky lg:top-0">
+          {/* Barra de acciones rápidas — siempre fija abajo */}
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
             <div className="mb-1.5 flex items-center justify-between text-xs">
               <span className="flex items-center gap-1.5 text-muted-foreground">
                 <ShoppingCart className="h-3.5 w-3.5" />
