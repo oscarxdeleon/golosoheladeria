@@ -626,6 +626,79 @@ export function PublicOrder({
     );
   }
 
+  if (source === "online_menu" && !onlineService && !readOnly) {
+    const onlineLogo = settings?.logo_url;
+    return (
+      <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
+        <div className="h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-10 sm:px-8">
+          <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
+            {onlineLogo ? (
+              <img
+                src={onlineLogo}
+                alt={settings?.business_name ?? "Heladería Goloso"}
+                className="max-h-[36vh] max-w-[80vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700"
+              />
+            ) : (
+              <div className="h-36 w-36 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
+                <IceCream className="h-20 w-20" />
+              </div>
+            )}
+            <h1 className="font-display text-2xl sm:text-3xl mt-4 text-slate-800">
+              {settings?.business_name ?? "Heladería Goloso"}
+            </h1>
+            <p className="text-slate-600 text-sm sm:text-base mt-2 font-medium">
+              ¿Cómo quieres recibir tu pedido?
+            </p>
+          </div>
+
+          <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pb-4">
+            <button
+              type="button"
+              onClick={() => { setOnlineService("domicilio"); setPayMethod("Efectivo"); }}
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-400 via-rose-500 to-fuchsia-600 text-white px-6 py-8 shadow-[0_20px_50px_-15px_rgba(244,63,94,0.6)] ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+              style={{ transform: "perspective(800px) rotateX(2deg)" }}
+            >
+              <span className="pointer-events-none absolute -top-20 -right-20 h-52 w-52 rounded-full bg-white/25 blur-3xl" />
+              <span className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-3">
+                <div className="rounded-2xl bg-white/25 backdrop-blur-sm p-5 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <Bike className="h-14 w-14 drop-shadow-lg" strokeWidth={2.2} />
+                </div>
+                <div className="font-display font-black text-2xl sm:text-3xl tracking-wide drop-shadow">
+                  A DOMICILIO
+                </div>
+                <div className="text-xs sm:text-sm text-white/90 font-medium">
+                  Te lo llevamos a tu dirección
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setOnlineService("recoger"); setPayMethod("Nequi"); }}
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 text-white px-6 py-8 shadow-[0_20px_50px_-15px_rgba(13,148,136,0.6)] ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-300"
+              style={{ transform: "perspective(800px) rotateX(2deg)" }}
+            >
+              <span className="pointer-events-none absolute -top-20 -left-20 h-52 w-52 rounded-full bg-white/25 blur-3xl" />
+              <span className="pointer-events-none absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-3">
+                <div className="rounded-2xl bg-white/25 backdrop-blur-sm p-5 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <Store className="h-14 w-14 drop-shadow-lg" strokeWidth={2.2} />
+                </div>
+                <div className="font-display font-black text-2xl sm:text-3xl tracking-wide drop-shadow">
+                  RECOGER EN HELADERÍA
+                </div>
+                <div className="text-xs sm:text-sm text-white/90 font-medium">
+                  Pásalo a recoger tú mismo
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
 
 
