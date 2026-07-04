@@ -908,8 +908,13 @@ export function PublicOrder({
 
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="text-sm font-medium">Método de pago</div>
-                <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className="grid grid-cols-3 gap-2">
-                  {(["Efectivo", "Nequi", "Bancolombia"] as PayMethod[]).map((m) => (
+                {isPickup && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 p-2 text-xs leading-snug">
+                    Para recoger en la heladería el pago se hace por <strong>Nequi</strong> o <strong>Bancolombia</strong>. Después de pagar, envíanos el <strong>comprobante de pago por WhatsApp</strong> para comenzar a preparar tu pedido.
+                  </div>
+                )}
+                <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className={`grid ${isPickup ? "grid-cols-2" : "grid-cols-3"} gap-2`}>
+                  {(isPickup ? (["Nequi", "Bancolombia"] as PayMethod[]) : (["Efectivo", "Nequi", "Bancolombia"] as PayMethod[])).map((m) => (
                     <Label
                       key={m}
                       htmlFor={`pm-${m}`}
