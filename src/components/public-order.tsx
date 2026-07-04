@@ -9,12 +9,16 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Smartphone, Landmark, ShoppingBag, Utensils, ArrowLeft, BellRing } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { sendToLocalPrinter } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
+import nequiLogo from "@/assets/nequi-3d.png";
+import bancolombiaLogo from "@/assets/bancolombia-3d.png";
+
+const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
 
 
@@ -63,6 +67,36 @@ export function PublicOrder({
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [waiterCalledAt, setWaiterCalledAt] = useState<number | null>(null);
+  const [copiedAccount, setCopiedAccount] = useState(false);
+
+  // Recordar datos del cliente entre pedidos (solo pedidos en línea con dirección)
+  useEffect(() => {
+    if (source !== "online_menu") return;
+    try {
+      const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { name?: string; phone?: string; address?: string; neighborhood?: string };
+      if (saved.name) setCustomerName(saved.name);
+      if (saved.phone) setPhone(saved.phone);
+      if (saved.address) setAddress(saved.address);
+      if (saved.neighborhood) setNeighborhood(saved.neighborhood);
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function copyToClipboard(value: string, label: string) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedAccount(true);
+      toast.success(`${label} copiado`);
+      setTimeout(() => setCopiedAccount(false), 2000);
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  }
 
   async function callWaiter() {
     if (!tableId || callingWaiter) return;
@@ -338,6 +372,18 @@ export function PublicOrder({
       if (error) throw error;
       const result = data as { ticket_number: number } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
+
+      // Recordar datos del cliente para futuros pedidos (solo pedidos en línea)
+      if (source === "online_menu" && (customerName || phone || address || neighborhood)) {
+        try {
+          localStorage.setItem(
+            CUSTOMER_STORAGE_KEY,
+            JSON.stringify({ name: customerName, phone, address, neighborhood }),
+          );
+        } catch {
+          /* ignore */
+        }
+      }
 
       // WhatsApp redirect (only para domicilio / online_menu)
       if (source === "online_menu") {
@@ -764,12 +810,20 @@ export function PublicOrder({
                     <Label
                       key={m}
                       htmlFor={`pm-${m}`}
-                      className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs ${payMethod === m ? "border-primary bg-primary/5" : ""}`}
+                      className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs transition ${payMethod === m ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/40"}`}
                     >
                       <RadioGroupItem id={`pm-${m}`} value={m} className="sr-only" />
-                      {m === "Efectivo" && <Banknote className="h-5 w-5" />}
-                      {m === "Nequi" && <Smartphone className="h-5 w-5" />}
-                      {m === "Bancolombia" && <Landmark className="h-5 w-5" />}
+                      {m === "Efectivo" && (
+                        <div className="h-10 w-10 flex items-center justify-center">
+                          <Banknote className="h-6 w-6" />
+                        </div>
+                      )}
+                      {m === "Nequi" && (
+                        <img src={nequiLogo} alt="Nequi" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
+                      )}
+                      {m === "Bancolombia" && (
+                        <img src={bancolombiaLogo} alt="Bancolombia" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
+                      )}
                       <span className="font-medium">{m}</span>
                       {m === "Bancolombia" && <span className="text-[10px] text-muted-foreground -mt-1">Ahorros</span>}
                     </Label>
@@ -793,14 +847,40 @@ export function PublicOrder({
                 {payMethod === "Nequi" && (
                   <div className="space-y-1">
                     <Label className="text-xs">Número Nequi del negocio</Label>
-                    <Input value={nequiNum} readOnly placeholder="No configurado" />
+                    <div className="flex gap-2">
+                      <Input value={nequiNum} readOnly placeholder="No configurado" className="font-mono tracking-wide" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(nequiNum, "Número Nequi")}
+                        disabled={!nequiNum}
+                        aria-label="Copiar número Nequi"
+                        className="shrink-0"
+                      >
+                        {copiedAccount ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
                     <div className="text-[11px] text-muted-foreground">Transfiere a este número y trae el comprobante.</div>
                   </div>
                 )}
                 {payMethod === "Bancolombia" && (
                   <div className="space-y-1">
                     <Label className="text-xs">Cuenta Bancolombia del negocio (Ahorros)</Label>
-                    <Input value={bancoAcc} readOnly placeholder="No configurado" />
+                    <div className="flex gap-2">
+                      <Input value={bancoAcc} readOnly placeholder="No configurado" className="font-mono tracking-wide" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(bancoAcc, "Cuenta Bancolombia")}
+                        disabled={!bancoAcc}
+                        aria-label="Copiar cuenta Bancolombia"
+                        className="shrink-0"
+                      >
+                        {copiedAccount ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
                     <div className="text-[11px] text-muted-foreground">Transfiere a esta cuenta y trae el comprobante.</div>
                   </div>
                 )}
