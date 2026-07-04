@@ -374,6 +374,8 @@ export function PublicOrder({
         delivery_neighborhood: isDelivery ? neighborhood : null,
         notes: source === "kiosk" && kioskService
           ? `[${kioskService === "llevar" ? "PARA LLEVAR" : "COMER AQUÍ"}]${notes ? " " + notes : ""}`
+          : isPickup
+          ? `[RECOGER EN HELADERÍA]${notes ? " " + notes : ""}`
           : notes || null,
         payment_method: payMethod,
         payment_details,
