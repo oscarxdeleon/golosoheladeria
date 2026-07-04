@@ -18,6 +18,7 @@ import { printSilent, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
+import { ticketHTML, printTicketFinal, type Branding, type TicketConfig } from "@/components/pos-screen";
 import nequiLogo from "@/assets/nequi-logo.jpg.asset.json";
 import bancolombiaLogo from "@/assets/bancolombia-logo.jpg.asset.json";
 
