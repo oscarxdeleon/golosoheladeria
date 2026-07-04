@@ -336,43 +336,53 @@ function OnlineOrdersPage() {
     setCashDialogOpen(false);
   }
 
-  /** Construye el ticket (payload + HTML + mensaje WA) para diferir la impresión. */
+  /** Construye el ticket (args + mensaje WA) para diferir la impresión. */
   function buildTicketArtifacts(o: SaleRow, its: ItemRow[], method: string, cashReceived: number) {
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
-    const ticketPayload: PrintPayload = {
-      type: "ticket",
+    const s = (settings ?? {}) as {
+      business_name?: string; nit?: string; address?: string; phone?: string;
+      logo_url?: string | null; ticket_header?: string | null; ticket_footer?: string | null;
+      ticket_config?: Partial<TicketConfig> | null;
+    };
+    const branding: Branding = {
+      business_name: activeBranch?.name || s.business_name || "Heladería Goloso",
+      nit: activeBranch?.nit ?? s.nit ?? null,
+      address: [activeBranch?.address, activeBranch?.neighborhood].filter(Boolean).join(" · ") || s.address || null,
+      phone: activeBranch?.phone ?? s.phone ?? null,
+      email: activeBranch?.email ?? null,
+      logo_url: activeBranch?.logo_url ?? s.logo_url ?? null,
+      ticket_header: activeBranch?.ticket_header ?? s.ticket_header ?? null,
+      ticket_footer: activeBranch?.ticket_footer ?? s.ticket_footer ?? null,
+      ticket_config: s.ticket_config ?? null,
+    };
+    const ticketArgs: Parameters<typeof ticketHTML>[0] = {
       ticket: o.ticket_number,
       header: `TICKET DE VENTA · ${header}`,
       items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
       subtotal: Number(o.subtotal ?? 0),
+      tax: 0,
       deliveryFee: Number(o.delivery_fee ?? 0),
       total: Number(o.total ?? 0),
       payment_method: method,
       customer: o.customer_name ?? "",
+      user_name: "Pedido en línea",
+      created_at: o.created_at,
       address: o.delivery_address ?? "",
       phone: o.customer_phone ?? "",
       cash_received: method === "Efectivo" ? cashReceived : Number(o.total ?? 0),
-      created_at: o.created_at,
+      notes: o.notes ?? undefined,
+      branding,
     };
-    const printHTML = preCuentaHTML({
-      ticket: o.ticket_number, header: `TICKET DE VENTA · ${header}`,
-      items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-      customer: o.customer_name ?? "", address: o.delivery_address ?? "",
-      phone: o.customer_phone ?? "", notes: `Pago: ${method}`,
-      subtotal: Number(o.subtotal ?? 0), delivery_fee: Number(o.delivery_fee ?? 0),
-      total: Number(o.total ?? 0), created_at: o.created_at,
-    });
 
     // Mensaje de WhatsApp con formato tipo ticket 80mm
     const phoneDigits = (o.customer_phone ?? "").replace(/[^\d]/g, "");
     let waMessage: string | null = null;
     if (phoneDigits && its.length > 0) {
-      const s = (settings ?? {}) as { business_name?: string; nit?: string; address?: string; phone?: string; ticket_footer?: string };
-      const bizName = (activeBranch?.name?.trim() || s.business_name || "Heladería Goloso").toUpperCase();
-      const bizNit = s.nit || "";
-      const bizAddr = activeBranch?.address || s.address || "";
-      const bizPhone = activeBranch?.phone || s.phone || "";
-      const footer = s.ticket_footer || "¡Gracias por Preferirnos!";
+      const bizName = (branding.business_name || "Heladería Goloso").toUpperCase();
+      const bizNit = branding.nit || "";
+      const bizAddr = branding.address || "";
+      const bizPhone = branding.phone || "";
+      const footer = branding.ticket_footer || "¡Gracias por Preferirnos!";
       const W = 32;
       const center = (t: string) => {
         const s2 = t.trim();
@@ -438,7 +448,7 @@ function OnlineOrdersPage() {
       waMessage = `🧾 *TICKET DE VENTA #${o.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
     }
 
-    return { printPayload: ticketPayload, printHTML, waMessage, waPhone: o.customer_phone ?? null };
+    return { ticketArgs, waMessage, waPhone: o.customer_phone ?? null };
   }
 
   /** Cobra el pedido con el método indicado. NO imprime — abre el diálogo de éxito para elegir. */
