@@ -298,6 +298,8 @@ function precuentaHTML(o: {
   header: string; items: { name: string; qty: number; unit_price: number }[];
   subtotal: number; tax: number; deliveryFee: number; total: number;
   customer: string; user_name: string;
+  ticket?: number | null;
+  created_at?: string | null;
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
@@ -305,12 +307,15 @@ function precuentaHTML(o: {
   const rows = o.items
     .map((i) => `<tr><td style="white-space:pre-line">${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap;vertical-align:top">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
+  const when = o.created_at ? new Date(o.created_at) : new Date();
+  const ticketStr = o.ticket ? String(o.ticket).padStart(6, "0") : "PENDIENTE";
   return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
     ${brandHeaderHTML(b)}
     <hr/>
     <h2>PRECUENTA</h2>
-    <div class="muted">${new Date().toLocaleString("es-CO")}</div>
+    <div class="muted">No. ${ticketStr}</div>
+    <div class="muted">${when.toLocaleString("es-CO")}</div>
     <div class="muted">${o.header}</div>
     ${o.customer ? `<div class="muted">Cliente: ${o.customer}</div>` : ""}
     <div class="muted">Cajero: ${o.user_name}</div>
