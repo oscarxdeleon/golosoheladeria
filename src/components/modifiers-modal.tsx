@@ -202,13 +202,13 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
+      <DialogContent className="max-w-lg max-h-[90vh] flex flex-col overflow-hidden p-0 gap-0">
+        <DialogHeader className="px-6 pt-6 pb-3 border-b shrink-0">
           <DialogTitle className="font-display text-2xl">{product.name}</DialogTitle>
           <DialogDescription>Personaliza tu producto.</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-5">
+        <div className="flex-1 overflow-y-auto px-6 py-4 space-y-5">
           {groups.length === 0 && (
             <p className="text-sm text-muted-foreground py-4 text-center">Sin opciones configuradas.</p>
           )}
@@ -326,23 +326,23 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
               </div>
             );
           })}
+
+          <div className="space-y-2">
+            <Label htmlFor="mod-note" className="flex items-center gap-1.5 text-sm font-medium">
+              <StickyNote className="h-4 w-4" /> Nota adicional (opcional)
+            </Label>
+            <Textarea
+              id="mod-note"
+              placeholder="Ej: sin azúcar, extra cremoso, para llevar…"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              rows={2}
+              maxLength={200}
+            />
+          </div>
         </div>
 
-        <div className="mt-4 space-y-2">
-          <Label htmlFor="mod-note" className="flex items-center gap-1.5 text-sm font-medium">
-            <StickyNote className="h-4 w-4" /> Nota adicional (opcional)
-          </Label>
-          <Textarea
-            id="mod-note"
-            placeholder="Ej: sin azúcar, extra cremoso, para llevar…"
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            rows={2}
-            maxLength={200}
-          />
-        </div>
-
-        <DialogFooter className="flex-col sm:flex-row gap-2">
+        <DialogFooter className="shrink-0 flex-col sm:flex-row gap-2 border-t bg-background/95 backdrop-blur px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)]">
           <div className="mr-auto text-sm">
             {validation ? (
               <span className="text-destructive">{validation}</span>
