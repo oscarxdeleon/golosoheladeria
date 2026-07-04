@@ -228,7 +228,8 @@ export function PublicOrder({
 
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
-  const isDelivery = source === "online_menu";
+  const isDelivery = source === "online_menu" && onlineService === "domicilio";
+  const isPickup = source === "online_menu" && onlineService === "recoger";
   const deliveryFee = isDelivery ? Number((settings as { delivery_fee?: number | null } | null | undefined)?.delivery_fee ?? 0) : 0;
   const total = subtotal + deliveryFee;
 
