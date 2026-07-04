@@ -1721,31 +1721,51 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             </DialogTitle>
             <DialogDescription>Ingresa el monto recibido del cliente para calcular el cambio.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="rounded-lg bg-muted/50 p-3 space-y-1 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Total a cobrar</span><span className="font-display text-xl text-primary">{formatMoney(total)}</span></div>
+          <div className="space-y-4">
+            <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm">
+              <div className="flex justify-between items-center"><span className="text-muted-foreground">Total a cobrar</span><span className="font-display text-xl text-primary">{formatMoney(total)}</span></div>
             </div>
-            <div>
-              <label className="text-sm font-medium">Recibido</label>
-              <Input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                placeholder="0"
-                value={cashReceived === "" ? "" : Number(cashReceived).toLocaleString("es-CO")}
-                onChange={(e) => {
-                  const digits = e.target.value.replace(/\D/g, "");
-                  setCashReceived(digits);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && Number(cashReceived) >= total && !paying) {
-                    pay("Efectivo");
-                    setCashDialogOpen(false);
-                  }
-                }}
-              />
 
+            {/* RECIBIDO — Premium hero display */}
+            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 p-5 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.6)]">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground text-center">Recibido</div>
+              <div
+                key={cashReceived}
+                className="mt-1 flex items-baseline justify-center gap-1 font-display font-bold tabular-nums tracking-tight text-foreground animate-scale-in transition-all duration-200"
+              >
+                <span className="text-2xl md:text-3xl text-primary/70">$</span>
+                <span className="text-5xl md:text-6xl leading-none">
+                  {cashReceived === "" ? "0" : Number(cashReceived).toLocaleString("es-CO")}
+                </span>
+              </div>
             </div>
+
+            {/* DIGITE EL VALOR — big centered input */}
+            <div>
+              <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground text-center mb-2">Digite el valor</label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted-foreground">$</span>
+                <Input
+                  autoFocus
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  className="h-16 rounded-xl border-2 text-center font-display text-3xl md:text-4xl font-bold tabular-nums tracking-wide shadow-inner transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/50"
+                  value={cashReceived === "" ? "" : Number(cashReceived).toLocaleString("es-CO")}
+                  onChange={(e) => {
+                    const digits = e.target.value.replace(/\D/g, "");
+                    setCashReceived(digits);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && Number(cashReceived) >= total && !paying) {
+                      pay("Efectivo");
+                      setCashDialogOpen(false);
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
             <CashPayPad
               total={total}
               cashReceived={cashReceived}
@@ -1753,16 +1773,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               disabled={paying}
             />
 
-
-
             {cashReceived !== "" && (
-              <div className={`rounded-lg p-3 text-sm flex justify-between items-center ${Number(cashReceived) < total ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
-                <span>Cambio</span>
-                <span className="font-display text-2xl">{formatMoney(Math.max(0, Number(cashReceived) - total))}</span>
+              <div className={`rounded-xl p-3 text-sm flex justify-between items-center transition-all duration-200 ${Number(cashReceived) < total ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
+                <span className="font-medium">Cambio</span>
+                <span className="font-display text-2xl font-bold tabular-nums">{formatMoney(Math.max(0, Number(cashReceived) - total))}</span>
               </div>
             )}
             {cashReceived !== "" && Number(cashReceived) < total && (
-              <div className="text-xs text-destructive">Faltan {formatMoney(total - Number(cashReceived))}</div>
+              <div className="text-xs text-destructive text-center">Faltan {formatMoney(total - Number(cashReceived))}</div>
             )}
           </div>
           <DialogFooter>
