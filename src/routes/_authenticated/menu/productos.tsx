@@ -685,7 +685,8 @@ function ProductosPage() {
                 </div>
               </div>
 
-              <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
+              </div>
+              <DialogFooter className="shrink-0 border-t bg-background px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
             </Dialog>
           </div>
