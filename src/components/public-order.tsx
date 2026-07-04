@@ -311,6 +311,8 @@ export function PublicOrder({
     if (phone) lines.push(`*Teléfono:* ${phone}`);
     if (isDelivery) {
       lines.push(`*Dirección:* ${address} - *Barrio:* ${neighborhood}`);
+    } else if (isPickup) {
+      lines.push(`*Pedido para RECOGER en heladería*`);
     } else if (source === "table_qr" && tableLabel) {
       lines.push(`*Mesa:* ${tableLabel}`);
     }
