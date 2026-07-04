@@ -505,9 +505,6 @@ function OnlineOrdersPage() {
   }
 
 
-    resetPayState();
-    qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
-  }
 
 
 
