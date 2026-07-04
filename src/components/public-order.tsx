@@ -23,6 +23,7 @@ const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
 
 type KioskService = "llevar" | "comer_aqui";
+type OnlineService = "domicilio" | "recoger";
 
 interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; modifier_group_ids?: string[] | null; }
