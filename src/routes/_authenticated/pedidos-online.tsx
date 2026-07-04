@@ -156,6 +156,16 @@ function OnlineOrdersPage() {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [paymentRef, setPaymentRef] = useState("");
   const [amountReceived, setAmountReceived] = useState("");
+  const [cashDialogOpen, setCashDialogOpen] = useState(false);
+  const [successDialog, setSuccessDialog] = useState<{
+    ticket: number;
+    method: string;
+    total: number;
+    printPayload: PrintPayload;
+    printHTML: string;
+    waMessage: string | null;
+    waPhone: string | null;
+  } | null>(null);
 
 
   const { data: settings } = useQuery({
