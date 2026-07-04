@@ -1717,14 +1717,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       </Card>
 
       <Dialog open={cashDialogOpen} onOpenChange={(open) => { if (!paying) setCashDialogOpen(open); }}>
-        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md p-4 sm:p-5">
-          <DialogHeader className="space-y-1">
+        <DialogContent className="max-h-[92vh] sm:max-w-md p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="space-y-1 px-5 pt-5 pb-3 border-b shrink-0">
             <DialogTitle className="flex items-center gap-2 text-base">
               <Banknote className="h-5 w-5 text-primary" /> Pago en efectivo
             </DialogTitle>
             <DialogDescription className="text-xs">Ingresa el monto recibido del cliente para calcular el cambio.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
             <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm">
               <div className="flex justify-between items-center"><span className="text-muted-foreground">Total a cobrar</span><span className="font-display text-xl text-primary">{formatMoney(total)}</span></div>
             </div>
@@ -1786,7 +1786,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               <div className="text-xs text-destructive text-center">Faltan {formatMoney(total - Number(cashReceived))}</div>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="shrink-0 border-t bg-background/95 backdrop-blur px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.15)]">
             <Button variant="outline" onClick={() => setCashDialogOpen(false)} disabled={paying}>Cancelar</Button>
             <Button
               disabled={paying || cashReceived === "" || Number(cashReceived) < total}
