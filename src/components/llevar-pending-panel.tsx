@@ -51,14 +51,14 @@ export function LlevarPendingPanel() {
   return (
     <Card className="border-amber-500/40 bg-amber-50/40 dark:bg-amber-950/10">
       <CardContent className="p-3 space-y-3">
-        <div className="flex items-center gap-2">
-          <div className="flex items-center gap-2 font-display text-lg">
-            <ShoppingBag className="h-5 w-5 text-amber-600" />
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 font-display text-2xl">
+            <ShoppingBag className="h-7 w-7 text-amber-600" />
             Para llevar · Pendientes de pago
           </div>
-          <Badge className="bg-amber-600 text-white">{orders.length}</Badge>
-          <span className="ml-auto text-xs text-muted-foreground inline-flex items-center gap-1">
-            <Clock className="h-3 w-3" /> Cliente paga al recibir
+          <Badge className="bg-amber-600 text-white text-sm px-3 py-1">{orders.length}</Badge>
+          <span className="ml-auto text-sm text-muted-foreground inline-flex items-center gap-1">
+            <Clock className="h-4 w-4" /> Cliente paga al recibir
           </span>
         </div>
         <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 max-h-[320px] overflow-auto">
