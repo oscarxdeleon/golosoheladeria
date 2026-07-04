@@ -666,6 +666,11 @@ export function PublicOrder({
               <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Inicio</span>
             </Button>
           )}
+          {source === "online_menu" && onlineService && (
+            <Button size="sm" variant="ghost" onClick={() => { setOnlineService(null); setCart([]); setCartOpen(false); }} className="gap-1">
+              <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Inicio</span>
+            </Button>
+          )}
           {!readOnly && itemCount > 0 && (
             <Button size="sm" onClick={() => setCartOpen(true)} className="gap-1">
               <ShoppingCart className="h-4 w-4" />
