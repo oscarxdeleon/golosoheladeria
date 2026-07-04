@@ -162,8 +162,7 @@ function OnlineOrdersPage() {
     ticket: number;
     method: string;
     total: number;
-    printPayload: PrintPayload;
-    printHTML: string;
+    ticketArgs: Parameters<typeof ticketHTML>[0];
     waMessage: string | null;
     waPhone: string | null;
   } | null>(null);
