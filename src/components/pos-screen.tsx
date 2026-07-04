@@ -19,8 +19,8 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
-import nequiLogo from "@/assets/nequi-logo.jpg.asset.json";
-import bancolombiaLogo from "@/assets/bancolombia-logo.jpg.asset.json";
+import nequiLogo from "@/assets/nequi-3d.png";
+import bancolombiaLogo from "@/assets/bancolombia-3d.png";
 
 
 
@@ -2074,21 +2074,23 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                   )}
                   {isNequi && (
                     <img
-                      src={nequiLogo.url}
-                      alt="Nequi"
-                      className="h-16 w-auto object-contain"
-                      style={{ mixBlendMode: "multiply", transform: "scale(1.4)" }}
+                      src={nequiLogo}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-14 w-14 shrink-0 object-contain drop-shadow-sm"
+                      loading="eager"
                     />
                   )}
                   {isBanco && (
                     <img
-                      src={bancolombiaLogo.url}
-                      alt="Bancolombia"
-                      className="h-16 w-auto object-contain"
-                      style={{ mixBlendMode: "multiply", transform: "scale(2)" }}
+                      src={bancolombiaLogo}
+                      alt=""
+                      aria-hidden="true"
+                      className="h-14 w-14 shrink-0 object-contain drop-shadow-sm"
+                      loading="eager"
                     />
                   )}
-                  {!isNequi && !isBanco && <span>{m.name}</span>}
+                  <span className="min-w-0 truncate">{m.name}</span>
                 </button>
               );
             })}
