@@ -247,26 +247,26 @@ function MesasPage() {
       </div>
 
 
-      {/* Encabezado premium */}
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
-        <div className="min-w-0">
-          <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-primary bg-clip-text text-transparent">Mapa de mesas</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            {activeBranch ? <span className="font-medium text-foreground/80">{activeBranch.name}</span> : null}
-            {activeBranch ? " · " : ""}Toca una mesa para abrir el menú y tomar el pedido
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <StatChip color="emerald" label="Libres" value={counts.free} />
-          <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
-          <StatChip color="amber" label="Reservadas" value={counts.reserved} />
-          {isAdmin && (
+      {/* Encabezado premium (solo para admin) */}
+      {isAdmin && (
+        <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 sm:flex sm:flex-wrap sm:justify-between">
+          <div className="min-w-0">
+            <h1 className="font-display text-3xl sm:text-4xl font-bold tracking-tight bg-gradient-to-br from-foreground to-primary bg-clip-text text-transparent">Mapa de mesas</h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              {activeBranch ? <span className="font-medium text-foreground/80">{activeBranch.name}</span> : null}
+              {activeBranch ? " · " : ""}Toca una mesa para abrir el menú y tomar el pedido
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <StatChip color="emerald" label="Libres" value={counts.free} />
+            <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
+            <StatChip color="amber" label="Reservadas" value={counts.reserved} />
             <Button size="sm" onClick={() => setCreateOpen(true)} className="ml-1 shadow-md">
               <Plus className="h-4 w-4" /> Nueva mesa
             </Button>
-          )}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Grid de mesas sin recuadro externo */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
