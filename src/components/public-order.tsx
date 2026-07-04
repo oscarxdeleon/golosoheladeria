@@ -67,6 +67,36 @@ export function PublicOrder({
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [waiterCalledAt, setWaiterCalledAt] = useState<number | null>(null);
+  const [copiedAccount, setCopiedAccount] = useState(false);
+
+  // Recordar datos del cliente entre pedidos (solo pedidos en línea con dirección)
+  useEffect(() => {
+    if (source !== "online_menu") return;
+    try {
+      const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
+      if (!raw) return;
+      const saved = JSON.parse(raw) as { name?: string; phone?: string; address?: string; neighborhood?: string };
+      if (saved.name) setCustomerName(saved.name);
+      if (saved.phone) setPhone(saved.phone);
+      if (saved.address) setAddress(saved.address);
+      if (saved.neighborhood) setNeighborhood(saved.neighborhood);
+    } catch {
+      /* ignore */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  async function copyToClipboard(value: string, label: string) {
+    if (!value) return;
+    try {
+      await navigator.clipboard.writeText(value);
+      setCopiedAccount(true);
+      toast.success(`${label} copiado`);
+      setTimeout(() => setCopiedAccount(false), 2000);
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  }
 
   async function callWaiter() {
     if (!tableId || callingWaiter) return;
