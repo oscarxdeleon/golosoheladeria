@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
-import exactoImg from "@/assets/bills/exacto.png";
-import b2Img from "@/assets/bills/b2.png";
-import b5Img from "@/assets/bills/b5.png";
-import b10Img from "@/assets/bills/b10.png";
-import b20Img from "@/assets/bills/b20.png";
-import b50Img from "@/assets/bills/b50.png";
-import b100Img from "@/assets/bills/b100.png";
+import exactoImg from "@/assets/bills/exacto.webp";
+import b2Img from "@/assets/bills/b2.webp";
+import b5Img from "@/assets/bills/b5.webp";
+import b10Img from "@/assets/bills/b10.webp";
+import b20Img from "@/assets/bills/b20.webp";
+import b50Img from "@/assets/bills/b50.webp";
+import b100Img from "@/assets/bills/b100.webp";
 
 type Tile =
   | { kind: "exacto"; img: string; alt: string }
@@ -53,9 +53,9 @@ export function CashPayPad({
         onClick={onClick}
         aria-label={t.alt}
         className={cn(
-          "group relative block w-full overflow-visible rounded-2xl",
-          "transition-transform duration-150 ease-out",
-          "hover:-translate-y-0.5 active:translate-y-0 active:scale-[0.98]",
+          "group relative block w-full overflow-visible rounded-2xl bg-transparent",
+          "transition-transform duration-200 ease-out",
+          "hover:-translate-y-1 active:translate-y-0 active:scale-[0.97]",
           "focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:ring-offset-2",
           "disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:translate-y-0",
         )}
@@ -64,7 +64,9 @@ export function CashPayPad({
           src={t.img}
           alt={t.alt}
           draggable={false}
-          className="pointer-events-none block h-auto w-full select-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.18)] transition-[filter] duration-150 group-hover:drop-shadow-[0_10px_20px_rgba(0,0,0,0.22)]"
+          loading="eager"
+          decoding="async"
+          className="pointer-events-none block h-auto w-full select-none drop-shadow-[0_6px_14px_rgba(0,0,0,0.25)] transition-[filter,transform] duration-200 group-hover:drop-shadow-[0_12px_24px_rgba(0,0,0,0.32)]"
         />
       </button>
     );
