@@ -2064,16 +2064,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                     <img
                       src={nequiLogo.url}
                       alt="Nequi"
-                      className="h-12 max-h-full object-contain drop-shadow-sm"
-                      style={{ mixBlendMode: "multiply" }}
+                      className="h-16 w-auto object-contain"
+                      style={{ mixBlendMode: "multiply", transform: "scale(1.4)" }}
                     />
                   )}
                   {isBanco && (
                     <img
                       src={bancolombiaLogo.url}
                       alt="Bancolombia"
-                      className="h-14 max-h-full object-contain"
-                      style={{ mixBlendMode: "multiply" }}
+                      className="h-16 w-auto object-contain"
+                      style={{ mixBlendMode: "multiply", transform: "scale(2)" }}
                     />
                   )}
                   {!isNequi && !isBanco && <span>{m.name}</span>}
