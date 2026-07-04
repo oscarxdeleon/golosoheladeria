@@ -726,10 +726,10 @@ function OnlineOrdersPage() {
                 };
               } else if (isNequi) {
                 style = {
-                  background: "linear-gradient(180deg, #f8fafc 0%, #e2e8f0 100%)",
-                  color: "#1e1b4b",
+                  background: "linear-gradient(180deg, #bae6fd 0%, #38bdf8 100%)",
+                  color: "#0c4a6e",
                   boxShadow:
-                    "inset 0 2px 0 rgba(255,255,255,0.9), inset 0 -5px 0 rgba(0,0,0,0.12), 0 8px 18px -6px rgba(30,27,75,0.35)",
+                    "inset 0 2px 0 rgba(255,255,255,0.85), inset 0 -5px 0 rgba(0,0,0,0.15), 0 8px 18px -6px rgba(14,165,233,0.55)",
                 };
               } else if (isBanco) {
                 style = {
