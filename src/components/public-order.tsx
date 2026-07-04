@@ -373,6 +373,18 @@ export function PublicOrder({
       const result = data as { ticket_number: number } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
 
+      // Recordar datos del cliente para futuros pedidos (solo pedidos en línea)
+      if (source === "online_menu" && (customerName || phone || address || neighborhood)) {
+        try {
+          localStorage.setItem(
+            CUSTOMER_STORAGE_KEY,
+            JSON.stringify({ name: customerName, phone, address, neighborhood }),
+          );
+        } catch {
+          /* ignore */
+        }
+      }
+
       // WhatsApp redirect (only para domicilio / online_menu)
       if (source === "online_menu") {
         const rawPhone = (branch as { phone?: string | null } | null | undefined)?.phone
