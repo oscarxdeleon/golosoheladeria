@@ -798,12 +798,20 @@ export function PublicOrder({
                     <Label
                       key={m}
                       htmlFor={`pm-${m}`}
-                      className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs ${payMethod === m ? "border-primary bg-primary/5" : ""}`}
+                      className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs transition ${payMethod === m ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/40"}`}
                     >
                       <RadioGroupItem id={`pm-${m}`} value={m} className="sr-only" />
-                      {m === "Efectivo" && <Banknote className="h-5 w-5" />}
-                      {m === "Nequi" && <Smartphone className="h-5 w-5" />}
-                      {m === "Bancolombia" && <Landmark className="h-5 w-5" />}
+                      {m === "Efectivo" && (
+                        <div className="h-10 w-10 flex items-center justify-center">
+                          <Banknote className="h-6 w-6" />
+                        </div>
+                      )}
+                      {m === "Nequi" && (
+                        <img src={nequiLogo} alt="Nequi" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
+                      )}
+                      {m === "Bancolombia" && (
+                        <img src={bancolombiaLogo} alt="Bancolombia" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
+                      )}
                       <span className="font-medium">{m}</span>
                       {m === "Bancolombia" && <span className="text-[10px] text-muted-foreground -mt-1">Ahorros</span>}
                     </Label>
@@ -827,14 +835,40 @@ export function PublicOrder({
                 {payMethod === "Nequi" && (
                   <div className="space-y-1">
                     <Label className="text-xs">Número Nequi del negocio</Label>
-                    <Input value={nequiNum} readOnly placeholder="No configurado" />
+                    <div className="flex gap-2">
+                      <Input value={nequiNum} readOnly placeholder="No configurado" className="font-mono tracking-wide" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(nequiNum, "Número Nequi")}
+                        disabled={!nequiNum}
+                        aria-label="Copiar número Nequi"
+                        className="shrink-0"
+                      >
+                        {copiedAccount ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
                     <div className="text-[11px] text-muted-foreground">Transfiere a este número y trae el comprobante.</div>
                   </div>
                 )}
                 {payMethod === "Bancolombia" && (
                   <div className="space-y-1">
                     <Label className="text-xs">Cuenta Bancolombia del negocio (Ahorros)</Label>
-                    <Input value={bancoAcc} readOnly placeholder="No configurado" />
+                    <div className="flex gap-2">
+                      <Input value={bancoAcc} readOnly placeholder="No configurado" className="font-mono tracking-wide" />
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="icon"
+                        onClick={() => copyToClipboard(bancoAcc, "Cuenta Bancolombia")}
+                        disabled={!bancoAcc}
+                        aria-label="Copiar cuenta Bancolombia"
+                        className="shrink-0"
+                      >
+                        {copiedAccount ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
+                      </Button>
+                    </div>
                     <div className="text-[11px] text-muted-foreground">Transfiere a esta cuenta y trae el comprobante.</div>
                   </div>
                 )}
