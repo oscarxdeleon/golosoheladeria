@@ -19,6 +19,9 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
+import nequiLogo from "@/assets/nequi-logo.jpg.asset.json";
+import bancolombiaLogo from "@/assets/bancolombia-logo.jpg.asset.json";
+
 
 
 
@@ -2058,28 +2061,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                     </span>
                   )}
                   {isNequi && (
-                    <span
-                      className="flex h-9 w-9 items-center justify-center rounded-md"
-                      style={{
-                        background:
-                          "conic-gradient(from 45deg, #ff0f7b, #1a1554, #00d1c1, #ff0f7b)",
-                        transform: "rotate(45deg)",
-                      }}
-                    >
-                      <span
-                        className="block h-3 w-3 rounded-sm bg-[#1a1554]"
-                        style={{ transform: "rotate(-45deg)" }}
-                      />
-                    </span>
+                    <img
+                      src={nequiLogo.url}
+                      alt="Nequi"
+                      className="h-9 object-contain"
+                      style={{ mixBlendMode: "multiply" }}
+                    />
                   )}
                   {isBanco && (
-                    <span className="flex h-9 w-9 flex-col items-center justify-center gap-[3px]">
-                      <span className="h-[3px] w-6 rounded-full bg-black" />
-                      <span className="h-[3px] w-6 rounded-full bg-black" />
-                      <span className="h-[3px] w-6 rounded-full bg-black" />
-                    </span>
+                    <img
+                      src={bancolombiaLogo.url}
+                      alt="Bancolombia"
+                      className="h-10 object-contain"
+                      style={{ mixBlendMode: "multiply" }}
+                    />
                   )}
-                  <span>{m.name}</span>
+                  {!isNequi && !isBanco && <span>{m.name}</span>}
                 </button>
               );
             })}
