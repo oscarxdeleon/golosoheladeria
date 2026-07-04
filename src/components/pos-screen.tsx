@@ -1440,7 +1440,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
           </div>
 
           {typeof document !== "undefined" && createPortal(
-            <div className="fixed inset-x-0 bottom-0 z-[60] border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
+            <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
               <div className="mx-auto max-w-7xl">
                 <div className="mb-1.5 flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 text-muted-foreground">
