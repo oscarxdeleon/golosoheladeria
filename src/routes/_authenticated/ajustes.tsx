@@ -244,35 +244,41 @@ function HubView({
 
 function CardsGrid({ tabs, onSelect }: { tabs: TabDef[]; onSelect: (v: string) => void }) {
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      {tabs.map((t) => (
-        <SettingCard key={t.value} tab={t} onClick={() => onSelect(t.value)} />
-      ))}
+    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
+      <ul className="divide-y divide-border/60">
+        {tabs.map((t) => (
+          <SettingRow key={t.value} tab={t} onClick={() => onSelect(t.value)} />
+        ))}
+      </ul>
     </div>
   );
 }
 
-function SettingCard({ tab, onClick }: { tab: TabDef; onClick: () => void }) {
+function SettingRow({ tab, onClick }: { tab: TabDef; onClick: () => void }) {
   const Icon = tab.icon;
   return (
-    <button
-      onClick={onClick}
-      className="group relative overflow-hidden rounded-2xl border border-border/70 bg-card p-5 text-left shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-xl hover:shadow-primary/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
-    >
-      <div className={`pointer-events-none absolute -right-16 -top-16 h-40 w-40 rounded-full bg-gradient-to-br ${tab.accent} opacity-10 blur-2xl transition-opacity duration-300 group-hover:opacity-25`} />
-      <div className="relative flex items-start gap-4">
-        <div className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${tab.accent} text-white shadow-lg ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-105`}>
-          <Icon className="h-6 w-6" />
-        </div>
+    <li>
+      <button
+        onClick={onClick}
+        className="group relative flex w-full items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:bg-muted/50"
+      >
         <div className="min-w-0 flex-1">
-          <h3 className="font-display text-base font-bold tracking-tight leading-tight">{tab.label}</h3>
-          <p className="mt-1 text-xs text-muted-foreground line-clamp-2 leading-relaxed">{tab.hint}</p>
+          <h3 className="font-display text-xl sm:text-2xl font-black tracking-tight leading-tight uppercase text-foreground">
+            {tab.label}
+          </h3>
+          <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground line-clamp-1">
+            {tab.hint}
+          </p>
         </div>
-        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/60 transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
-      </div>
-    </button>
+        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${tab.accent} text-white shadow-md ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
+          <Icon className="h-5 w-5" />
+        </span>
+        <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/50 transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
+      </button>
+    </li>
   );
 }
+
 
 function SectionView({
   activeTab, allTabs, onBack, onSelect, children,
