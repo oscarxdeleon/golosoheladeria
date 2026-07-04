@@ -1,21 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  MessageCircle, RefreshCw, Phone, Clock, CheckCircle2, Printer, Banknote, CreditCard, Smartphone, MapPin,
+  MessageCircle, RefreshCw, Phone, Clock, CheckCircle2, Printer, Banknote, MapPin, Check,
 } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
+import { CashPayPad } from "@/components/cash-pay-pad";
+import nequiLogo from "@/assets/nequi-logo.jpg.asset.json";
+import bancolombiaLogo from "@/assets/bancolombia-logo.jpg.asset.json";
 
 export const Route = createFileRoute("/_authenticated/pedidos-online")({
   head: () => ({ meta: [{ title: "Pedidos en línea · Goloso POS" }] }),
