@@ -19,8 +19,10 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
-import nequiLogo from "@/assets/nequi-3d.png";
-import bancolombiaLogo from "@/assets/bancolombia-3d.png";
+import nequiLogoAsset from "@/assets/nequi-logo-original.jpg.asset.json";
+import bancolombiaLogoAsset from "@/assets/bancolombia-logo-original.png.asset.json";
+const nequiLogo = nequiLogoAsset.url;
+const bancolombiaLogo = bancolombiaLogoAsset.url;
 
 
 
@@ -2028,11 +2030,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                 };
               } else if (isNequi) {
                 style = {
-                  background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
-                  color: "#1a1554",
+                  background: "linear-gradient(180deg, #DA0081 0%, #210049 100%)",
+                  color: "#ffffff",
                   boxShadow:
-                    "inset 0 2px 0 rgba(255,255,255,0.9), inset 0 -5px 0 rgba(0,0,0,0.12), 0 8px 18px -6px rgba(0,0,0,0.3)",
-                  textShadow: "0 1px 0 rgba(255,255,255,0.7)",
+                    "inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -5px 0 rgba(0,0,0,0.25), 0 8px 18px -6px rgba(218,0,129,0.55)",
+                  textShadow: "0 2px 2px rgba(0,0,0,0.35)",
                 };
               } else if (isBanco) {
                 style = {
