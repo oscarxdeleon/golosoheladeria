@@ -19,10 +19,8 @@ import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { ticketHTML, printTicketFinal, type Branding, type TicketConfig } from "@/components/pos-screen";
-import nequiLogoAsset from "@/assets/nequi-logo-original.jpg.asset.json";
-import bancolombiaLogoAsset from "@/assets/bancolombia-logo-original.png.asset.json";
-const nequiLogo = nequiLogoAsset.url;
-const bancolombiaLogo = bancolombiaLogoAsset.url;
+import nequiLogo from "@/assets/nequi-logo-original.jpg";
+import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 
 export const Route = createFileRoute("/_authenticated/pedidos-online")({
   head: () => ({ meta: [{ title: "Pedidos en línea · Goloso POS" }] }),
