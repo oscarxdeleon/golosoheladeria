@@ -1714,27 +1714,27 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       </Card>
 
       <Dialog open={cashDialogOpen} onOpenChange={(open) => { if (!paying) setCashDialogOpen(open); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md p-4 sm:p-5">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="flex items-center gap-2 text-base">
               <Banknote className="h-5 w-5 text-primary" /> Pago en efectivo
             </DialogTitle>
-            <DialogDescription>Ingresa el monto recibido del cliente para calcular el cambio.</DialogDescription>
+            <DialogDescription className="text-xs">Ingresa el monto recibido del cliente para calcular el cambio.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm">
               <div className="flex justify-between items-center"><span className="text-muted-foreground">Total a cobrar</span><span className="font-display text-xl text-primary">{formatMoney(total)}</span></div>
             </div>
 
             {/* RECIBIDO — Premium hero display */}
-            <div className="relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 p-5 shadow-[0_10px_30px_-12px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.6)]">
-              <div className="text-[11px] font-semibold uppercase tracking-[0.2em] text-muted-foreground text-center">Recibido</div>
+            <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 px-4 py-2.5 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.6)]">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground text-center">Recibido</div>
               <div
                 key={cashReceived}
-                className="mt-1 flex items-baseline justify-center gap-1 font-display font-bold tabular-nums tracking-tight text-foreground animate-scale-in transition-all duration-200"
+                className="flex items-baseline justify-center gap-1 font-display font-bold tabular-nums tracking-tight text-foreground animate-scale-in"
               >
-                <span className="text-2xl md:text-3xl text-primary/70">$</span>
-                <span className="text-5xl md:text-6xl leading-none">
+                <span className="text-xl text-primary/70">$</span>
+                <span className="text-3xl sm:text-4xl leading-none">
                   {cashReceived === "" ? "0" : Number(cashReceived).toLocaleString("es-CO")}
                 </span>
               </div>
@@ -1742,15 +1742,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
 
             {/* DIGITE EL VALOR — big centered input */}
             <div>
-              <label className="block text-[11px] font-semibold uppercase tracking-[0.18em] text-muted-foreground text-center mb-2">Digite el valor</label>
+              <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground text-center mb-1">Digite el valor</label>
               <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted-foreground">$</span>
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xl font-semibold text-muted-foreground">$</span>
                 <Input
                   autoFocus
                   type="text"
                   inputMode="numeric"
                   placeholder="0"
-                  className="h-16 rounded-xl border-2 text-center font-display text-3xl md:text-4xl font-bold tabular-nums tracking-wide shadow-inner transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/50"
+                  className="h-12 rounded-xl border-2 text-center font-display text-2xl font-bold tabular-nums tracking-wide shadow-inner transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/50"
                   value={cashReceived === "" ? "" : Number(cashReceived).toLocaleString("es-CO")}
                   onChange={(e) => {
                     const digits = e.target.value.replace(/\D/g, "");
