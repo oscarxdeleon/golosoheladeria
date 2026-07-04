@@ -657,7 +657,7 @@ export function PublicOrder({
             <div className="text-xs text-muted-foreground">
               {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Autopedido"}`}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
-              {source === "online_menu" && "Menú en línea · A domicilio"}
+              {source === "online_menu" && `Menú en línea · ${onlineService === "recoger" ? "Recoger en heladería" : "A domicilio"}`}
             </div>
 
           </div>
