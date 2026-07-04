@@ -515,8 +515,10 @@ function ProductosPage() {
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
               <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
 
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
+            <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:rounded-lg">
+              <DialogHeader className="shrink-0 border-b px-6 py-4"><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
+              <div className="flex-1 overflow-y-auto px-6 py-4">
+
               {editing?.id && (() => {
                 const isChild = !!editing.source_product_id;
                 const isLinked = editing.is_linked !== false;
@@ -683,7 +685,8 @@ function ProductosPage() {
                 </div>
               </div>
 
-              <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
+              </div>
+              <DialogFooter className="shrink-0 border-t bg-background px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
             </Dialog>
           </div>
