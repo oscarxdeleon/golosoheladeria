@@ -915,13 +915,12 @@ function OnlineOrdersPage() {
             <Button
               className="font-bold"
               onClick={() => {
-                const payload = successDialog?.printPayload;
-                const html = successDialog?.printHTML;
+                const args = successDialog?.ticketArgs;
                 const wa = successDialog?.waMessage;
                 const phone = successDialog?.waPhone;
                 setSuccessDialog(null);
-                if (payload && html) {
-                  setTimeout(() => printSilent(payload, html, { silent: true }), 0);
+                if (args) {
+                  setTimeout(() => { void printTicketFinal(args); }, 0);
                 }
                 if (wa && phone) {
                   setTimeout(() => {
