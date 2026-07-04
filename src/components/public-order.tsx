@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check, Bike, Store } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
@@ -23,6 +23,7 @@ const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
 
 type KioskService = "llevar" | "comer_aqui";
+type OnlineService = "domicilio" | "recoger";
 
 interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; modifier_group_ids?: string[] | null; }
@@ -61,6 +62,7 @@ export function PublicOrder({
   const [ticketNumber, setTicketNumber] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [kioskService, setKioskService] = useState<KioskService | null>(null);
+  const [onlineService, setOnlineService] = useState<OnlineService | null>(null);
   const [resetCountdown, setResetCountdown] = useState(30);
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
@@ -226,7 +228,8 @@ export function PublicOrder({
 
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const itemCount = cart.reduce((s, l) => s + l.qty, 0);
-  const isDelivery = source === "online_menu";
+  const isDelivery = source === "online_menu" && onlineService === "domicilio";
+  const isPickup = source === "online_menu" && onlineService === "recoger";
   const deliveryFee = isDelivery ? Number((settings as { delivery_fee?: number | null } | null | undefined)?.delivery_fee ?? 0) : 0;
   const total = subtotal + deliveryFee;
 
@@ -272,6 +275,16 @@ export function PublicOrder({
       if (errs.name || errs.phone || errs.address || errs.neighborhood) {
         return "Este campo es obligatorio para envíos a domicilio";
       }
+    } else if (isPickup) {
+      if (!customerName.trim()) errs.name = true;
+      if (!phone.trim()) errs.phone = true;
+      setFieldErrors(errs);
+      if (errs.name || errs.phone) {
+        return "Nombre y teléfono son obligatorios para recoger en heladería";
+      }
+      if (payMethod !== "Nequi" && payMethod !== "Bancolombia") {
+        return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
+      }
     } else {
       setFieldErrors({});
     }
@@ -298,6 +311,8 @@ export function PublicOrder({
     if (phone) lines.push(`*Teléfono:* ${phone}`);
     if (isDelivery) {
       lines.push(`*Dirección:* ${address} - *Barrio:* ${neighborhood}`);
+    } else if (isPickup) {
+      lines.push(`*Pedido para RECOGER en heladería*`);
     } else if (source === "table_qr" && tableLabel) {
       lines.push(`*Mesa:* ${tableLabel}`);
     }
@@ -361,6 +376,8 @@ export function PublicOrder({
         delivery_neighborhood: isDelivery ? neighborhood : null,
         notes: source === "kiosk" && kioskService
           ? `[${kioskService === "llevar" ? "PARA LLEVAR" : "COMER AQUÍ"}]${notes ? " " + notes : ""}`
+          : isPickup
+          ? `[RECOGER EN HELADERÍA]${notes ? " " + notes : ""}`
           : notes || null,
         payment_method: payMethod,
         payment_details,
@@ -611,6 +628,79 @@ export function PublicOrder({
     );
   }
 
+  if (source === "online_menu" && !onlineService && !readOnly) {
+    const onlineLogo = settings?.logo_url;
+    return (
+      <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
+        <div className="h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-10 sm:px-8">
+          <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
+            {onlineLogo ? (
+              <img
+                src={onlineLogo}
+                alt={settings?.business_name ?? "Heladería Goloso"}
+                className="max-h-[36vh] max-w-[80vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700"
+              />
+            ) : (
+              <div className="h-36 w-36 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
+                <IceCream className="h-20 w-20" />
+              </div>
+            )}
+            <h1 className="font-display text-2xl sm:text-3xl mt-4 text-slate-800">
+              {settings?.business_name ?? "Heladería Goloso"}
+            </h1>
+            <p className="text-slate-600 text-sm sm:text-base mt-2 font-medium">
+              ¿Cómo quieres recibir tu pedido?
+            </p>
+          </div>
+
+          <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pb-4">
+            <button
+              type="button"
+              onClick={() => { setOnlineService("domicilio"); setPayMethod("Efectivo"); }}
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-400 via-rose-500 to-fuchsia-600 text-white px-6 py-8 shadow-[0_20px_50px_-15px_rgba(244,63,94,0.6)] ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
+              style={{ transform: "perspective(800px) rotateX(2deg)" }}
+            >
+              <span className="pointer-events-none absolute -top-20 -right-20 h-52 w-52 rounded-full bg-white/25 blur-3xl" />
+              <span className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-3">
+                <div className="rounded-2xl bg-white/25 backdrop-blur-sm p-5 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <Bike className="h-14 w-14 drop-shadow-lg" strokeWidth={2.2} />
+                </div>
+                <div className="font-display font-black text-2xl sm:text-3xl tracking-wide drop-shadow">
+                  A DOMICILIO
+                </div>
+                <div className="text-xs sm:text-sm text-white/90 font-medium">
+                  Te lo llevamos a tu dirección
+                </div>
+              </div>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => { setOnlineService("recoger"); setPayMethod("Nequi"); }}
+              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 text-white px-6 py-8 shadow-[0_20px_50px_-15px_rgba(13,148,136,0.6)] ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-300"
+              style={{ transform: "perspective(800px) rotateX(2deg)" }}
+            >
+              <span className="pointer-events-none absolute -top-20 -left-20 h-52 w-52 rounded-full bg-white/25 blur-3xl" />
+              <span className="pointer-events-none absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
+              <div className="relative flex flex-col items-center gap-3">
+                <div className="rounded-2xl bg-white/25 backdrop-blur-sm p-5 shadow-inner group-hover:scale-110 transition-transform duration-300">
+                  <Store className="h-14 w-14 drop-shadow-lg" strokeWidth={2.2} />
+                </div>
+                <div className="font-display font-black text-2xl sm:text-3xl tracking-wide drop-shadow">
+                  RECOGER EN HELADERÍA
+                </div>
+                <div className="text-xs sm:text-sm text-white/90 font-medium">
+                  Pásalo a recoger tú mismo
+                </div>
+              </div>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
 
 
 
@@ -642,12 +732,17 @@ export function PublicOrder({
             <div className="text-xs text-muted-foreground">
               {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Autopedido"}`}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
-              {source === "online_menu" && "Menú en línea · A domicilio"}
+              {source === "online_menu" && `Menú en línea · ${onlineService === "recoger" ? "Recoger en heladería" : "A domicilio"}`}
             </div>
 
           </div>
           {source === "kiosk" && kioskService && (
             <Button size="sm" variant="ghost" onClick={resetKiosk} className="gap-1">
+              <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Inicio</span>
+            </Button>
+          )}
+          {source === "online_menu" && onlineService && (
+            <Button size="sm" variant="ghost" onClick={() => { setOnlineService(null); setCart([]); setCartOpen(false); }} className="gap-1">
               <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Inicio</span>
             </Button>
           )}
@@ -815,8 +910,13 @@ export function PublicOrder({
 
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="text-sm font-medium">Método de pago</div>
-                <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className="grid grid-cols-3 gap-2">
-                  {(["Efectivo", "Nequi", "Bancolombia"] as PayMethod[]).map((m) => (
+                {isPickup && (
+                  <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 p-2 text-xs leading-snug">
+                    Para recoger en la heladería el pago se hace por <strong>Nequi</strong> o <strong>Bancolombia</strong>. Después de pagar, envíanos el <strong>comprobante de pago por WhatsApp</strong> para comenzar a preparar tu pedido.
+                  </div>
+                )}
+                <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className={`grid ${isPickup ? "grid-cols-2" : "grid-cols-3"} gap-2`}>
+                  {(isPickup ? (["Nequi", "Bancolombia"] as PayMethod[]) : (["Efectivo", "Nequi", "Bancolombia"] as PayMethod[])).map((m) => (
                     <Label
                       key={m}
                       htmlFor={`pm-${m}`}
