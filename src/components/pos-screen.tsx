@@ -1438,10 +1438,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
 
-          {/* Barra de acciones rápidas — siempre visible arriba del pedido */}
-          <div className="sticky top-0 z-10 -mx-4 -mt-3 border-b bg-card/95 px-4 py-2 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+          {/* Barra de acciones rápidas — sticky en desktop dentro del panel, fija abajo en móvil */}
+          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85 lg:static lg:inset-auto lg:z-10 lg:-mx-4 lg:-mt-3 lg:border-t-0 lg:border-b lg:pb-2 lg:shadow-none lg:sticky lg:top-0">
             <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="text-muted-foreground">{cart.reduce((a, l) => a + l.qty, 0)} items · Sub {formatMoney(subtotal)}</span>
+              <span className="flex items-center gap-1.5 text-muted-foreground">
+                <ShoppingCart className="h-3.5 w-3.5" />
+                {cart.reduce((a, l) => a + l.qty, 0)} items · Sub {formatMoney(subtotal)}
+              </span>
               <span className="font-display text-lg text-primary tabular-nums leading-none">{formatMoney(total)}</span>
             </div>
             <div className={meseroMode ? "grid grid-cols-1 gap-1.5" : "grid grid-cols-3 gap-1.5"}>
