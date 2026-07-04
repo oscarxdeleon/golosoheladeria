@@ -116,12 +116,11 @@ if (typeof window !== "undefined") {
 }
 
 /**
- * Envía el payload al servidor local. Prueba TODOS los candidatos en
- * paralelo con AbortController: el primero que responda OK gana y
- * cancela los demás — así evitamos duplicados aunque `localhost` y
- * `127.0.0.1` apunten al mismo servidor, y no perdemos el primer
- * intento cuando la resolución IPv6 de `localhost` tarda varios
- * segundos. Nunca lanza.
+ * Envía el payload al servidor local. Prueba los candidatos SECUENCIALMENTE
+ * — nunca en paralelo — para evitar impresión doble cuando `localhost` y
+ * `127.0.0.1` apuntan al mismo servidor. El primer candidato que responda
+ * OK se cachea como `_lastGoodUrl` y se usa como primera opción en el
+ * próximo envío. Nunca lanza.
  */
 export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
   const primary = _lastGoodUrl ?? getLocalPrintUrl();
@@ -139,39 +138,29 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
 
   const TIMEOUT_MS = 4000;
   const body = JSON.stringify(payload);
-  const controllers = candidates.map(() => new AbortController());
-  const timers = controllers.map((c) => setTimeout(() => c.abort(), TIMEOUT_MS));
 
-  const attempts = candidates.map(async (url, i) => {
-    const res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body,
-      signal: controllers[i].signal,
-      mode: "cors",
-      keepalive: true,
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return url;
-  });
-
-  let winner: string | null = null;
-  try {
-    winner = await Promise.any(attempts);
-  } catch {
-    winner = null;
-  } finally {
-    // Cancela intentos pendientes para evitar impresión doble.
-    controllers.forEach((c, i) => {
-      try { if (candidates[i] !== winner) c.abort(); } catch { /* noop */ }
-      clearTimeout(timers[i]);
-    });
-  }
-
-  if (winner) {
-    _lastGoodUrl = winner;
-    if (winner !== getLocalPrintUrl()) setLocalPrintUrl(winner);
-    return true;
+  for (const url of candidates) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+        signal: controller.signal,
+        mode: "cors",
+        keepalive: true,
+      });
+      if (res.ok) {
+        _lastGoodUrl = url;
+        if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
+        return true;
+      }
+    } catch {
+      /* prueba el siguiente candidato */
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   console.warn("[print] ningún servidor local respondió; se usará fallback");
