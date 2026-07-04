@@ -619,16 +619,26 @@ export function PublicOrder({
     <div className="min-h-screen bg-muted/30 pb-32">
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
-          {(branch?.logo_url || settings?.logo_url) ? (
-            <img src={branch?.logo_url || settings?.logo_url || undefined} alt="logo" className="h-10 w-10 rounded-lg object-contain bg-white" />
+          {settings?.logo_url ? (
+            <img src={settings.logo_url} alt="logo" className="h-16 w-16 rounded-lg object-contain bg-white" />
 
           ) : (
-            <div className="h-10 w-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
-              <IceCream className="h-5 w-5" />
+            <div className="h-16 w-16 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
+              <IceCream className="h-7 w-7" />
             </div>
           )}
           <div className="flex-1 leading-tight">
-            <div className="font-display text-lg">{settings?.business_name ?? "Heladería Goloso"}{branch?.name ? <span className="text-primary"> · {branch.name}</span> : null}</div>
+            {(() => {
+              const biz = settings?.business_name ?? "Heladería Goloso";
+              const br = branch?.name?.trim();
+              const showBranch = br && br.toLowerCase() !== biz.toLowerCase();
+              return (
+                <div className="font-display text-lg">
+                  {biz}
+                  {showBranch ? <span className="text-primary"> · {br}</span> : null}
+                </div>
+              );
+            })()}
             <div className="text-xs text-muted-foreground">
               {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Autopedido"}`}
               {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
