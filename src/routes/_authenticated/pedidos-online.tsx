@@ -19,7 +19,7 @@ import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { ticketHTML, printTicketFinal, type Branding, type TicketConfig } from "@/components/pos-screen";
-import nequiLogo from "@/assets/nequi-logo-original.jpg";
+import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 
 export const Route = createFileRoute("/_authenticated/pedidos-online")({
@@ -726,10 +726,10 @@ function OnlineOrdersPage() {
                 };
               } else if (isNequi) {
                 style = {
-                  background: "linear-gradient(180deg, #DA0081 0%, #210049 100%)",
+                  background: "linear-gradient(180deg, #5b21b6 0%, #1e1b4b 100%)",
                   color: "#ffffff",
                   boxShadow:
-                    "inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -5px 0 rgba(0,0,0,0.25), 0 8px 18px -6px rgba(218,0,129,0.55)",
+                    "inset 0 2px 0 rgba(255,255,255,0.35), inset 0 -5px 0 rgba(0,0,0,0.28), 0 8px 18px -6px rgba(91,33,182,0.6)",
                 };
               } else if (isBanco) {
                 style = {
