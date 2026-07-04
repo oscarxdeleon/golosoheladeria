@@ -1714,14 +1714,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
       </Card>
 
       <Dialog open={cashDialogOpen} onOpenChange={(open) => { if (!paying) setCashDialogOpen(open); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
+        <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-md p-4 sm:p-5">
+          <DialogHeader className="space-y-1">
+            <DialogTitle className="flex items-center gap-2 text-base">
               <Banknote className="h-5 w-5 text-primary" /> Pago en efectivo
             </DialogTitle>
-            <DialogDescription>Ingresa el monto recibido del cliente para calcular el cambio.</DialogDescription>
+            <DialogDescription className="text-xs">Ingresa el monto recibido del cliente para calcular el cambio.</DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
+          <div className="space-y-3">
             <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm">
               <div className="flex justify-between items-center"><span className="text-muted-foreground">Total a cobrar</span><span className="font-display text-xl text-primary">{formatMoney(total)}</span></div>
             </div>
