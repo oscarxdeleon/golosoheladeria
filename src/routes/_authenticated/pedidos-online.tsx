@@ -1,21 +1,25 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
 } from "@/components/ui/dialog";
 import {
-  MessageCircle, RefreshCw, Phone, Clock, CheckCircle2, Printer, Banknote, CreditCard, Smartphone, MapPin,
+  MessageCircle, RefreshCw, Phone, Clock, CheckCircle2, Printer, Banknote, MapPin, Check,
 } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
+import { CashPayPad } from "@/components/cash-pay-pad";
+import nequiLogo from "@/assets/nequi-logo.jpg.asset.json";
+import bancolombiaLogo from "@/assets/bancolombia-logo.jpg.asset.json";
 
 export const Route = createFileRoute("/_authenticated/pedidos-online")({
   head: () => ({ meta: [{ title: "Pedidos en línea · Goloso POS" }] }),
@@ -152,6 +156,16 @@ function OnlineOrdersPage() {
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [paymentRef, setPaymentRef] = useState("");
   const [amountReceived, setAmountReceived] = useState("");
+  const [cashDialogOpen, setCashDialogOpen] = useState(false);
+  const [successDialog, setSuccessDialog] = useState<{
+    ticket: number;
+    method: string;
+    total: number;
+    printPayload: PrintPayload;
+    printHTML: string;
+    waMessage: string | null;
+    waPhone: string | null;
+  } | null>(null);
 
 
   const { data: settings } = useQuery({
@@ -319,15 +333,117 @@ function OnlineOrdersPage() {
     setSelectedMethod(null);
     setPaymentRef("");
     setAmountReceived("");
+    setCashDialogOpen(false);
   }
 
-  async function processPayment() {
-    if (!payOrder) return;
-    const method = selectedMethod;
-    if (!method) {
-      toast.error("Selecciona un método de pago antes de confirmar");
-      return;
+  /** Construye el ticket (payload + HTML + mensaje WA) para diferir la impresión. */
+  function buildTicketArtifacts(o: SaleRow, its: ItemRow[], method: string, cashReceived: number) {
+    const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
+    const ticketPayload: PrintPayload = {
+      type: "ticket",
+      ticket: o.ticket_number,
+      header: `TICKET DE VENTA · ${header}`,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
+      subtotal: Number(o.subtotal ?? 0),
+      deliveryFee: Number(o.delivery_fee ?? 0),
+      total: Number(o.total ?? 0),
+      payment_method: method,
+      customer: o.customer_name ?? "",
+      address: o.delivery_address ?? "",
+      phone: o.customer_phone ?? "",
+      cash_received: method === "Efectivo" ? cashReceived : Number(o.total ?? 0),
+      created_at: o.created_at,
+    };
+    const printHTML = preCuentaHTML({
+      ticket: o.ticket_number, header: `TICKET DE VENTA · ${header}`,
+      items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
+      customer: o.customer_name ?? "", address: o.delivery_address ?? "",
+      phone: o.customer_phone ?? "", notes: `Pago: ${method}`,
+      subtotal: Number(o.subtotal ?? 0), delivery_fee: Number(o.delivery_fee ?? 0),
+      total: Number(o.total ?? 0), created_at: o.created_at,
+    });
+
+    // Mensaje de WhatsApp con formato tipo ticket 80mm
+    const phoneDigits = (o.customer_phone ?? "").replace(/[^\d]/g, "");
+    let waMessage: string | null = null;
+    if (phoneDigits && its.length > 0) {
+      const s = (settings ?? {}) as { business_name?: string; nit?: string; address?: string; phone?: string; ticket_footer?: string };
+      const bizName = (activeBranch?.name?.trim() || s.business_name || "Heladería Goloso").toUpperCase();
+      const bizNit = s.nit || "";
+      const bizAddr = activeBranch?.address || s.address || "";
+      const bizPhone = activeBranch?.phone || s.phone || "";
+      const footer = s.ticket_footer || "¡Gracias por Preferirnos!";
+      const W = 32;
+      const center = (t: string) => {
+        const s2 = t.trim();
+        if (s2.length >= W) return s2;
+        const pad = Math.floor((W - s2.length) / 2);
+        return " ".repeat(pad) + s2;
+      };
+      const dash = "-".repeat(W);
+      const row = (l: string, r: string) => {
+        const space = Math.max(1, W - l.length - r.length);
+        return l + " ".repeat(space) + r;
+      };
+      const wrap = (t: string, w = W) => {
+        const words = t.split(/\s+/);
+        const out: string[] = [];
+        let cur = "";
+        for (const wd of words) {
+          if ((cur + " " + wd).trim().length > w) { if (cur) out.push(cur); cur = wd; }
+          else cur = (cur ? cur + " " : "") + wd;
+        }
+        if (cur) out.push(cur);
+        return out;
+      };
+      const lines: string[] = [];
+      lines.push(center(bizName));
+      if (bizNit) lines.push(center(`NIT: ${bizNit}`));
+      if (bizAddr) wrap(bizAddr).forEach((l) => lines.push(center(l)));
+      if (bizPhone) lines.push(center(`TEL: ${bizPhone}`));
+      lines.push(dash);
+      lines.push(center(`TICKET DE VENTA`));
+      lines.push(center(`TV-${String(o.ticket_number).padStart(6, "0")}`));
+      lines.push(center(new Date(o.created_at).toLocaleString("es-CO")));
+      lines.push(dash);
+      if (o.customer_name) lines.push(`CLIENTE: ${o.customer_name.toUpperCase()}`);
+      if (o.delivery_address) wrap(`DIR: ${o.delivery_address.toUpperCase()}`).forEach((l) => lines.push(l));
+      if (o.customer_phone) lines.push(`TEL:     ${o.customer_phone.toUpperCase()}`);
+      lines.push(`PAGO:    ${method.toUpperCase()}`);
+      lines.push(dash);
+      lines.push(row("CANT  DESCRIPCION", "TOTAL"));
+      lines.push(dash);
+      for (const i of its) {
+        const qty = String(i.qty).padEnd(4, " ");
+        const money = formatMoney(i.unit_price * i.qty);
+        const nameMax = W - qty.length - 1 - money.length - 1;
+        const nameLines = wrap(i.product_name.toUpperCase(), Math.max(6, nameMax));
+        lines.push(row(`${qty} ${nameLines[0]}`, money));
+        for (let k = 1; k < nameLines.length; k++) lines.push("     " + nameLines[k]);
+      }
+      lines.push(dash);
+      lines.push(row("SUBTOTAL", formatMoney(Number(o.subtotal ?? 0))));
+      if (Number(o.delivery_fee ?? 0) > 0) {
+        lines.push(row("DOMICILIO", formatMoney(Number(o.delivery_fee))));
+      }
+      lines.push(row("TOTAL", formatMoney(Number(o.total ?? 0))));
+      if (method === "Efectivo") {
+        const change = Math.max(0, cashReceived - Number(o.total ?? 0));
+        lines.push(row("RECIBIDO", formatMoney(cashReceived)));
+        lines.push(row("CAMBIO", formatMoney(change)));
+      }
+      lines.push(dash);
+      lines.push(center(footer));
+      const ticketBlock = "```\n" + lines.join("\n") + "\n```";
+      waMessage = `🧾 *TICKET DE VENTA #${o.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
     }
+
+    return { printPayload: ticketPayload, printHTML, waMessage, waPhone: o.customer_phone ?? null };
+  }
+
+  /** Cobra el pedido con el método indicado. NO imprime — abre el diálogo de éxito para elegir. */
+  async function payWithMethod(method: string, cashReceivedRaw?: string) {
+    if (!payOrder) return;
     if (!activeBranchId || payOrder.branch_id !== activeBranchId) {
       toast.error("Este pedido pertenece a otra sede. Cambia a la sede correcta para cobrarlo.");
       return;
@@ -336,24 +452,16 @@ function OnlineOrdersPage() {
       toast.error("No hay caja abierta en esta sede");
       return;
     }
-    // Validaciones por método
-    if (method === "Efectivo") {
-      const recv = Number(amountReceived.replace(/[^\d.]/g, ""));
-      if (!recv || recv < Number(payOrder.total)) {
-        toast.error("Ingresa el monto recibido (≥ total)");
-        return;
-      }
-    } else if (method === "Nequi" || method === "Bancolombia" || method === "Transferencia") {
-      if (!paymentRef.trim()) {
-        toast.error(`Ingresa la referencia / últimos 4 dígitos del pago por ${method}`);
-        return;
-      }
+    const cashReceived = Number((cashReceivedRaw ?? amountReceived).replace(/[^\d.]/g, "")) || 0;
+    if (method === "Efectivo" && cashReceived < Number(payOrder.total)) {
+      toast.error("Ingresa el monto recibido (≥ total)");
+      return;
     }
 
     setPaying(true);
     const its = items.filter((i) => i.sale_id === payOrder.id);
     const noteSuffix = method === "Efectivo"
-      ? `Recibido: ${amountReceived}`
+      ? `Recibido: ${cashReceived}`
       : paymentRef ? `Ref: ${paymentRef}` : "";
     const newNotes = [payOrder.notes, noteSuffix].filter(Boolean).join(" · ");
 
@@ -378,125 +486,25 @@ function OnlineOrdersPage() {
 
     toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
 
-    // Imprimir ticket de venta automáticamente — SIEMPRE, sin diálogo de confirmación.
-    {
-      const header = payOrder.order_type === "domicilio" ? "DOMICILIO" : payOrder.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
-      const ticketPayload: PrintPayload = {
-        type: "ticket",
-        ticket: payOrder.ticket_number,
-        header: `TICKET DE VENTA · ${header}`,
-        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-        subtotal: Number(payOrder.subtotal ?? 0),
-        deliveryFee: Number(payOrder.delivery_fee ?? 0),
-        total: Number(payOrder.total ?? 0),
-        payment_method: method,
-        customer: payOrder.customer_name ?? "",
-        address: payOrder.delivery_address ?? "",
-        phone: payOrder.customer_phone ?? "",
-        cash_received: method === "Efectivo" ? Number(amountReceived.replace(/[^\d.]/g, "")) : Number(payOrder.total ?? 0),
-        created_at: payOrder.created_at,
-      };
-      printSilent(ticketPayload, preCuentaHTML({
-        ticket: payOrder.ticket_number, header: `TICKET DE VENTA · ${header}`,
-        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-        customer: payOrder.customer_name ?? "", address: payOrder.delivery_address ?? "",
-        phone: payOrder.customer_phone ?? "", notes: `Pago: ${method}`,
-        subtotal: Number(payOrder.subtotal ?? 0), delivery_fee: Number(payOrder.delivery_fee ?? 0),
-        total: Number(payOrder.total ?? 0), created_at: payOrder.created_at,
-      }), { silent: true });
-    }
+    // Diferimos la impresión y el WhatsApp: se decide desde el diálogo de éxito.
+    const artifacts = buildTicketArtifacts(payOrder, its, method, cashReceived);
+    setSuccessDialog({
+      ticket: payOrder.ticket_number,
+      method,
+      total: Number(payOrder.total ?? 0),
+      ...artifacts,
+    });
 
-    // 2) Preguntar si enviar ticket digital por WhatsApp
-    const phoneDigits = (payOrder.customer_phone ?? "").replace(/[^\d]/g, "");
-    if (phoneDigits && its.length > 0) {
-      const wantWA = window.confirm(
-        `¿Enviar ticket digital por WhatsApp al cliente?\n\nNúmero: ${payOrder.customer_phone}`,
-      );
-      if (wantWA) {
-        const s = (settings ?? {}) as { business_name?: string; nit?: string; address?: string; phone?: string; ticket_footer?: string };
-        const bizName = (activeBranch?.name?.trim() || s.business_name || "Heladería Goloso").toUpperCase();
-        const bizNit = s.nit || "";
-        const bizAddr = activeBranch?.address || s.address || "";
-        const bizPhone = activeBranch?.phone || s.phone || "";
-        const footer = s.ticket_footer || "¡Gracias por Preferirnos!";
-
-        const W = 32; // ancho monoespaciado tipo ticket 80mm
-        const center = (t: string) => {
-          const s2 = t.trim();
-          if (s2.length >= W) return s2;
-          const pad = Math.floor((W - s2.length) / 2);
-          return " ".repeat(pad) + s2;
-        };
-        const dash = "-".repeat(W);
-        const row = (l: string, r: string) => {
-          const left = l;
-          const right = r;
-          const space = Math.max(1, W - left.length - right.length);
-          return left + " ".repeat(space) + right;
-        };
-        const wrap = (t: string, w = W) => {
-          const words = t.split(/\s+/);
-          const out: string[] = [];
-          let cur = "";
-          for (const wd of words) {
-            if ((cur + " " + wd).trim().length > w) { if (cur) out.push(cur); cur = wd; }
-            else cur = (cur ? cur + " " : "") + wd;
-          }
-          if (cur) out.push(cur);
-          return out;
-        };
-
-        const lines: string[] = [];
-        lines.push(center(bizName));
-        if (bizNit) lines.push(center(`NIT: ${bizNit}`));
-        if (bizAddr) wrap(bizAddr).forEach((l) => lines.push(center(l)));
-        if (bizPhone) lines.push(center(`TEL: ${bizPhone}`));
-        lines.push(dash);
-        lines.push(center(`TICKET DE VENTA`));
-        lines.push(center(`TV-${String(payOrder.ticket_number).padStart(6, "0")}`));
-        lines.push(center(new Date(payOrder.created_at).toLocaleString("es-CO")));
-        lines.push(dash);
-        if (payOrder.customer_name) lines.push(`CLIENTE: ${payOrder.customer_name.toUpperCase()}`);
-        if (payOrder.delivery_address) wrap(`DIR: ${payOrder.delivery_address.toUpperCase()}`).forEach((l) => lines.push(l));
-        if (payOrder.customer_phone) lines.push(`TEL:     ${payOrder.customer_phone.toUpperCase()}`);
-        lines.push(`PAGO:    ${method.toUpperCase()}`);
-        lines.push(dash);
-        lines.push(row("CANT  DESCRIPCION", "TOTAL"));
-        lines.push(dash);
-        for (const i of its) {
-          const qty = String(i.qty).padEnd(4, " ");
-          const money = formatMoney(i.unit_price * i.qty);
-          const nameMax = W - qty.length - 1 - money.length - 1;
-          const nameLines = wrap(i.product_name.toUpperCase(), Math.max(6, nameMax));
-          lines.push(row(`${qty} ${nameLines[0]}`, money));
-          for (let k = 1; k < nameLines.length; k++) lines.push("     " + nameLines[k]);
-        }
-        lines.push(dash);
-        lines.push(row("SUBTOTAL", formatMoney(Number(payOrder.subtotal ?? 0))));
-        if (Number(payOrder.delivery_fee ?? 0) > 0) {
-          lines.push(row("DOMICILIO", formatMoney(Number(payOrder.delivery_fee))));
-        }
-        lines.push(row("TOTAL", formatMoney(Number(payOrder.total ?? 0))));
-        if (method === "Efectivo") {
-          const received = Number(amountReceived.replace(/[^\d.]/g, "")) || Number(payOrder.total ?? 0);
-          const change = Math.max(0, received - Number(payOrder.total ?? 0));
-          lines.push(row("RECIBIDO", formatMoney(received)));
-          lines.push(row("CAMBIO", formatMoney(change)));
-        }
-        lines.push(dash);
-        lines.push(center(footer));
-
-        const ticketBlock = "```\n" + lines.join("\n") + "\n```";
-        const msg = `🧾 *TICKET DE VENTA #${payOrder.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
-        window.open(waLink(payOrder.customer_phone!, msg), "_blank", "noopener");
-      }
-    } else if (!phoneDigits) {
-      toast.info("Cliente sin WhatsApp registrado · ticket digital no enviado");
-    }
-
-    resetPayState();
+    // Cerramos la UI de cobro pero mantenemos el diálogo de éxito.
+    setPayOrder(null);
+    setSelectedMethod(null);
+    setPaymentRef("");
+    setAmountReceived("");
+    setCashDialogOpen(false);
     qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
   }
+
+
 
 
 
@@ -664,107 +672,256 @@ function OnlineOrdersPage() {
         </Card>
       )}
 
-      <Dialog open={!!payOrder} onOpenChange={(open) => { if (!open) resetPayState(); }}>
-        <DialogContent>
+      {/* Diálogo principal de cobro — mismo estilo que POS mesas/llevar */}
+      <Dialog open={!!payOrder && !cashDialogOpen} onOpenChange={(open) => { if (!open && !paying) resetPayState(); }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Cobrar pedido #{payOrder?.ticket_number}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-primary" /> Cobrar {formatMoney(Number(payOrder?.total ?? 0))}
+            </DialogTitle>
             <DialogDescription>
-              {selectedMethod
-                ? "Registra los datos del pago y confirma para finalizar la venta."
-                : "1) Selecciona el método de pago con el que se recaudó el dinero."}
+              Pedido #{payOrder?.ticket_number}
+              {payOrder?.customer_name ? ` · ${payOrder.customer_name}` : ""}
+              {Number(payOrder?.delivery_fee ?? 0) > 0 ? ` · Domicilio ${formatMoney(Number(payOrder!.delivery_fee))}` : ""}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="rounded-md bg-muted p-3 text-center">
-              <div className="text-xs text-muted-foreground">Total a cobrar</div>
-              <div className="font-display text-3xl text-primary">{formatMoney(Number(payOrder?.total ?? 0))}</div>
-              {payOrder?.customer_name && <div className="text-sm mt-1">{payOrder.customer_name}</div>}
+
+          {!cashSession?.id && (
+            <div className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+              Abre caja en esta sede para poder cobrar.
             </div>
-            {!cashSession?.id && (
-              <div className="rounded-md border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
-                Debes abrir caja en esta sede para registrar el cobro.
-              </div>
-            )}
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <Button
-                disabled={paying || !cashSession?.id}
-                onClick={() => { setSelectedMethod("Efectivo"); setPaymentRef(""); }}
-                variant={selectedMethod === "Efectivo" ? "default" : "outline"}
-                className="h-16 flex-col"
-              >
-                <Banknote className="h-5 w-5" /> Efectivo
-              </Button>
-              <Button
-                disabled={paying || !cashSession?.id}
-                onClick={() => { setSelectedMethod("Nequi"); setAmountReceived(""); }}
-                variant={selectedMethod === "Nequi" ? "default" : "outline"}
-                className="h-16 flex-col"
-              >
-                <Smartphone className="h-5 w-5" /> Nequi
-              </Button>
-              <Button
-                disabled={paying || !cashSession?.id}
-                onClick={() => { setSelectedMethod("Bancolombia"); setAmountReceived(""); }}
-                variant={selectedMethod === "Bancolombia" ? "default" : "outline"}
-                className="h-16 flex-col"
-              >
-                <CreditCard className="h-5 w-5" /> Bancolombia
-              </Button>
+          <div className="flex flex-col gap-3 py-2">
+            {(["Efectivo", "Nequi", "Bancolombia"] as const).map((methodName) => {
+              const isCash = methodName === "Efectivo";
+              const isNequi = methodName === "Nequi";
+              const isBanco = methodName === "Bancolombia";
+              const isDisabled = paying || !cashSession?.id;
+
+              let style: CSSProperties = {
+                background: "linear-gradient(180deg, #e5e7eb 0%, #cbd5e1 100%)",
+                color: "#1f2937",
+                boxShadow:
+                  "inset 0 2px 0 rgba(255,255,255,0.6), inset 0 -4px 0 rgba(0,0,0,0.15), 0 6px 14px -4px rgba(0,0,0,0.35)",
+                textShadow: "0 1px 0 rgba(255,255,255,0.4)",
+              };
+              if (isCash) {
+                style = {
+                  background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)",
+                  color: "#ffffff",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(22,163,74,0.55)",
+                  textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+                };
+              } else if (isNequi) {
+                style = {
+                  background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                  color: "#1a1554",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.9), inset 0 -5px 0 rgba(0,0,0,0.12), 0 8px 18px -6px rgba(0,0,0,0.3)",
+                };
+              } else if (isBanco) {
+                style = {
+                  background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                  color: "#1a1a1a",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 18px -6px rgba(202,138,4,0.55)",
+                };
+              }
+
+              return (
+                <button
+                  key={methodName}
+                  type="button"
+                  disabled={isDisabled}
+                  style={style}
+                  className="group relative flex h-20 w-full items-center justify-center gap-3 overflow-hidden rounded-full px-6 text-xl font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    if (isDisabled) return;
+                    if (isCash) {
+                      setSelectedMethod("Efectivo");
+                      setAmountReceived("");
+                      setCashDialogOpen(true);
+                    } else {
+                      setSelectedMethod(methodName);
+                      void payWithMethod(methodName);
+                    }
+                  }}
+                >
+                  {isCash && (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+                      <Banknote className="h-6 w-6" strokeWidth={2.5} />
+                    </span>
+                  )}
+                  {isNequi && (
+                    <img
+                      src={nequiLogo.url}
+                      alt="Nequi"
+                      className="h-16 w-auto object-contain"
+                      style={{ mixBlendMode: "multiply", transform: "scale(1.4)" }}
+                    />
+                  )}
+                  {isBanco && (
+                    <img
+                      src={bancolombiaLogo.url}
+                      alt="Bancolombia"
+                      className="h-16 w-auto object-contain"
+                      style={{ mixBlendMode: "multiply", transform: "scale(2)" }}
+                    />
+                  )}
+                  {isCash && <span>{methodName}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={resetPayState} disabled={paying}>Cancelar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sub-diálogo de EFECTIVO — mismo estilo que POS (billetes + input + cambio) */}
+      <Dialog open={cashDialogOpen} onOpenChange={(open) => { if (!paying) setCashDialogOpen(open); }}>
+        <DialogContent className="max-h-[92vh] sm:max-w-md p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="space-y-1 px-5 pt-5 pb-3 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Banknote className="h-5 w-5 text-primary" /> Pago en efectivo
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Ingresa el monto recibido del cliente para calcular el cambio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+            <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total a cobrar</span>
+                <span className="font-display text-xl text-primary">{formatMoney(Number(payOrder?.total ?? 0))}</span>
+              </div>
             </div>
 
-            {selectedMethod === "Efectivo" && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium uppercase text-muted-foreground">Monto recibido</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={amountReceived}
-                  onChange={(e) => setAmountReceived(e.target.value)}
-                  placeholder="Ej: 50000"
-                  className="w-full rounded-md border bg-background px-3 py-2 text-base"
-                  autoFocus
-                />
-                {amountReceived && Number(amountReceived.replace(/[^\d.]/g, "")) >= Number(payOrder?.total ?? 0) && (
-                  <div className="text-xs text-muted-foreground">
-                    Cambio: <b>{formatMoney(Number(amountReceived.replace(/[^\d.]/g, "")) - Number(payOrder?.total ?? 0))}</b>
-                  </div>
-                )}
+            <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 px-4 py-2.5 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.6)]">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground text-center">Recibido</div>
+              <div
+                key={amountReceived}
+                className="flex items-baseline justify-center gap-1 font-display font-bold tabular-nums tracking-tight text-foreground animate-scale-in"
+              >
+                <span className="text-xl text-primary/70">$</span>
+                <span className="text-3xl sm:text-4xl leading-none">
+                  {amountReceived === "" ? "0" : Number(amountReceived).toLocaleString("es-CO")}
+                </span>
               </div>
-            )}
-            {(selectedMethod === "Nequi" || selectedMethod === "Bancolombia") && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium uppercase text-muted-foreground">
-                  Referencia / últimos 4 dígitos
-                </label>
-                <input
-                  type="text"
-                  value={paymentRef}
-                  onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder={selectedMethod === "Nequi" ? "Ej: 1234" : "Ref. transacción"}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-base"
-                  autoFocus
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Verifica el ingreso del dinero en la app de {selectedMethod} antes de confirmar.
-                </p>
-              </div>
-            )}
+            </div>
 
-            {selectedMethod && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-xs text-muted-foreground">
-                ⚠️ El ticket digital se enviará al WhatsApp del cliente <b>solo después</b> de confirmar el pago.
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground text-center mb-1">Digite el valor</label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xl font-semibold text-muted-foreground">$</span>
+                <Input
+                  autoFocus
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  className="h-12 rounded-xl border-2 text-center font-display text-2xl font-bold tabular-nums tracking-wide shadow-inner"
+                  value={amountReceived === "" ? "" : Number(amountReceived).toLocaleString("es-CO")}
+                  onChange={(e) => setAmountReceived(e.target.value.replace(/\D/g, ""))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && Number(amountReceived) >= Number(payOrder?.total ?? 0) && !paying) {
+                      void payWithMethod("Efectivo");
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <CashPayPad
+              total={Number(payOrder?.total ?? 0)}
+              cashReceived={amountReceived}
+              onSetReceived={setAmountReceived}
+              disabled={paying}
+            />
+
+            {amountReceived !== "" && (
+              <div className={`rounded-xl p-3 text-sm flex justify-between items-center ${Number(amountReceived) < Number(payOrder?.total ?? 0) ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
+                <span className="font-medium">Cambio</span>
+                <span className="font-display text-2xl font-bold tabular-nums">
+                  {formatMoney(Math.max(0, Number(amountReceived) - Number(payOrder?.total ?? 0)))}
+                </span>
+              </div>
+            )}
+            {amountReceived !== "" && Number(amountReceived) < Number(payOrder?.total ?? 0) && (
+              <div className="text-xs text-destructive text-center">
+                Faltan {formatMoney(Number(payOrder?.total ?? 0) - Number(amountReceived))}
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={resetPayState} disabled={paying}>Cancelar</Button>
+          <DialogFooter className="shrink-0 border-t bg-background/95 backdrop-blur px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <Button variant="outline" onClick={() => setCashDialogOpen(false)} disabled={paying}>Cancelar</Button>
             <Button
-              onClick={processPayment}
-              disabled={paying || !selectedMethod || !cashSession?.id}
-              className="min-w-[220px]"
+              disabled={paying || amountReceived === "" || Number(amountReceived) < Number(payOrder?.total ?? 0)}
+              onClick={() => { void payWithMethod("Efectivo"); }}
             >
-              {paying ? "Procesando…" : "Confirmar pago y finalizar venta"}
+              {paying ? "Cobrando…" : "Confirmar cobro"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de éxito con pregunta "¿imprimir ticket?" — idéntico al POS */}
+      <Dialog open={!!successDialog} onOpenChange={(open) => { if (!open) setSuccessDialog(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+              <Check className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="text-center text-2xl">¡Venta realizada con éxito!</DialogTitle>
+            <DialogDescription className="text-center">
+              {successDialog && (
+                <>
+                  Ticket <b>#{successDialog.ticket}</b> · {successDialog.method} ·{" "}
+                  <b>{formatMoney(successDialog.total)}</b>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-center text-base font-medium">¿Desea imprimir el ticket de venta?</p>
+          <DialogFooter className="sm:justify-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              className="font-bold"
+              onClick={() => {
+                const wa = successDialog?.waMessage;
+                const phone = successDialog?.waPhone;
+                setSuccessDialog(null);
+                if (wa && phone) {
+                  const send = window.confirm(`¿Enviar ticket digital por WhatsApp al cliente?\n\nNúmero: ${phone}`);
+                  if (send) window.open(waLink(phone, wa), "_blank", "noopener");
+                }
+              }}
+            >
+              No, finalizar
+            </Button>
+            <Button
+              className="font-bold"
+              onClick={() => {
+                const payload = successDialog?.printPayload;
+                const html = successDialog?.printHTML;
+                const wa = successDialog?.waMessage;
+                const phone = successDialog?.waPhone;
+                setSuccessDialog(null);
+                if (payload && html) {
+                  setTimeout(() => printSilent(payload, html, { silent: true }), 0);
+                }
+                if (wa && phone) {
+                  setTimeout(() => {
+                    const send = window.confirm(`¿Enviar también el ticket digital por WhatsApp al cliente?\n\nNúmero: ${phone}`);
+                    if (send) window.open(waLink(phone, wa), "_blank", "noopener");
+                  }, 300);
+                }
+              }}
+            >
+              <Printer className="h-4 w-4 mr-1" /> Sí, imprimir
             </Button>
           </DialogFooter>
         </DialogContent>
