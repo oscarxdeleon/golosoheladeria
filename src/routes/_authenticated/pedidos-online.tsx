@@ -672,107 +672,256 @@ function OnlineOrdersPage() {
         </Card>
       )}
 
-      <Dialog open={!!payOrder} onOpenChange={(open) => { if (!open) resetPayState(); }}>
-        <DialogContent>
+      {/* Diálogo principal de cobro — mismo estilo que POS mesas/llevar */}
+      <Dialog open={!!payOrder && !cashDialogOpen} onOpenChange={(open) => { if (!open && !paying) resetPayState(); }}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Cobrar pedido #{payOrder?.ticket_number}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Banknote className="h-5 w-5 text-primary" /> Cobrar {formatMoney(Number(payOrder?.total ?? 0))}
+            </DialogTitle>
             <DialogDescription>
-              {selectedMethod
-                ? "Registra los datos del pago y confirma para finalizar la venta."
-                : "1) Selecciona el método de pago con el que se recaudó el dinero."}
+              Pedido #{payOrder?.ticket_number}
+              {payOrder?.customer_name ? ` · ${payOrder.customer_name}` : ""}
+              {Number(payOrder?.delivery_fee ?? 0) > 0 ? ` · Domicilio ${formatMoney(Number(payOrder!.delivery_fee))}` : ""}
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-3">
-            <div className="rounded-md bg-muted p-3 text-center">
-              <div className="text-xs text-muted-foreground">Total a cobrar</div>
-              <div className="font-display text-3xl text-primary">{formatMoney(Number(payOrder?.total ?? 0))}</div>
-              {payOrder?.customer_name && <div className="text-sm mt-1">{payOrder.customer_name}</div>}
+
+          {!cashSession?.id && (
+            <div className="rounded-md border border-amber-400 bg-amber-50 p-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+              Abre caja en esta sede para poder cobrar.
             </div>
-            {!cashSession?.id && (
-              <div className="rounded-md border border-destructive bg-destructive/10 p-2 text-sm text-destructive">
-                Debes abrir caja en esta sede para registrar el cobro.
-              </div>
-            )}
+          )}
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-              <Button
-                disabled={paying || !cashSession?.id}
-                onClick={() => { setSelectedMethod("Efectivo"); setPaymentRef(""); }}
-                variant={selectedMethod === "Efectivo" ? "default" : "outline"}
-                className="h-16 flex-col"
-              >
-                <Banknote className="h-5 w-5" /> Efectivo
-              </Button>
-              <Button
-                disabled={paying || !cashSession?.id}
-                onClick={() => { setSelectedMethod("Nequi"); setAmountReceived(""); }}
-                variant={selectedMethod === "Nequi" ? "default" : "outline"}
-                className="h-16 flex-col"
-              >
-                <Smartphone className="h-5 w-5" /> Nequi
-              </Button>
-              <Button
-                disabled={paying || !cashSession?.id}
-                onClick={() => { setSelectedMethod("Bancolombia"); setAmountReceived(""); }}
-                variant={selectedMethod === "Bancolombia" ? "default" : "outline"}
-                className="h-16 flex-col"
-              >
-                <CreditCard className="h-5 w-5" /> Bancolombia
-              </Button>
+          <div className="flex flex-col gap-3 py-2">
+            {(["Efectivo", "Nequi", "Bancolombia"] as const).map((methodName) => {
+              const isCash = methodName === "Efectivo";
+              const isNequi = methodName === "Nequi";
+              const isBanco = methodName === "Bancolombia";
+              const isDisabled = paying || !cashSession?.id;
+
+              let style: CSSProperties = {
+                background: "linear-gradient(180deg, #e5e7eb 0%, #cbd5e1 100%)",
+                color: "#1f2937",
+                boxShadow:
+                  "inset 0 2px 0 rgba(255,255,255,0.6), inset 0 -4px 0 rgba(0,0,0,0.15), 0 6px 14px -4px rgba(0,0,0,0.35)",
+                textShadow: "0 1px 0 rgba(255,255,255,0.4)",
+              };
+              if (isCash) {
+                style = {
+                  background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)",
+                  color: "#ffffff",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(22,163,74,0.55)",
+                  textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+                };
+              } else if (isNequi) {
+                style = {
+                  background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                  color: "#1a1554",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.9), inset 0 -5px 0 rgba(0,0,0,0.12), 0 8px 18px -6px rgba(0,0,0,0.3)",
+                };
+              } else if (isBanco) {
+                style = {
+                  background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                  color: "#1a1a1a",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 18px -6px rgba(202,138,4,0.55)",
+                };
+              }
+
+              return (
+                <button
+                  key={methodName}
+                  type="button"
+                  disabled={isDisabled}
+                  style={style}
+                  className="group relative flex h-20 w-full items-center justify-center gap-3 overflow-hidden rounded-full px-6 text-xl font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
+                  onClick={() => {
+                    if (isDisabled) return;
+                    if (isCash) {
+                      setSelectedMethod("Efectivo");
+                      setAmountReceived("");
+                      setCashDialogOpen(true);
+                    } else {
+                      setSelectedMethod(methodName);
+                      void payWithMethod(methodName);
+                    }
+                  }}
+                >
+                  {isCash && (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+                      <Banknote className="h-6 w-6" strokeWidth={2.5} />
+                    </span>
+                  )}
+                  {isNequi && (
+                    <img
+                      src={nequiLogo.url}
+                      alt="Nequi"
+                      className="h-16 w-auto object-contain"
+                      style={{ mixBlendMode: "multiply", transform: "scale(1.4)" }}
+                    />
+                  )}
+                  {isBanco && (
+                    <img
+                      src={bancolombiaLogo.url}
+                      alt="Bancolombia"
+                      className="h-16 w-auto object-contain"
+                      style={{ mixBlendMode: "multiply", transform: "scale(2)" }}
+                    />
+                  )}
+                  {isCash && <span>{methodName}</span>}
+                </button>
+              );
+            })}
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={resetPayState} disabled={paying}>Cancelar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Sub-diálogo de EFECTIVO — mismo estilo que POS (billetes + input + cambio) */}
+      <Dialog open={cashDialogOpen} onOpenChange={(open) => { if (!paying) setCashDialogOpen(open); }}>
+        <DialogContent className="max-h-[92vh] sm:max-w-md p-0 gap-0 flex flex-col overflow-hidden">
+          <DialogHeader className="space-y-1 px-5 pt-5 pb-3 border-b shrink-0">
+            <DialogTitle className="flex items-center gap-2 text-base">
+              <Banknote className="h-5 w-5 text-primary" /> Pago en efectivo
+            </DialogTitle>
+            <DialogDescription className="text-xs">
+              Ingresa el monto recibido del cliente para calcular el cambio.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto px-5 py-3 space-y-3">
+            <div className="rounded-xl bg-muted/50 p-3 space-y-1 text-sm">
+              <div className="flex justify-between items-center">
+                <span className="text-muted-foreground">Total a cobrar</span>
+                <span className="font-display text-xl text-primary">{formatMoney(Number(payOrder?.total ?? 0))}</span>
+              </div>
             </div>
 
-            {selectedMethod === "Efectivo" && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium uppercase text-muted-foreground">Monto recibido</label>
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={amountReceived}
-                  onChange={(e) => setAmountReceived(e.target.value)}
-                  placeholder="Ej: 50000"
-                  className="w-full rounded-md border bg-background px-3 py-2 text-base"
-                  autoFocus
-                />
-                {amountReceived && Number(amountReceived.replace(/[^\d.]/g, "")) >= Number(payOrder?.total ?? 0) && (
-                  <div className="text-xs text-muted-foreground">
-                    Cambio: <b>{formatMoney(Number(amountReceived.replace(/[^\d.]/g, "")) - Number(payOrder?.total ?? 0))}</b>
-                  </div>
-                )}
+            <div className="relative overflow-hidden rounded-xl border border-primary/20 bg-gradient-to-br from-primary/10 via-background to-primary/5 px-4 py-2.5 shadow-[0_6px_18px_-10px_rgba(0,0,0,0.25),inset_0_1px_0_rgba(255,255,255,0.6)]">
+              <div className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground text-center">Recibido</div>
+              <div
+                key={amountReceived}
+                className="flex items-baseline justify-center gap-1 font-display font-bold tabular-nums tracking-tight text-foreground animate-scale-in"
+              >
+                <span className="text-xl text-primary/70">$</span>
+                <span className="text-3xl sm:text-4xl leading-none">
+                  {amountReceived === "" ? "0" : Number(amountReceived).toLocaleString("es-CO")}
+                </span>
               </div>
-            )}
-            {(selectedMethod === "Nequi" || selectedMethod === "Bancolombia") && (
-              <div className="space-y-1">
-                <label className="text-xs font-medium uppercase text-muted-foreground">
-                  Referencia / últimos 4 dígitos
-                </label>
-                <input
-                  type="text"
-                  value={paymentRef}
-                  onChange={(e) => setPaymentRef(e.target.value)}
-                  placeholder={selectedMethod === "Nequi" ? "Ej: 1234" : "Ref. transacción"}
-                  className="w-full rounded-md border bg-background px-3 py-2 text-base"
-                  autoFocus
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Verifica el ingreso del dinero en la app de {selectedMethod} antes de confirmar.
-                </p>
-              </div>
-            )}
+            </div>
 
-            {selectedMethod && (
-              <div className="rounded-md border border-primary/40 bg-primary/5 p-3 text-xs text-muted-foreground">
-                ⚠️ El ticket digital se enviará al WhatsApp del cliente <b>solo después</b> de confirmar el pago.
+            <div>
+              <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground text-center mb-1">Digite el valor</label>
+              <div className="relative">
+                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xl font-semibold text-muted-foreground">$</span>
+                <Input
+                  autoFocus
+                  type="text"
+                  inputMode="numeric"
+                  placeholder="0"
+                  className="h-12 rounded-xl border-2 text-center font-display text-2xl font-bold tabular-nums tracking-wide shadow-inner"
+                  value={amountReceived === "" ? "" : Number(amountReceived).toLocaleString("es-CO")}
+                  onChange={(e) => setAmountReceived(e.target.value.replace(/\D/g, ""))}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" && Number(amountReceived) >= Number(payOrder?.total ?? 0) && !paying) {
+                      void payWithMethod("Efectivo");
+                    }
+                  }}
+                />
+              </div>
+            </div>
+
+            <CashPayPad
+              total={Number(payOrder?.total ?? 0)}
+              cashReceived={amountReceived}
+              onSetReceived={setAmountReceived}
+              disabled={paying}
+            />
+
+            {amountReceived !== "" && (
+              <div className={`rounded-xl p-3 text-sm flex justify-between items-center ${Number(amountReceived) < Number(payOrder?.total ?? 0) ? "bg-destructive/10 text-destructive" : "bg-success/10 text-success"}`}>
+                <span className="font-medium">Cambio</span>
+                <span className="font-display text-2xl font-bold tabular-nums">
+                  {formatMoney(Math.max(0, Number(amountReceived) - Number(payOrder?.total ?? 0)))}
+                </span>
+              </div>
+            )}
+            {amountReceived !== "" && Number(amountReceived) < Number(payOrder?.total ?? 0) && (
+              <div className="text-xs text-destructive text-center">
+                Faltan {formatMoney(Number(payOrder?.total ?? 0) - Number(amountReceived))}
               </div>
             )}
           </div>
-          <DialogFooter className="gap-2">
-            <Button variant="outline" onClick={resetPayState} disabled={paying}>Cancelar</Button>
+          <DialogFooter className="shrink-0 border-t bg-background/95 backdrop-blur px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+            <Button variant="outline" onClick={() => setCashDialogOpen(false)} disabled={paying}>Cancelar</Button>
             <Button
-              onClick={processPayment}
-              disabled={paying || !selectedMethod || !cashSession?.id}
-              className="min-w-[220px]"
+              disabled={paying || amountReceived === "" || Number(amountReceived) < Number(payOrder?.total ?? 0)}
+              onClick={() => { void payWithMethod("Efectivo"); }}
             >
-              {paying ? "Procesando…" : "Confirmar pago y finalizar venta"}
+              {paying ? "Cobrando…" : "Confirmar cobro"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Diálogo de éxito con pregunta "¿imprimir ticket?" — idéntico al POS */}
+      <Dialog open={!!successDialog} onOpenChange={(open) => { if (!open) setSuccessDialog(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-primary/15">
+              <Check className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="text-center text-2xl">¡Venta realizada con éxito!</DialogTitle>
+            <DialogDescription className="text-center">
+              {successDialog && (
+                <>
+                  Ticket <b>#{successDialog.ticket}</b> · {successDialog.method} ·{" "}
+                  <b>{formatMoney(successDialog.total)}</b>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <p className="text-center text-base font-medium">¿Desea imprimir el ticket de venta?</p>
+          <DialogFooter className="sm:justify-center gap-2 flex-wrap">
+            <Button
+              variant="outline"
+              className="font-bold"
+              onClick={() => {
+                const wa = successDialog?.waMessage;
+                const phone = successDialog?.waPhone;
+                setSuccessDialog(null);
+                if (wa && phone) {
+                  const send = window.confirm(`¿Enviar ticket digital por WhatsApp al cliente?\n\nNúmero: ${phone}`);
+                  if (send) window.open(waLink(phone, wa), "_blank", "noopener");
+                }
+              }}
+            >
+              No, finalizar
+            </Button>
+            <Button
+              className="font-bold"
+              onClick={() => {
+                const payload = successDialog?.printPayload;
+                const html = successDialog?.printHTML;
+                const wa = successDialog?.waMessage;
+                const phone = successDialog?.waPhone;
+                setSuccessDialog(null);
+                if (payload && html) {
+                  setTimeout(() => printSilent(payload, html, { silent: true }), 0);
+                }
+                if (wa && phone) {
+                  setTimeout(() => {
+                    const send = window.confirm(`¿Enviar también el ticket digital por WhatsApp al cliente?\n\nNúmero: ${phone}`);
+                    if (send) window.open(waLink(phone, wa), "_blank", "noopener");
+                  }, 300);
+                }
+              }}
+            >
+              <Printer className="h-4 w-4 mr-1" /> Sí, imprimir
             </Button>
           </DialogFooter>
         </DialogContent>
