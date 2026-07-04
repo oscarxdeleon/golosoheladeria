@@ -275,6 +275,16 @@ export function PublicOrder({
       if (errs.name || errs.phone || errs.address || errs.neighborhood) {
         return "Este campo es obligatorio para envíos a domicilio";
       }
+    } else if (isPickup) {
+      if (!customerName.trim()) errs.name = true;
+      if (!phone.trim()) errs.phone = true;
+      setFieldErrors(errs);
+      if (errs.name || errs.phone) {
+        return "Nombre y teléfono son obligatorios para recoger en heladería";
+      }
+      if (payMethod !== "Nequi" && payMethod !== "Bancolombia") {
+        return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
+      }
     } else {
       setFieldErrors({});
     }
