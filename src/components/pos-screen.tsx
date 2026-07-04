@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -1438,51 +1439,57 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
 
-          {/* Barra de acciones rápidas — siempre fija abajo */}
-          <div className="fixed inset-x-0 bottom-0 z-40 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
-            <div className="mb-1.5 flex items-center justify-between text-xs">
-              <span className="flex items-center gap-1.5 text-muted-foreground">
-                <ShoppingCart className="h-3.5 w-3.5" />
-                {cart.reduce((a, l) => a + l.qty, 0)} items · Sub {formatMoney(subtotal)}
-              </span>
-              <span className="font-display text-lg text-primary tabular-nums leading-none">{formatMoney(total)}</span>
-            </div>
-            <div className={meseroMode ? "grid grid-cols-1 gap-1.5" : "grid grid-cols-3 gap-1.5"}>
-              <Button
-                size="sm"
-                variant="outline"
-                disabled={paying || cart.length === 0}
-                onClick={saveComanda}
-                className="h-10 border-primary text-primary hover:bg-primary/10"
-              >
-                <Save className="h-4 w-4 sm:mr-1" />
-                <span className="hidden sm:inline">Guardar</span>
-              </Button>
-              {!meseroMode && (
-                <>
+          {typeof document !== "undefined" && createPortal(
+            <div className="fixed inset-x-0 bottom-0 z-[60] border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
+              <div className="mx-auto max-w-7xl">
+                <div className="mb-1.5 flex items-center justify-between text-xs">
+                  <span className="flex items-center gap-1.5 text-muted-foreground">
+                    <ShoppingCart className="h-3.5 w-3.5" />
+                    <span className="font-semibold text-foreground">Pedido</span>
+                    <span>·</span>
+                    {cart.reduce((a, l) => a + l.qty, 0)} items · Sub {formatMoney(subtotal)}
+                  </span>
+                  <span className="font-display text-lg text-primary tabular-nums leading-none">{formatMoney(total)}</span>
+                </div>
+                <div className={meseroMode ? "grid grid-cols-1 gap-1.5" : "grid grid-cols-3 gap-1.5"}>
                   <Button
                     size="sm"
                     variant="outline"
-                    disabled={cart.length === 0}
-                    onClick={handlePrecuenta}
-                    className="h-10"
+                    disabled={paying || cart.length === 0}
+                    onClick={saveComanda}
+                    className="h-10 border-primary text-primary hover:bg-primary/10"
                   >
-                    <Printer className="h-4 w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Precuenta</span>
+                    <Save className="h-4 w-4 sm:mr-1" />
+                    <span className="hidden sm:inline">Guardar</span>
                   </Button>
-                  <Button
-                    size="sm"
-                    disabled={paying || (cart.length === 0 && !pendingSaleId)}
-                    onClick={() => setPayDialogOpen(true)}
-                    className="h-10 bg-gradient-primary font-bold"
-                  >
-                    <Banknote className="h-4 w-4 sm:mr-1" />
-                    <span className="hidden sm:inline">Cobrar</span>
-                  </Button>
-                </>
-              )}
-            </div>
-          </div>
+                  {!meseroMode && (
+                    <>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={cart.length === 0}
+                        onClick={handlePrecuenta}
+                        className="h-10"
+                      >
+                        <Printer className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Precuenta</span>
+                      </Button>
+                      <Button
+                        size="sm"
+                        disabled={paying || (cart.length === 0 && !pendingSaleId)}
+                        onClick={() => setPayDialogOpen(true)}
+                        className="h-10 bg-gradient-primary font-bold"
+                      >
+                        <Banknote className="h-4 w-4 sm:mr-1" />
+                        <span className="hidden sm:inline">Cobrar</span>
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>,
+            document.body,
+          )}
 
 
 
