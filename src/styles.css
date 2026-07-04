@@ -12,15 +12,20 @@
 /* Hide Lovable "Made with Lovable" badge on published site */
 #lovable-badge,
 a#lovable-badge,
-a[href*="lovable.dev"][href*="utm"],
-a[href*="lovable.dev/?utm"],
+a[href*="lovable.dev"],
+a[href*="lovable.app"][href*="utm"],
 [data-lovable-badge],
-.lovable-badge {
+[class*="lovable-badge"],
+iframe[src*="lovable.dev"],
+iframe[src*="lovable.app/badge"] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
+  width: 0 !important;
+  height: 0 !important;
 }
+
 
 @custom-variant dark (&:is(.dark *));
 
