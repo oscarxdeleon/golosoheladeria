@@ -15,8 +15,8 @@ import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { sendToLocalPrinter } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
-import nequiLogo from "@/assets/nequi-3d.png";
-import bancolombiaLogo from "@/assets/bancolombia-3d.png";
+import nequiLogo from "@/assets/nequi-logo-original.jpg";
+import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 
 const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 

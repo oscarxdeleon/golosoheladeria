@@ -19,10 +19,8 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
-import nequiLogoAsset from "@/assets/nequi-logo-original.jpg.asset.json";
-import bancolombiaLogoAsset from "@/assets/bancolombia-logo-original.png.asset.json";
-const nequiLogo = nequiLogoAsset.url;
-const bancolombiaLogo = bancolombiaLogoAsset.url;
+import nequiLogo from "@/assets/nequi-logo-original.jpg";
+import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 
 
 
