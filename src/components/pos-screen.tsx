@@ -1986,18 +1986,56 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
               Abre caja para poder cobrar.
             </div>
           )}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="flex flex-col gap-3 py-2">
             {methods.map((m: { id: string; name: string }) => {
-              const isCash = m.name.toLowerCase().includes("efectivo");
+              const lower = m.name.toLowerCase();
+              const isCash = lower.includes("efectivo");
+              const isNequi = lower.includes("nequi");
+              const isBanco = lower.includes("bancolombia");
               const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
               const isDisabled = paying || !hasOrder;
+
+              // Estilos 3D tipo pill según método
+              let style: React.CSSProperties = {
+                background: "linear-gradient(180deg, #e5e7eb 0%, #cbd5e1 100%)",
+                color: "#1f2937",
+                boxShadow:
+                  "inset 0 2px 0 rgba(255,255,255,0.6), inset 0 -4px 0 rgba(0,0,0,0.15), 0 6px 14px -4px rgba(0,0,0,0.35)",
+                textShadow: "0 1px 0 rgba(255,255,255,0.4)",
+              };
+              if (isCash) {
+                style = {
+                  background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)",
+                  color: "#ffffff",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(22,163,74,0.55)",
+                  textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+                };
+              } else if (isNequi) {
+                style = {
+                  background: "linear-gradient(180deg, #ffffff 0%, #f1f5f9 100%)",
+                  color: "#1a1554",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.9), inset 0 -5px 0 rgba(0,0,0,0.12), 0 8px 18px -6px rgba(0,0,0,0.3)",
+                  textShadow: "0 1px 0 rgba(255,255,255,0.7)",
+                };
+              } else if (isBanco) {
+                style = {
+                  background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                  color: "#1a1a1a",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 18px -6px rgba(202,138,4,0.55)",
+                  textShadow: "0 1px 0 rgba(255,255,255,0.35)",
+                };
+              }
+
               return (
-                <Button
+                <button
                   key={m.id}
                   type="button"
                   disabled={isDisabled}
-                  variant={isCash ? "default" : "secondary"}
-                  className="h-14"
+                  style={style}
+                  className="group relative flex h-16 w-full items-center justify-center gap-3 rounded-full px-6 text-lg font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => {
                     try {
                       if (isDisabled) return;
@@ -2014,14 +2052,39 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                     }
                   }}
                 >
-                  {isCash && <Banknote className="h-4 w-4 mr-1" />}
-                  {m.name}
-                </Button>
+                  {isCash && (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+                      <Banknote className="h-6 w-6" strokeWidth={2.5} />
+                    </span>
+                  )}
+                  {isNequi && (
+                    <span
+                      className="flex h-9 w-9 items-center justify-center rounded-md"
+                      style={{
+                        background:
+                          "conic-gradient(from 45deg, #ff0f7b, #1a1554, #00d1c1, #ff0f7b)",
+                        transform: "rotate(45deg)",
+                      }}
+                    >
+                      <span
+                        className="block h-3 w-3 rounded-sm bg-[#1a1554]"
+                        style={{ transform: "rotate(-45deg)" }}
+                      />
+                    </span>
+                  )}
+                  {isBanco && (
+                    <span className="flex h-9 w-9 flex-col items-center justify-center gap-[3px]">
+                      <span className="h-[3px] w-6 rounded-full bg-black" />
+                      <span className="h-[3px] w-6 rounded-full bg-black" />
+                      <span className="h-[3px] w-6 rounded-full bg-black" />
+                    </span>
+                  )}
+                  <span>{m.name}</span>
+                </button>
               );
-
             })}
             {methods.length === 0 && (
-              <div className="col-span-2 py-3 text-center text-xs text-muted-foreground">
+              <div className="py-3 text-center text-xs text-muted-foreground">
                 No hay métodos de pago configurados.
               </div>
             )}
