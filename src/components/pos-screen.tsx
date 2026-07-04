@@ -1225,32 +1225,39 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
   async function handlePrecuenta() {
     // Si el pedido ya está guardado, recargar items desde la base para garantizar el monto correcto
     let items = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
-    let sub = subtotal;
-    let tx = tax;
-    let tot = total;
+    let dFee = deliveryFee;
+    let ticketNum: number | null = null;
+    let createdAt: string | null = null;
     if (pendingSaleId) {
       const { data } = await supabase
         .from("sales")
-        .select("subtotal,tax,total,delivery_fee,sale_items(product_name,qty,unit_price)")
+        .select("ticket_number,created_at,delivery_fee,sale_items(product_name,qty,unit_price)")
         .eq("id", pendingSaleId)
         .maybeSingle();
       if (data) {
         items = (data.sale_items ?? []).map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) }));
-        sub = Number(data.subtotal);
-        tx = Number(data.tax ?? 0);
-        tot = Number(data.total);
+        dFee = Number(data.delivery_fee ?? 0);
+        ticketNum = data.ticket_number ?? null;
+        createdAt = data.created_at ?? null;
       }
     }
     if (items.length === 0) return toast.error("Carrito vacío");
+    // Recalcular subtotal/tax/total desde los items para evitar desfases
+    // con valores almacenados que pudieron quedar desactualizados.
+    const sub = items.reduce((s, i) => s + i.unit_price * i.qty, 0);
+    const tx = Math.round((sub * taxRate) / 100);
+    const tot = sub + tx + dFee;
     printPrecuenta({
       header,
       items,
       subtotal: sub,
       tax: tx,
-      deliveryFee,
+      deliveryFee: dFee,
       total: tot,
       customer,
       user_name: profile?.full_name ?? user?.email ?? "",
+      ticket: ticketNum,
+      created_at: createdAt,
       branding,
     });
 
