@@ -2038,7 +2038,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode =
                   type="button"
                   disabled={isDisabled}
                   style={style}
-                  className="group relative flex h-16 w-full items-center justify-center gap-3 rounded-full px-6 text-lg font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
+                  className="group relative flex h-20 w-full items-center justify-center gap-3 overflow-hidden rounded-full px-6 text-xl font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
                   onClick={() => {
                     try {
                       if (isDisabled) return;
