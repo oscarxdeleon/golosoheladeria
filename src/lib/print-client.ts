@@ -29,6 +29,8 @@ export type PrintPayload = {
   email_biz?: string;
   footer_text?: string;
   logo_url?: string;
+  logo_fallback_url?: string;
+  ticket_config?: Record<string, unknown>;
   ticket_template?: "goloso_personalizado";
   cash_received?: number;
   printer_ip?: string;
@@ -68,7 +70,7 @@ function sanitizePayloadForPrinter(p: PrintPayload): PrintPayload {
   const strFields: (keyof PrintPayload)[] = [
     "header", "payment_method", "customer", "notes", "address", "phone",
     "user_name", "business_name", "nit", "address_biz", "phone_biz",
-    "email_biz", "footer_text", "cashierMessage",
+    "email_biz", "footer_text", "logo_url", "logo_fallback_url", "cashierMessage",
   ];
   const out: PrintPayload = { ...p };
   for (const k of strFields) {
@@ -171,8 +173,7 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     new Set(
       [
         primary,
-        DEFAULT_LOCAL_PRINT_URL,
-        "http://127.0.0.1:3001/print",
+        primary ? null : DEFAULT_LOCAL_PRINT_URL,
       ]
         .map((u) => normalizePrintUrl(u))
         .filter(Boolean) as string[],
@@ -180,9 +181,8 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   );
 
   const TIMEOUT_MS = 4000;
-  // Normalizamos los textos a ASCII seguro para las impresoras térmicas ESC/POS
-  // (evita glifos rotos por caracteres UTF-8 que la impresora no soporta:
-  // Ó → O, ñ → n, ¡ → !, comillas tipográficas, etc.).
+  // Normalizamos comillas/controles, conservando tildes para que el servidor
+  // local las codifique en CP850 antes de enviarlas a la impresora.
   const body = JSON.stringify(sanitizePayloadForPrinter(payload));
 
 
