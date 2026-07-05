@@ -947,7 +947,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // volvemos al Panel de Mesas, que es la pantalla principal del cajero.
       const redirectTo: "/mesas" = "/mesas";
 
-      // Imprimir ticket automáticamente (sin diálogo de confirmación).
+      // Mostrar diálogo de confirmación para imprimir el ticket.
+      // La impresión SOLO se ejecuta si el cajero pulsa "Sí, imprimir".
       const ticketPayload: Parameters<typeof printTicketFinal>[0] = {
         ticket: sale.ticket_number,
         header: snapshotHeader,
@@ -966,8 +967,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
         branding,
       };
-      setTimeout(() => { void printTicketFinal(ticketPayload); }, 0);
-      setTimeout(() => navigate({ to: redirectTo }), 50);
+      setSuccessDialog({
+        ticket: sale.ticket_number,
+        method: sale.payment_method,
+        total: Number(sale.total),
+        printPayload: ticketPayload,
+        redirectTo,
+      });
+
 
 
     } catch (err) {
