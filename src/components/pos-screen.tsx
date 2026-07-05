@@ -447,7 +447,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     footer_text: b.ticket_footer ?? undefined,
     logo_url: logoUrl,
     logo_fallback_url: logoFallbackUrl,
-    ticket_config: { ...DEFAULT_TICKET_CONFIG, ...(b.ticket_config ?? {}) },
+    ticket_config: { ...DEFAULT_TICKET_CONFIG, ...(b.ticket_config ?? {}), show_logo: true },
     ticket_template: "goloso_personalizado",
     printer_ip: printerIp,
     printer_port: printerPort,
