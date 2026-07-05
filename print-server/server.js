@@ -233,6 +233,19 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
   }
 }
 
+function logoRasterFromBase64(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  try {
+    const buf = Buffer.from(raw, "base64");
+    if (buf.length < 16) return null;
+    return buf;
+  } catch (e) {
+    console.warn("[logo] base64 inválido", e?.message || e);
+    return null;
+  }
+}
+
 
 
 async function buildPersonalizedTicketRaw(p) {
@@ -241,9 +254,9 @@ async function buildPersonalizedTicketRaw(p) {
   if (p.open_drawer) out += DRAWER;
 
   // ==== LOGO (raster) ====
-  let logoBuf = null;
+  let logoBuf = logoRasterFromBase64(p.logo_raster_base64);
   if (cfg.show_logo && p.logo_url) {
-    logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
+    logoBuf = logoBuf || await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
     if (!logoBuf && p.logo_fallback_url && p.logo_fallback_url !== p.logo_url) {
       console.warn("[logo] intentando logo de respaldo", p.logo_fallback_url);
       logoBuf = await fetchLogoRaster(p.logo_fallback_url, WIDTH >= 42 ? 384 : 288);
