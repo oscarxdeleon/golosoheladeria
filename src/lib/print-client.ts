@@ -270,7 +270,6 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
         body,
         signal: controller.signal,
         mode: "cors",
-        keepalive: true,
       });
       if (res.ok) {
         _lastGoodUrl = url;
