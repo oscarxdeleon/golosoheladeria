@@ -30,6 +30,7 @@ export type PrintPayload = {
   footer_text?: string;
   logo_url?: string;
   logo_fallback_url?: string;
+  logo_raster_base64?: string;
   ticket_config?: Record<string, unknown>;
   ticket_template?: "goloso_personalizado";
   cash_received?: number;
@@ -83,6 +84,78 @@ function sanitizePayloadForPrinter(p: PrintPayload): PrintPayload {
   return out;
 }
 
+async function imageToEscPosRasterBase64(url: string, maxWidthPx = 384): Promise<string | null> {
+  if (typeof window === "undefined" || typeof document === "undefined") return null;
+  const src = String(url || "").trim();
+  if (!src) return null;
+  try {
+    const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+      const image = new Image();
+      const timeout = window.setTimeout(() => reject(new Error("logo timeout")), 5000);
+      image.crossOrigin = "anonymous";
+      image.onload = () => {
+        window.clearTimeout(timeout);
+        resolve(image);
+      };
+      image.onerror = () => {
+        window.clearTimeout(timeout);
+        reject(new Error("logo load error"));
+      };
+      image.src = src;
+    });
+    const width = Math.max(8, Math.floor(Math.min(img.naturalWidth || maxWidthPx, maxWidthPx) / 8) * 8);
+    const ratio = width / Math.max(1, img.naturalWidth || width);
+    const height = Math.max(1, Math.round((img.naturalHeight || width) * ratio));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) return null;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, width, height);
+    ctx.drawImage(img, 0, 0, width, height);
+    const { data } = ctx.getImageData(0, 0, width, height);
+    const bytesPerRow = width / 8;
+    const raster = new Uint8Array(bytesPerRow * height);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const idx = (y * width + x) * 4;
+        const r = data[idx];
+        const g = data[idx + 1];
+        const b = data[idx + 2];
+        const a = data[idx + 3];
+        const lum = 0.299 * r + 0.587 * g + 0.114 * b;
+        if (a > 64 && lum < 175) raster[y * bytesPerRow + (x >> 3)] |= 0x80 >> (x & 7);
+      }
+    }
+    const bytes = [
+      0x1b, 0x61, 0x01,
+      0x1d, 0x76, 0x30, 0x00,
+      bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff,
+      height & 0xff, (height >> 8) & 0xff,
+      ...Array.from(raster),
+      0x0a,
+      0x1b, 0x61, 0x00,
+    ];
+    let binary = "";
+    for (let i = 0; i < bytes.length; i += 0x8000) {
+      binary += String.fromCharCode(...bytes.slice(i, i + 0x8000));
+    }
+    return window.btoa(binary);
+  } catch (e) {
+    console.warn("[print] no se pudo rasterizar logo en cliente", e);
+    return null;
+  }
+}
+
+async function withClientRasterLogo(payload: PrintPayload): Promise<PrintPayload> {
+  if (payload.logo_raster_base64 || payload.type === "comanda" || payload.type === "drawer") return payload;
+  const primary = payload.logo_url ? await imageToEscPosRasterBase64(payload.logo_url) : null;
+  const fallback = !primary && payload.logo_fallback_url ? await imageToEscPosRasterBase64(payload.logo_fallback_url) : null;
+  const logo_raster_base64 = primary ?? fallback ?? undefined;
+  return logo_raster_base64 ? { ...payload, logo_raster_base64 } : payload;
+}
+
 
 // Cache en memoria — evita ir a localStorage/supabase en cada impresión.
 let _cachedUrl: string | null | undefined = undefined;
@@ -124,6 +197,7 @@ export function setLocalPrintUrl(url: string | null) {
 }
 
 let _bootstrapPromise: Promise<string | null> | null = null;
+let _printerTargetPromise: Promise<Pick<PrintPayload, "printer_ip" | "printer_port"> | null> | null = null;
 /**
  * Si no hay URL en localStorage, la lee UNA VEZ desde la tabla `settings`
  * (columna `local_print_url`) y la persiste en localStorage.
@@ -149,6 +223,32 @@ export async function bootstrapLocalPrintUrl(): Promise<string | null> {
     }
   })();
   return _bootstrapPromise;
+}
+
+async function getDefaultPrinterTarget(): Promise<Pick<PrintPayload, "printer_ip" | "printer_port"> | null> {
+  if (_printerTargetPromise) return _printerTargetPromise;
+  _printerTargetPromise = (async () => {
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase
+        .from("settings")
+        .select("cashier_printer_ip,cashier_printer_port")
+        .limit(1)
+        .maybeSingle();
+      const row = data as { cashier_printer_ip?: string | null; cashier_printer_port?: number | null } | null;
+      const printer_ip = row?.cashier_printer_ip?.trim();
+      return printer_ip ? { printer_ip, printer_port: row?.cashier_printer_port ?? 9100 } : null;
+    } catch {
+      return null;
+    }
+  })();
+  return _printerTargetPromise;
+}
+
+async function withDefaultPrinterTarget(payload: PrintPayload): Promise<PrintPayload> {
+  if (payload.printer_ip) return payload;
+  const target = await getDefaultPrinterTarget();
+  return target?.printer_ip ? { ...payload, ...target } : payload;
 }
 
 // Dispara bootstrap en segundo plano lo antes posible.
@@ -181,10 +281,10 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     ),
   );
 
-  const TIMEOUT_MS = 4000;
+  const TIMEOUT_MS = 12000;
   // Normalizamos comillas/controles, conservando tildes para que el servidor
   // local las codifique en CP850 antes de enviarlas a la impresora.
-  const body = JSON.stringify(sanitizePayloadForPrinter(payload));
+  const body = JSON.stringify(sanitizePayloadForPrinter(await withClientRasterLogo(await withDefaultPrinterTarget(payload))));
 
 
   for (const url of candidates) {
@@ -197,7 +297,6 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
         body,
         signal: controller.signal,
         mode: "cors",
-        keepalive: true,
       });
       if (res.ok) {
         _lastGoodUrl = url;
