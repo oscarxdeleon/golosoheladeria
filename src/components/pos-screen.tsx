@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
@@ -394,10 +394,14 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   };
   const ok = await sendToLocalPrinter(payload);
   if (!ok) {
-    console.warn("[print] comanda no enviada al servidor local — verifica LOCAL_PRINT_URL y print-server");
+    console.warn("[print] comanda no enviada al servidor local — usando fallback del navegador");
+    // Fallback: abre el diálogo de impresión del navegador para que la
+    // comanda igual llegue a cocina cuando el servidor local no responde.
+    try { printHTMLFallback(comandaHTML(o)); } catch (e) { console.error("[print] fallback comanda", e); }
   }
   return ok;
 }
+
 export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
   const cajaCfg = await fetchCajaPrinter();
   const printerIp = cajaCfg.ip;
@@ -1009,7 +1013,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       toast.error("La operación tardó demasiado. Reintenta o recarga la página.");
     }, 15000);
 
+    // Guardamos si es la PRIMERA vez que se guarda este pedido.
+    // Cuando es nuevo debemos imprimir SIEMPRE toda la comanda, sin depender
+    // del baseline `printedQtyRef` (que aún podría estar desactualizado por
+    // la hidratación asincrónica de un pedido pendiente previo).
+    const isFirstSave = !pendingSaleId;
     try {
+
       let sale: { id: string; ticket_number: number; created_at: string };
       if (pendingSaleId) {
         // Actualizar pedido pendiente existente y reemplazar items
@@ -1136,7 +1146,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // Delta de impresión: solo los ítems (o cantidades) NUEVAS respecto a
       // lo ya enviado a cocina en comandas previas de la misma mesa. Evita que
       // se repitan los productos ya impresos.
-      const alreadyPrinted = { ...printedQtyRef.current };
+      // En el PRIMER guardado imprimimos SIEMPRE todo el carrito. En saves
+      // posteriores solo imprimimos el delta (ítems o cantidades añadidas
+      // desde la última comanda enviada a cocina) para evitar duplicados.
+      const alreadyPrinted = isFirstSave ? {} : { ...printedQtyRef.current };
       const deltaLines = cart
         .map((l) => {
           const prev = alreadyPrinted[l.key] ?? 0;
@@ -1162,6 +1175,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               qty: newQty,
             }))
           : []; // sin ítems nuevos → no imprimimos comanda para no duplicar
+
 
       const printSnapshot = {
         ticket: sale.ticket_number,
