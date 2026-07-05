@@ -162,7 +162,11 @@ if (typeof window !== "undefined") {
  * próximo envío. Nunca lanza.
  */
 export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
-  const primary = _lastGoodUrl ?? getLocalPrintUrl();
+  let configuredUrl = getLocalPrintUrl();
+  if (!configuredUrl) {
+    configuredUrl = await bootstrapLocalPrintUrl();
+  }
+  const primary = _lastGoodUrl ?? configuredUrl;
   const candidates = Array.from(
     new Set(
       [
