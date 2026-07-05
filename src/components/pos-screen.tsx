@@ -14,13 +14,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
+import golosoLogo from "@/assets/logo-goloso.png";
 
 
 
@@ -88,6 +89,18 @@ export interface Branding {
 }
 
 const DEFAULT_BRANDING: Branding = { business_name: "Heladería Goloso" };
+
+function toAbsolutePrintUrl(url?: string | null): string | undefined {
+  const value = String(url ?? "").trim();
+  if (!value) return undefined;
+  if (/^data:/i.test(value)) return value;
+  try {
+    if (typeof window !== "undefined") return new URL(value, window.location.origin).href;
+    return new URL(value).href;
+  } catch {
+    return undefined;
+  }
+}
 
 
 function brandHeaderHTML(b: Branding) {
@@ -394,10 +407,7 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   };
   const ok = await sendToLocalPrinter(payload);
   if (!ok) {
-    console.warn("[print] comanda no enviada al servidor local — usando fallback del navegador");
-    // Fallback: abre el diálogo de impresión del navegador para que la
-    // comanda igual llegue a cocina cuando el servidor local no responde.
-    try { printHTMLFallback(comandaHTML(o)); } catch (e) { console.error("[print] fallback comanda", e); }
+    console.warn("[print] comanda no enviada: servidor local no disponible");
   }
   return ok;
 }
@@ -409,9 +419,12 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const openDrawer = !!cajaCfg.open_drawer_on_print;
 
   const b = o.branding ?? DEFAULT_BRANDING;
+  const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
+  const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
   const payload: PrintPayload = {
     type: "ticket",
     ticket: o.ticket,
+    ticket_number: o.ticket,
     header: o.header,
     items: o.items,
     subtotal: o.subtotal,
@@ -432,7 +445,9 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     phone_biz: b.phone ?? undefined,
     email_biz: b.email ?? undefined,
     footer_text: b.ticket_footer ?? undefined,
-    logo_url: b.logo_url ?? undefined,
+    logo_url: logoUrl,
+    logo_fallback_url: logoFallbackUrl,
+    ticket_config: { ...DEFAULT_TICKET_CONFIG, ...(b.ticket_config ?? {}) },
     ticket_template: "goloso_personalizado",
     printer_ip: printerIp,
     printer_port: printerPort,
@@ -1889,7 +1904,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 const redirect = successDialog?.redirectTo ?? null;
                 setSuccessDialog(null);
                 if (payload) {
-                  // Dispara la impresión (servidor local silencioso o fallback nativo).
+                  // Dispara la impresión solo por servidor local silencioso.
                   // El POS no se queda bloqueado: redirige de inmediato al panel principal.
                   setTimeout(() => printTicketFinal(payload), 0);
                 }
