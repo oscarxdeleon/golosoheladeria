@@ -137,7 +137,11 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   );
 
   const TIMEOUT_MS = 4000;
-  const body = JSON.stringify(payload);
+  // Normalizamos los textos a ASCII seguro para las impresoras térmicas ESC/POS
+  // (evita glifos rotos por caracteres UTF-8 que la impresora no soporta:
+  // Ó → O, ñ → n, ¡ → !, comillas tipográficas, etc.).
+  const body = JSON.stringify(sanitizePayloadForPrinter(payload));
+
 
   for (const url of candidates) {
     const controller = new AbortController();
