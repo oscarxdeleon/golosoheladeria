@@ -1,4 +1,6 @@
+import { useEffect } from "react";
 import { Link, useRouterState } from "@tanstack/react-router";
+
 import logoUrl from "@/assets/logo-goloso.png";
 import { usePermissions } from "@/hooks/use-permissions";
 
@@ -90,11 +92,16 @@ const admin = [
 ];
 
 export function AppSidebar() {
-  const { state } = useSidebar();
+  const { state, isMobile, setOpenMobile } = useSidebar();
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
+  // Auto-cerrar el sheet móvil al navegar para que un solo clic abra el módulo.
+  useEffect(() => {
+    if (isMobile) setOpenMobile(false);
+  }, [pathname, isMobile, setOpenMobile]);
   const isActive = (p: string) => (p === "/" ? pathname === "/" : pathname.startsWith(p));
   const { can } = usePermissions();
+
   const filter = <T extends { key: string }>(arr: T[]) => arr.filter((i) => can(i.key));
   const fMain = filter(main);
   const fOrden = filter(orden);
