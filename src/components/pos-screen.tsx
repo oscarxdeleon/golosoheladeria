@@ -1772,13 +1772,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <div>
               <label className="block text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground text-center mb-1">Digite el valor</label>
               <div className="relative">
-                <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xl font-semibold text-muted-foreground">$</span>
+                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-3xl font-semibold text-muted-foreground">$</span>
                 <Input
                   autoFocus
                   type="text"
                   inputMode="numeric"
                   placeholder="0"
-                  className="h-12 rounded-xl border-2 text-center font-display text-2xl font-bold tabular-nums tracking-wide shadow-inner transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/50"
+                  className="h-20 rounded-xl border-2 text-center font-display text-5xl sm:text-6xl font-black tabular-nums tracking-wide shadow-inner transition-all duration-200 focus-visible:ring-2 focus-visible:ring-primary/50"
                   value={cashReceived === "" ? "" : Number(cashReceived).toLocaleString("es-CO")}
                   onChange={(e) => {
                     const digits = e.target.value.replace(/\D/g, "");
