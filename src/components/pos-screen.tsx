@@ -394,10 +394,14 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   };
   const ok = await sendToLocalPrinter(payload);
   if (!ok) {
-    console.warn("[print] comanda no enviada al servidor local — verifica LOCAL_PRINT_URL y print-server");
+    console.warn("[print] comanda no enviada al servidor local — usando fallback del navegador");
+    // Fallback: abre el diálogo de impresión del navegador para que la
+    // comanda igual llegue a cocina cuando el servidor local no responde.
+    try { printHTMLFallback(comandaHTML(o)); } catch (e) { console.error("[print] fallback comanda", e); }
   }
   return ok;
 }
+
 export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
   const cajaCfg = await fetchCajaPrinter();
   const printerIp = cajaCfg.ip;
