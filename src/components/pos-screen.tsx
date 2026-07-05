@@ -1142,7 +1142,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // Delta de impresión: solo los ítems (o cantidades) NUEVAS respecto a
       // lo ya enviado a cocina en comandas previas de la misma mesa. Evita que
       // se repitan los productos ya impresos.
-      const alreadyPrinted = { ...printedQtyRef.current };
+      // En el PRIMER guardado imprimimos SIEMPRE todo el carrito. En saves
+      // posteriores solo imprimimos el delta (ítems o cantidades añadidas
+      // desde la última comanda enviada a cocina) para evitar duplicados.
+      const alreadyPrinted = isFirstSave ? {} : { ...printedQtyRef.current };
       const deltaLines = cart
         .map((l) => {
           const prev = alreadyPrinted[l.key] ?? 0;
@@ -1168,6 +1171,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               qty: newQty,
             }))
           : []; // sin ítems nuevos → no imprimimos comanda para no duplicar
+
 
       const printSnapshot = {
         ticket: sale.ticket_number,
