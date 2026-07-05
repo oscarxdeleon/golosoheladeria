@@ -1023,14 +1023,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     setPaying(true);
 
     // Watchdog: si algo se cuelga (red, RLS que no responde, token vencido)
-    // liberamos el botón a los 15s con un mensaje claro para el cajero. Esto
+    // liberamos el botón a los 25s con un mensaje claro para el cajero. Esto
     // evita el bug "no responde a la primera" que dejaba `paying=true` para
     // siempre cuando una llamada de Supabase no resolvía.
     const watchdog = window.setTimeout(() => {
       console.error("[pos] saveComanda: watchdog disparado a los 15s — liberando UI");
       setPaying(false);
       toast.error("La operación tardó demasiado. Reintenta o recarga la página.");
-    }, 15000);
+    }, 25000);
 
     // Guardamos si es la PRIMERA vez que se guarda este pedido.
     // Cuando es nuevo debemos imprimir SIEMPRE toda la comanda, sin depender
