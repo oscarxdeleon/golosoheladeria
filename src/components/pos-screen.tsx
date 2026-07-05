@@ -1196,6 +1196,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         phone: orderType === "domicilio" ? phone : "",
         user_name: profile?.full_name ?? user.email ?? "",
         created_at: sale.created_at,
+        branding,
       };
 
       // Actualizar baseline: lo que hay en el carrito ahora ya se considera impreso.
@@ -1700,9 +1701,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 const ok = await printComanda(snap);
                 if (ok) toast.success("Comanda reimpresa", { id: t });
                 else {
-                  const w = window.open("", "_blank", "width=420,height=640");
-                  if (w) { w.document.write(comandaHTML(snap)); w.document.close(); setTimeout(() => w.print(), 350); }
-                  toast.success("Comanda reimpresa (navegador)", { id: t });
+                  toast.warning("No se pudo reimprimir: revisa el servidor local de impresión", { id: t });
                 }
               }}
             >
