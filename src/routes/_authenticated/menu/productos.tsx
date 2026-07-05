@@ -512,8 +512,10 @@ function ProductosPage() {
                 />
               </label>
             </Button>
+            <CloneToBranchDialog branches={branches} qc={qc} />
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
               <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
+
 
             <DialogContent className="flex h-[100dvh] max-h-[100dvh] w-screen max-w-none flex-col gap-0 rounded-none p-0 sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:rounded-lg">
               <DialogHeader className="shrink-0 border-b px-6 py-4"><DialogTitle>{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
