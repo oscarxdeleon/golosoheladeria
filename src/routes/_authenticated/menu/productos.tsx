@@ -796,3 +796,83 @@ function ProductosPage() {
   );
 }
 
+function CloneToBranchDialog({
+  branches,
+  qc,
+}: {
+  branches: Branch[];
+  qc: ReturnType<typeof useQueryClient>;
+}) {
+  const subs = branches.filter((b) => !b.is_main);
+  const [open, setOpen] = useState(false);
+  const [target, setTarget] = useState<string>(subs[0]?.id ?? "");
+  const [loading, setLoading] = useState(false);
+
+  if (subs.length === 0) return null;
+
+  async function run() {
+    if (!target) {
+      toast.error("Selecciona una sede destino");
+      return;
+    }
+    setLoading(true);
+    try {
+      const { data, error } = await supabase.rpc("clone_main_products_to_branch", { _branch_id: target });
+      if (error) {
+        toast.error(error.message);
+        return;
+      }
+      const result = (data ?? {}) as { created?: number; skipped?: number };
+      toast.success(
+        `Clonado completo · ${result.created ?? 0} nuevos, ${result.skipped ?? 0} omitidos (ya existían)`,
+      );
+      qc.invalidateQueries({ queryKey: ["products-all"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      setOpen(false);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline">
+          <CopyPlus className="h-4 w-4 mr-1" /> Clonar a sucursal
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Mostrar todos los productos de la sede principal en una sucursal</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-3 text-sm">
+          <p className="text-muted-foreground">
+            Copia todos los productos de la sede principal a la sucursal seleccionada, con sus
+            categorías, precios, recetas, modificadores, imágenes y estado. Los productos que ya
+            existan en la sucursal <b>no se duplican</b>.
+          </p>
+          <div className="space-y-1">
+            <Label>Sede destino</Label>
+            <Select value={target} onValueChange={setTarget}>
+              <SelectTrigger><SelectValue placeholder="Selecciona sucursal" /></SelectTrigger>
+              <SelectContent>
+                {subs.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>Cancelar</Button>
+          <Button onClick={run} disabled={loading || !target}>
+            {loading ? <><Loader2 className="h-4 w-4 mr-1 animate-spin" /> Clonando…</> : <><CopyPlus className="h-4 w-4 mr-1" /> Clonar productos</>}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
