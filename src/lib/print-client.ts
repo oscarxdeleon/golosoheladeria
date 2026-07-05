@@ -224,10 +224,7 @@ export function printHTMLFallback(html: string) {
  * Es fire-and-forget: no bloquea la UI.
  *
  * Opciones:
- *   silent: si es true y no hay servidor local configurado, NO abre el
- *           diálogo nativo del navegador (evita interrumpir el flujo del
- *           cajero). Solo muestra un aviso en consola. Recomendado para
- *           comandas de cocina enviadas automáticamente.
+  *   silent: se conserva por compatibilidad; ningún modo abre diálogo nativo.
  */
 export function printSilent(
   payload: PrintPayload,
@@ -244,15 +241,14 @@ export function printSilent(
       );
       return;
     }
-     void fallbackHTML;
-     console.warn("[print] no se imprimió: servidor local no disponible");
+    void fallbackHTML;
+    console.warn("[print] no se imprimió: servidor local no disponible");
   })();
 }
 
 /**
  * Envía SOLO el pulso de apertura del cajón monedero al servidor local.
- * Útil cuando el ticket se imprime por el diálogo del navegador (HTML)
- * pero igualmente se desea abrir la gaveta mediante ESC/POS.
+ * Útil para abrir la gaveta mediante ESC/POS sin imprimir ticket.
  *
  * Nunca llamar desde flujos de cocina/KDS — la gaveta debe permanecer
  * cerrada al imprimir comandas.
