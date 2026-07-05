@@ -347,7 +347,7 @@ function precuentaHTML(o: {
 // Cache en memoria de las impresoras por área. Evita hacer un round-trip
 // a Supabase por cada impresión (comanda + ticket = 2 queries).
 type PrinterCfg = { ip?: string; port?: number; open_drawer_on_print?: boolean };
-type PrintersRow = { ip: string | null; port: number | null; open_drawer_on_print: boolean | null; area: string | null; active: boolean | null };
+type PrintersRow = { name: string | null; ip: string | null; port: number | null; open_drawer_on_print: boolean | null; area: string | null; active: boolean | null };
 let _printersCache: PrintersRow[] | null = null;
 let _printersFetchedAt = 0;
 const PRINTERS_TTL_MS = 60_000;
@@ -361,7 +361,7 @@ async function loadPrinters(): Promise<PrintersRow[]> {
     try {
       const { data } = await supabase
         .from("printers")
-        .select("ip,port,open_drawer_on_print,active,area")
+        .select("name,ip,port,open_drawer_on_print,active,area")
         .eq("active", true);
       _printersCache = (data as PrintersRow[] | null) ?? [];
       _printersFetchedAt = Date.now();
@@ -384,7 +384,25 @@ export function invalidatePrintersCache() {
 async function fetchPrinterByArea(areas: string[]): Promise<PrinterCfg> {
   const data = await loadPrinters();
   const p = areas.map((area) => data.find((printer) => printer.area === area)).find(Boolean);
-  return { ip: p?.ip ?? undefined, port: p?.port ?? undefined, open_drawer_on_print: p?.open_drawer_on_print ?? undefined };
+  const looksLikeIp = (value?: string | null) => /^\d{1,3}(?:\.\d{1,3}){3}$/.test(String(value ?? "").trim());
+  let ip = p?.ip?.trim() || (looksLikeIp(p?.name) ? String(p?.name).trim() : undefined);
+  let port = p?.port ?? undefined;
+
+  if (!ip && areas.includes("caja")) {
+    try {
+      const { data: settingsPrinter } = await supabase
+        .from("settings")
+        .select("cashier_printer_ip,cashier_printer_port")
+        .limit(1)
+        .maybeSingle();
+      ip = (settingsPrinter as { cashier_printer_ip?: string | null } | null)?.cashier_printer_ip?.trim() || undefined;
+      port = (settingsPrinter as { cashier_printer_port?: number | null } | null)?.cashier_printer_port ?? port;
+    } catch (e) {
+      console.warn("[print] no se pudo consultar impresora de caja en ajustes", e);
+    }
+  }
+
+  return { ip, port, open_drawer_on_print: p?.open_drawer_on_print ?? undefined };
 }
 
 async function fetchCajaPrinter(): Promise<PrinterCfg> {
