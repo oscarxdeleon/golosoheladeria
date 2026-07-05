@@ -43,6 +43,53 @@ export type PrintPayload = {
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
 
+/**
+ * Convierte un texto a un subconjunto ASCII seguro para impresoras térmicas
+ * ESC/POS (evita que caracteres UTF-8 no soportados aparezcan como "=", " "
+ * o glifos raros). Reemplaza diacríticos, comillas tipográficas y símbolos
+ * comunes por su equivalente ASCII, y descarta lo demás.
+ */
+function sanitizeForPrinter(input: unknown): string {
+  if (input === null || input === undefined) return "";
+  let s = String(input);
+  // Comillas y guiones tipográficos → ASCII
+  s = s
+    .replace(/[\u2018\u2019\u201A\u201B\u2032]/g, "'")
+    .replace(/[\u201C\u201D\u201E\u201F\u2033]/g, '"')
+    .replace(/[\u2013\u2014\u2015]/g, "-")
+    .replace(/\u2026/g, "...")
+    .replace(/[\u00A0\u2007\u202F]/g, " ")
+    .replace(/[\u2022\u25CF\u25AA\u25A0]/g, "*")
+    .replace(/\u00D7/g, "x")
+    .replace(/\u00B0/g, "o");
+  // Normaliza y quita marcas diacríticas: Ó → O, ñ → n
+  s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
+  // Sustituciones específicas del español que NFKD no cubre
+  s = s.replace(/ñ/g, "n").replace(/Ñ/g, "N");
+  s = s.replace(/¡/g, "!").replace(/¿/g, "?");
+  // Eliminar caracteres no imprimibles / fuera de ASCII básico
+  s = s.replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+  return s;
+}
+
+function sanitizePayloadForPrinter(p: PrintPayload): PrintPayload {
+  const strFields: (keyof PrintPayload)[] = [
+    "header", "payment_method", "customer", "notes", "address", "phone",
+    "user_name", "business_name", "nit", "address_biz", "phone_biz",
+    "email_biz", "footer_text", "cashierMessage",
+  ];
+  const out: PrintPayload = { ...p };
+  for (const k of strFields) {
+    const v = out[k];
+    if (typeof v === "string") (out as Record<string, unknown>)[k] = sanitizeForPrinter(v);
+  }
+  if (Array.isArray(out.items)) {
+    out.items = out.items.map((i) => ({ ...i, name: sanitizeForPrinter(i.name) }));
+  }
+  return out;
+}
+
+
 // Cache en memoria — evita ir a localStorage/supabase en cada impresión.
 let _cachedUrl: string | null | undefined = undefined;
 let _lastGoodUrl: string | null = null;
@@ -137,7 +184,11 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   );
 
   const TIMEOUT_MS = 4000;
-  const body = JSON.stringify(payload);
+  // Normalizamos los textos a ASCII seguro para las impresoras térmicas ESC/POS
+  // (evita glifos rotos por caracteres UTF-8 que la impresora no soporta:
+  // Ó → O, ñ → n, ¡ → !, comillas tipográficas, etc.).
+  const body = JSON.stringify(sanitizePayloadForPrinter(payload));
+
 
   for (const url of candidates) {
     const controller = new AbortController();
