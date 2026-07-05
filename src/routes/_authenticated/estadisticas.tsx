@@ -186,8 +186,9 @@ function EstadisticasPage() {
               <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Hasta</label>
               <Input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="w-40" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={setToday}>Hoy</Button>
+              <Button size="sm" variant="outline" onClick={setYesterday}>Ayer</Button>
               <Button size="sm" variant="outline" onClick={setLast7}>Últimos 7 días</Button>
               <Button size="sm" variant="outline" onClick={setThisMonth}>Este mes</Button>
             </div>
