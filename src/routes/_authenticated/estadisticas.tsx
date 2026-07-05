@@ -83,12 +83,12 @@ function EstadisticasPage() {
         const mods = Array.isArray(it.modifiers) ? (it.modifiers as RawMod[]) : [];
         for (const m of mods) {
           const name = (m?.name ?? "").toString().trim() || "—";
-          const group = m?.group_name ? String(m.group_name) : null;
-          const key = (m?.id ? String(m.id) : `${group ?? ""}::${name}`).toLowerCase();
+          // Agrupar únicamente por nombre del modificador (sin importar el grupo).
+          const key = name.toLowerCase();
           const modQty = Number(m?.qty ?? 1) || 1;
           const price = Number(m?.price ?? 0) || 0;
           const totalQty = modQty * it.qty;
-          const cur = map.get(key) ?? { key, name, group_name: group, uses: 0, qty_total: 0, amount_total: 0 };
+          const cur = map.get(key) ?? { key, name, group_name: null, uses: 0, qty_total: 0, amount_total: 0 };
           cur.uses += 1;
           cur.qty_total += totalQty;
           cur.amount_total += totalQty * price;
@@ -115,17 +115,14 @@ function EstadisticasPage() {
     const base = data?.rows ?? [];
     if (!includeZero) return base;
     const seen = new Set(base.map((r) => r.key));
-    const extras: ModifierRow[] = (allModifiers ?? [])
-      .filter((m) => !seen.has(m.id.toLowerCase()))
-      .map((m) => ({
-        key: m.id.toLowerCase(),
-        name: m.name,
-        group_name: m.modifier_groups?.name ?? null,
-        uses: 0,
-        qty_total: 0,
-        amount_total: 0,
-      }));
-    return [...base, ...extras];
+    const extrasMap = new Map<string, ModifierRow>();
+    for (const m of allModifiers ?? []) {
+      const name = (m.name ?? "").trim() || "—";
+      const key = name.toLowerCase();
+      if (seen.has(key) || extrasMap.has(key)) continue;
+      extrasMap.set(key, { key, name, group_name: null, uses: 0, qty_total: 0, amount_total: 0 });
+    }
+    return [...base, ...Array.from(extrasMap.values())];
   }, [data, includeZero, allModifiers]);
 
   const totals = useMemo(
@@ -142,6 +139,13 @@ function EstadisticasPage() {
     const d = todayISO();
     setFrom(d);
     setTo(d);
+  };
+  const setYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const iso = d.toISOString().slice(0, 10);
+    setFrom(iso);
+    setTo(iso);
   };
   const setLast7 = () => {
     const end = new Date();
@@ -182,8 +186,9 @@ function EstadisticasPage() {
               <label className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Hasta</label>
               <Input type="date" value={to} min={from} onChange={(e) => setTo(e.target.value)} className="w-40" />
             </div>
-            <div className="flex gap-2">
+            <div className="flex flex-wrap gap-2">
               <Button size="sm" variant="outline" onClick={setToday}>Hoy</Button>
+              <Button size="sm" variant="outline" onClick={setYesterday}>Ayer</Button>
               <Button size="sm" variant="outline" onClick={setLast7}>Últimos 7 días</Button>
               <Button size="sm" variant="outline" onClick={setThisMonth}>Este mes</Button>
             </div>
@@ -205,7 +210,6 @@ function EstadisticasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Modificador</TableHead>
-                  <TableHead>Grupo</TableHead>
                   <TableHead className="text-right">Usos</TableHead>
                   <TableHead className="text-right">Cantidad</TableHead>
                   <TableHead className="text-right">Valor generado</TableHead>
@@ -213,10 +217,10 @@ function EstadisticasPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5}><Skeleton className="h-24" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4}><Skeleton className="h-24" /></TableCell></TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                       Sin movimientos de modificadores en el período seleccionado.
                     </TableCell>
                   </TableRow>
@@ -224,7 +228,6 @@ function EstadisticasPage() {
                   rows.map((r) => (
                     <TableRow key={r.key}>
                       <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{r.group_name ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">{r.uses}</TableCell>
                       <TableCell className="text-right font-mono">{r.qty_total}</TableCell>
                       <TableCell className="text-right font-mono">{formatMoney(r.amount_total)}</TableCell>
