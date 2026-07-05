@@ -633,24 +633,29 @@ export function PublicOrder({
   }
 
   if (source === "online_menu" && !onlineService && !readOnly) {
-    const onlineLogo = settings?.logo_url;
+    const onlineLogo = (branch as { logo_url?: string | null } | null | undefined)?.logo_url || settings?.logo_url;
+    const onlineName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
+        {/* Botón instalar PWA arriba a la derecha (solo aparece si es instalable) */}
+        <div className="absolute top-3 right-3 z-10">
+          <PwaInstallButton className="h-9 gap-2 px-3 text-xs bg-gradient-primary text-primary-foreground shadow-glow" />
+        </div>
         <div className="h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-10 sm:px-8">
           <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
             {onlineLogo ? (
               <img
                 src={onlineLogo}
-                alt={settings?.business_name ?? "Heladería Goloso"}
-                className="max-h-[36vh] max-w-[80vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700"
+                alt={onlineName}
+                className="max-h-[38vh] max-w-[85vw] object-contain bg-transparent animate-in fade-in zoom-in duration-700"
               />
             ) : (
               <div className="h-36 w-36 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
                 <IceCream className="h-20 w-20" />
               </div>
             )}
-            <h1 className="font-display text-2xl sm:text-3xl mt-4 text-slate-800">
-              {settings?.business_name ?? "Heladería Goloso"}
+            <h1 className="font-display font-black text-2xl sm:text-4xl mt-5 tracking-wide text-slate-800">
+              {onlineName}
             </h1>
             <p className="text-slate-600 text-sm sm:text-base mt-2 font-medium">
               ¿Cómo quieres recibir tu pedido?
