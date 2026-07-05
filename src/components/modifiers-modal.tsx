@@ -177,6 +177,7 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
               id={`single-mod-${only.id}`}
               checked={isChecked}
               onCheckedChange={(v) => setPicked(v ? { [only.id]: 1 } : {})}
+              className="h-6 w-6 rounded-full border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground"
             />
             {only.image_url && (
               <img src={only.image_url} alt={only.name} className="h-12 w-12 rounded object-cover bg-white border" loading="lazy" />
