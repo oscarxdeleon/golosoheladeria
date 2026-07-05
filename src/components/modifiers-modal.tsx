@@ -177,6 +177,7 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
               id={`single-mod-${only.id}`}
               checked={isChecked}
               onCheckedChange={(v) => setPicked(v ? { [only.id]: 1 } : {})}
+              className="h-6 w-6 rounded-full border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground"
             />
             {only.image_url && (
               <img src={only.image_url} alt={only.name} className="h-12 w-12 rounded object-cover bg-white border" loading="lazy" />
@@ -278,43 +279,65 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
                   <ul className="space-y-1.5">
                     {groupMods.map((m) => {
                       const q = picked[m.id] ?? 0;
+                      const isChecked = q > 0;
+                      const cbId = `mod-cb-${m.id}`;
+                      const canAddMore = !(g.max_select > 0 && count >= g.max_select);
+                      const toggle = (checked: boolean) => {
+                        if (checked) inc(m, g);
+                        else setPicked((p) => { const n = { ...p }; delete n[m.id]; return n; });
+                      };
                       return (
-                        <li key={m.id} className="flex items-center gap-2 rounded-md bg-muted/40 px-3 py-2">
+                        <li
+                          key={m.id}
+                          className={`flex items-center gap-3 rounded-lg border px-3 py-2.5 transition ${
+                            isChecked
+                              ? "border-primary/70 bg-primary/5 ring-1 ring-primary/30"
+                              : "border-transparent bg-muted/40 hover:bg-muted/60"
+                          }`}
+                        >
                           {m.image_url && (
                             <img src={m.image_url} alt={m.name} className="h-10 w-10 rounded object-cover bg-white border" loading="lazy" />
                           )}
-                          <div className="flex-1 min-w-0">
-                            <div className="text-sm font-medium truncate">{m.name}</div>
+                          <label htmlFor={cbId} className="flex-1 min-w-0 cursor-pointer">
+                            <div className={`text-sm truncate ${isChecked ? "font-semibold" : "font-medium"}`}>{m.name}</div>
                             {Number(m.price) > 0 && (
                               <div className="text-xs text-muted-foreground">
                                 + {formatMoney(m.price)}
                                 {q > 1 && ` × ${q} = ${formatMoney(Number(m.price) * q)}`}
                               </div>
                             )}
-                          </div>
-                          <div className="flex items-center gap-1">
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              disabled={q === 0}
-                              onClick={() => dec(m)}
-                              aria-label={`Quitar ${m.name}`}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="w-7 text-center text-sm font-semibold">{q}</span>
-                            <Button
-                              size="icon"
-                              variant="outline"
-                              className="h-8 w-8"
-                              disabled={atMax}
-                              onClick={() => inc(m, g)}
-                              aria-label={`Agregar ${m.name}`}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
+                          </label>
+                          {isChecked && g.max_select !== 1 ? (
+                            <div className="flex items-center gap-1">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-8 w-8 rounded-full"
+                                onClick={() => dec(m)}
+                                aria-label={`Quitar ${m.name}`}
+                              >
+                                <Minus className="h-3 w-3" />
+                              </Button>
+                              <span className="w-6 text-center text-sm font-semibold tabular-nums">{q}</span>
+                              <Button
+                                size="icon"
+                                className="h-8 w-8 rounded-full bg-primary text-primary-foreground hover:bg-primary/90"
+                                disabled={!canAddMore}
+                                onClick={() => inc(m, g)}
+                                aria-label={`Agregar ${m.name}`}
+                              >
+                                <Plus className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <Checkbox
+                              id={cbId}
+                              checked={isChecked}
+                              onCheckedChange={(v) => toggle(!!v)}
+                              disabled={!isChecked && !canAddMore}
+                              className="h-6 w-6 rounded-full border-2 data-[state=checked]:bg-primary data-[state=checked]:border-primary data-[state=checked]:text-primary-foreground"
+                            />
+                          )}
                         </li>
                       );
                     })}
