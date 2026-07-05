@@ -266,27 +266,27 @@ export function PublicOrder({
   function validate(): string | null {
     if (cart.length === 0) return "Agrega productos primero";
     const errs: typeof fieldErrors = {};
-    if (isDelivery) {
+    const phoneDigits = phone.replace(/\D/g, "");
+    const phoneOk = phoneDigits.length >= 7;
+
+    if (source !== "table_qr") {
+      // Nombre y teléfono siempre obligatorios en menú en línea y kiosko.
       if (!customerName.trim()) errs.name = true;
-      if (!phone.trim()) errs.phone = true;
+      if (!phoneOk) errs.phone = true;
+    }
+
+    if (isDelivery) {
       if (!address.trim()) errs.address = true;
       if (!neighborhood.trim()) errs.neighborhood = true;
-      setFieldErrors(errs);
-      if (errs.name || errs.phone || errs.address || errs.neighborhood) {
-        return "Este campo es obligatorio para envíos a domicilio";
-      }
-    } else if (isPickup) {
-      if (!customerName.trim()) errs.name = true;
-      if (!phone.trim()) errs.phone = true;
-      setFieldErrors(errs);
-      if (errs.name || errs.phone) {
-        return "Nombre y teléfono son obligatorios para recoger en heladería";
-      }
-      if (payMethod !== "Nequi" && payMethod !== "Bancolombia") {
-        return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
-      }
-    } else {
-      setFieldErrors({});
+    }
+
+    setFieldErrors(errs);
+    if (errs.name) return "Ingresa tu nombre";
+    if (errs.phone) return "Ingresa un teléfono de contacto válido";
+    if (errs.address || errs.neighborhood) return "Completa la dirección de envío";
+
+    if (isPickup && payMethod !== "Nequi" && payMethod !== "Bancolombia") {
+      return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
     }
     if (payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
