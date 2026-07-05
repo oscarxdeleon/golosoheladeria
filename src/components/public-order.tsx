@@ -914,7 +914,7 @@ export function PublicOrder({
               )}
 
               <Textarea
-                placeholder="Notas para cocina (opcional)"
+                placeholder="Notas para cocina"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}
