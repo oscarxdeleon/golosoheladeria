@@ -140,6 +140,13 @@ function EstadisticasPage() {
     setFrom(d);
     setTo(d);
   };
+  const setYesterday = () => {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    const iso = d.toISOString().slice(0, 10);
+    setFrom(iso);
+    setTo(iso);
+  };
   const setLast7 = () => {
     const end = new Date();
     const start = new Date();
