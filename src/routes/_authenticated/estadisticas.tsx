@@ -210,7 +210,6 @@ function EstadisticasPage() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Modificador</TableHead>
-                  <TableHead>Grupo</TableHead>
                   <TableHead className="text-right">Usos</TableHead>
                   <TableHead className="text-right">Cantidad</TableHead>
                   <TableHead className="text-right">Valor generado</TableHead>
@@ -218,10 +217,10 @@ function EstadisticasPage() {
               </TableHeader>
               <TableBody>
                 {isLoading ? (
-                  <TableRow><TableCell colSpan={5}><Skeleton className="h-24" /></TableCell></TableRow>
+                  <TableRow><TableCell colSpan={4}><Skeleton className="h-24" /></TableCell></TableRow>
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={4} className="text-center text-muted-foreground py-8">
                       Sin movimientos de modificadores en el período seleccionado.
                     </TableCell>
                   </TableRow>
@@ -229,7 +228,6 @@ function EstadisticasPage() {
                   rows.map((r) => (
                     <TableRow key={r.key}>
                       <TableCell className="font-medium">{r.name}</TableCell>
-                      <TableCell className="text-muted-foreground">{r.group_name ?? "—"}</TableCell>
                       <TableCell className="text-right font-mono">{r.uses}</TableCell>
                       <TableCell className="text-right font-mono">{r.qty_total}</TableCell>
                       <TableCell className="text-right font-mono">{formatMoney(r.amount_total)}</TableCell>
