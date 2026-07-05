@@ -484,10 +484,13 @@ interface Props {
   headerImageAlt?: string;
 }
 
-export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: meseroModeProp = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, primaryRole, isAdmin } = useAuth();
+  // Los usuarios con rol "mesero" nunca pueden cobrar: forzamos meseroMode aunque
+  // el POS se abra desde una ruta que no lo pase (oculta cobros, precuenta y caja).
+  const meseroMode = meseroModeProp || (primaryRole === "mesero" && !isAdmin);
   const { activeBranchId, activeBranch } = useBranch();
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
