@@ -174,6 +174,7 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
       [
         primary,
         primary ? null : DEFAULT_LOCAL_PRINT_URL,
+        primary ? null : "http://127.0.0.1:3001/print",
       ]
         .map((u) => normalizePrintUrl(u))
         .filter(Boolean) as string[],
