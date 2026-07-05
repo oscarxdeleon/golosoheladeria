@@ -25,7 +25,6 @@ const PRINTER_TYPE = (process.env.PRINTER_TYPE || "usb").toLowerCase();
 const PRINTER_IP = process.env.PRINTER_IP || "192.168.1.50";
 const PRINTER_PORT = Number(process.env.PRINTER_PORT || 9100);
 const WIDTH = Number(process.env.PRINTER_WIDTH || 42); // 42 para 80mm, 32 para 58mm
-const CODEPAGE = ESC + "t" + "\x02"; // CP850: español/LatAm con tildes y ñ
 
 const money = (n) => "$" + Math.round(Number(n || 0)).toLocaleString("es-CO");
 
@@ -45,6 +44,7 @@ const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
+const CODEPAGE = ESC + "t" + "\x02"; // CP850: español/LatAm con tildes y ñ
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
