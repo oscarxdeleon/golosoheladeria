@@ -1161,20 +1161,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       const printItems =
         deltaLines.length > 0
           ? deltaLines.map(({ line, newQty }) => ({
-              name:
-                line.name +
-                (line.modifiers && line.modifiers.length
-                  ? " (" +
-                    line.modifiers
-                      .map((m: { name: string; qty?: number }) =>
-                        m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name,
-                      )
-                      .join(", ") +
-                  ")"
-                  : ""),
+              // El servidor de impresión ya renderiza los modificadores debajo
+              // del producto en su propia línea. NO los volvemos a concatenar
+              // entre paréntesis para evitar la duplicación en la comanda.
+              name: line.name,
               qty: newQty,
             }))
           : []; // sin ítems nuevos → no imprimimos comanda para no duplicar
+
 
 
       const printSnapshot = {
