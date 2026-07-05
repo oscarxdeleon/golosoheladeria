@@ -1,15 +1,13 @@
-// Cliente de impresión: intenta enviar el ticket a un servidor de impresión
-// local (silencioso). Si no está disponible o no está configurado, hace
-// fallback a impresión por iframe + window.print().
+// Cliente de impresión: envía tickets/comandas al servidor local de impresión
+// silenciosa. Nunca usa window.print() para evitar cuadros del sistema.
 //
 // Configuración por máquina (se guarda en el navegador del POS):
 //   localStorage.setItem("LOCAL_PRINT_URL", "http://localhost:3001/print")
-// Para desactivar y volver al diálogo de impresión:
-//   localStorage.removeItem("LOCAL_PRINT_URL")
 
 export type PrintPayload = {
   type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
   ticket?: number;
+  ticket_number?: number;
   header: string;
   items: { name: string; qty: number; unit_price?: number }[];
   subtotal?: number;
@@ -44,10 +42,8 @@ const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
 
 /**
- * Convierte un texto a un subconjunto ASCII seguro para impresoras térmicas
- * ESC/POS (evita que caracteres UTF-8 no soportados aparezcan como "=", " "
- * o glifos raros). Reemplaza diacríticos, comillas tipográficas y símbolos
- * comunes por su equivalente ASCII, y descarta lo demás.
+ * Normaliza texto para el servidor ESC/POS sin quitar tildes ni ñ. El servidor
+ * local convierte esos caracteres a la página de códigos de la impresora.
  */
 function sanitizeForPrinter(input: unknown): string {
   if (input === null || input === undefined) return "";
@@ -62,13 +58,9 @@ function sanitizeForPrinter(input: unknown): string {
     .replace(/[\u2022\u25CF\u25AA\u25A0]/g, "*")
     .replace(/\u00D7/g, "x")
     .replace(/\u00B0/g, "o");
-  // Normaliza y quita marcas diacríticas: Ó → O, ñ → n
-  s = s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "");
-  // Sustituciones específicas del español que NFKD no cubre
-  s = s.replace(/ñ/g, "n").replace(/Ñ/g, "N");
-  s = s.replace(/¡/g, "!").replace(/¿/g, "?");
-  // Eliminar caracteres no imprimibles / fuera de ASCII básico
-  s = s.replace(/[^\x09\x0A\x0D\x20-\x7E]/g, "");
+  s = s.normalize("NFC");
+  // Eliminar solo controles invisibles; conservar Latin-1 imprimible.
+  s = s.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "");
   return s;
 }
 
@@ -214,49 +206,17 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     }
   }
 
-  console.warn("[print] ningún servidor local respondió; se usará fallback");
+  console.warn("[print] ningún servidor local respondió; no se abrirá diálogo del sistema");
   return false;
 }
 
-/** Imprime HTML usando un iframe oculto (fallback al diálogo del navegador).
- *  Es no-bloqueante: el llamador retoma el control de inmediato y el diálogo
- *  de impresión se abre en el próximo tick del navegador.
- */
 export function printHTMLFallback(html: string) {
-  if (typeof document === "undefined") return;
-  const iframe = document.createElement("iframe");
-  iframe.setAttribute("aria-hidden", "true");
-  iframe.style.position = "fixed";
-  iframe.style.right = "0";
-  iframe.style.bottom = "0";
-  iframe.style.width = "0";
-  iframe.style.height = "0";
-  iframe.style.border = "0";
-  iframe.style.opacity = "0";
-  iframe.srcdoc = html;
-  iframe.onload = () => {
-    // Diferimos al siguiente tick para no bloquear el hilo actual
-    setTimeout(() => {
-      try {
-        const win = iframe.contentWindow;
-        if (!win) return;
-        const cleanup = () => setTimeout(() => iframe.remove(), 500);
-        win.addEventListener("afterprint", cleanup, { once: true });
-        win.focus();
-        win.print();
-        // Garantía de limpieza si el navegador no dispara afterprint
-        setTimeout(cleanup, 8000);
-      } catch (e) {
-        console.error("print error", e);
-        iframe.remove();
-      }
-    }, 0);
-  };
-  document.body.appendChild(iframe);
+  void html;
+  console.warn("[print] fallback HTML deshabilitado: impresión solo por servidor local silencioso");
 }
 
 /**
- * Intenta imprimir vía servidor local; si falla, usa el fallback HTML.
+ * Intenta imprimir vía servidor local; si falla, no abre diálogos del sistema.
  * Es fire-and-forget: no bloquea la UI.
  *
  * Opciones:
@@ -280,7 +240,8 @@ export function printSilent(
       );
       return;
     }
-    printHTMLFallback(fallbackHTML);
+     void fallbackHTML;
+     console.warn("[print] no se imprimió: servidor local no disponible");
   })();
 }
 
