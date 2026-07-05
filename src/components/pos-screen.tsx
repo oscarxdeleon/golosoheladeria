@@ -149,7 +149,7 @@ export function comandaHTML(o: {
     <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
     <div class="meta" style="text-align:center">Cajero: ${o.user_name}</div>
     <hr/>
-    <h2>${o.header}</h2>
+    <h2 class="order-type">${o.header}</h2>
     ${o.customer ? `<div class="meta big">Cliente: ${o.customer}</div>` : ""}
     ${o.address ? `<div class="meta big">Dir: ${o.address}</div>` : ""}
     ${o.phone ? `<div class="meta big">Tel: ${o.phone}</div>` : ""}
