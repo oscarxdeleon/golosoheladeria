@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Trash2, Pencil, Star, Copy, FileSpreadsheet, Download, FileText, Loader2, Camera, Link2, Link2Off, RefreshCw } from "lucide-react";
+import { Plus, Trash2, Pencil, Star, Copy, FileSpreadsheet, Download, FileText, Loader2, Camera, Link2, Link2Off, RefreshCw, CopyPlus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
