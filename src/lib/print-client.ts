@@ -197,6 +197,7 @@ export function setLocalPrintUrl(url: string | null) {
 }
 
 let _bootstrapPromise: Promise<string | null> | null = null;
+let _printerTargetPromise: Promise<Pick<PrintPayload, "printer_ip" | "printer_port"> | null> | null = null;
 /**
  * Si no hay URL en localStorage, la lee UNA VEZ desde la tabla `settings`
  * (columna `local_print_url`) y la persiste en localStorage.
@@ -222,6 +223,32 @@ export async function bootstrapLocalPrintUrl(): Promise<string | null> {
     }
   })();
   return _bootstrapPromise;
+}
+
+async function getDefaultPrinterTarget(): Promise<Pick<PrintPayload, "printer_ip" | "printer_port"> | null> {
+  if (_printerTargetPromise) return _printerTargetPromise;
+  _printerTargetPromise = (async () => {
+    try {
+      const { supabase } = await import("@/integrations/supabase/client");
+      const { data } = await supabase
+        .from("settings")
+        .select("cashier_printer_ip,cashier_printer_port")
+        .limit(1)
+        .maybeSingle();
+      const row = data as { cashier_printer_ip?: string | null; cashier_printer_port?: number | null } | null;
+      const printer_ip = row?.cashier_printer_ip?.trim();
+      return printer_ip ? { printer_ip, printer_port: row?.cashier_printer_port ?? 9100 } : null;
+    } catch {
+      return null;
+    }
+  })();
+  return _printerTargetPromise;
+}
+
+async function withDefaultPrinterTarget(payload: PrintPayload): Promise<PrintPayload> {
+  if (payload.printer_ip) return payload;
+  const target = await getDefaultPrinterTarget();
+  return target?.printer_ip ? { ...payload, ...target } : payload;
 }
 
 // Dispara bootstrap en segundo plano lo antes posible.
@@ -257,7 +284,7 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   const TIMEOUT_MS = 12000;
   // Normalizamos comillas/controles, conservando tildes para que el servidor
   // local las codifique en CP850 antes de enviarlas a la impresora.
-  const body = JSON.stringify(sanitizePayloadForPrinter(await withClientRasterLogo(payload)));
+  const body = JSON.stringify(sanitizePayloadForPrinter(await withClientRasterLogo(await withDefaultPrinterTarget(payload))));
 
 
   for (const url of candidates) {
