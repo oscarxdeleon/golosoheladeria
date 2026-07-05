@@ -17,8 +17,21 @@ import { sendToLocalPrinter } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
+import golosoLogo from "@/assets/logo-goloso.png";
 
 const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
+
+function toAbsolutePrintUrl(url?: string | null): string | undefined {
+  const value = String(url ?? "").trim();
+  if (!value) return undefined;
+  if (/^data:/i.test(value)) return value;
+  try {
+    if (typeof window !== "undefined") return new URL(value, window.location.origin).href;
+    return new URL(value).href;
+  } catch {
+    return undefined;
+  }
+}
 
 
 
@@ -422,7 +435,7 @@ export function PublicOrder({
       // Auto-impresión (comanda + comprobante) para AUTOPEDIDO y pedidos en línea
       if (source === "kiosk" || source === "online_menu") {
         const br = branch as { name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null } | null | undefined;
-        const st = settings as { business_name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null; footer_text?: string | null; email?: string | null } | null | undefined;
+        const st = settings as { business_name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null; footer_text?: string | null; email?: string | null; ticket_config?: Record<string, unknown> | null } | null | undefined;
         const printItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
         const header = source === "kiosk"
           ? `PEDIDO AUTOPEDIDO${kioskService === "llevar" ? " · PARA LLEVAR" : kioskService === "comer_aqui" ? " · COMER AQUÍ" : ""}`
@@ -431,7 +444,9 @@ export function PublicOrder({
         const address_biz = br?.address || st?.address || "";
         const phone_biz = br?.phone || st?.phone || "";
         const nit = br?.nit || st?.nit || "";
-        const logo_url = br?.logo_url || st?.logo_url || undefined;
+        const logo_url = toAbsolutePrintUrl(br?.logo_url || st?.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
+        const logo_fallback_url = toAbsolutePrintUrl(golosoLogo);
+        const ticket_config = { ...(st?.ticket_config ?? {}), show_logo: true };
         const footer_text = st?.footer_text || "Gracias por su compra";
         const created_at = new Date().toISOString();
         const cashReceivedNum = Number(cashAmount.replace(/[^\d]/g, "")) || total;
@@ -440,6 +455,7 @@ export function PublicOrder({
         void sendToLocalPrinter({
           type: "comanda",
           ticket: result.ticket_number,
+          ticket_number: result.ticket_number,
           header,
           items: printItems,
           customer: customerName || undefined,
@@ -452,6 +468,8 @@ export function PublicOrder({
           address_biz,
           phone_biz,
           logo_url,
+          logo_fallback_url,
+          ticket_config,
           ticket_template: "goloso_personalizado",
         });
 
@@ -459,6 +477,7 @@ export function PublicOrder({
         void sendToLocalPrinter({
           type: "comprobante",
           ticket: result.ticket_number,
+          ticket_number: result.ticket_number,
           header: "COMPROBANTE DE PEDIDO",
           items: printItems,
           subtotal,
@@ -478,6 +497,8 @@ export function PublicOrder({
           email_biz: st?.email ?? undefined,
           footer_text,
           logo_url,
+          logo_fallback_url,
+          ticket_config,
           ticket_template: "goloso_personalizado",
           cashierMessage: "Conserve este comprobante.\nGracias por su compra.",
         });
