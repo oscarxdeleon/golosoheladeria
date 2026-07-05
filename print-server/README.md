@@ -52,13 +52,8 @@ localStorage.setItem("LOCAL_PRINT_URL", "http://localhost:3001/print")
 ```
 
 Luego recarga la página. A partir de ahí, comandas, precuentas y tickets se
-imprimen automáticamente y de forma silenciosa.
-
-Para volver al diálogo de impresión del navegador:
-
-```js
-localStorage.removeItem("LOCAL_PRINT_URL")
-```
+imprimen automáticamente y de forma silenciosa. Si el servidor local no está
+activo, el POS muestra un aviso, pero no abre el diálogo de impresión del navegador.
 
 ## Endpoints
 
