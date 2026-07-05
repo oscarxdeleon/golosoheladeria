@@ -115,17 +115,14 @@ function EstadisticasPage() {
     const base = data?.rows ?? [];
     if (!includeZero) return base;
     const seen = new Set(base.map((r) => r.key));
-    const extras: ModifierRow[] = (allModifiers ?? [])
-      .filter((m) => !seen.has(m.id.toLowerCase()))
-      .map((m) => ({
-        key: m.id.toLowerCase(),
-        name: m.name,
-        group_name: m.modifier_groups?.name ?? null,
-        uses: 0,
-        qty_total: 0,
-        amount_total: 0,
-      }));
-    return [...base, ...extras];
+    const extrasMap = new Map<string, ModifierRow>();
+    for (const m of allModifiers ?? []) {
+      const name = (m.name ?? "").trim() || "—";
+      const key = name.toLowerCase();
+      if (seen.has(key) || extrasMap.has(key)) continue;
+      extrasMap.set(key, { key, name, group_name: null, uses: 0, qty_total: 0, amount_total: 0 });
+    }
+    return [...base, ...Array.from(extrasMap.values())];
   }, [data, includeZero, allModifiers]);
 
   const totals = useMemo(
