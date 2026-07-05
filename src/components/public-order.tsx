@@ -879,13 +879,14 @@ export function PublicOrder({
                   </div>
                   <div className="space-y-1">
                     <Input
-                      placeholder={`Teléfono de contacto ${isDelivery ? "*" : "(opcional)"}`}
+                      placeholder="Teléfono de contacto *"
                       inputMode="tel"
                       value={phone}
                       onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
                       className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                      required
                     />
-                    {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                    {fieldErrors.phone && <p className="text-xs text-destructive">El teléfono es obligatorio para poder contactarte</p>}
                   </div>
                   {isDelivery && (
                     <>
