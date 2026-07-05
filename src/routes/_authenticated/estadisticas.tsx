@@ -83,12 +83,12 @@ function EstadisticasPage() {
         const mods = Array.isArray(it.modifiers) ? (it.modifiers as RawMod[]) : [];
         for (const m of mods) {
           const name = (m?.name ?? "").toString().trim() || "—";
-          const group = m?.group_name ? String(m.group_name) : null;
-          const key = (m?.id ? String(m.id) : `${group ?? ""}::${name}`).toLowerCase();
+          // Agrupar únicamente por nombre del modificador (sin importar el grupo).
+          const key = name.toLowerCase();
           const modQty = Number(m?.qty ?? 1) || 1;
           const price = Number(m?.price ?? 0) || 0;
           const totalQty = modQty * it.qty;
-          const cur = map.get(key) ?? { key, name, group_name: group, uses: 0, qty_total: 0, amount_total: 0 };
+          const cur = map.get(key) ?? { key, name, group_name: null, uses: 0, qty_total: 0, amount_total: 0 };
           cur.uses += 1;
           cur.qty_total += totalQty;
           cur.amount_total += totalQty * price;
