@@ -14,13 +14,14 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, sendToLocalPrinter, kickCashDrawer, printHTMLFallback, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
+import golosoLogo from "@/assets/logo-goloso.png";
 
 
 
@@ -88,6 +89,18 @@ export interface Branding {
 }
 
 const DEFAULT_BRANDING: Branding = { business_name: "Heladería Goloso" };
+
+function toAbsolutePrintUrl(url?: string | null): string | undefined {
+  const value = String(url ?? "").trim();
+  if (!value) return undefined;
+  if (/^data:/i.test(value)) return value;
+  try {
+    if (typeof window !== "undefined") return new URL(value, window.location.origin).href;
+    return new URL(value).href;
+  } catch {
+    return undefined;
+  }
+}
 
 
 function brandHeaderHTML(b: Branding) {
@@ -394,10 +407,7 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   };
   const ok = await sendToLocalPrinter(payload);
   if (!ok) {
-    console.warn("[print] comanda no enviada al servidor local — usando fallback del navegador");
-    // Fallback: abre el diálogo de impresión del navegador para que la
-    // comanda igual llegue a cocina cuando el servidor local no responde.
-    try { printHTMLFallback(comandaHTML(o)); } catch (e) { console.error("[print] fallback comanda", e); }
+    console.warn("[print] comanda no enviada: servidor local no disponible");
   }
   return ok;
 }
@@ -409,9 +419,12 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const openDrawer = !!cajaCfg.open_drawer_on_print;
 
   const b = o.branding ?? DEFAULT_BRANDING;
+  const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
+  const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
   const payload: PrintPayload = {
     type: "ticket",
     ticket: o.ticket,
+    ticket_number: o.ticket,
     header: o.header,
     items: o.items,
     subtotal: o.subtotal,
@@ -432,7 +445,9 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     phone_biz: b.phone ?? undefined,
     email_biz: b.email ?? undefined,
     footer_text: b.ticket_footer ?? undefined,
-    logo_url: b.logo_url ?? undefined,
+    logo_url: logoUrl,
+    logo_fallback_url: logoFallbackUrl,
+    ticket_config: { ...DEFAULT_TICKET_CONFIG, ...(b.ticket_config ?? {}), show_logo: true },
     ticket_template: "goloso_personalizado",
     printer_ip: printerIp,
     printer_port: printerPort,
@@ -628,7 +643,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .select("id,ticket_number,customer_name,notes,created_at,printed_at,sale_items(product_id,product_name,qty,unit_price)")
         .eq("table_id", tableId!)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -640,6 +655,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         customer_name: string | null;
         notes: string | null;
         created_at: string;
+        printed_at: string | null;
         sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
       };
     },
@@ -662,9 +678,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       modifiers: [] as SaleModifier[],
     }));
     setCart(hydrated);
-    // Todos los ítems hidratados YA fueron impresos en una comanda anterior.
+    // Solo asumimos ítems ya enviados si el registro tiene confirmación real
+    // de impresión. Si el primer envío falló, el siguiente Guardar imprimirá todo.
     const printed: Record<string, number> = {};
-    for (const l of hydrated) printed[l.key] = (printed[l.key] ?? 0) + l.qty;
+    if (pendingSale.printed_at) {
+      for (const l of hydrated) printed[l.key] = (printed[l.key] ?? 0) + l.qty;
+    }
     printedQtyRef.current = printed;
   }, [pendingSale, paying]);
 
@@ -1004,14 +1023,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     setPaying(true);
 
     // Watchdog: si algo se cuelga (red, RLS que no responde, token vencido)
-    // liberamos el botón a los 15s con un mensaje claro para el cajero. Esto
+    // liberamos el botón a los 25s con un mensaje claro para el cajero. Esto
     // evita el bug "no responde a la primera" que dejaba `paying=true` para
     // siempre cuando una llamada de Supabase no resolvía.
     const watchdog = window.setTimeout(() => {
       console.error("[pos] saveComanda: watchdog disparado a los 15s — liberando UI");
       setPaying(false);
       toast.error("La operación tardó demasiado. Reintenta o recarga la página.");
-    }, 15000);
+    }, 25000);
 
     // Guardamos si es la PRIMERA vez que se guarda este pedido.
     // Cuando es nuevo debemos imprimir SIEMPRE toda la comanda, sin depender
@@ -1039,7 +1058,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
             cash_session_id: effectiveSessionId,
-            printed_at: new Date().toISOString(),
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,created_at")
@@ -1060,7 +1078,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               payment_method: "Pendiente",
               status: "pending",
               source: "pos",
-              printed_at: new Date().toISOString(),
               customer_name: customer || null,
               notes: notes || null,
               order_type: orderType,
@@ -1093,7 +1110,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             payment_method: "Pendiente",
             status: "pending",
             source: "pos",
-            printed_at: new Date().toISOString(),
             customer_name: customer || null,
             notes: notes || null,
             order_type: orderType,
@@ -1181,6 +1197,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         phone: orderType === "domicilio" ? phone : "",
         user_name: profile?.full_name ?? user.email ?? "",
         created_at: sale.created_at,
+        branding,
       };
 
       // Actualizar baseline: lo que hay en el carrito ahora ya se considera impreso.
@@ -1196,12 +1213,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         toast.success(`Pedido #${sale.ticket_number} actualizado (sin ítems nuevos para imprimir)`);
       } else {
         toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
-        void printComanda(printSnapshot).then((printed) => {
-          if (printed) toast.success(`Impresión #${sale.ticket_number} enviada`);
-          else toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
-        }).catch((e) => {
+        try {
+          const printed = await printComanda(printSnapshot);
+          if (printed) {
+            await supabase.from("sales").update({ printed_at: new Date().toISOString() }).eq("id", sale.id);
+            toast.success(`Impresión #${sale.ticket_number} enviada`);
+          } else {
+            toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+          }
+        } catch (e) {
           console.error("[print] comanda", e);
-        });
+          toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+        }
       }
 
       // Limpiar estado local y regresar al panel principal
@@ -1685,9 +1708,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 const ok = await printComanda(snap);
                 if (ok) toast.success("Comanda reimpresa", { id: t });
                 else {
-                  const w = window.open("", "_blank", "width=420,height=640");
-                  if (w) { w.document.write(comandaHTML(snap)); w.document.close(); setTimeout(() => w.print(), 350); }
-                  toast.success("Comanda reimpresa (navegador)", { id: t });
+                  toast.warning("No se pudo reimprimir: revisa el servidor local de impresión", { id: t });
                 }
               }}
             >
@@ -1889,7 +1910,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 const redirect = successDialog?.redirectTo ?? null;
                 setSuccessDialog(null);
                 if (payload) {
-                  // Dispara la impresión (servidor local silencioso o fallback nativo).
+                  // Dispara la impresión solo por servidor local silencioso.
                   // El POS no se queda bloqueado: redirige de inmediato al panel principal.
                   setTimeout(() => printTicketFinal(payload), 0);
                 }

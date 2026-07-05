@@ -44,11 +44,35 @@ const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
+const CODEPAGE = ESC + "t" + "\x02"; // CP850: español/LatAm con tildes y ñ
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
 const STAR_LINE = "*".repeat(WIDTH) + "\n";
 const EQ_LINE = "=".repeat(WIDTH) + "\n";
+
+const CP850 = {
+  "Ç": 0x80, "ü": 0x81, "é": 0x82, "â": 0x83, "ä": 0x84, "à": 0x85, "å": 0x86, "ç": 0x87,
+  "ê": 0x88, "ë": 0x89, "è": 0x8a, "ï": 0x8b, "î": 0x8c, "ì": 0x8d, "Ä": 0x8e, "Å": 0x8f,
+  "É": 0x90, "æ": 0x91, "Æ": 0x92, "ô": 0x93, "ö": 0x94, "ò": 0x95, "û": 0x96, "ù": 0x97,
+  "ÿ": 0x98, "Ö": 0x99, "Ü": 0x9a, "á": 0xa0, "í": 0xa1, "ó": 0xa2, "ú": 0xa3, "ñ": 0xa4,
+  "Ñ": 0xa5, "¿": 0xa8, "¡": 0xad, "Á": 0xb5, "Â": 0xb6, "À": 0xb7, "ã": 0xc6, "Ã": 0xc7,
+  "ð": 0xd0, "Ð": 0xd1, "Ê": 0xd2, "Ë": 0xd3, "È": 0xd4, "Í": 0xd6, "Î": 0xd7, "Ï": 0xd8,
+  "Ó": 0xe0, "ß": 0xe1, "Ô": 0xe2, "Ò": 0xe3, "õ": 0xe4, "Õ": 0xe5, "µ": 0xe6, "þ": 0xe7,
+  "Þ": 0xe8, "Ú": 0xe9, "Û": 0xea, "Ù": 0xeb, "ý": 0xec, "Ý": 0xed, "¯": 0xee, "´": 0xef,
+  "±": 0xf1, "‗": 0xf2, "¾": 0xf3, "¶": 0xf4, "§": 0xf5, "÷": 0xf6, "¸": 0xf7, "°": 0xf8,
+  "¨": 0xf9, "·": 0xfa, "¹": 0xfb, "³": 0xfc, "²": 0xfd, "■": 0xfe, " ": 0xff,
+};
+
+function encodeEscPos(text) {
+  const bytes = [];
+  for (const ch of String(text ?? "")) {
+    const code = ch.charCodeAt(0);
+    if (code <= 0xff) bytes.push(CP850[ch] ?? code);
+    else bytes.push(0x20);
+  }
+  return Buffer.from(bytes);
+}
 
 function row(left, right, width = WIDTH) {
   const l = String(left ?? "");
@@ -213,13 +237,17 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
 
 async function buildPersonalizedTicketRaw(p) {
   const cfg = mergeCfg(p.ticket_config);
-  let out = INIT;
+  let out = INIT + CODEPAGE;
   if (p.open_drawer) out += DRAWER;
 
   // ==== LOGO (raster) ====
   let logoBuf = null;
   if (cfg.show_logo && p.logo_url) {
     logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 384 : 288);
+    if (!logoBuf && p.logo_fallback_url && p.logo_fallback_url !== p.logo_url) {
+      console.warn("[logo] intentando logo de respaldo", p.logo_fallback_url);
+      logoBuf = await fetchLogoRaster(p.logo_fallback_url, WIDTH >= 42 ? 384 : 288);
+    }
     if (!logoBuf) console.warn("[logo] no se incluirá en el ticket (fallo al rasterizar)", p.logo_url);
   }
 
@@ -253,7 +281,7 @@ async function buildPersonalizedTicketRaw(p) {
   // ==== TITULO Y NUMERO ====
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + (cfg.title_text || "TICKET DE VENTA") + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (cfg.show_ticket_number) {
-    const num = String(p.ticket ?? 0).padStart(6, "0");
+    const num = String(p.ticket ?? p.ticket_number ?? 0).padStart(6, "0");
     out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `No. ${num}\n` + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
@@ -346,26 +374,29 @@ async function buildPersonalizedTicketRaw(p) {
 
 
   out += ALIGN_L + FEED(4) + CUT;
-  const textBuf = Buffer.from(out, "binary");
+  const textBuf = encodeEscPos(out);
   if (logoBuf) {
     // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
-    return Buffer.concat([Buffer.from(INIT, "binary"), logoBuf, textBuf]);
+    return Buffer.concat([encodeEscPos(INIT + CODEPAGE), logoBuf, textBuf]);
   }
   return textBuf;
 }
 
 // ---------- Comanda de cocina (fuente compacta) ----------
 function buildComandaRaw(p) {
-  let out = INIT;
+  let out = INIT + CODEPAGE;
   // Encabezado compacto
   out += ALIGN_C + BOLD_ON;
   if (p.business_name) out += String(p.business_name).toUpperCase() + "\n";
-  out += SIZE_DOUBLE_H + `PEDIDO #${p.ticket ?? ""}\n` + SIZE_NORMAL;
+  out += SIZE_DOUBLE_H + `PEDIDO #${p.ticket ?? p.ticket_number ?? ""}\n` + SIZE_NORMAL;
   out += new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
   if (p.user_name) out += `Cajero: ${p.user_name}\n`;
   out += BOLD_OFF + ALIGN_L + DASH_LINE;
-  if (p.header)
-    out += ALIGN_C + BOLD_ON + `*** ${String(p.header).toUpperCase()} ***\n` + BOLD_OFF + ALIGN_L;
+  if (p.header) {
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE;
+    for (const line of wrapText(String(p.header).toUpperCase(), Math.floor(WIDTH / 2))) out += line + "\n";
+    out += SIZE_NORMAL + BOLD_OFF + ALIGN_L + DASH_LINE;
+  }
   if (p.customer || p.address || p.phone) {
     out += BOLD_ON;
     if (p.customer) out += `Cliente: ${String(p.customer).toUpperCase()}\n`;
@@ -388,12 +419,12 @@ function buildComandaRaw(p) {
   }
   out += ALIGN_C + BOLD_ON + "*** ENVIAR A COCINA ***\n" + BOLD_OFF + ALIGN_L;
   out += FEED(4) + CUT;
-  return Buffer.from(out, "binary");
+  return encodeEscPos(out);
 }
 
 // ---------- Router de plantillas ----------
 async function buildRaw(p) {
-  if (p.type === "drawer") return Buffer.from(INIT + DRAWER, "binary");
+  if (p.type === "drawer") return encodeEscPos(INIT + DRAWER);
   if (p.type === "comanda") return buildComandaRaw(p);
   // El logo se inyecta dentro de buildPersonalizedTicketRaw
   return await buildPersonalizedTicketRaw(p);

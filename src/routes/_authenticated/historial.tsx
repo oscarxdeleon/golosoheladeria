@@ -17,7 +17,7 @@ import { formatMoney, formatDate } from "@/lib/format";
 import { Receipt, Printer, ChefHat, Search, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import {
-  comandaHTML, ticketHTML, printComanda, printTicketFinal, type Branding,
+  printComanda, printTicketFinal, type Branding,
 } from "@/components/pos-screen";
 
 export const Route = createFileRoute("/_authenticated/historial")({
@@ -163,11 +163,8 @@ function HistorialPage() {
           branding,
         };
         const ok = await printComanda(args);
-        if (!ok) {
-          const w = window.open("", "_blank", "width=420,height=720");
-          if (w) { w.document.write(comandaHTML(args)); w.document.close(); setTimeout(() => w.print(), 350); }
-        }
-        toast.success("Comanda enviada", { id: t });
+        if (ok) toast.success("Comanda enviada", { id: t });
+        else toast.warning("No se pudo imprimir: revisa el servidor local", { id: t });
       } else {
         const args = {
           ticket: sale.ticket_number,
@@ -187,12 +184,7 @@ function HistorialPage() {
           notes: sale.notes ?? "",
           branding,
         };
-        try {
-          await printTicketFinal(args);
-        } catch {
-          const w = window.open("", "_blank", "width=420,height=720");
-          if (w) { w.document.write(ticketHTML(args)); w.document.close(); setTimeout(() => w.print(), 350); }
-        }
+        await printTicketFinal(args);
         toast.success("Ticket enviado", { id: t });
       }
     } catch (e) {
@@ -418,8 +410,7 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
       toast.success("Ticket enviado a impresora");
     } catch (e) {
       console.error(e);
-      toast.error("No se pudo imprimir. Abriendo vista previa…");
-      openInWindow(ticketHTML(args));
+      toast.error("No se pudo imprimir: revisa el servidor local");
     }
   }
 
@@ -429,17 +420,8 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
     const ok = await printComanda(args);
     if (ok) toast.success("Comanda enviada a cocina");
     else {
-      toast.message("Impresora no disponible — abriendo vista previa para imprimir");
-      openInWindow(comandaHTML(args));
+      toast.warning("No se pudo imprimir: revisa el servidor local");
     }
-  }
-
-  function openInWindow(html: string) {
-    const w = window.open("", "_blank", "width=420,height=720");
-    if (!w) return;
-    w.document.write(html);
-    w.document.close();
-    setTimeout(() => w.print(), 350);
   }
 
   return (
