@@ -129,7 +129,7 @@ export function comandaHTML(o: {
     body{font-family:'Arial','Helvetica',sans-serif;font-size:11px;padding:4mm 3mm;width:74mm;margin:0;color:#000;font-weight:700;line-height:1.2}
     h1{font-size:15px;margin:0 0 3px;text-align:center;font-weight:900;letter-spacing:0.5px}
     .sede{font-size:11px;text-align:center;font-weight:900;text-transform:uppercase;margin:0 0 2px}
-    h2{font-size:12px;margin:4px 0;font-weight:900;text-transform:uppercase;text-align:center;border:1.5px solid #000;padding:3px 0;letter-spacing:0.5px}
+    h2.order-type{font-size:26px;margin:10px 0;font-weight:900;text-transform:uppercase;text-align:center;border:2.5px solid #000;padding:10px 4px;letter-spacing:1.5px;line-height:1.1}
     table{width:100%;border-collapse:collapse;margin-top:3px}
     td{vertical-align:top;padding:3px 0;border-bottom:1px dashed #000}
     td.qty{font-size:13px;font-weight:900;width:36px;text-align:right;padding-right:8px}
@@ -149,7 +149,7 @@ export function comandaHTML(o: {
     <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
     <div class="meta" style="text-align:center">Cajero: ${o.user_name}</div>
     <hr/>
-    <h2>${o.header}</h2>
+    <h2 class="order-type">${o.header}</h2>
     ${o.customer ? `<div class="meta big">Cliente: ${o.customer}</div>` : ""}
     ${o.address ? `<div class="meta big">Dir: ${o.address}</div>` : ""}
     ${o.phone ? `<div class="meta big">Tel: ${o.phone}</div>` : ""}
