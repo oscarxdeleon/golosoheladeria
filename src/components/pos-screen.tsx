@@ -643,7 +643,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .select("id,ticket_number,customer_name,notes,created_at,printed_at,sale_items(product_id,product_name,qty,unit_price)")
         .eq("table_id", tableId!)
         .eq("status", "pending")
         .order("created_at", { ascending: false })
@@ -655,6 +655,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         customer_name: string | null;
         notes: string | null;
         created_at: string;
+        printed_at: string | null;
         sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
       };
     },
@@ -677,9 +678,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       modifiers: [] as SaleModifier[],
     }));
     setCart(hydrated);
-    // Todos los ítems hidratados YA fueron impresos en una comanda anterior.
+    // Solo asumimos ítems ya enviados si el registro tiene confirmación real
+    // de impresión. Si el primer envío falló, el siguiente Guardar imprimirá todo.
     const printed: Record<string, number> = {};
-    for (const l of hydrated) printed[l.key] = (printed[l.key] ?? 0) + l.qty;
+    if (pendingSale.printed_at) {
+      for (const l of hydrated) printed[l.key] = (printed[l.key] ?? 0) + l.qty;
+    }
     printedQtyRef.current = printed;
   }, [pendingSale, paying]);
 
@@ -1054,7 +1058,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
             cash_session_id: effectiveSessionId,
-            printed_at: new Date().toISOString(),
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,created_at")
@@ -1075,7 +1078,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               payment_method: "Pendiente",
               status: "pending",
               source: "pos",
-              printed_at: new Date().toISOString(),
               customer_name: customer || null,
               notes: notes || null,
               order_type: orderType,
@@ -1108,7 +1110,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             payment_method: "Pendiente",
             status: "pending",
             source: "pos",
-            printed_at: new Date().toISOString(),
             customer_name: customer || null,
             notes: notes || null,
             order_type: orderType,
@@ -1212,12 +1213,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         toast.success(`Pedido #${sale.ticket_number} actualizado (sin ítems nuevos para imprimir)`);
       } else {
         toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
-        void printComanda(printSnapshot).then((printed) => {
-          if (printed) toast.success(`Impresión #${sale.ticket_number} enviada`);
-          else toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
-        }).catch((e) => {
+        try {
+          const printed = await printComanda(printSnapshot);
+          if (printed) {
+            await supabase.from("sales").update({ printed_at: new Date().toISOString() }).eq("id", sale.id);
+            toast.success(`Impresión #${sale.ticket_number} enviada`);
+          } else {
+            toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+          }
+        } catch (e) {
           console.error("[print] comanda", e);
-        });
+          toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+        }
       }
 
       // Limpiar estado local y regresar al panel principal
