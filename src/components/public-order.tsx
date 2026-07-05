@@ -568,23 +568,27 @@ export function PublicOrder({
 
   if (source === "kiosk" && !kioskService) {
     const kioskLogo = (branch as { logo_url?: string | null } | null | undefined)?.logo_url || settings?.logo_url;
+    const kioskName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
         <div className="h-full w-full flex flex-col items-center justify-between py-4 px-4 sm:py-6 sm:px-8 md:py-10">
-          {/* Logo protagonista (a color desde la sede) */}
+          {/* Logo protagonista (a color, fondo transparente, sin recuadro) */}
           <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
             {kioskLogo ? (
               <img
                 src={kioskLogo}
-                alt="Heladería Goloso"
-                className="max-h-[32vh] max-w-[70vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite]"
+                alt={kioskName}
+                className="max-h-[40vh] max-w-[85vw] object-contain bg-transparent animate-in fade-in zoom-in duration-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite]"
               />
             ) : (
               <div className="h-32 w-32 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
                 <IceCream className="h-16 w-16" />
               </div>
             )}
-            <p className="text-slate-600 text-sm sm:text-base md:text-lg mt-3 font-medium">
+            <h1 className="font-display font-black text-2xl sm:text-3xl md:text-4xl mt-4 tracking-wide text-slate-800">
+              {kioskName}
+            </h1>
+            <p className="text-slate-600 text-sm sm:text-base md:text-lg mt-2 font-medium">
               Toca una opción para empezar tu pedido
             </p>
           </div>
