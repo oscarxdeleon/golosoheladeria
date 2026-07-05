@@ -1535,6 +1535,10 @@ export type Database = {
     }
     Functions: {
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
+      clone_main_products_to_branch: {
+        Args: { _branch_id: string }
+        Returns: Json
+      }
       close_cash_session: {
         Args: { _closing_notes?: string; _counted_amount: number }
         Returns: {

@@ -266,27 +266,27 @@ export function PublicOrder({
   function validate(): string | null {
     if (cart.length === 0) return "Agrega productos primero";
     const errs: typeof fieldErrors = {};
-    if (isDelivery) {
+    const phoneDigits = phone.replace(/\D/g, "");
+    const phoneOk = phoneDigits.length >= 7;
+
+    if (source !== "table_qr") {
+      // Nombre y teléfono siempre obligatorios en menú en línea y kiosko.
       if (!customerName.trim()) errs.name = true;
-      if (!phone.trim()) errs.phone = true;
+      if (!phoneOk) errs.phone = true;
+    }
+
+    if (isDelivery) {
       if (!address.trim()) errs.address = true;
       if (!neighborhood.trim()) errs.neighborhood = true;
-      setFieldErrors(errs);
-      if (errs.name || errs.phone || errs.address || errs.neighborhood) {
-        return "Este campo es obligatorio para envíos a domicilio";
-      }
-    } else if (isPickup) {
-      if (!customerName.trim()) errs.name = true;
-      if (!phone.trim()) errs.phone = true;
-      setFieldErrors(errs);
-      if (errs.name || errs.phone) {
-        return "Nombre y teléfono son obligatorios para recoger en heladería";
-      }
-      if (payMethod !== "Nequi" && payMethod !== "Bancolombia") {
-        return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
-      }
-    } else {
-      setFieldErrors({});
+    }
+
+    setFieldErrors(errs);
+    if (errs.name) return "Ingresa tu nombre";
+    if (errs.phone) return "Ingresa un teléfono de contacto válido";
+    if (errs.address || errs.neighborhood) return "Completa la dirección de envío";
+
+    if (isPickup && payMethod !== "Nequi" && payMethod !== "Bancolombia") {
+      return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
     }
     if (payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
@@ -568,23 +568,27 @@ export function PublicOrder({
 
   if (source === "kiosk" && !kioskService) {
     const kioskLogo = (branch as { logo_url?: string | null } | null | undefined)?.logo_url || settings?.logo_url;
+    const kioskName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
         <div className="h-full w-full flex flex-col items-center justify-between py-4 px-4 sm:py-6 sm:px-8 md:py-10">
-          {/* Logo protagonista (a color desde la sede) */}
+          {/* Logo protagonista (a color, fondo transparente, sin recuadro) */}
           <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
             {kioskLogo ? (
               <img
                 src={kioskLogo}
-                alt="Heladería Goloso"
-                className="max-h-[32vh] max-w-[70vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite]"
+                alt={kioskName}
+                className="max-h-[40vh] max-w-[85vw] object-contain bg-transparent animate-in fade-in zoom-in duration-700 motion-safe:animate-[pulse_4s_ease-in-out_infinite]"
               />
             ) : (
               <div className="h-32 w-32 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
                 <IceCream className="h-16 w-16" />
               </div>
             )}
-            <p className="text-slate-600 text-sm sm:text-base md:text-lg mt-3 font-medium">
+            <h1 className="font-display font-black text-2xl sm:text-3xl md:text-4xl mt-4 tracking-wide text-slate-800">
+              {kioskName}
+            </h1>
+            <p className="text-slate-600 text-sm sm:text-base md:text-lg mt-2 font-medium">
               Toca una opción para empezar tu pedido
             </p>
           </div>
@@ -629,24 +633,29 @@ export function PublicOrder({
   }
 
   if (source === "online_menu" && !onlineService && !readOnly) {
-    const onlineLogo = settings?.logo_url;
+    const onlineLogo = (branch as { logo_url?: string | null } | null | undefined)?.logo_url || settings?.logo_url;
+    const onlineName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
+        {/* Botón instalar PWA arriba a la derecha (solo aparece si es instalable) */}
+        <div className="absolute top-3 right-3 z-10">
+          <PwaInstallButton className="h-9 gap-2 px-3 text-xs bg-gradient-primary text-primary-foreground shadow-glow" />
+        </div>
         <div className="h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-10 sm:px-8">
           <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
             {onlineLogo ? (
               <img
                 src={onlineLogo}
-                alt={settings?.business_name ?? "Heladería Goloso"}
-                className="max-h-[36vh] max-w-[80vw] object-contain drop-shadow-2xl animate-in fade-in zoom-in duration-700"
+                alt={onlineName}
+                className="max-h-[38vh] max-w-[85vw] object-contain bg-transparent animate-in fade-in zoom-in duration-700"
               />
             ) : (
               <div className="h-36 w-36 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
                 <IceCream className="h-20 w-20" />
               </div>
             )}
-            <h1 className="font-display text-2xl sm:text-3xl mt-4 text-slate-800">
-              {settings?.business_name ?? "Heladería Goloso"}
+            <h1 className="font-display font-black text-2xl sm:text-4xl mt-5 tracking-wide text-slate-800">
+              {onlineName}
             </h1>
             <p className="text-slate-600 text-sm sm:text-base mt-2 font-medium">
               ¿Cómo quieres recibir tu pedido?
@@ -710,7 +719,9 @@ export function PublicOrder({
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           {settings?.logo_url ? (
-            <img src={settings.logo_url} alt="logo" className="h-16 w-16 rounded-lg object-contain bg-white" />
+            <img src={settings.logo_url} alt="logo" className="h-16 w-16 object-contain bg-transparent" />
+
+
 
           ) : (
             <div className="h-16 w-16 rounded-lg bg-primary text-primary-foreground flex items-center justify-center">
@@ -868,13 +879,14 @@ export function PublicOrder({
                   </div>
                   <div className="space-y-1">
                     <Input
-                      placeholder={`Teléfono de contacto ${isDelivery ? "*" : "(opcional)"}`}
+                      placeholder="Teléfono de contacto *"
                       inputMode="tel"
                       value={phone}
                       onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
                       className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                      required
                     />
-                    {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+                    {fieldErrors.phone && <p className="text-xs text-destructive">El teléfono es obligatorio para poder contactarte</p>}
                   </div>
                   {isDelivery && (
                     <>
@@ -902,7 +914,7 @@ export function PublicOrder({
               )}
 
               <Textarea
-                placeholder="Notas para cocina (opcional)"
+                placeholder="Notas para cocina"
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 rows={2}

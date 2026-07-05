@@ -152,7 +152,7 @@ function KdsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="font-display text-3xl">KDS — Cocina</h1>
+          <h1 className="font-display text-3xl">KDS</h1>
           <p className="text-sm text-muted-foreground">Comandas en tiempo real · marca cada ítem como listo</p>
         </div>
         <Badge variant="secondary" className="text-base px-3 py-1">
