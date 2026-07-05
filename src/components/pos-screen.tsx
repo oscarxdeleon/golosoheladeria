@@ -1009,7 +1009,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       toast.error("La operación tardó demasiado. Reintenta o recarga la página.");
     }, 15000);
 
+    // Guardamos si es la PRIMERA vez que se guarda este pedido.
+    // Cuando es nuevo debemos imprimir SIEMPRE toda la comanda, sin depender
+    // del baseline `printedQtyRef` (que aún podría estar desactualizado por
+    // la hidratación asincrónica de un pedido pendiente previo).
+    const isFirstSave = !pendingSaleId;
     try {
+
       let sale: { id: string; ticket_number: number; created_at: string };
       if (pendingSaleId) {
         // Actualizar pedido pendiente existente y reemplazar items
