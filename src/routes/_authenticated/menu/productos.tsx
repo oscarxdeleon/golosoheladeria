@@ -517,7 +517,7 @@ function ProductosPage() {
               <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
 
 
-            <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border">
+            <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 p-0 sm:max-h-[90vh] sm:w-full sm:max-w-2xl">
               <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6 sm:py-4"><DialogTitle className="text-base sm:text-lg">{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
 
@@ -718,7 +718,13 @@ function ProductosPage() {
                     </button>
                   </TableCell>
                   <TableCell className="font-medium">
-                    <div className="flex items-center gap-1 flex-wrap">
+                    <button
+                      type="button"
+                      onClick={() => isAdmin && openEditor(p)}
+                      disabled={!isAdmin}
+                      className="flex w-full items-center gap-1 flex-wrap text-left hover:text-primary hover:underline underline-offset-2 disabled:cursor-default disabled:no-underline disabled:hover:text-inherit"
+                      title={isAdmin ? "Editar producto" : ""}
+                    >
                       {p.is_favorite && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
                       {p.name}
                       {p.source_product_id && p.is_linked !== false && (
@@ -727,8 +733,9 @@ function ProductosPage() {
                       {p.source_product_id && p.is_linked === false && (
                         <Badge variant="outline" className="ml-1 gap-1 border-amber-500/40 text-amber-700 dark:text-amber-500 text-[10px] px-1.5 py-0"><Link2Off className="h-2.5 w-2.5" />Personalizado</Badge>
                       )}
-                    </div>
+                    </button>
                   </TableCell>
+
                   <TableCell>{cats.find((c) => c.id === p.category_id)?.name ?? "—"}</TableCell>
                   <TableCell className="text-right">{formatMoney(p.price)}</TableCell>
                   <TableCell>{p.active ? "Activo" : "Inactivo"}</TableCell>
