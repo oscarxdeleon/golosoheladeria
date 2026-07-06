@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Minus, Plus, Banknote, Users, Package, X } from "lucide-react";
+import { Minus, Plus, Banknote, Users, Package, X, Check, Sparkles } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 
