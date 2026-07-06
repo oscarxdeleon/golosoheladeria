@@ -31,13 +31,13 @@ function ModPage() {
   const [modEdit, setModEdit] = useState<Partial<Mod> | null>(null);
   const [dupSource, setDupSource] = useState<Group | null>(null);
   const [dupName, setDupName] = useState("");
-  const [dupItems, setDupItems] = useState<{ name: string; price: number }[]>([]);
+  const [dupItems, setDupItems] = useState<{ name: string; price: number; image_url?: string | null }[]>([]);
   const [dupSaving, setDupSaving] = useState(false);
 
   function openDuplicate(g: Group) {
     setDupSource(g);
     setDupName(`${g.name} - Copia`);
-    setDupItems(mods.filter((m) => m.group_id === g.id).map((m) => ({ name: m.name, price: m.price })));
+    setDupItems(mods.filter((m) => m.group_id === g.id).map((m) => ({ name: m.name, price: m.price, image_url: m.image_url ?? null })));
   }
 
   async function confirmDuplicate() {
