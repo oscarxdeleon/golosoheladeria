@@ -126,7 +126,8 @@ function TodosPedidosPage() {
     queryKey: [
       "todos-pedidos", activeBranchId,
       turnoActual ? cashSession?.id ?? "no-session" : "all",
-      soloHoy ? "hoy" : "sin-fecha",
+      dateFilter,
+      dateFilter === "personalizada" ? `${customFrom}_${customTo}` : "",
     ],
     enabled: !!activeBranchId && isAdmin,
     queryFn: async () => {
@@ -141,10 +142,25 @@ function TodosPedidosPage() {
         if (!cashSession?.id) return [];
         q = q.eq("cash_session_id", cashSession.id);
       }
-      if (soloHoy) {
-        const d = new Date();
-        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const end = new Date(start.getTime() + 86400000);
+      if (dateFilter !== "todos") {
+        const now = new Date();
+        let start: Date;
+        let end: Date;
+        if (dateFilter === "hoy") {
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          end = new Date(start.getTime() + 86400000);
+        } else if (dateFilter === "ayer") {
+          const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          start = new Date(t.getTime() - 86400000);
+          end = t;
+        } else {
+          // personalizada
+          const [fy, fm, fd] = customFrom.split("-").map(Number);
+          const [ty, tm, td] = customTo.split("-").map(Number);
+          start = new Date(fy, (fm ?? 1) - 1, fd ?? 1);
+          const endBase = new Date(ty, (tm ?? 1) - 1, td ?? 1);
+          end = new Date(endBase.getTime() + 86400000);
+        }
         q = q.gte("created_at", start.toISOString()).lt("created_at", end.toISOString());
       }
 
