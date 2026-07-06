@@ -78,6 +78,11 @@ export function PublicOrder({
   const [onlineService, setOnlineService] = useState<OnlineService | null>(null);
   const [resetCountdown, setResetCountdown] = useState(30);
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [kioskStage, setKioskStage] = useState<"ticket" | "feedback">("ticket");
+  const ticketAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSentRating, setFeedbackSentRating] = useState<number | null>(null);
+  const [lastSaleId, setLastSaleId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
