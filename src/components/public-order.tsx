@@ -352,12 +352,13 @@ export function PublicOrder({
     if (isPickup && payMethod !== "Nequi" && payMethod !== "Bancolombia") {
       return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
     }
-    if (payMethod === "Efectivo") {
+    if (source !== "table_qr" && payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
       if (!v || v < total) return `Con efectivo debes pagar al menos ${formatMoney(total)}`;
     }
     return null;
   }
+
 
   function buildWhatsappMessage(ticket: number) {
     const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
