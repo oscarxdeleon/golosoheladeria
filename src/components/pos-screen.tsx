@@ -11,7 +11,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
@@ -2197,10 +2197,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 setPayDialogOpen(false);
                 setSplitDialogOpen(true);
               }}
-              className="mt-1 flex h-14 w-full items-center justify-center gap-2 rounded-full border-2 border-dashed border-primary/50 bg-primary/5 px-4 text-base font-bold uppercase tracking-wide text-primary transition-all hover:-translate-y-0.5 hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+              style={{
+                background: "linear-gradient(180deg, #a855f7 0%, #6d28d9 100%)",
+                color: "#ffffff",
+                boxShadow:
+                  "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.25), 0 8px 18px -6px rgba(109,40,217,0.6)",
+                textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+              }}
+              className="group relative mt-2 flex h-20 w-full items-center justify-center gap-3 overflow-hidden rounded-full px-6 text-xl font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Split className="h-5 w-5" /> Dividir cuenta
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+                <Users className="h-6 w-6" strokeWidth={2.5} />
+              </span>
+              <span className="min-w-0 truncate">Dividir cuenta</span>
+              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
+                <Split className="h-5 w-5" strokeWidth={2.5} />
+              </span>
             </button>
+
           </div>
         </DialogContent>
       </Dialog>
