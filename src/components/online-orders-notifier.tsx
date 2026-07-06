@@ -12,74 +12,124 @@ const PUBLIC_ORDER_SOURCES = ["online_menu", "kiosk", "table_qr"] as const;
 const ACK_STORAGE_KEY = "goloso.pos.publicOrderAlerts.seen.v1";
 const BACKSTOP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/* ---------- Audio: loop persistente hasta confirmar ---------- */
-function useOrderAlertLoop() {
-  const ctxRef = useRef<AudioContext | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const activeRef = useRef(false);
-
-  function ensureCtx() {
-    let ctx = ctxRef.current;
-    if (!ctx) {
-      const AC = (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-      ctx = new AC();
-      ctxRef.current = ctx;
+/* ---------- Audio: loop persistente hasta confirmar ----------
+ * Usa un HTMLAudioElement con loop=true para que la alerta continúe
+ * reproduciéndose aunque el navegador suspenda el AudioContext, cambie
+ * de pestaña o el usuario navegue a otras secciones del POS.
+ */
+function buildBeepBlobUrl(): string {
+  const sr = 44100;
+  const dur = 2.4; // beep + silencio, se repite en loop
+  const N = Math.floor(sr * dur);
+  const data = new Float32Array(N);
+  const tones: Array<{ f: number; t0: number; t1: number }> = [
+    { f: 880, t0: 0.00, t1: 0.16 },
+    { f: 1180, t0: 0.18, t1: 0.34 },
+    { f: 1480, t0: 0.36, t1: 0.55 },
+  ];
+  for (const t of tones) {
+    const s = Math.floor(t.t0 * sr);
+    const e = Math.floor(t.t1 * sr);
+    for (let i = s; i < e; i++) {
+      const env = Math.min(1, (i - s) / 240) * Math.min(1, (e - i) / 240);
+      const sample = Math.sign(Math.sin(2 * Math.PI * t.f * (i / sr))) * 0.38 * env;
+      data[i] = Math.max(-1, Math.min(1, data[i] + sample));
     }
-    if (ctx.state === "suspended") void ctx.resume().catch(() => { /* noop */ });
-    return ctx;
   }
+  const buf = new ArrayBuffer(44 + N * 2);
+  const view = new DataView(buf);
+  const wr = (o: number, s: string) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  wr(0, "RIFF"); view.setUint32(4, 36 + N * 2, true);
+  wr(8, "WAVE"); wr(12, "fmt "); view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, sr, true); view.setUint32(28, sr * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  wr(36, "data"); view.setUint32(40, N * 2, true);
+  for (let i = 0; i < N; i++) {
+    const s = data[i];
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7FFF, true);
+  }
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
 
-  function playOnce() {
-    try {
-      const ctx = ensureCtx();
-      const freqs = [880, 1180, 1480];
-      freqs.forEach((f, i) => {
-        const start = ctx.currentTime + i * 0.16;
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        o.connect(g); g.connect(ctx.destination);
-        o.type = "square"; o.frequency.value = f;
-        g.gain.setValueAtTime(0.0001, start);
-        g.gain.exponentialRampToValueAtTime(0.5, start + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, start + 0.15);
-        o.start(start); o.stop(start + 0.16);
-      });
-    } catch { /* noop */ }
-  }
+function useOrderAlertLoop() {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const urlRef = useRef<string | null>(null);
+  const activeRef = useRef(false);
+  const unlockedRef = useRef(false);
+
+  const ensureAudio = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    if (!urlRef.current) urlRef.current = buildBeepBlobUrl();
+    if (!audioRef.current) {
+      const a = new Audio(urlRef.current);
+      a.loop = true;
+      a.preload = "auto";
+      a.volume = 1;
+      audioRef.current = a;
+    }
+    return audioRef.current;
+  }, []);
+
+  const attemptPlay = useCallback(() => {
+    const a = ensureAudio();
+    if (!a) return;
+    const p = a.play();
+    if (p && typeof p.catch === "function") {
+      p.catch(() => { /* bloqueado hasta el próximo gesto; se reintenta en unlock */ });
+    }
+  }, [ensureAudio]);
 
   const start = useCallback(() => {
-    if (activeRef.current) return;
+    if (activeRef.current) {
+      const a = audioRef.current;
+      if (a && a.paused) attemptPlay();
+      return;
+    }
     activeRef.current = true;
-    // Reproducir de inmediato, luego cada 2.4s
-    playOnce();
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = setInterval(() => { if (activeRef.current) playOnce(); }, 2400);
-  }, []);
+    attemptPlay();
+  }, [attemptPlay]);
 
   const stop = useCallback(() => {
     activeRef.current = false;
-    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+    const a = audioRef.current;
+    if (a) {
+      try { a.pause(); a.currentTime = 0; } catch { /* noop */ }
+    }
   }, []);
 
-  // Desbloqueo del AudioContext en el primer gesto (política del navegador)
+  // Desbloqueo por gesto del usuario y recuperación al volver a la pestaña.
   useEffect(() => {
     const unlock = () => {
-      try {
-        const ctx = ensureCtx();
-        const o = ctx.createOscillator(); const g = ctx.createGain();
-        g.gain.value = 0.0001; o.connect(g); g.connect(ctx.destination);
-        o.start(); o.stop(ctx.currentTime + 0.01);
-      } catch { /* noop */ }
+      const a = ensureAudio();
+      if (!a) return;
+      if (!unlockedRef.current) {
+        unlockedRef.current = true;
+        const prevMuted = a.muted;
+        a.muted = true;
+        const p = a.play();
+        const finish = () => { try { a.pause(); a.currentTime = 0; a.muted = prevMuted; } catch { /* noop */ } };
+        if (p && typeof p.then === "function") p.then(finish).catch(() => { a.muted = prevMuted; });
+        else finish();
+      }
+      if (activeRef.current && a.paused) attemptPlay();
     };
     const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart", "click"];
     events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
-    return () => events.forEach((e) => window.removeEventListener(e, unlock));
-  }, []);
+    const onVisible = () => { if (activeRef.current) attemptPlay(); };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      events.forEach((e) => window.removeEventListener(e, unlock));
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [attemptPlay, ensureAudio]);
 
   useEffect(() => () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    try { ctxRef.current?.close(); } catch { /* noop */ }
-    ctxRef.current = null;
+    const a = audioRef.current;
+    if (a) { try { a.pause(); } catch { /* noop */ } }
+    if (urlRef.current) { try { URL.revokeObjectURL(urlRef.current); } catch { /* noop */ } }
+    audioRef.current = null;
+    urlRef.current = null;
   }, []);
 
   return { start, stop };
