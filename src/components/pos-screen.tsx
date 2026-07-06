@@ -2093,6 +2093,30 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             </div>
           )}
           <div className="flex flex-col gap-3 py-2">
+            <button
+              type="button"
+              disabled={paying || (total <= 0 && !pendingSaleId && cart.length === 0)}
+              onClick={() => {
+                setPayDialogOpen(false);
+                setSplitDialogOpen(true);
+              }}
+              style={{
+                background: "linear-gradient(180deg, #a855f7 0%, #6d28d9 100%)",
+                color: "#ffffff",
+                boxShadow:
+                  "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(0,0,0,0.25), 0 6px 14px -5px rgba(109,40,217,0.6)",
+                textShadow: "0 1px 2px rgba(0,0,0,0.25)",
+              }}
+              className="group relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-5 text-base font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
+                <Users className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+              <span className="min-w-0 truncate">Dividir cuenta</span>
+              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
+                <Split className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+            </button>
             {methods.map((m: { id: string; name: string }) => {
               const lower = m.name.toLowerCase();
               const isCash = lower.includes("efectivo");
@@ -2190,30 +2214,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 No hay métodos de pago configurados.
               </div>
             )}
-            <button
-              type="button"
-              disabled={paying || (total <= 0 && !pendingSaleId && cart.length === 0)}
-              onClick={() => {
-                setPayDialogOpen(false);
-                setSplitDialogOpen(true);
-              }}
-              style={{
-                background: "linear-gradient(180deg, #a855f7 0%, #6d28d9 100%)",
-                color: "#ffffff",
-                boxShadow:
-                  "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.25), 0 8px 18px -6px rgba(109,40,217,0.6)",
-                textShadow: "0 2px 2px rgba(0,0,0,0.25)",
-              }}
-              className="group relative mt-2 flex h-20 w-full items-center justify-center gap-3 overflow-hidden rounded-full px-6 text-xl font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
-                <Users className="h-6 w-6" strokeWidth={2.5} />
-              </span>
-              <span className="min-w-0 truncate">Dividir cuenta</span>
-              <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20">
-                <Split className="h-5 w-5" strokeWidth={2.5} />
-              </span>
-            </button>
+
+
 
           </div>
         </DialogContent>
