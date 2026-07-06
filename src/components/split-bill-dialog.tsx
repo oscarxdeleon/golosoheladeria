@@ -136,89 +136,170 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
     }
   }
 
+  // Estilos 3D por método de pago (mismos colores que POS)
+  const METHOD_STYLE: Record<SplitMethod, { bg: string; color: string; shadow: string; ring: string; soft: string }> = {
+    Efectivo: {
+      bg: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)",
+      color: "#ffffff",
+      shadow: "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(22,163,74,0.55)",
+      ring: "#16a34a",
+      soft: "rgba(22,163,74,0.08)",
+    },
+    Nequi: {
+      bg: "linear-gradient(180deg, #bae6fd 0%, #38bdf8 100%)",
+      color: "#0c4a6e",
+      shadow: "inset 0 2px 0 rgba(255,255,255,0.85), inset 0 -5px 0 rgba(0,0,0,0.15), 0 8px 18px -6px rgba(14,165,233,0.55)",
+      ring: "#0ea5e9",
+      soft: "rgba(56,189,248,0.10)",
+    },
+    Bancolombia: {
+      bg: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+      color: "#1a1a1a",
+      shadow: "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 18px -6px rgba(202,138,4,0.55)",
+      ring: "#eab308",
+      soft: "rgba(234,179,8,0.12)",
+    },
+  };
+
+  function MethodPicker({ value, onChange, size = "md" }: { value: SplitMethod; onChange: (m: SplitMethod) => void; size?: "sm" | "md" }) {
+    return (
+      <div className={`grid grid-cols-3 gap-1.5 ${size === "sm" ? "" : ""}`}>
+        {SPLIT_METHODS.map((m) => {
+          const s = METHOD_STYLE[m];
+          const active = value === m;
+          return (
+            <button
+              key={m}
+              type="button"
+              onClick={() => onChange(m)}
+              style={active
+                ? { background: s.bg, color: s.color, boxShadow: s.shadow }
+                : { background: "#f3f4f6", color: "#374151" }}
+              className={`relative flex items-center justify-center gap-1 rounded-full font-bold uppercase tracking-wide transition-all duration-150 ${size === "sm" ? "h-9 text-[11px]" : "h-11 text-xs"} ${active ? "scale-[1.02]" : "hover:scale-[1.01] opacity-70"}`}
+            >
+              {active && <Check className="h-3.5 w-3.5" strokeWidth={3} />}
+              <span className="truncate">{m}</span>
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!paying) onOpenChange(o); }}>
-      <DialogContent className="sm:max-w-lg p-0 gap-0 flex flex-col max-h-[92vh] overflow-hidden">
-        <DialogHeader className="px-5 pt-5 pb-3 border-b shrink-0">
-          <DialogTitle className="text-center text-xl font-display flex items-center justify-center gap-2">
-            <Users className="h-5 w-5 text-primary" /> Dividir cuenta
-          </DialogTitle>
-          <DialogDescription className="text-center text-xs">
-            Divide por número de personas o asigna productos por medio de pago.
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-lg p-0 gap-0 flex flex-col max-h-[92vh] overflow-hidden border-0 bg-gradient-to-b from-background via-background to-primary/5">
+        {/* HERO HEADER con gradiente y total gigante */}
+        <div className="relative shrink-0 overflow-hidden bg-gradient-to-br from-primary via-primary/90 to-primary/70 px-5 pt-5 pb-6 text-primary-foreground">
+          <div className="pointer-events-none absolute -right-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
+          <div className="pointer-events-none absolute -left-8 bottom-0 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+          <DialogHeader className="relative space-y-2">
+            <DialogTitle className="text-center text-2xl font-display font-black tracking-tight flex items-center justify-center gap-2">
+              <Sparkles className="h-5 w-5 opacity-90" />
+              Dividir cuenta
+              <Sparkles className="h-5 w-5 opacity-90" />
+            </DialogTitle>
+            <DialogDescription className="text-center text-xs text-primary-foreground/80">
+              Divide por número de personas o asigna productos por medio de pago
+            </DialogDescription>
+          </DialogHeader>
+          <div className="relative mt-3 flex items-baseline justify-center gap-1">
+            <span className="text-2xl font-bold opacity-80">$</span>
+            <span className="font-display text-5xl font-black tabular-nums tracking-tight drop-shadow-sm">
+              {Number(total).toLocaleString("es-CO")}
+            </span>
+          </div>
+          <div className={`mt-1 flex items-center justify-center gap-1.5 text-xs font-semibold ${tab === "cantidad" ? (cantidadPending === 0 ? "text-emerald-100" : "text-amber-100") : (productoPending === 0 ? "text-emerald-100" : "text-amber-100")}`}>
+            <span className={`inline-block h-1.5 w-1.5 rounded-full ${((tab === "cantidad" ? cantidadPending : productoPending) === 0) ? "bg-emerald-300" : "bg-amber-300"} animate-pulse`} />
+            {tab === "cantidad" ? (cantidadPending === 0 ? "Cuadrado" : `Pendiente ${formatMoney(cantidadPending)}`) : (productoPending === 0 ? "Cuadrado" : `Pendiente ${formatMoney(productoPending)}`)}
+          </div>
+        </div>
 
         <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "cantidad" | "producto")}>
-            <TabsList className="grid grid-cols-2 w-full">
-              <TabsTrigger value="cantidad"><Users className="h-4 w-4 mr-1" />Por cantidad</TabsTrigger>
-              <TabsTrigger value="producto"><Package className="h-4 w-4 mr-1" />Por producto</TabsTrigger>
+            <TabsList className="grid grid-cols-2 w-full h-11 rounded-full bg-muted/60 p-1">
+              <TabsTrigger value="cantidad" className="rounded-full data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-semibold">
+                <Users className="h-4 w-4 mr-1.5" />Por cantidad
+              </TabsTrigger>
+              <TabsTrigger value="producto" className="rounded-full data-[state=active]:bg-background data-[state=active]:shadow-md data-[state=active]:text-primary font-semibold">
+                <Package className="h-4 w-4 mr-1.5" />Por producto
+              </TabsTrigger>
             </TabsList>
 
             <TabsContent value="cantidad" className="space-y-4 pt-4">
-              <div className="text-center space-y-1">
-                <div className="text-lg font-display">A cobrar: <span className="text-primary font-bold">{formatMoney(total)}</span></div>
-                <div className={`text-sm ${cantidadPending === 0 ? "text-success" : "text-destructive"}`}>
-                  Pendiente: {formatMoney(cantidadPending)}
-                </div>
-              </div>
-
-              <div>
-                <div className="text-sm text-center text-muted-foreground mb-2">¿En cuántas personas o pagos dividir?</div>
+              {/* SELECTOR DE PARTES */}
+              <div className="rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 p-4 text-center">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-3">¿En cuántos pagos dividir?</div>
                 <div className="flex items-center justify-center gap-4">
                   <Button
                     variant="outline"
                     size="icon"
+                    className="h-12 w-12 rounded-full border-2 shadow-sm hover:scale-105 transition-transform"
                     onClick={() => setParts((p) => Math.max(2, p - 1))}
                     disabled={parts <= 2}
                   >
-                    <Minus className="h-4 w-4" />
+                    <Minus className="h-5 w-5" />
                   </Button>
-                  <div className="font-display text-3xl font-bold w-10 text-center">{parts}</div>
+                  <div className="relative">
+                    <div className="font-display text-6xl font-black text-primary tabular-nums leading-none drop-shadow-sm">{parts}</div>
+                    <div className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground text-center mt-1">Personas</div>
+                  </div>
                   <Button
                     size="icon"
+                    className="h-12 w-12 rounded-full shadow-md hover:scale-105 transition-transform bg-gradient-to-br from-primary to-primary/80"
                     onClick={() => setParts((p) => Math.min(10, p + 1))}
                     disabled={parts >= 10}
                   >
-                    <Plus className="h-4 w-4" />
+                    <Plus className="h-5 w-5" />
                   </Button>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                {amounts.map((amt, i) => (
-                  <div key={i} className="rounded-xl border p-3 space-y-2 bg-muted/30">
-                    <div className="flex items-center gap-2">
-                      <Banknote className="h-4 w-4 text-primary" />
-                      <span className="text-xs font-medium text-muted-foreground">Pago {i + 1}</span>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <Select value={methods[i]} onValueChange={(v) => {
-                        setMethods((prev) => prev.map((m, idx) => idx === i ? (v as SplitMethod) : m));
-                      }}>
-                        <SelectTrigger><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {SPLIT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+              {/* PAGOS INDIVIDUALES */}
+              <div className="space-y-2.5">
+                {amounts.map((amt, i) => {
+                  const st = METHOD_STYLE[methods[i] ?? "Efectivo"];
+                  return (
+                    <div
+                      key={i}
+                      className="relative rounded-2xl border-2 p-3 space-y-2.5 transition-all"
+                      style={{ borderColor: `${st.ring}55`, background: st.soft }}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="flex h-8 w-8 items-center justify-center rounded-full font-display font-black text-sm"
+                            style={{ background: st.bg, color: st.color, boxShadow: st.shadow }}
+                          >
+                            {i + 1}
+                          </div>
+                          <span className="text-xs font-bold uppercase tracking-wide text-muted-foreground">Pago {i + 1}</span>
+                        </div>
+                        <div className="font-display text-lg font-black tabular-nums" style={{ color: st.ring }}>
+                          {formatMoney(amt || 0)}
+                        </div>
+                      </div>
+
+                      <MethodPicker
+                        value={methods[i] ?? "Efectivo"}
+                        onChange={(v) => setMethods((prev) => prev.map((m, idx) => idx === i ? v : m))}
+                        size="sm"
+                      />
+
                       <div className="relative">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                        <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-2xl font-bold text-muted-foreground">$</span>
                         <Input
                           inputMode="numeric"
-                          className="pl-6 text-right font-display font-semibold"
+                          className="pl-10 h-14 text-right font-display text-2xl font-black tabular-nums border-2 rounded-xl bg-background shadow-inner focus-visible:ring-2"
+                          style={{ borderColor: `${st.ring}44` }}
                           value={amt === 0 ? "" : Number(amt).toLocaleString("es-CO")}
                           onChange={(e) => {
                             const digits = e.target.value.replace(/\D/g, "");
                             const n = digits === "" ? 0 : Math.min(total, Number(digits));
                             setAmounts((prev) => {
                               const next = prev.map((a, idx) => (idx === i ? n : a));
-                              // Auto-balance: ajusta el último pago distinto para que la suma sea igual al total
-                              const others = next.reduce((s, v, idx) => (idx === i ? s : s + Number(v || 0)), 0);
-                              const remaining = Math.max(0, total - n);
-                              // Encuentra el índice a ajustar (el último que no sea "i")
                               const adjIdx = next.length - 1 === i ? Math.max(0, next.length - 2) : next.length - 1;
-                              if (next.length >= 2 && others !== remaining) {
-                                // Reparte el remanente en el índice adjIdx (y resetea los demás a 0 si sobra)
+                              if (next.length >= 2) {
                                 const rest = next.map((v, idx) => (idx === i ? n : idx === adjIdx ? 0 : Number(v || 0)));
                                 const usedByOthers = rest.reduce((s, v, idx) => (idx === i || idx === adjIdx ? s : s + Number(v || 0)), 0);
                                 rest[adjIdx] = Math.max(0, total - n - usedByOthers);
@@ -230,83 +311,100 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
                         />
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </TabsContent>
 
             <TabsContent value="producto" className="space-y-4 pt-4">
-              <div className="rounded-lg bg-muted/40 p-3 text-sm space-y-1">
-                <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{formatMoney(total)}</span></div>
-                <div className="flex justify-between"><span className="text-muted-foreground">Cobrado</span><span>{formatMoney(alreadyCharged)}</span></div>
-                <div className="flex justify-between font-medium"><span>Pendiente</span><span className={productoPending === 0 ? "text-success" : "text-destructive"}>{formatMoney(productoPending)}</span></div>
+              <div className="rounded-2xl bg-gradient-to-br from-muted/60 to-muted/30 p-4 space-y-1.5 border">
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Total</span><span className="font-display font-bold">{formatMoney(total)}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-muted-foreground">Cobrado</span><span className="font-display font-bold text-emerald-600">{formatMoney(alreadyCharged)}</span></div>
+                <div className="h-px bg-border my-1" />
+                <div className="flex justify-between text-base font-bold">
+                  <span>Pendiente</span>
+                  <span className={`font-display ${productoPending === 0 ? "text-emerald-600" : "text-amber-600"}`}>{formatMoney(productoPending)}</span>
+                </div>
               </div>
 
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Productos disponibles</div>
-                <div className="space-y-2">
+                <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-2">Productos disponibles</div>
+                <div className="space-y-1.5">
                   {picked.filter((p) => p.max > 0).length === 0 && (
-                    <div className="text-xs text-muted-foreground text-center py-2">Todos los productos ya fueron asignados.</div>
+                    <div className="rounded-xl border-2 border-dashed p-4 text-xs text-muted-foreground text-center">
+                      Todos los productos ya fueron asignados ✓
+                    </div>
                   )}
                   {picked.map((row, idx) => row.max > 0 && (
-                    <div key={row.key} className="flex items-center gap-2 rounded-lg border p-2">
+                    <div key={row.key} className="flex items-center gap-2 rounded-xl border-2 p-2.5 bg-background hover:border-primary/40 transition-colors">
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm truncate">{row.name}</div>
+                        <div className="text-sm font-semibold truncate">{row.name}</div>
                         <div className="text-[11px] text-muted-foreground">{formatMoney(row.unit_price)} · {row.qty} de {row.max}</div>
                       </div>
-                      <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => {
+                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => {
                         setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.max(0, r.qty - 1) } : r));
-                      }}><Minus className="h-3 w-3" /></Button>
-                      <div className="w-6 text-center text-sm font-semibold">{row.qty}</div>
-                      <Button size="icon" className="h-7 w-7" onClick={() => {
+                      }}><Minus className="h-3.5 w-3.5" /></Button>
+                      <div className="w-7 text-center font-display font-black text-primary">{row.qty}</div>
+                      <Button size="icon" className="h-8 w-8 rounded-full" onClick={() => {
                         setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.min(r.max, r.qty + 1) } : r));
-                      }}><Plus className="h-3 w-3" /></Button>
+                      }}><Plus className="h-3.5 w-3.5" /></Button>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div className="rounded-lg border-2 border-primary/30 p-3 space-y-2 bg-primary/5">
-                <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Cobrar seleccionados</div>
-                <div className="flex items-center gap-2">
-                  <Select value={bucketMethod} onValueChange={(v) => setBucketMethod(v as SplitMethod)}>
-                    <SelectTrigger className="flex-1"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      {SPLIT_METHODS.map((m) => <SelectItem key={m} value={m}>{m}</SelectItem>)}
-                    </SelectContent>
-                  </Select>
-                  <div className="font-display text-lg font-bold">{formatMoney(currentBucketTotal)}</div>
+              <div
+                className="rounded-2xl border-2 p-3 space-y-3"
+                style={{ borderColor: `${METHOD_STYLE[bucketMethod].ring}66`, background: METHOD_STYLE[bucketMethod].soft }}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Cobrar seleccionados</div>
+                  <div className="font-display text-xl font-black tabular-nums" style={{ color: METHOD_STYLE[bucketMethod].ring }}>
+                    {formatMoney(currentBucketTotal)}
+                  </div>
                 </div>
-                <Button size="sm" className="w-full" onClick={commitBucket} disabled={currentBucketTotal <= 0}>
-                  Agregar pago
+                <MethodPicker value={bucketMethod} onChange={setBucketMethod} size="sm" />
+                <Button
+                  className="w-full h-11 rounded-full font-bold uppercase tracking-wide shadow-md"
+                  onClick={commitBucket}
+                  disabled={currentBucketTotal <= 0}
+                >
+                  <Plus className="h-4 w-4 mr-1" /> Agregar pago
                 </Button>
               </div>
 
               {committedBuckets.length > 0 && (
                 <div>
-                  <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Pagos asignados</div>
-                  <div className="space-y-2">
-                    {committedBuckets.map((b, i) => (
-                      <div key={i} className="flex items-center gap-2 rounded-lg border p-2 bg-muted/30">
-                        <Badge variant="secondary">{b.method}</Badge>
-                        <div className="flex-1 min-w-0 text-xs text-muted-foreground truncate">
-                          {b.items.map((it) => `${it.qty}× ${it.name}`).join(", ")}
+                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground mb-2">Pagos asignados</div>
+                  <div className="space-y-1.5">
+                    {committedBuckets.map((b, i) => {
+                      const s = METHOD_STYLE[b.method];
+                      return (
+                        <div key={i} className="flex items-center gap-2 rounded-xl border-2 p-2.5" style={{ borderColor: `${s.ring}66`, background: s.soft }}>
+                          <div
+                            className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wide"
+                            style={{ background: s.bg, color: s.color, boxShadow: s.shadow }}
+                          >
+                            {b.method}
+                          </div>
+                          <div className="flex-1 min-w-0 text-[11px] text-muted-foreground truncate">
+                            {b.items.map((it) => `${it.qty}× ${it.name}`).join(", ")}
+                          </div>
+                          <div className="font-display font-black tabular-nums" style={{ color: s.ring }}>{formatMoney(b.amount)}</div>
+                          <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-destructive/10 hover:text-destructive" onClick={() => {
+                            setCommittedBuckets((prev) => prev.filter((_, idx) => idx !== i));
+                            setPicked((prev) => {
+                              const next = [...prev];
+                              for (const it of b.items) {
+                                const row = next.find((r) => r.name === it.name && r.unit_price === it.unit_price);
+                                if (row) row.max += it.qty;
+                              }
+                              return next;
+                            });
+                          }}><X className="h-3.5 w-3.5" /></Button>
                         </div>
-                        <div className="font-display font-bold">{formatMoney(b.amount)}</div>
-                        <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => {
-                          setCommittedBuckets((prev) => prev.filter((_, idx) => idx !== i));
-                          // devolver stock a picked
-                          setPicked((prev) => {
-                            const next = [...prev];
-                            for (const it of b.items) {
-                              const row = next.find((r) => r.name === it.name && r.unit_price === it.unit_price);
-                              if (row) row.max += it.qty;
-                            }
-                            return next;
-                          });
-                        }}><X className="h-3 w-3" /></Button>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -314,13 +412,21 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
           </Tabs>
         </div>
 
-        <DialogFooter className="shrink-0 border-t bg-background px-5 py-3">
-          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={paying}>Cancelar</Button>
-          <Button onClick={handleConfirm} disabled={paying}>
-            {paying ? "Cobrando…" : "Cobrar"}
+        <DialogFooter className="shrink-0 border-t bg-background/95 backdrop-blur px-5 py-3 gap-2 sm:gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={paying} className="h-12 rounded-full font-semibold">
+            Cancelar
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            disabled={paying}
+            className="h-12 flex-1 rounded-full font-black uppercase tracking-wide text-base shadow-lg bg-gradient-to-r from-primary via-primary to-primary/80 hover:scale-[1.01] transition-transform"
+          >
+            <Banknote className="h-5 w-5 mr-2" />
+            {paying ? "Cobrando…" : `Cobrar ${formatMoney(total)}`}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
+
