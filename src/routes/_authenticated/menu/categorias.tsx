@@ -228,7 +228,6 @@ function ReorderCategoriesDialog({ cats }: { cats: Category[] }) {
 
   async function save() {
     setSaving(true);
-    const col = channel === "kiosk" ? "kiosk_sort_order" : "online_sort_order";
     try {
       for (let i = 0; i < items.length; i++) {
         const payload = channel === "kiosk" ? { kiosk_sort_order: i + 1 } : { online_sort_order: i + 1 };
