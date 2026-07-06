@@ -809,49 +809,99 @@ export function PublicOrder({
             </p>
           </div>
 
-          <div className="w-full max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 pb-4">
-            <button
-              type="button"
-              onClick={() => { setOnlineService("domicilio"); setPayMethod("Efectivo"); }}
-              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-orange-400 via-rose-500 to-fuchsia-600 text-white px-6 py-8 shadow-[0_20px_50px_-15px_rgba(244,63,94,0.6)] ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-rose-300"
-              style={{ transform: "perspective(800px) rotateX(2deg)" }}
-            >
-              <span className="pointer-events-none absolute -top-20 -right-20 h-52 w-52 rounded-full bg-white/25 blur-3xl" />
-              <span className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
-              <div className="relative flex flex-col items-center gap-3">
-                <div className="rounded-2xl bg-white/25 backdrop-blur-sm p-5 shadow-inner group-hover:scale-110 transition-transform duration-300">
-                  <Bike className="h-14 w-14 drop-shadow-lg" strokeWidth={2.2} />
-                </div>
-                <div className="font-display font-black text-2xl sm:text-3xl tracking-wide drop-shadow">
-                  A DOMICILIO
-                </div>
-                <div className="text-xs sm:text-sm text-white/90 font-medium">
-                  Te lo llevamos a tu dirección
-                </div>
-              </div>
-            </button>
+          <div className="w-full max-w-2xl mx-auto flex flex-col gap-5 sm:gap-6 pb-4">
+            {[
+              {
+                key: "domicilio" as const,
+                icon: Bike,
+                title: "A DOMICILIO",
+                subtitle: "Te lo llevamos a tu dirección",
+                pay: "Efectivo" as const,
+                titleAccent: "text-lime-400",
+                titleBase: "text-white",
+              },
+              {
+                key: "recoger" as const,
+                icon: Store,
+                title: "RECOGER EN HELADERÍA",
+                subtitle: "Pásalo a recoger tú mismo",
+                pay: "Nequi" as const,
+                titleAccent: "text-lime-400",
+                titleBase: "text-white",
+                splitTitle: true,
+              },
+            ].map((btn) => {
+              const Icon = btn.icon;
+              return (
+                <button
+                  key={btn.key}
+                  type="button"
+                  onClick={() => { setOnlineService(btn.key); setPayMethod(btn.pay); }}
+                  className="group relative w-full rounded-[28px] p-[3px] bg-gradient-to-b from-lime-300 via-lime-500 to-lime-700 shadow-[0_18px_40px_-12px_rgba(16,94,90,0.55)] transition-all duration-200 hover:-translate-y-1 hover:shadow-[0_26px_50px_-14px_rgba(16,94,90,0.7)] active:translate-y-0.5 active:shadow-[0_10px_20px_-8px_rgba(16,94,90,0.6)] focus:outline-none focus-visible:ring-4 focus-visible:ring-lime-300/60"
+                >
+                  <div
+                    className="relative overflow-hidden rounded-[24px] px-4 py-5 sm:px-6 sm:py-6 flex items-center gap-4 sm:gap-6"
+                    style={{
+                      background:
+                        "linear-gradient(160deg, #1f6d78 0%, #16545e 45%, #0e3d47 100%)",
+                    }}
+                  >
+                    {/* brillo superior */}
+                    <span className="pointer-events-none absolute inset-x-3 top-1 h-1/3 rounded-[20px] bg-gradient-to-b from-white/25 to-transparent" />
+                    {/* sombra inferior interna */}
+                    <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent" />
 
-            <button
-              type="button"
-              onClick={() => { setOnlineService("recoger"); setPayMethod("Nequi"); }}
-              className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-emerald-400 via-teal-500 to-cyan-600 text-white px-6 py-8 shadow-[0_20px_50px_-15px_rgba(13,148,136,0.6)] ring-1 ring-white/30 hover:scale-105 active:scale-95 transition-all duration-300 focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-300"
-              style={{ transform: "perspective(800px) rotateX(2deg)" }}
-            >
-              <span className="pointer-events-none absolute -top-20 -left-20 h-52 w-52 rounded-full bg-white/25 blur-3xl" />
-              <span className="pointer-events-none absolute -bottom-16 -right-16 h-40 w-40 rounded-full bg-black/10 blur-2xl" />
-              <div className="relative flex flex-col items-center gap-3">
-                <div className="rounded-2xl bg-white/25 backdrop-blur-sm p-5 shadow-inner group-hover:scale-110 transition-transform duration-300">
-                  <Store className="h-14 w-14 drop-shadow-lg" strokeWidth={2.2} />
-                </div>
-                <div className="font-display font-black text-2xl sm:text-3xl tracking-wide drop-shadow">
-                  RECOGER EN HELADERÍA
-                </div>
-                <div className="text-xs sm:text-sm text-white/90 font-medium">
-                  Pásalo a recoger tú mismo
-                </div>
-              </div>
-            </button>
+                    {/* Icono cuadrado verde */}
+                    <div className="relative shrink-0">
+                      <div className="absolute inset-0 rounded-2xl bg-lime-700/70 blur-[2px] translate-y-1" />
+                      <div
+                        className="relative h-16 w-16 sm:h-20 sm:w-20 rounded-2xl flex items-center justify-center ring-1 ring-lime-200/60 transition-transform duration-200 group-hover:scale-[1.04] group-active:scale-95"
+                        style={{
+                          background:
+                            "linear-gradient(160deg, #d4ff5a 0%, #a4e424 40%, #6fb31a 100%)",
+                          boxShadow:
+                            "inset 0 2px 4px rgba(255,255,255,0.55), inset 0 -6px 10px rgba(0,60,0,0.35), 0 4px 10px rgba(0,0,0,0.25)",
+                        }}
+                      >
+                        <Icon className="h-9 w-9 sm:h-11 sm:w-11 text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.35)]" strokeWidth={2.4} />
+                      </div>
+                    </div>
+
+                    {/* Texto */}
+                    <div className="relative flex-1 min-w-0 text-left">
+                      <div
+                        className={`font-display font-black leading-[1.05] tracking-wide text-2xl sm:text-3xl drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)] ${btn.titleAccent}`}
+                        style={{ WebkitTextStroke: "0.5px rgba(0,0,0,0.35)" }}
+                      >
+                        {btn.splitTitle ? (
+                          <>
+                            <span className={btn.titleBase}>RECOGER EN</span>
+                            <br />
+                            <span className={btn.titleAccent}>HELADERÍA</span>
+                          </>
+                        ) : (
+                          <>
+                            <span className={btn.titleBase}>A </span>
+                            <span className={btn.titleAccent}>DOMICILIO</span>
+                          </>
+                        )}
+                      </div>
+                      {/* línea decorativa */}
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-lime-400 shadow-[0_0_6px_rgba(163,230,53,0.9)]" />
+                        <span className="h-[2px] flex-1 bg-gradient-to-r from-lime-400/90 via-lime-400/60 to-transparent rounded-full" />
+                        <span className="h-1.5 w-1.5 rounded-full bg-lime-400 shadow-[0_0_6px_rgba(163,230,53,0.9)]" />
+                      </div>
+                      <div className="mt-1 text-xs sm:text-sm font-medium text-white/90 truncate">
+                        {btn.subtitle}
+                      </div>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
           </div>
+
         </div>
       </div>
     );
