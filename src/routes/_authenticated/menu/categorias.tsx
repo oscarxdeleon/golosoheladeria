@@ -231,7 +231,8 @@ function ReorderCategoriesDialog({ cats }: { cats: Category[] }) {
     const col = channel === "kiosk" ? "kiosk_sort_order" : "online_sort_order";
     try {
       for (let i = 0; i < items.length; i++) {
-        const { error } = await supabase.from("categories").update({ [col]: i + 1 }).eq("id", items[i].id);
+        const payload = channel === "kiosk" ? { kiosk_sort_order: i + 1 } : { online_sort_order: i + 1 };
+        const { error } = await supabase.from("categories").update(payload).eq("id", items[i].id);
         if (error) throw error;
       }
       toast.success("Orden guardado");
