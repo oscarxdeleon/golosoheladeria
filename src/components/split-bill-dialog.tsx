@@ -62,18 +62,20 @@ const METHOD_STYLE: Record<SplitMethod, { bg: string; color: string; shadow: str
 export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onConfirm }: Props) {
   const [tab, setTab] = useState<"cantidad" | "producto">("cantidad");
 
-  // --- POR CANTIDAD ---
-  const [parts, setParts] = useState(2);
-  const [amounts, setAmounts] = useState<number[]>([]);
-  const [methods, setMethods] = useState<SplitMethod[]>([]);
+  // --- POR CANTIDAD (flujo secuencial: aplicar pago → saldo automático) ---
+  interface CashPayment { method: SplitMethod; amount: number }
+  const [cashPayments, setCashPayments] = useState<CashPayment[]>([]);
+  const [draftAmount, setDraftAmount] = useState<number>(0);
+  const [draftMethod, setDraftMethod] = useState<SplitMethod>("Efectivo");
+  const [showDraft, setShowDraft] = useState<boolean>(true);
 
   useEffect(() => {
     if (!open) return;
     setTab("cantidad");
-    setParts(2);
-    const base = Math.floor(total / 2);
-    setAmounts([base, total - base]);
-    setMethods(["Efectivo", "Efectivo"]);
+    setCashPayments([]);
+    setDraftAmount(total);
+    setDraftMethod("Efectivo");
+    setShowDraft(true);
     setPicked(
       lines.map((l) => ({ key: l.key, name: l.name, unit_price: l.unit_price, qty: Math.min(1, l.qty), max: l.qty })),
     );
@@ -82,20 +84,27 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
     setCommittedBuckets([]);
   }, [open, total, lines]);
 
-  useEffect(() => {
-    setAmounts((prev) => {
-      const next = Array.from({ length: parts }, (_, i) => prev[i] ?? 0);
-      const base = Math.floor(total / parts);
-      const rem = total - base * parts;
-      for (let i = 0; i < parts; i++) next[i] = base + (i === parts - 1 ? rem : 0);
-      return next;
-    });
-    setMethods((prev) => Array.from({ length: parts }, (_, i) => prev[i] ?? "Efectivo"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parts, total]);
+  const cantidadPaid = cashPayments.reduce((s, p) => s + p.amount, 0);
+  const cantidadPending = Math.max(0, total - cantidadPaid);
 
-  const cantidadTotal = amounts.reduce((a, b) => a + Number(b || 0), 0);
-  const cantidadPending = total - cantidadTotal;
+  function applyDraftPayment() {
+    const n = round0(draftAmount);
+    if (n <= 0) return toast.error("Ingresa un valor a pagar");
+    if (n > cantidadPending) return toast.error(`El pago no puede superar ${formatMoney(cantidadPending)}`);
+    const next = [...cashPayments, { method: draftMethod, amount: n }];
+    setCashPayments(next);
+    const newPending = total - next.reduce((s, p) => s + p.amount, 0);
+    setDraftAmount(newPending);
+    setShowDraft(newPending === 0 ? false : false); // ocultar hasta pulsar "Agregar pago"
+  }
+
+  function removeCashPayment(idx: number) {
+    const next = cashPayments.filter((_, i) => i !== idx);
+    setCashPayments(next);
+    const newPending = total - next.reduce((s, p) => s + p.amount, 0);
+    setDraftAmount(newPending);
+  }
+
 
   // --- POR PRODUCTO ---
   interface PickRow { key: string; name: string; unit_price: number; qty: number; max: number }
