@@ -139,7 +139,7 @@ function MesasAdminPage() {
       const marginY = 15;
       const cellW = (pageW - marginX * 2) / cols;
       const cellH = (pageH - marginY * 2) / rows;
-      const qrSize = Math.min(cellW, cellH) - 22; // deja espacio para textos
+      const qrSize = Math.min(cellW, cellH) - 8;
 
       // Cabecera de página
       const drawHeader = (pageIndex: number, totalPages: number) => {
@@ -175,36 +175,14 @@ function MesasAdminPage() {
         const x0 = marginX + col * cellW;
         const y0 = marginY + row * cellH;
 
-        // QR de alta resolución (800px) embebido como PNG
-        const dataUrl = await (await import("qrcode")).default.toDataURL(url, {
-          errorCorrectionLevel: "H",
-          margin: 1,
-          width: 800,
-          color: { dark: "#000000", light: "#FFFFFF" },
-        });
+        // QR de alta resolución con número al centro
+        const dataUrl = await generateHiResQrDataUrl(url, t.number, 1000);
 
         const qrX = x0 + (cellW - qrSize) / 2;
-        const qrY = y0 + 4;
+        const qrY = y0 + (cellH - qrSize) / 2;
         pdf.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize, undefined, "NONE");
-
-        // Marco
-        pdf.setDrawColor(220);
-        pdf.rect(x0 + 2, y0 + 2, cellW - 4, cellH - 4);
-
-        // Textos
-        pdf.setTextColor(0);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(13);
-        pdf.text(`Mesa ${t.number}`, x0 + cellW / 2, qrY + qrSize + 6, { align: "center" });
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(9);
-        pdf.setTextColor(90);
-        const sub = `${room?.name ?? "Sin sala"}${t.label ? ` · ${t.label}` : ""}`;
-        pdf.text(sub, x0 + cellW / 2, qrY + qrSize + 11, { align: "center" });
-        pdf.setFontSize(7);
-        pdf.setTextColor(140);
-        pdf.text("Escanea para ver el menú", x0 + cellW / 2, qrY + qrSize + 15, { align: "center" });
       }
+
 
       const fname = `qrs-mesas${activeBranch ? "-" + slug(activeBranch.name) : ""}${selectedRoomId !== "all" ? "-" + slug(rooms.find((r) => r.id === selectedRoomId)?.name ?? "") : ""}.pdf`;
       pdf.save(fname);
