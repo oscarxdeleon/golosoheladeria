@@ -54,6 +54,8 @@ function buildBeepBlobUrl(): string {
 
 function useOrderAlertLoop() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
+  const ctxRef = useRef<AudioContext | null>(null);
+  const fallbackTimerRef = useRef<number | null>(null);
   const urlRef = useRef<string | null>(null);
   const activeRef = useRef(false);
   const unlockedRef = useRef(false);
@@ -66,9 +68,59 @@ function useOrderAlertLoop() {
       a.loop = true;
       a.preload = "auto";
       a.volume = 1;
+      a.setAttribute("playsinline", "true");
       audioRef.current = a;
     }
     return audioRef.current;
+  }, []);
+
+  const ensureAudioContext = useCallback(() => {
+    if (typeof window === "undefined") return null;
+    if (!ctxRef.current) {
+      const AudioCtor = window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+      if (!AudioCtor) return null;
+      ctxRef.current = new AudioCtor();
+    }
+    return ctxRef.current;
+  }, []);
+
+  const playFallbackBeep = useCallback(() => {
+    const a = audioRef.current;
+    if (!activeRef.current || (a && !a.paused)) return;
+    const ctx = ensureAudioContext();
+    if (!ctx) return;
+    const fire = () => {
+      if (!activeRef.current) return;
+      const startAt = ctx.currentTime;
+      [880, 1180, 1480].forEach((freq, idx) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "square";
+        osc.frequency.value = freq;
+        gain.gain.setValueAtTime(0, startAt + idx * 0.18);
+        gain.gain.linearRampToValueAtTime(0.22, startAt + idx * 0.18 + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.001, startAt + idx * 0.18 + 0.16);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(startAt + idx * 0.18);
+        osc.stop(startAt + idx * 0.18 + 0.17);
+      });
+    };
+    if (ctx.state === "suspended") void ctx.resume().then(fire).catch(() => { /* bloqueado hasta un gesto */ });
+    else fire();
+  }, [ensureAudioContext]);
+
+  const startFallbackLoop = useCallback(() => {
+    if (fallbackTimerRef.current !== null) return;
+    playFallbackBeep();
+    fallbackTimerRef.current = window.setInterval(playFallbackBeep, 2400);
+  }, [playFallbackBeep]);
+
+  const stopFallbackLoop = useCallback(() => {
+    if (fallbackTimerRef.current !== null) {
+      window.clearInterval(fallbackTimerRef.current);
+      fallbackTimerRef.current = null;
+    }
   }, []);
 
   const attemptPlay = useCallback(() => {
@@ -84,11 +136,13 @@ function useOrderAlertLoop() {
     if (activeRef.current) {
       const a = audioRef.current;
       if (a && a.paused) attemptPlay();
+      startFallbackLoop();
       return;
     }
     activeRef.current = true;
     attemptPlay();
-  }, [attemptPlay]);
+    startFallbackLoop();
+  }, [attemptPlay, startFallbackLoop]);
 
   const stop = useCallback(() => {
     activeRef.current = false;
@@ -96,7 +150,8 @@ function useOrderAlertLoop() {
     if (a) {
       try { a.pause(); a.currentTime = 0; } catch { /* noop */ }
     }
-  }, []);
+    stopFallbackLoop();
+  }, [stopFallbackLoop]);
 
   // Desbloqueo por gesto del usuario y recuperación al volver a la pestaña.
   useEffect(() => {
@@ -108,29 +163,54 @@ function useOrderAlertLoop() {
         const prevMuted = a.muted;
         a.muted = true;
         const p = a.play();
-        const finish = () => { try { a.pause(); a.currentTime = 0; a.muted = prevMuted; } catch { /* noop */ } };
+        const finish = () => {
+          try {
+            a.muted = prevMuted;
+            if (activeRef.current) {
+              void a.play().catch(() => { /* se reintenta con el watchdog */ });
+            } else {
+              a.pause();
+              a.currentTime = 0;
+            }
+          } catch { /* noop */ }
+        };
         if (p && typeof p.then === "function") p.then(finish).catch(() => { a.muted = prevMuted; });
         else finish();
+        return;
       }
       if (activeRef.current && a.paused) attemptPlay();
+      if (activeRef.current) {
+        const ctx = ensureAudioContext();
+        if (ctx?.state === "suspended") void ctx.resume().catch(() => { /* noop */ });
+        startFallbackLoop();
+      }
     };
     const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart", "click"];
     events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
     const onVisible = () => { if (activeRef.current) attemptPlay(); };
     document.addEventListener("visibilitychange", onVisible);
+    const watchdog = window.setInterval(() => {
+      const a = audioRef.current;
+      if (activeRef.current && (!a || a.paused)) attemptPlay();
+    }, 1500);
     return () => {
       events.forEach((e) => window.removeEventListener(e, unlock));
       document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(watchdog);
     };
-  }, [attemptPlay, ensureAudio]);
+  }, [attemptPlay, ensureAudio, ensureAudioContext, startFallbackLoop]);
 
   useEffect(() => () => {
     const a = audioRef.current;
     if (a) { try { a.pause(); } catch { /* noop */ } }
+    stopFallbackLoop();
+    const ctx = ctxRef.current;
+    if (ctx) { try { void ctx.close(); } catch { /* noop */ } }
     if (urlRef.current) { try { URL.revokeObjectURL(urlRef.current); } catch { /* noop */ } }
     audioRef.current = null;
+    ctxRef.current = null;
     urlRef.current = null;
-  }, []);
+  }, [stopFallbackLoop]);
 
   return { start, stop };
 }
