@@ -4,13 +4,17 @@ import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { sendToLocalPrinter } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
+import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff, X } from "lucide-react";
 
-/* ---------- Audio: bucle continuo hasta que el cajero lo detenga ---------- */
-function useAlertLoop() {
+const PUBLIC_ORDER_SOURCES = ["online_menu", "kiosk", "table_qr"] as const;
+const ACK_STORAGE_KEY = "goloso.pos.publicOrderAlerts.seen.v1";
+const BACKSTOP_WINDOW_MS = 30 * 60 * 1000;
+
+/* ---------- Audio: un tono por cada pedido recibido ---------- */
+function useOrderAlertSound() {
   const ctxRef = useRef<AudioContext | null>(null);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   function ensureCtx() {
     let ctx = ctxRef.current;
@@ -25,10 +29,10 @@ function useAlertLoop() {
     return ctx;
   }
 
-  function playOnce() {
+  const play = useCallback(() => {
     try {
       const ctx = ensureCtx();
-      // Triple tono ascendente para que se escuche con ruido de fondo
+      // Triple tono ascendente para que se escuche con ruido de fondo.
       const freqs = [880, 1180, 1480];
       freqs.forEach((f, i) => {
         const start = ctx.currentTime + i * 0.18;
@@ -42,19 +46,6 @@ function useAlertLoop() {
         o.start(start); o.stop(start + 0.18);
       });
     } catch { /* noop */ }
-  }
-
-  const start = useCallback(() => {
-    if (intervalRef.current) return;
-    playOnce();
-    intervalRef.current = setInterval(playOnce, 2500);
-  }, []);
-
-  const stop = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
   }, []);
 
   // Desbloquear AudioContext en el primer gesto del usuario (política del navegador)
@@ -76,25 +67,28 @@ function useAlertLoop() {
   }, []);
 
   useEffect(() => () => {
-    if (intervalRef.current) clearInterval(intervalRef.current);
-    intervalRef.current = null;
     try { ctxRef.current?.close(); } catch { /* noop */ }
     ctxRef.current = null;
   }, []);
 
-  return { start, stop };
+  return play;
 }
 
 type IncomingSale = {
   id: string;
   ticket_number: number;
   customer_name: string | null;
+  user_name: string | null;
   total: number;
   subtotal: number | null;
   delivery_fee: number | null;
   notes: string | null;
   source: string;
+  status: string | null;
   branch_id: string | null;
+  table_id: string | null;
+  created_at: string;
+  restaurant_tables?: { number: number | null; label: string | null } | null;
 };
 
 async function autoPrintKioskOrder(saleId: string) {
@@ -159,24 +153,75 @@ type PendingAlert = {
   source: string;
   total: number;
   customer: string | null;
+  tableLabel: string | null;
+  receivedAt: string;
+  statusLabel: string;
 };
+
+function readAcknowledgedIds() {
+  if (typeof window === "undefined") return new Set<string>();
+  try {
+    const parsed = JSON.parse(localStorage.getItem(ACK_STORAGE_KEY) ?? "[]") as unknown;
+    return new Set(Array.isArray(parsed) ? parsed.filter((id): id is string => typeof id === "string") : []);
+  } catch {
+    return new Set<string>();
+  }
+}
+
+function persistAcknowledgedIds(ids: Set<string>) {
+  if (typeof window === "undefined") return;
+  const latest = Array.from(ids).slice(-300);
+  try { localStorage.setItem(ACK_STORAGE_KEY, JSON.stringify(latest)); } catch { /* noop */ }
+}
+
+function sourceLabel(source: string) {
+  if (source === "kiosk") return "Autopedido";
+  if (source === "table_qr") return "Mesa QR";
+  return "Menú en línea";
+}
+
+function receivedTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "Ahora";
+  return d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+}
+
+function fallbackTableLabel(row: IncomingSale) {
+  const fromJoin = row.restaurant_tables?.label?.trim()
+    || (row.restaurant_tables?.number ? `Mesa ${row.restaurant_tables.number}` : "");
+  if (fromJoin) return fromJoin;
+  const cleanedUser = row.user_name?.replace(/^Mesa\s+QR\s*/i, "").trim();
+  return cleanedUser || null;
+}
 
 export function OnlineOrdersNotifier() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { activeBranchId } = useBranch();
+  const { roles, rolesLoading } = useAuth();
+  const canReceiveAlerts = !rolesLoading && (roles.includes("admin") || roles.includes("cajero"));
   const seen = useRef<Set<string>>(new Set());
+  const acknowledged = useRef<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingAlert[]>([]);
-  const { start, stop } = useAlertLoop();
+  const playAlert = useOrderAlertSound();
 
-  // Detener bucle cuando ya no hay alertas pendientes
   useEffect(() => {
-    if (pending.length === 0) stop();
-  }, [pending.length, stop]);
+    acknowledged.current = readAcknowledgedIds();
+    seen.current = new Set(acknowledged.current);
+  }, []);
+
+  const acknowledge = useCallback((ids: string[]) => {
+    if (ids.length === 0) return;
+    ids.forEach((id) => {
+      acknowledged.current.add(id);
+      seen.current.add(id);
+    });
+    persistAcknowledgedIds(acknowledged.current);
+  }, []);
 
   function dismissAll() {
+    acknowledge(pending.map((p) => p.id));
     setPending([]);
-    stop();
   }
 
   function confirmAndNavigate(source: string) {
@@ -184,8 +229,8 @@ export function OnlineOrdersNotifier() {
     if (source === "table_qr") {
       pending.filter((p) => p.source === "table_qr").forEach((p) => { void printTableOrderComanda(p.id); });
     }
+    acknowledge(pending.map((p) => p.id));
     setPending([]);
-    stop();
     navigate({
       to:
         source === "kiosk"
@@ -196,19 +241,49 @@ export function OnlineOrdersNotifier() {
     });
   }
 
-  useEffect(() => {
-    if (!activeBranchId) return;
-    const handler = (payload: { new: IncomingSale }) => {
-      const row = payload.new;
-      if (!row || !row.id) return;
-      // Solo pedidos públicos (kiosko / mesa QR / menú en línea)
-      if (!["online_menu", "kiosk", "table_qr"].includes(row.source)) return;
-      if (seen.current.has(row.id)) return;
-      // Filtro estricto por sede activa — pedidos de otra sucursal no alertan acá
-      if (row.branch_id !== activeBranchId) return;
-      seen.current.add(row.id);
+  const invalidateOrderViews = useCallback(() => {
+      qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
+      qc.invalidateQueries({ queryKey: ["pending-sales"] });
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
+      qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+      qc.invalidateQueries({ queryKey: ["todos-pedidos"] });
+      window.setTimeout(() => {
+        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+        qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      }, 900);
+  }, [activeBranchId, qc]);
 
-      setPending((arr) => [
+  const resolveTableLabel = useCallback(async (row: IncomingSale) => {
+    if (row.source !== "table_qr") return null;
+    const immediate = fallbackTableLabel(row);
+    if (immediate) return immediate;
+    if (!row.table_id) return "Mesa QR";
+    const { data } = await supabase
+      .from("restaurant_tables")
+      .select("number,label")
+      .eq("id", row.table_id)
+      .maybeSingle();
+    return data?.label?.trim() || (data?.number ? `Mesa ${data.number}` : "Mesa QR");
+  }, []);
+
+  const addAlert = useCallback(async (row: IncomingSale, options: { fromRealtime: boolean }) => {
+    if (!activeBranchId || !canReceiveAlerts) return;
+    if (!row?.id) return;
+    if (!PUBLIC_ORDER_SOURCES.includes(row.source as (typeof PUBLIC_ORDER_SOURCES)[number])) return;
+    if (row.branch_id !== activeBranchId) return;
+    if (row.status && row.status !== "pending") {
+      acknowledge([row.id]);
+      setPending((arr) => arr.filter((p) => p.id !== row.id));
+      return;
+    }
+    if (seen.current.has(row.id) || acknowledged.current.has(row.id)) return;
+
+    seen.current.add(row.id);
+    const tableLabel = await resolveTableLabel(row);
+    setPending((arr) => {
+      if (arr.some((p) => p.id === row.id)) return arr;
+      return [
         ...arr,
         {
           id: row.id,
@@ -216,31 +291,68 @@ export function OnlineOrdersNotifier() {
           source: row.source,
           total: Number(row.total ?? 0),
           customer: row.customer_name,
+          tableLabel,
+          receivedAt: row.created_at,
+          statusLabel: "Nuevo Pedido",
         },
-      ]);
-      start();
+      ];
+    });
+    playAlert();
 
-      if (row.source === "kiosk") void autoPrintKioskOrder(row.id);
+    if (options.fromRealtime && row.source === "kiosk") void autoPrintKioskOrder(row.id);
+    invalidateOrderViews();
+  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, playAlert, resolveTableLabel]);
 
-      qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
-      qc.invalidateQueries({ queryKey: ["pending-sales"] });
-      qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
-      qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-    };
+  const loadRecentPending = useCallback(async () => {
+    if (!activeBranchId || !canReceiveAlerts) return;
+    const since = new Date(Date.now() - BACKSTOP_WINDOW_MS).toISOString();
+    const { data } = await supabase
+      .from("sales")
+      .select("id,ticket_number,customer_name,user_name,total,subtotal,delivery_fee,notes,source,status,branch_id,table_id,created_at,restaurant_tables(number,label)")
+      .eq("branch_id", activeBranchId)
+      .eq("status", "pending")
+      .in("source", [...PUBLIC_ORDER_SOURCES])
+      .gte("created_at", since)
+      .order("created_at", { ascending: true })
+      .limit(50);
+    (data ?? []).forEach((row) => {
+      void addAlert(row as unknown as IncomingSale, { fromRealtime: false });
+    });
+  }, [activeBranchId, addAlert, canReceiveAlerts]);
+
+  useEffect(() => {
+    if (!activeBranchId || !canReceiveAlerts) return;
+    void loadRecentPending();
 
     const channel = supabase
-      .channel(`sales-public-orders-${activeBranchId}`)
+      .channel(`sales-public-orders-v2-${activeBranchId}`)
       .on(
         "postgres_changes" as never,
-        { event: "INSERT", schema: "public", table: "sales" } as never,
-        handler as never,
+        { event: "*", schema: "public", table: "sales" } as never,
+        ((payload: { eventType: string; new: IncomingSale; old: Partial<IncomingSale> }) => {
+          const row = (payload.new ?? payload.old) as IncomingSale | undefined;
+          if (!row?.id) return;
+          if (payload.eventType === "DELETE" || (payload.eventType === "UPDATE" && row.status && row.status !== "pending")) {
+            acknowledge([row.id]);
+            setPending((arr) => arr.filter((p) => p.id !== row.id));
+            invalidateOrderViews();
+            return;
+          }
+          void addAlert(row, { fromRealtime: payload.eventType === "INSERT" });
+        }) as never,
       )
-      .subscribe();
-    return () => { supabase.removeChannel(channel); };
-  }, [navigate, qc, activeBranchId, start]);
+      .subscribe((status) => {
+        if (status === "SUBSCRIBED") void loadRecentPending();
+      });
+    const fallback = window.setInterval(() => { void loadRecentPending(); }, 5000);
+    return () => {
+      window.clearInterval(fallback);
+      supabase.removeChannel(channel);
+    };
+  }, [acknowledge, activeBranchId, addAlert, canReceiveAlerts, invalidateOrderViews, loadRecentPending]);
 
 
-  if (pending.length === 0) return null;
+  if (pending.length === 0 || !canReceiveAlerts) return null;
 
   const last = pending[pending.length - 1];
   const isKiosk = last.source === "kiosk";
@@ -254,7 +366,7 @@ export function OnlineOrdersNotifier() {
   const accentBg = isKiosk ? "bg-primary/15" : isTable ? "bg-emerald-500/15" : "bg-secondary/15";
 
   return (
-    <div className="fixed bottom-6 right-6 z-[100] w-[min(94vw,420px)] animate-in slide-in-from-bottom-6 duration-300">
+    <div className="fixed bottom-6 right-6 z-[100] w-[min(94vw,440px)] animate-in slide-in-from-bottom-6 duration-300" role="status" aria-live="polite">
       <div className={`rounded-2xl border-4 ${accent} bg-background shadow-2xl overflow-hidden`}>
         <div className={`flex items-center gap-3 px-4 py-3 ${accentBg}`}>
           <div className={`relative ${isKiosk ? "text-primary" : isTable ? "text-emerald-600" : "text-secondary-foreground"}`}>
@@ -282,16 +394,25 @@ export function OnlineOrdersNotifier() {
           </button>
         </div>
 
-        <div className="max-h-[40vh] overflow-y-auto divide-y">
+        <div className="max-h-[48vh] overflow-y-auto divide-y">
           {pending.slice().reverse().slice(0, 5).map((p) => (
-            <div key={p.id} className="px-4 py-2 flex items-center gap-3">
-              <div className="font-display text-xl text-primary">#{p.ticket}</div>
+            <div key={p.id} className="px-4 py-3 flex items-start gap-3">
+              <div className="rounded-xl bg-primary/10 px-2.5 py-1 font-display text-xl text-primary">#{p.ticket}</div>
               <div className="flex-1 leading-tight">
-                <div className="text-sm font-medium truncate">
-                  {p.customer ?? (p.source === "kiosk" ? "Autopedido" : p.source === "table_qr" ? "Pedido de mesa" : "Cliente")}
+                <div className="text-sm font-semibold truncate">
+                  {p.source === "table_qr"
+                    ? p.tableLabel ?? "Mesa QR"
+                    : p.customer ?? (p.source === "kiosk" ? "Autopedido" : "Cliente")}
                 </div>
-                <div className="text-xs text-muted-foreground">
-                  {p.source === "kiosk" ? "Auto-pedido" : p.source === "table_qr" ? "Mesa QR" : "Menú en línea"}
+                <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                  <span>{sourceLabel(p.source)}</span>
+                  <span>·</span>
+                  <span>Recibido {receivedTime(p.receivedAt)}</span>
+                  <span>·</span>
+                  <span>Pedido #{p.ticket}</span>
+                </div>
+                <div className="mt-2 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  {p.statusLabel}
                 </div>
               </div>
               <div className="font-mono text-sm">${Math.round(p.total).toLocaleString("es-CO")}</div>
@@ -301,7 +422,7 @@ export function OnlineOrdersNotifier() {
 
         <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40">
           <Button variant="outline" onClick={dismissAll} className="gap-2">
-            <BellOff className="h-4 w-4" /> Detener alerta
+            <BellOff className="h-4 w-4" /> Marcar visto
           </Button>
           <Button onClick={() => confirmAndNavigate(last.source)} className="gap-2">
             {isTable ? "Confirmar e imprimir" : "Confirmar pedido"}
