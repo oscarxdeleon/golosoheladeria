@@ -1191,8 +1191,13 @@ export function PublicOrder({
               </div>
 
               <Button size="lg" className="w-full" onClick={submit} disabled={submitting}>
-                {submitting ? "Enviando..." : `Finalizar pedido · ${formatMoney(total)}`}
+                {submitting
+                  ? "Enviando..."
+                  : source === "table_qr"
+                    ? "Confirmar pedido"
+                    : `Finalizar pedido · ${formatMoney(total)}`}
               </Button>
+
             </div>
           </div>
         </div>
