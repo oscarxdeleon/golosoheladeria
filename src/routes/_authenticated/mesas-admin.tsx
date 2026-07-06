@@ -15,15 +15,65 @@ import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage,
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 
-// Genera un PNG de alta resolución del QR listo para imprimir.
-// 1200px con margen amplio y corrección de errores alta = imprime nítido hasta ~15cm.
-async function generateHiResQrDataUrl(url: string, size = 1200): Promise<string> {
-  return await QRCode.toDataURL(url, {
+// Genera un PNG de alta resolución del QR con el número de mesa en el centro.
+// Corrección de errores "H" permite ocultar hasta 30% del código sin perder legibilidad.
+async function generateHiResQrDataUrl(url: string, tableNumber: number, size = 1200): Promise<string> {
+  const baseDataUrl = await QRCode.toDataURL(url, {
     errorCorrectionLevel: "H",
     margin: 2,
     width: size,
     color: { dark: "#000000", light: "#FFFFFF" },
   });
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return baseDataUrl;
+  const img = new Image();
+  img.src = baseDataUrl;
+  await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("img")); });
+  ctx.drawImage(img, 0, 0, size, size);
+  const boxSize = Math.round(size * 0.22);
+  const boxX = (size - boxSize) / 2;
+  const boxY = (size - boxSize) / 2;
+  const radius = Math.round(boxSize * 0.15);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.beginPath();
+  ctx.moveTo(boxX + radius, boxY);
+  ctx.arcTo(boxX + boxSize, boxY, boxX + boxSize, boxY + boxSize, radius);
+  ctx.arcTo(boxX + boxSize, boxY + boxSize, boxX, boxY + boxSize, radius);
+  ctx.arcTo(boxX, boxY + boxSize, boxX, boxY, radius);
+  ctx.arcTo(boxX, boxY, boxX + boxSize, boxY, radius);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#000000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const num = String(tableNumber);
+  const fontSize = Math.round(boxSize * (num.length > 2 ? 0.55 : 0.7));
+  ctx.font = `900 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.fillText(num, size / 2, size / 2 + fontSize * 0.05);
+  return canvas.toDataURL("image/png");
+}
+
+async function generateQrSvg(url: string, tableNumber: number): Promise<string> {
+  const svg = await QRCode.toString(url, {
+    type: "svg",
+    errorCorrectionLevel: "H",
+    margin: 2,
+    color: { dark: "#000000", light: "#FFFFFF" },
+  });
+  const vbMatch = svg.match(/viewBox="([\d.\s-]+)"/);
+  const vb = vbMatch ? vbMatch[1].split(/\s+/).map(Number) : [0, 0, 100, 100];
+  const w = vb[2];
+  const h = vb[3];
+  const cx = w / 2;
+  const cy = h / 2;
+  const boxSize = Math.min(w, h) * 0.22;
+  const num = String(tableNumber);
+  const fontSize = boxSize * (num.length > 2 ? 0.55 : 0.7);
+  const overlay = `<rect x="${cx - boxSize / 2}" y="${cy - boxSize / 2}" width="${boxSize}" height="${boxSize}" rx="${boxSize * 0.15}" ry="${boxSize * 0.15}" fill="#FFFFFF"/><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="${fontSize}" fill="#000000">${num}</text>`;
+  return svg.replace("</svg>", `${overlay}</svg>`);
 }
 
 export const Route = createFileRoute("/_authenticated/mesas-admin")({
