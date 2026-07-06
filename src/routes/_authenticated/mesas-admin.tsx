@@ -15,15 +15,65 @@ import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage,
 import { toast } from "sonner";
 import jsPDF from "jspdf";
 
-// Genera un PNG de alta resolución del QR listo para imprimir.
-// 1200px con margen amplio y corrección de errores alta = imprime nítido hasta ~15cm.
-async function generateHiResQrDataUrl(url: string, size = 1200): Promise<string> {
-  return await QRCode.toDataURL(url, {
+// Genera un PNG de alta resolución del QR con el número de mesa en el centro.
+// Corrección de errores "H" permite ocultar hasta 30% del código sin perder legibilidad.
+async function generateHiResQrDataUrl(url: string, tableNumber: number, size = 1200): Promise<string> {
+  const baseDataUrl = await QRCode.toDataURL(url, {
     errorCorrectionLevel: "H",
     margin: 2,
     width: size,
     color: { dark: "#000000", light: "#FFFFFF" },
   });
+  const canvas = document.createElement("canvas");
+  canvas.width = size;
+  canvas.height = size;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return baseDataUrl;
+  const img = new Image();
+  img.src = baseDataUrl;
+  await new Promise<void>((res, rej) => { img.onload = () => res(); img.onerror = () => rej(new Error("img")); });
+  ctx.drawImage(img, 0, 0, size, size);
+  const boxSize = Math.round(size * 0.22);
+  const boxX = (size - boxSize) / 2;
+  const boxY = (size - boxSize) / 2;
+  const radius = Math.round(boxSize * 0.15);
+  ctx.fillStyle = "#FFFFFF";
+  ctx.beginPath();
+  ctx.moveTo(boxX + radius, boxY);
+  ctx.arcTo(boxX + boxSize, boxY, boxX + boxSize, boxY + boxSize, radius);
+  ctx.arcTo(boxX + boxSize, boxY + boxSize, boxX, boxY + boxSize, radius);
+  ctx.arcTo(boxX, boxY + boxSize, boxX, boxY, radius);
+  ctx.arcTo(boxX, boxY, boxX + boxSize, boxY, radius);
+  ctx.closePath();
+  ctx.fill();
+  ctx.fillStyle = "#000000";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  const num = String(tableNumber);
+  const fontSize = Math.round(boxSize * (num.length > 2 ? 0.55 : 0.7));
+  ctx.font = `900 ${fontSize}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.fillText(num, size / 2, size / 2 + fontSize * 0.05);
+  return canvas.toDataURL("image/png");
+}
+
+async function generateQrSvg(url: string, tableNumber: number): Promise<string> {
+  const svg = await QRCode.toString(url, {
+    type: "svg",
+    errorCorrectionLevel: "H",
+    margin: 2,
+    color: { dark: "#000000", light: "#FFFFFF" },
+  });
+  const vbMatch = svg.match(/viewBox="([\d.\s-]+)"/);
+  const vb = vbMatch ? vbMatch[1].split(/\s+/).map(Number) : [0, 0, 100, 100];
+  const w = vb[2];
+  const h = vb[3];
+  const cx = w / 2;
+  const cy = h / 2;
+  const boxSize = Math.min(w, h) * 0.22;
+  const num = String(tableNumber);
+  const fontSize = boxSize * (num.length > 2 ? 0.55 : 0.7);
+  const overlay = `<rect x="${cx - boxSize / 2}" y="${cy - boxSize / 2}" width="${boxSize}" height="${boxSize}" rx="${boxSize * 0.15}" ry="${boxSize * 0.15}" fill="#FFFFFF"/><text x="${cx}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-family="system-ui, -apple-system, sans-serif" font-weight="900" font-size="${fontSize}" fill="#000000">${num}</text>`;
+  return svg.replace("</svg>", `${overlay}</svg>`);
 }
 
 export const Route = createFileRoute("/_authenticated/mesas-admin")({
@@ -89,7 +139,7 @@ function MesasAdminPage() {
       const marginY = 15;
       const cellW = (pageW - marginX * 2) / cols;
       const cellH = (pageH - marginY * 2) / rows;
-      const qrSize = Math.min(cellW, cellH) - 22; // deja espacio para textos
+      const qrSize = Math.min(cellW, cellH) - 8;
 
       // Cabecera de página
       const drawHeader = (pageIndex: number, totalPages: number) => {
@@ -125,36 +175,14 @@ function MesasAdminPage() {
         const x0 = marginX + col * cellW;
         const y0 = marginY + row * cellH;
 
-        // QR de alta resolución (800px) embebido como PNG
-        const dataUrl = await (await import("qrcode")).default.toDataURL(url, {
-          errorCorrectionLevel: "H",
-          margin: 1,
-          width: 800,
-          color: { dark: "#000000", light: "#FFFFFF" },
-        });
+        // QR de alta resolución con número al centro
+        const dataUrl = await generateHiResQrDataUrl(url, t.number, 1000);
 
         const qrX = x0 + (cellW - qrSize) / 2;
-        const qrY = y0 + 4;
+        const qrY = y0 + (cellH - qrSize) / 2;
         pdf.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize, undefined, "NONE");
-
-        // Marco
-        pdf.setDrawColor(220);
-        pdf.rect(x0 + 2, y0 + 2, cellW - 4, cellH - 4);
-
-        // Textos
-        pdf.setTextColor(0);
-        pdf.setFont("helvetica", "bold");
-        pdf.setFontSize(13);
-        pdf.text(`Mesa ${t.number}`, x0 + cellW / 2, qrY + qrSize + 6, { align: "center" });
-        pdf.setFont("helvetica", "normal");
-        pdf.setFontSize(9);
-        pdf.setTextColor(90);
-        const sub = `${room?.name ?? "Sin sala"}${t.label ? ` · ${t.label}` : ""}`;
-        pdf.text(sub, x0 + cellW / 2, qrY + qrSize + 11, { align: "center" });
-        pdf.setFontSize(7);
-        pdf.setTextColor(140);
-        pdf.text("Escanea para ver el menú", x0 + cellW / 2, qrY + qrSize + 15, { align: "center" });
       }
+
 
       const fname = `qrs-mesas${activeBranch ? "-" + slug(activeBranch.name) : ""}${selectedRoomId !== "all" ? "-" + slug(rooms.find((r) => r.id === selectedRoomId)?.name ?? "") : ""}.pdf`;
       pdf.save(fname);
@@ -479,7 +507,7 @@ function TableQrCard({
   async function download(hiRes = true) {
     try {
       const dataUrl = hiRes
-        ? await generateHiResQrDataUrl(url, 1600)
+        ? await generateHiResQrDataUrl(url, table.number, 1600)
         : getCanvas()?.toDataURL("image/png");
       if (!dataUrl) return;
       const a = document.createElement("a");
@@ -493,12 +521,7 @@ function TableQrCard({
 
   async function downloadSvg() {
     try {
-      const svg = await QRCode.toString(url, {
-        type: "svg",
-        errorCorrectionLevel: "H",
-        margin: 2,
-        color: { dark: "#000000", light: "#FFFFFF" },
-      });
+      const svg = await generateQrSvg(url, table.number);
       const blob = new Blob([svg], { type: "image/svg+xml" });
       const href = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -514,9 +537,9 @@ function TableQrCard({
   async function print() {
     let dataUrl: string | undefined;
     try {
-      dataUrl = await generateHiResQrDataUrl(url, 1600);
+      dataUrl = await generateHiResQrDataUrl(url, table.number, 1600);
     } catch {
-      dataUrl = getCanvas()?.toDataURL("image/png");
+      dataUrl = getCanvas()?.toDataURL("image/png") ?? undefined;
     }
     if (!dataUrl) return;
     const w = window.open("", "_blank", "width=420,height=600");
@@ -525,17 +548,11 @@ function TableQrCard({
       <html><head><title>QR Mesa ${table.number}</title>
       <style>
         @page { size: 80mm auto; margin: 6mm; }
-        body { font-family: system-ui, -apple-system, sans-serif; text-align: center; margin: 0; padding: 12px; color: #000; }
-        h1 { font-size: 26px; margin: 4px 0; }
-        h2 { font-size: 16px; margin: 2px 0; font-weight: 500; color: #444; }
-        img { width: 80%; max-width: 320px; margin: 10px auto; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
-        p { font-size: 12px; color: #555; margin: 4px 0; }
+        body { margin: 0; padding: 0; text-align: center; }
+        img { width: 100%; max-width: 360px; margin: 0 auto; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
       </style></head>
       <body>
-        ${branchName ? `<h2>${branchName}</h2>` : ""}
-        <h1>${roomName} · Mesa ${table.number}</h1>
         <img src="${dataUrl}" alt="QR" />
-        <p>Escanea para ver el menú y pedir desde tu mesa</p>
         <script>window.onload=()=>{setTimeout(()=>{window.print();},200);};</script>
       </body></html>
     `);
@@ -581,10 +598,14 @@ function TableQrCard({
         </div>
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-2">
-        <div ref={canvasRef} className="rounded-lg border bg-white p-3">
+        <div ref={canvasRef} className="relative rounded-lg border bg-white p-3">
           <QRCodeCanvas value={url} size={160} level="H" includeMargin />
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <div className="rounded-md bg-white px-2 py-0.5 font-black text-black leading-none" style={{ fontSize: 28 }}>
+              {table.number}
+            </div>
+          </div>
         </div>
-        <p className="text-[10px] text-muted-foreground break-all text-center max-w-full">{url}</p>
         <div className="grid grid-cols-2 gap-2 w-full">
           <Button variant="outline" size="sm" onClick={() => download(true)}>
             <Download className="h-4 w-4" /> PNG HD
