@@ -1896,6 +1896,25 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         </DialogContent>
       </Dialog>
 
+      <SplitBillDialog
+        open={splitDialogOpen}
+        onOpenChange={setSplitDialogOpen}
+        total={total}
+        paying={paying}
+        lines={cart.map((l) => ({ key: l.key, name: l.name, unit_price: l.unit_price, qty: l.qty }))}
+        onConfirm={async (splits: SplitPart[]) => {
+          // Un solo cobro con payment_method="Mixto" y detalle en payment_details
+          const primary = splits.reduce((a, b) => (b.amount > a.amount ? b : a), splits[0]);
+          const label = splits.every((s) => s.method === primary.method) ? primary.method : "Mixto";
+          await pay(label, {
+            split: true,
+            splits: splits.map((s) => ({ method: s.method, amount: s.amount, items: s.items ?? [] })),
+          });
+          setSplitDialogOpen(false);
+        }}
+      />
+
+
       <Dialog
         open={!!successDialog}
         onOpenChange={(open) => {
