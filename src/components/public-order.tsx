@@ -21,6 +21,48 @@ import golosoLogo from "@/assets/logo-goloso.png";
 
 const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
+type StoredOnlineCustomer = {
+  name?: string;
+  phone?: string;
+  address?: string;
+  neighborhood?: string;
+  savedAt?: string;
+};
+
+function sanitizeOnlineCustomer(data: StoredOnlineCustomer): StoredOnlineCustomer {
+  return {
+    name: String(data.name ?? "").trim(),
+    phone: String(data.phone ?? "").trim(),
+    address: String(data.address ?? "").trim(),
+    neighborhood: String(data.neighborhood ?? "").trim(),
+    savedAt: data.savedAt ?? new Date().toISOString(),
+  };
+}
+
+function readStoredOnlineCustomer(): StoredOnlineCustomer | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(CUSTOMER_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StoredOnlineCustomer;
+    const saved = sanitizeOnlineCustomer(parsed);
+    return saved.name || saved.phone || saved.address || saved.neighborhood ? saved : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeStoredOnlineCustomer(data: StoredOnlineCustomer) {
+  if (typeof window === "undefined") return;
+  const saved = sanitizeOnlineCustomer({ ...data, savedAt: new Date().toISOString() });
+  if (!saved.name && !saved.phone && !saved.address && !saved.neighborhood) return;
+  try {
+    window.localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(saved));
+  } catch {
+    /* ignore */
+  }
+}
+
 function toAbsolutePrintUrl(url?: string | null): string | undefined {
   const value = String(url ?? "").trim();
   if (!value) return undefined;
@@ -89,22 +131,26 @@ export function PublicOrder({
   const [waiterCalledAt, setWaiterCalledAt] = useState<number | null>(null);
   const [copiedAccount, setCopiedAccount] = useState(false);
 
-  // Recordar datos del cliente entre pedidos (solo pedidos en línea con dirección)
+  // Recordar datos del cliente entre pedidos del menú en línea.
   useEffect(() => {
     if (source !== "online_menu") return;
-    try {
-      const raw = localStorage.getItem(CUSTOMER_STORAGE_KEY);
-      if (!raw) return;
-      const saved = JSON.parse(raw) as { name?: string; phone?: string; address?: string; neighborhood?: string };
-      if (saved.name) setCustomerName(saved.name);
-      if (saved.phone) setPhone(saved.phone);
-      if (saved.address) setAddress(saved.address);
-      if (saved.neighborhood) setNeighborhood(saved.neighborhood);
-    } catch {
-      /* ignore */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const saved = readStoredOnlineCustomer();
+    if (!saved) return;
+    setCustomerName((current) => current || saved.name || "");
+    setPhone((current) => current || saved.phone || "");
+    setAddress((current) => current || saved.address || "");
+    setNeighborhood((current) => current || saved.neighborhood || "");
+  }, [source]);
+
+  useEffect(() => {
+    if (source !== "online_menu") return;
+    const hasCustomerData = customerName.trim() || phone.trim() || address.trim() || neighborhood.trim();
+    if (!hasCustomerData) return;
+    const saveTimer = window.setTimeout(() => {
+      writeStoredOnlineCustomer({ name: customerName, phone, address, neighborhood });
+    }, 400);
+    return () => window.clearTimeout(saveTimer);
+  }, [source, customerName, phone, address, neighborhood]);
 
   async function copyToClipboard(value: string, label: string) {
     if (!value) return;
@@ -461,17 +507,8 @@ export function PublicOrder({
       const result = data as { ticket_number: number; sale_id?: string | null } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
 
-      // Recordar datos del cliente para futuros pedidos (solo pedidos en línea)
-      if (source === "online_menu" && (customerName || phone || address || neighborhood)) {
-        try {
-          localStorage.setItem(
-            CUSTOMER_STORAGE_KEY,
-            JSON.stringify({ name: customerName, phone, address, neighborhood }),
-          );
-        } catch {
-          /* ignore */
-        }
-      }
+      const savedOnlineCustomer = sanitizeOnlineCustomer({ name: customerName, phone, address, neighborhood });
+      if (source === "online_menu") writeStoredOnlineCustomer(savedOnlineCustomer);
 
       // WhatsApp redirect (only para domicilio / online_menu)
       if (source === "online_menu") {
@@ -567,10 +604,17 @@ export function PublicOrder({
 
       setCart([]);
 
-      setCustomerName("");
-      setPhone("");
-      setAddress("");
-      setNeighborhood("");
+      if (source === "online_menu") {
+        setCustomerName(savedOnlineCustomer.name || "");
+        setPhone(savedOnlineCustomer.phone || "");
+        setAddress(savedOnlineCustomer.address || "");
+        setNeighborhood(savedOnlineCustomer.neighborhood || "");
+      } else {
+        setCustomerName("");
+        setPhone("");
+        setAddress("");
+        setNeighborhood("");
+      }
       setNotes("");
       setCashAmount("");
 
