@@ -501,10 +501,13 @@ function FilterField({
 }: { icon: React.ReactNode; label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
-        {icon} {label}
+      <div className="flex items-center gap-1.5 font-display text-xs font-black uppercase tracking-[0.14em] text-primary mb-1.5">
+        <span className="grid place-items-center h-5 w-5 rounded-md bg-primary/10 text-primary">{icon}</span>
+        {label}
       </div>
-      {children}
+      <div className="[&_button]:font-display [&_button]:font-bold [&_button]:tracking-tight">
+        {children}
+      </div>
     </div>
   );
 }
