@@ -2107,14 +2107,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(0,0,0,0.25), 0 6px 14px -5px rgba(109,40,217,0.6)",
                 textShadow: "0 1px 2px rgba(0,0,0,0.25)",
               }}
-              className="group relative flex h-14 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-5 text-base font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
+              className="group relative mx-auto flex h-10 w-auto max-w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
-                <Users className="h-4 w-4" strokeWidth={2.5} />
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
+                <Users className="h-3 w-3" strokeWidth={2.5} />
               </span>
               <span className="min-w-0 truncate">Dividir cuenta</span>
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
-                <Split className="h-4 w-4" strokeWidth={2.5} />
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
+                <Split className="h-3 w-3" strokeWidth={2.5} />
               </span>
             </button>
             {methods.map((m: { id: string; name: string }) => {
