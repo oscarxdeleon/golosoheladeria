@@ -245,6 +245,16 @@ function MesasAdminPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportAllQrPdf}
+              disabled={exportingPdf || visibleTables.length === 0}
+              title="Descargar todos los QR en un solo PDF"
+            >
+              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {exportingPdf ? "Generando…" : "PDF de todos"}
+            </Button>
             <TableDialog
               rooms={rooms}
               branches={branches}
