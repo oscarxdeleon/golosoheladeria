@@ -204,8 +204,23 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
                           value={amt === 0 ? "" : Number(amt).toLocaleString("es-CO")}
                           onChange={(e) => {
                             const digits = e.target.value.replace(/\D/g, "");
-                            const n = digits === "" ? 0 : Number(digits);
-                            setAmounts((prev) => prev.map((a, idx) => (idx === i ? n : a)));
+                            const n = digits === "" ? 0 : Math.min(total, Number(digits));
+                            setAmounts((prev) => {
+                              const next = prev.map((a, idx) => (idx === i ? n : a));
+                              // Auto-balance: ajusta el último pago distinto para que la suma sea igual al total
+                              const others = next.reduce((s, v, idx) => (idx === i ? s : s + Number(v || 0)), 0);
+                              const remaining = Math.max(0, total - n);
+                              // Encuentra el índice a ajustar (el último que no sea "i")
+                              const adjIdx = next.length - 1 === i ? Math.max(0, next.length - 2) : next.length - 1;
+                              if (next.length >= 2 && others !== remaining) {
+                                // Reparte el remanente en el índice adjIdx (y resetea los demás a 0 si sobra)
+                                const rest = next.map((v, idx) => (idx === i ? n : idx === adjIdx ? 0 : Number(v || 0)));
+                                const usedByOthers = rest.reduce((s, v, idx) => (idx === i || idx === adjIdx ? s : s + Number(v || 0)), 0);
+                                rest[adjIdx] = Math.max(0, total - n - usedByOthers);
+                                return rest;
+                              }
+                              return next;
+                            });
                           }}
                         />
                       </div>
