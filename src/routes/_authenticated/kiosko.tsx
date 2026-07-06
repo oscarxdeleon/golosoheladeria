@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Monitor, Banknote, ShoppingBag, Utensils, Inbox } from "lucide-react";
+import { Banknote, ShoppingBag, Utensils, Inbox } from "lucide-react";
 import autopedidoCharacterAsset from "@/assets/autopedidos-character.png.asset.json";
 const autopedidoCharacter = autopedidoCharacterAsset.url;
 import { formatMoney } from "@/lib/format";
