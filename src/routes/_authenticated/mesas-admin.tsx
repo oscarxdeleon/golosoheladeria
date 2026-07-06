@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage } from "lucide-react";
+import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
 
 // Genera un PNG de alta resolución del QR listo para imprimir.
 // 1200px con margen amplio y corrección de errores alta = imprime nítido hasta ~15cm.
@@ -44,6 +45,7 @@ function MesasAdminPage() {
   const { activeBranchId, activeBranch, branches } = useBranch();
   const qc = useQueryClient();
   const [selectedRoomId, setSelectedRoomId] = useState<string | "all">("all");
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const { data: rooms = [] } = useQuery({
     queryKey: ["rooms", activeBranchId],
@@ -72,6 +74,98 @@ function MesasAdminPage() {
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
   const branchSlug = activeBranch?.slug ?? (activeBranch ? slug(activeBranch.name) : "");
+
+  async function exportAllQrPdf() {
+    if (visibleTables.length === 0) return toast.error("No hay mesas para exportar");
+    setExportingPdf(true);
+    try {
+      // A4 vertical, 2 columnas x 3 filas por página
+      const pdf = new jsPDF({ unit: "mm", format: "a4", orientation: "portrait" });
+      const pageW = pdf.internal.pageSize.getWidth();
+      const pageH = pdf.internal.pageSize.getHeight();
+      const cols = 2;
+      const rows = 3;
+      const marginX = 12;
+      const marginY = 15;
+      const cellW = (pageW - marginX * 2) / cols;
+      const cellH = (pageH - marginY * 2) / rows;
+      const qrSize = Math.min(cellW, cellH) - 22; // deja espacio para textos
+
+      // Cabecera de página
+      const drawHeader = (pageIndex: number, totalPages: number) => {
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(14);
+        pdf.text(activeBranch?.name ?? "Códigos QR de mesas", pageW / 2, 9, { align: "center" });
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(120);
+        pdf.text(`Página ${pageIndex} de ${totalPages}`, pageW - marginX, 9, { align: "right" });
+        pdf.setTextColor(0);
+      };
+
+      const perPage = cols * rows;
+      const totalPages = Math.ceil(visibleTables.length / perPage);
+
+      for (let i = 0; i < visibleTables.length; i++) {
+        const t = visibleTables[i];
+        const room = rooms.find((r) => r.id === t.room_id);
+        const params = new URLSearchParams();
+        if (branchSlug) params.set("sede", branchSlug);
+        if (room) params.set("sala", slug(room.name));
+        params.set("mesa", String(t.number));
+        const url = `${origin}/t/${t.number}?${params.toString()}`;
+
+        const idxOnPage = i % perPage;
+        if (idxOnPage === 0) {
+          if (i > 0) pdf.addPage();
+          drawHeader(Math.floor(i / perPage) + 1, totalPages);
+        }
+        const col = idxOnPage % cols;
+        const row = Math.floor(idxOnPage / cols);
+        const x0 = marginX + col * cellW;
+        const y0 = marginY + row * cellH;
+
+        // QR de alta resolución (800px) embebido como PNG
+        const dataUrl = await (await import("qrcode")).default.toDataURL(url, {
+          errorCorrectionLevel: "H",
+          margin: 1,
+          width: 800,
+          color: { dark: "#000000", light: "#FFFFFF" },
+        });
+
+        const qrX = x0 + (cellW - qrSize) / 2;
+        const qrY = y0 + 4;
+        pdf.addImage(dataUrl, "PNG", qrX, qrY, qrSize, qrSize, undefined, "NONE");
+
+        // Marco
+        pdf.setDrawColor(220);
+        pdf.rect(x0 + 2, y0 + 2, cellW - 4, cellH - 4);
+
+        // Textos
+        pdf.setTextColor(0);
+        pdf.setFont("helvetica", "bold");
+        pdf.setFontSize(13);
+        pdf.text(`Mesa ${t.number}`, x0 + cellW / 2, qrY + qrSize + 6, { align: "center" });
+        pdf.setFont("helvetica", "normal");
+        pdf.setFontSize(9);
+        pdf.setTextColor(90);
+        const sub = `${room?.name ?? "Sin sala"}${t.label ? ` · ${t.label}` : ""}`;
+        pdf.text(sub, x0 + cellW / 2, qrY + qrSize + 11, { align: "center" });
+        pdf.setFontSize(7);
+        pdf.setTextColor(140);
+        pdf.text("Escanea para ver el menú", x0 + cellW / 2, qrY + qrSize + 15, { align: "center" });
+      }
+
+      const fname = `qrs-mesas${activeBranch ? "-" + slug(activeBranch.name) : ""}${selectedRoomId !== "all" ? "-" + slug(rooms.find((r) => r.id === selectedRoomId)?.name ?? "") : ""}.pdf`;
+      pdf.save(fname);
+      toast.success(`PDF generado con ${visibleTables.length} códigos QR`);
+    } catch (e: any) {
+      toast.error(e?.message ?? "No se pudo generar el PDF");
+    } finally {
+      setExportingPdf(false);
+    }
+  }
+
 
   return (
     <div className="space-y-6">
@@ -151,6 +245,16 @@ function MesasAdminPage() {
                 ))}
               </SelectContent>
             </Select>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={exportAllQrPdf}
+              disabled={exportingPdf || visibleTables.length === 0}
+              title="Descargar todos los QR en un solo PDF"
+            >
+              {exportingPdf ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+              {exportingPdf ? "Generando…" : "PDF de todos"}
+            </Button>
             <TableDialog
               rooms={rooms}
               branches={branches}
