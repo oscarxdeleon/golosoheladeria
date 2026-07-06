@@ -19,6 +19,8 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
+import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
+import { Split } from "lucide-react";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.png";
@@ -549,6 +551,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
   const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [successDialog, setSuccessDialog] = useState<null | {
     ticket: number;
     method: string;
@@ -845,7 +848,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
-  async function pay(method: string) {
+  async function pay(method: string, paymentDetails?: Record<string, unknown> | null) {
+    const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
     if (!effectiveSessionId) return toast.error("Debes abrir caja antes de cobrar");
@@ -871,6 +875,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             tax,
             total,
             payment_method: method,
+            payment_details: payDetailsJson,
             status: "paid",
             cash_session_id: effectiveSessionId,
             customer_name: customer || null,
@@ -899,6 +904,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             tax,
             total,
             payment_method: method,
+            payment_details: payDetailsJson,
             status: "paid",
             cash_session_id: effectiveSessionId,
             customer_name: customer || null,
@@ -1789,6 +1795,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   </div>
                 )}
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-2 border-dashed"
+                disabled={paying || (total <= 0 && !pendingSaleId && cart.length === 0)}
+                onClick={() => setSplitDialogOpen(true)}
+              >
+                <Split className="h-4 w-4 mr-1" /> Dividir cuenta
+              </Button>
             </div>
           )}
 
@@ -1880,6 +1895,25 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <SplitBillDialog
+        open={splitDialogOpen}
+        onOpenChange={setSplitDialogOpen}
+        total={total}
+        paying={paying}
+        lines={cart.map((l) => ({ key: l.key, name: l.name, unit_price: l.unit_price, qty: l.qty }))}
+        onConfirm={async (splits: SplitPart[]) => {
+          // Un solo cobro con payment_method="Mixto" y detalle en payment_details
+          const primary = splits.reduce((a, b) => (b.amount > a.amount ? b : a), splits[0]);
+          const label = splits.every((s) => s.method === primary.method) ? primary.method : "Mixto";
+          await pay(label, {
+            split: true,
+            splits: splits.map((s) => ({ method: s.method, amount: s.amount, items: s.items ?? [] })),
+          });
+          setSplitDialogOpen(false);
+        }}
+      />
+
 
       <Dialog
         open={!!successDialog}
