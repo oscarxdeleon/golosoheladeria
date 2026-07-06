@@ -391,12 +391,12 @@ function DashboardPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
-            <div className="bg-emerald-500 h-full" style={{ width: `${marginPct}%` }} />
-            <div className="bg-rose-500 h-full" style={{ width: `${gastoPct}%` }} />
+            <div className="h-full" style={{ width: `${marginPct}%`, background: "#A3D93A" }} />
+            <div className="h-full" style={{ width: `${gastoPct}%`, background: "#D6303A" }} />
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-emerald-600 font-semibold">MARGEN</span>
-            <span className="text-rose-600 font-semibold">GASTO</span>
+            <span className="font-semibold" style={{ color: "#5A8A00" }}>MARGEN</span>
+            <span className="font-semibold" style={{ color: "#D6303A" }}>GASTO</span>
           </div>
           <div className="text-sm text-muted-foreground">
             Gasto operativo: <span className="font-bold text-foreground">{gastoPct.toFixed(1)}%</span>
