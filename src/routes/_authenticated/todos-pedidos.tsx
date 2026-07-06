@@ -236,7 +236,7 @@ function TodosPedidosPage() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-5">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <Checkbox
                 checked={turnoActual}
@@ -245,15 +245,43 @@ function TodosPedidosPage() {
               />
               <span className="text-base">Turno actual</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={soloHoy}
-                onCheckedChange={(v) => setSoloHoy(Boolean(v))}
-                className="h-5 w-5"
-              />
-              <span className="text-base">Hoy</span>
-            </label>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Fecha:</span>
+              <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
+                <SelectTrigger className="h-10 w-[170px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hoy">📅 Hoy</SelectItem>
+                  <SelectItem value="ayer">🕘 Ayer</SelectItem>
+                  <SelectItem value="personalizada">🎯 Personalizada</SelectItem>
+                  <SelectItem value="todos">Todas las fechas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateFilter === "personalizada" && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Input
+                  type="date"
+                  value={customFrom}
+                  max={customTo || undefined}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="h-10 w-[160px]"
+                />
+                <span className="text-muted-foreground text-sm">a</span>
+                <Input
+                  type="date"
+                  value={customTo}
+                  min={customFrom || undefined}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="h-10 w-[160px]"
+                />
+              </div>
+            )}
           </div>
+
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-11">
