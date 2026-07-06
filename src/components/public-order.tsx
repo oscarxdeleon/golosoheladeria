@@ -859,7 +859,7 @@ export function PublicOrder({
 
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-32">
+    <div className="min-h-screen bg-muted/30 pb-32 overflow-x-hidden w-full max-w-full">
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           {settings?.logo_url ? (
