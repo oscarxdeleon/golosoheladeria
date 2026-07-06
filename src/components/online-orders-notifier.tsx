@@ -171,18 +171,8 @@ async function autoPrintKioskOrder(saleId: string) {
     created_at: sale.created_at ?? undefined,
   });
 
-  void sendToLocalPrinter({
-    type: "comprobante",
-    ticket: sale.ticket_number,
-    header: "COMPROBANTE DE PEDIDO",
-    items: printItems,
-    subtotal: Number(sale.subtotal ?? 0),
-    deliveryFee: Number(sale.delivery_fee ?? 0),
-    total: Number(sale.total ?? 0),
-    customer: sale.customer_name ?? undefined,
-    created_at: sale.created_at ?? undefined,
-    cashierMessage: "Conserve este comprobante.\nGracias por su compra.",
-  });
+  // Nota: el ticket de venta (comprobante) NO se imprime al confirmar el pedido.
+  // Solo se imprime cuando el pago es confirmado desde el POS.
 }
 
 async function printTableOrderComanda(saleId: string) {
