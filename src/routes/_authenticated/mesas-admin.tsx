@@ -478,15 +478,18 @@ function TableQrCard({
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-2">
         <div ref={canvasRef} className="rounded-lg border bg-white p-3">
-          <QRCodeCanvas value={url} size={160} level="M" includeMargin />
+          <QRCodeCanvas value={url} size={160} level="H" includeMargin />
         </div>
         <p className="text-[10px] text-muted-foreground break-all text-center max-w-full">{url}</p>
-        <div className="flex gap-2 w-full">
-          <Button variant="outline" size="sm" className="flex-1" onClick={download}>
-            <Download className="h-4 w-4" /> PNG
+        <div className="grid grid-cols-2 gap-2 w-full">
+          <Button variant="outline" size="sm" onClick={() => download(true)}>
+            <Download className="h-4 w-4" /> PNG HD
           </Button>
-          <Button variant="outline" size="sm" className="flex-1" onClick={print}>
-            <Printer className="h-4 w-4" /> Imprimir
+          <Button variant="outline" size="sm" onClick={downloadSvg}>
+            <FileImage className="h-4 w-4" /> SVG
+          </Button>
+          <Button variant="outline" size="sm" className="col-span-2" onClick={print}>
+            <Printer className="h-4 w-4" /> Imprimir HD
           </Button>
         </div>
       </CardContent>
