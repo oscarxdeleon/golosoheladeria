@@ -11,8 +11,8 @@ export const Route = createFileRoute("/_authenticated/llevar")({
   component: () => (
     <BranchCashGuard extraMessage="Solicita al cajero iniciar el turno para poder operar.">
       <div className="space-y-4">
-        <LlevarPendingPanel />
         <PosScreen orderType="llevar" headerImage={paraLlevarImg} headerImageAlt="Para llevar" />
+        <LlevarPendingPanel />
       </div>
     </BranchCashGuard>
   ),
