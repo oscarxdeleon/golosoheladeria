@@ -141,6 +141,7 @@ function CategoriasPage() {
               <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
       <Card>
