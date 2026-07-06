@@ -359,9 +359,9 @@ function DashboardPage() {
       </Card>
 
       {/* Análisis de horas */}
-      <Card className="rounded-2xl shadow-sm bg-amber-50/40 border-amber-200/60">
+      <Card className="rounded-2xl shadow-sm bg-[#FFF7D6] border-[#F2C42B]/50">
         <CardContent className="p-4 space-y-2">
-          <div className="flex items-center gap-2 text-amber-700 font-medium">
+          <div className="flex items-center gap-2 text-[#8A6A00] font-medium">
             <Clock className="h-4 w-4" /> Análisis de Horas
           </div>
           {(data?.valleys ?? []).length > 0 ? (
@@ -369,12 +369,12 @@ function DashboardPage() {
               <p className="text-sm text-muted-foreground">Valles de facturación detectados:</p>
               <div className="flex flex-wrap gap-2">
                 {data!.valleys.map((h) => (
-                  <span key={h} className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
+                  <span key={h} className="px-3 py-1 rounded-full bg-[#F2C42B]/25 text-[#8A6A00] text-sm font-medium">
                     {String(h).padStart(2, "0")}:00
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-amber-700 flex items-center gap-1 italic">
+              <p className="text-xs text-[#8A6A00] flex items-center gap-1 italic">
                 <Lightbulb className="h-3.5 w-3.5" /> Planear promociones para subir tráfico.
               </p>
             </>
