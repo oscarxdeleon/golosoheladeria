@@ -859,7 +859,7 @@ export function PublicOrder({
 
 
   return (
-    <div className="min-h-screen bg-muted/30 pb-32">
+    <div className="min-h-screen bg-muted/30 pb-32 overflow-x-hidden w-full max-w-full">
       <header className="sticky top-0 z-20 bg-background border-b">
         <div className="max-w-5xl mx-auto px-4 py-3 flex items-center gap-3">
           {settings?.logo_url ? (
@@ -1001,31 +1001,31 @@ export function PublicOrder({
       )}
 
       {!readOnly && cartOpen && cart.length > 0 && (
-        <div className="fixed inset-0 z-40 bg-black/40 flex items-end sm:items-center sm:justify-center" onClick={() => setCartOpen(false)}>
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center sm:justify-center overflow-hidden" onClick={() => setCartOpen(false)}>
           <div
-            className="w-full sm:max-w-lg bg-background border-t sm:border sm:rounded-xl shadow-xl max-h-[92vh] overflow-y-auto"
+            className="w-full max-w-full sm:max-w-lg bg-background border-t sm:border sm:rounded-xl shadow-xl max-h-[92vh] overflow-y-auto overflow-x-hidden"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="sticky top-0 bg-background border-b px-4 py-3 flex items-center justify-between">
-              <div className="font-display text-lg">Tu pedido</div>
-              <Button size="sm" variant="ghost" onClick={() => setCartOpen(false)}>Seguir comprando</Button>
+            <div className="sticky top-0 bg-background border-b px-3 py-3 flex items-center justify-between gap-2">
+              <div className="font-display text-lg truncate">Tu pedido</div>
+              <Button size="sm" variant="ghost" className="shrink-0" onClick={() => setCartOpen(false)}>Seguir</Button>
             </div>
-            <div className="px-4 py-3 space-y-3">
+            <div className="px-3 py-3 space-y-3">
               <div className="space-y-2">
                 {cart.map((l) => (
-                  <div key={l.key} className="flex items-center gap-2 text-sm">
-                    <div className="flex-1">
-                      <div className="font-medium whitespace-pre-line">{l.name}</div>
+                  <div key={l.key} className="flex items-center gap-1.5 text-sm">
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium whitespace-pre-line break-words">{l.name}</div>
                       <div className="text-xs text-muted-foreground">{formatMoney(l.unit_price)}</div>
                     </div>
-                    <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty - 1)}>
+                    <Button size="icon" variant="outline" className="h-7 w-7 shrink-0" onClick={() => setQty(l.key, l.qty - 1)}>
                       <Minus className="h-3 w-3" />
                     </Button>
-                    <span className="w-6 text-center font-medium">{l.qty}</span>
-                    <Button size="icon" variant="outline" className="h-8 w-8" onClick={() => setQty(l.key, l.qty + 1)}>
+                    <span className="w-5 text-center font-medium shrink-0">{l.qty}</span>
+                    <Button size="icon" variant="outline" className="h-7 w-7 shrink-0" onClick={() => setQty(l.key, l.qty + 1)}>
                       <Plus className="h-3 w-3" />
                     </Button>
-                    <Button size="icon" variant="ghost" className="h-8 w-8 text-destructive" onClick={() => setQty(l.key, 0)}>
+                    <Button size="icon" variant="ghost" className="h-7 w-7 shrink-0 text-destructive" onClick={() => setQty(l.key, 0)}>
                       <Trash2 className="h-3 w-3" />
                     </Button>
                   </div>
