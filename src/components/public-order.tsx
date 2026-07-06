@@ -872,21 +872,36 @@ export function PublicOrder({
             {(() => {
               const biz = settings?.business_name ?? "Heladería Goloso";
               const br = branch?.name?.trim();
+              if (source === "table_qr") {
+                const sedeName = br || biz;
+                return (
+                  <>
+                    <div className="font-display text-lg">{sedeName}</div>
+                    {tableLabel ? (
+                      <div className="font-display text-xl font-extrabold tracking-tight">
+                        {tableLabel}
+                      </div>
+                    ) : null}
+                  </>
+                );
+              }
               const showBranch = br && br.toLowerCase() !== biz.toLowerCase();
               return (
-                <div className="font-display text-lg">
-                  {biz}
-                  {showBranch ? <span className="text-primary"> · {br}</span> : null}
-                </div>
+                <>
+                  <div className="font-display text-lg">
+                    {biz}
+                    {showBranch ? <span className="text-primary"> · {br}</span> : null}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Autopedido"}`}
+                    {source === "online_menu" && `Menú en línea · ${onlineService === "recoger" ? "Recoger en heladería" : "A domicilio"}`}
+                  </div>
+                </>
               );
             })()}
-            <div className="text-xs text-muted-foreground">
-              {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Autopedido"}`}
-              {source === "table_qr" && (tableLabel ? `${tableLabel} · Pide desde tu mesa` : "Pide desde tu mesa")}
-              {source === "online_menu" && `Menú en línea · ${onlineService === "recoger" ? "Recoger en heladería" : "A domicilio"}`}
-            </div>
 
           </div>
+
           {source === "kiosk" && kioskService && (
             <Button size="sm" variant="ghost" onClick={resetKiosk} className="gap-1">
               <ArrowLeft className="h-4 w-4" /> <span className="hidden sm:inline">Inicio</span>
