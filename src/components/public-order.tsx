@@ -1085,6 +1085,7 @@ export function PublicOrder({
                 rows={2}
               />
 
+              {source !== "table_qr" && (
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="text-sm font-medium">Método de pago</div>
                 {isPickup && (
@@ -1172,6 +1173,14 @@ export function PublicOrder({
                   </div>
                 )}
               </div>
+              )}
+
+              {source === "table_qr" && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground leading-snug">
+                  El pago se realiza directamente en caja. Al confirmar, tu pedido llegará al cajero para prepararlo.
+                </div>
+              )}
+
 
               <div className="rounded-lg border p-3 space-y-1 text-sm">
                 <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
