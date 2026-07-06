@@ -17,6 +17,7 @@ import {
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
+import golosoMascot from "@/assets/goloso-mascot.png.asset.json";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Goloso POS" }] }),
@@ -173,16 +174,25 @@ function DashboardPage() {
              style={{ background: "radial-gradient(circle, rgba(163,217,58,0.35), transparent 70%)" }} />
         <div className="pointer-events-none absolute -top-8 right-24 h-32 w-32 rounded-full"
              style={{ background: "radial-gradient(circle, rgba(232,138,154,0.30), transparent 70%)" }} />
-        <div className="relative z-10 space-y-3">
-          <h1 className="font-display text-2xl md:text-3xl font-bold leading-tight">
-            ¡Bienvenido, {(activeBranch?.name ?? "GOLOSO").toUpperCase()}! <span aria-hidden>👋</span>
-          </h1>
+        <div className="relative z-10 flex flex-col items-center text-center gap-3">
+          <img
+            src={golosoMascot.url}
+            alt="Personaje Goloso"
+            className="h-28 md:h-32 w-auto drop-shadow-[0_6px_12px_rgba(0,0,0,0.25)]"
+          />
+          <div className="space-y-1">
+            <h1 className="font-display text-2xl md:text-3xl font-bold leading-tight">
+              ¡Bienvenido!
+            </h1>
+            <p className="font-display text-lg md:text-xl font-semibold text-white/95">
+              {(activeBranch?.name ?? "GOLOSO").toUpperCase()}
+            </p>
+          </div>
           <p className="text-white/85 text-sm">Resumen general y financiero en tiempo real.</p>
           <Badge className="bg-white/15 hover:bg-white/20 border-0 text-white gap-2 px-3 py-1 rounded-full">
             <span className="h-2 w-2 rounded-full bg-[#A3D93A] inline-block animate-pulse" /> Sistema Activo
           </Badge>
         </div>
-        <Sparkles className="absolute -right-6 -top-6 h-40 w-40 text-white/10" />
       </div>
 
       {/* Filtros */}
