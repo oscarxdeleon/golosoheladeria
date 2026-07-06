@@ -38,7 +38,7 @@ export function BranchSelector() {
 
   return (
     <Select value={activeBranchId ?? undefined} onValueChange={setActiveBranchId}>
-      <SelectTrigger className="h-11 min-w-[220px] gap-2 rounded-xl border-2 border-primary/50 bg-primary/10 px-3.5 text-[15px] font-extrabold uppercase tracking-wide text-primary shadow-sm hover:bg-primary/15 focus:ring-2 focus:ring-primary/40 [&>span]:truncate">
+      <SelectTrigger className="h-11 w-full min-w-0 sm:min-w-[220px] max-w-full gap-2 rounded-xl border-2 border-primary/50 bg-primary/10 px-3 text-[13px] sm:text-[15px] font-extrabold uppercase tracking-wide text-primary shadow-sm hover:bg-primary/15 focus:ring-2 focus:ring-primary/40 [&>span]:truncate">
         <Building2 className="h-5 w-5 shrink-0" />
         <SelectValue placeholder="Selecciona sede" />
       </SelectTrigger>
