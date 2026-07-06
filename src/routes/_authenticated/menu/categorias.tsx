@@ -199,3 +199,96 @@ function CategoriasPage() {
     </div>
   );
 }
+
+type Channel = "online" | "kiosk";
+
+function ReorderCategoriesDialog({ cats }: { cats: Category[] }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [channel, setChannel] = useState<Channel>("online");
+  const [items, setItems] = useState<Category[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const key = channel === "kiosk" ? "kiosk_sort_order" : "online_sort_order";
+    const visible = cats.filter((c) => c.show_in_online_menu);
+    setItems([...visible].sort((a, b) => (a[key] ?? 0) - (b[key] ?? 0) || a.name.localeCompare(b.name, "es")));
+  }, [open, channel, cats]);
+
+  function move(idx: number, dir: -1 | 1) {
+    setItems((arr) => {
+      const next = [...arr];
+      const j = idx + dir;
+      if (j < 0 || j >= next.length) return arr;
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    const col = channel === "kiosk" ? "kiosk_sort_order" : "online_sort_order";
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const { error } = await supabase.from("categories").update({ [col]: i + 1 }).eq("id", items[i].id);
+        if (error) throw error;
+      }
+      toast.success("Orden guardado");
+      qc.invalidateQueries({ queryKey: ["categories-all"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["public-cats"] });
+      setOpen(false);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline"><ArrowUpDown className="h-4 w-4 mr-1" /> Reordenar</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Ordenar categorías</DialogTitle>
+        </DialogHeader>
+        <Tabs value={channel} onValueChange={(v) => setChannel(v as Channel)}>
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="online"><Globe className="h-4 w-4 mr-1" /> Menú en línea</TabsTrigger>
+            <TabsTrigger value="kiosk"><Store className="h-4 w-4 mr-1" /> Autopedido / Kiosco</TabsTrigger>
+          </TabsList>
+          <TabsContent value={channel} className="mt-3">
+            <p className="text-xs text-muted-foreground mb-2">
+              Usa las flechas para acomodar el orden en el que aparecerán las categorías en este canal.
+            </p>
+            <ul className="divide-y rounded-md border max-h-[50vh] overflow-y-auto">
+              {items.map((c, i) => (
+                <li key={c.id} className="flex items-center gap-2 p-2">
+                  <span className="w-6 text-center text-xs text-muted-foreground">{i + 1}</span>
+                  <span className="inline-block h-4 w-4 rounded" style={{ background: c.color ?? "#ddd" }} />
+                  <span className="flex-1 truncate text-sm">{c.name}</span>
+                  <Button size="icon" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)}>
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" disabled={i === items.length - 1} onClick={() => move(i, 1)}>
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+              {items.length === 0 && (
+                <li className="p-6 text-center text-sm text-muted-foreground">Sin categorías visibles en este canal</li>
+              )}
+            </ul>
+          </TabsContent>
+        </Tabs>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button onClick={save} disabled={saving || items.length === 0}>{saving ? "Guardando…" : "Guardar orden"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
