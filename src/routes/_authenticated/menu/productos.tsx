@@ -540,8 +540,8 @@ function ProductosPage() {
               </label>
             </Button>
             <CloneToBranchDialog branches={branches} qc={qc} />
-            <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-              <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
+            <Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button>
+
 
 
             <DialogContent className="flex flex-col gap-0 p-0 w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] rounded-2xl overflow-hidden">
