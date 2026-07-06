@@ -242,7 +242,7 @@ function GastosPage() {
           onClick={() => { setAmount(""); setDescription(""); setFile(null); }}>
           Limpiar
         </Button>
-        <Button size="lg" onClick={() => { setAmount(String(currentValue)); save(); }} disabled={saving || currentValue <= 0}
+        <Button size="lg" onClick={() => save(currentValue)} disabled={saving || currentValue <= 0}
           className="h-14 rounded-2xl text-base font-bold bg-[#0F5A68] hover:bg-[#0c4a56]">
           {saving ? "Guardando…" : "Agregar gasto"}
         </Button>
