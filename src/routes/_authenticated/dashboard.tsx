@@ -167,18 +167,22 @@ function DashboardPage() {
   return (
     <div className="space-y-5 max-w-5xl mx-auto pb-6">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl p-6 text-white shadow-lg
-                      bg-[radial-gradient(circle_at_top_right,theme(colors.rose.500),theme(colors.rose.800)_60%,theme(colors.rose.950))]">
+      <div className="relative overflow-hidden rounded-3xl p-6 text-white shadow-lg"
+           style={{ background: "radial-gradient(circle at top right, #3AB6C8 0%, #2A8FA0 55%, #0F5A68 100%)" }}>
+        <div className="pointer-events-none absolute -bottom-10 -left-10 h-52 w-52 rounded-full"
+             style={{ background: "radial-gradient(circle, rgba(163,217,58,0.35), transparent 70%)" }} />
+        <div className="pointer-events-none absolute -top-8 right-24 h-32 w-32 rounded-full"
+             style={{ background: "radial-gradient(circle, rgba(232,138,154,0.30), transparent 70%)" }} />
         <div className="relative z-10 space-y-3">
           <h1 className="font-display text-2xl md:text-3xl font-bold leading-tight">
             ¡Bienvenido, {(activeBranch?.name ?? "GOLOSO").toUpperCase()}! <span aria-hidden>👋</span>
           </h1>
           <p className="text-white/85 text-sm">Resumen general y financiero en tiempo real.</p>
           <Badge className="bg-white/15 hover:bg-white/20 border-0 text-white gap-2 px-3 py-1 rounded-full">
-            <span className="h-2 w-2 rounded-full bg-emerald-300 inline-block animate-pulse" /> Sistema Activo
+            <span className="h-2 w-2 rounded-full bg-[#A3D93A] inline-block animate-pulse" /> Sistema Activo
           </Badge>
         </div>
-        <Sparkles className="absolute -right-6 -top-6 h-40 w-40 text-white/5" />
+        <Sparkles className="absolute -right-6 -top-6 h-40 w-40 text-white/10" />
       </div>
 
       {/* Filtros */}
