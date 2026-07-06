@@ -35,12 +35,12 @@ const norm = (s?: string | null) => (s ?? "").toLowerCase().trim();
 const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 const METHOD_COLORS: Record<string, string> = {
-  efectivo:   "bg-emerald-500",
-  nequi:      "bg-blue-500",
-  bancolombia:"bg-violet-500",
-  daviplata:  "bg-rose-500",
-  tarjeta:    "bg-slate-500",
-  transferencia: "bg-amber-500",
+  efectivo:      "bg-[#A3D93A]",
+  nequi:         "bg-[#3AB6C8]",
+  bancolombia:   "bg-[#F2C42B]",
+  daviplata:     "bg-[#E88A9A]",
+  tarjeta:       "bg-[#6B3A1E]",
+  transferencia: "bg-[#D6303A]",
 };
 
 type Range = "hoy" | "ayer" | "semana" | "mes";
@@ -167,18 +167,22 @@ function DashboardPage() {
   return (
     <div className="space-y-5 max-w-5xl mx-auto pb-6">
       {/* Hero */}
-      <div className="relative overflow-hidden rounded-3xl p-6 text-white shadow-lg
-                      bg-[radial-gradient(circle_at_top_right,theme(colors.rose.500),theme(colors.rose.800)_60%,theme(colors.rose.950))]">
+      <div className="relative overflow-hidden rounded-3xl p-6 text-white shadow-lg"
+           style={{ background: "radial-gradient(circle at top right, #3AB6C8 0%, #2A8FA0 55%, #0F5A68 100%)" }}>
+        <div className="pointer-events-none absolute -bottom-10 -left-10 h-52 w-52 rounded-full"
+             style={{ background: "radial-gradient(circle, rgba(163,217,58,0.35), transparent 70%)" }} />
+        <div className="pointer-events-none absolute -top-8 right-24 h-32 w-32 rounded-full"
+             style={{ background: "radial-gradient(circle, rgba(232,138,154,0.30), transparent 70%)" }} />
         <div className="relative z-10 space-y-3">
           <h1 className="font-display text-2xl md:text-3xl font-bold leading-tight">
             ¡Bienvenido, {(activeBranch?.name ?? "GOLOSO").toUpperCase()}! <span aria-hidden>👋</span>
           </h1>
           <p className="text-white/85 text-sm">Resumen general y financiero en tiempo real.</p>
           <Badge className="bg-white/15 hover:bg-white/20 border-0 text-white gap-2 px-3 py-1 rounded-full">
-            <span className="h-2 w-2 rounded-full bg-emerald-300 inline-block animate-pulse" /> Sistema Activo
+            <span className="h-2 w-2 rounded-full bg-[#A3D93A] inline-block animate-pulse" /> Sistema Activo
           </Badge>
         </div>
-        <Sparkles className="absolute -right-6 -top-6 h-40 w-40 text-white/5" />
+        <Sparkles className="absolute -right-6 -top-6 h-40 w-40 text-white/10" />
       </div>
 
       {/* Filtros */}
@@ -227,13 +231,13 @@ function DashboardPage() {
           <>{[0,1,2,3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</>
         ) : (
           <>
-            <KpiCard color="emerald" icon={<DollarSign className="h-5 w-5" />}
+            <KpiCard color="turquoise" icon={<DollarSign className="h-5 w-5" />}
               label="Ventas Totales" value={formatMoney(data?.total ?? 0)} hint="Período seleccionado" />
-            <KpiCard color="blue" icon={<ShoppingBag className="h-5 w-5" />}
+            <KpiCard color="lime" icon={<ShoppingBag className="h-5 w-5" />}
               label="Transacciones" value={String(data?.txs ?? 0)} hint="Pedidos completados" />
-            <KpiCard color="violet" icon={<Target className="h-5 w-5" />}
+            <KpiCard color="pink" icon={<Target className="h-5 w-5" />}
               label="Ticket Promedio" value={formatMoney(data?.avg ?? 0)} hint="Valor por pedido" />
-            <KpiCard color="teal" icon={<TrendingUp className="h-5 w-5" />}
+            <KpiCard color="yellow" icon={<TrendingUp className="h-5 w-5" />}
               label="Utilidad Estimada" value={formatMoney(data?.utilidad ?? 0)} hint="Ventas − Gastos" />
           </>
         )}
@@ -243,7 +247,7 @@ function DashboardPage() {
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 font-display text-lg">
-            <span className="grid place-items-center h-8 w-8 rounded-lg bg-rose-100 text-rose-600">
+            <span className="grid place-items-center h-8 w-8 rounded-lg bg-[#E88A9A]/20 text-[#D6303A]">
               <TrendingUp className="h-4 w-4" />
             </span>
             Evolución de Ventas
@@ -260,8 +264,8 @@ function DashboardPage() {
               <AreaChart data={hourlyData} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
                 <defs>
                   <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(346 77% 50%)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="hsl(346 77% 50%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#E88A9A" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="#E88A9A" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
@@ -272,7 +276,7 @@ function DashboardPage() {
                   labelFormatter={(l) => `Hora: ${l}`}
                   contentStyle={{ borderRadius: 8, fontSize: 12 }}
                 />
-                <Area type="monotone" dataKey="total" stroke="hsl(346 77% 50%)" strokeWidth={2} fill="url(#salesGrad)" />
+                <Area type="monotone" dataKey="total" stroke="#D6303A" strokeWidth={2} fill="url(#salesGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -283,7 +287,7 @@ function DashboardPage() {
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 font-display text-lg">
-            <span className="grid place-items-center h-8 w-8 rounded-lg bg-teal-100 text-teal-600">
+            <span className="grid place-items-center h-8 w-8 rounded-lg bg-[#3AB6C8]/20 text-[#0F5A68]">
               <Package className="h-4 w-4" />
             </span>
             Top 5 Productos
@@ -304,7 +308,7 @@ function DashboardPage() {
                   <span className="font-semibold">{formatMoney(p.total)}</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full bg-rose-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "linear-gradient(90deg, #A3D93A, #3AB6C8)" }} />
                 </div>
               </div>
             );
@@ -355,9 +359,9 @@ function DashboardPage() {
       </Card>
 
       {/* Análisis de horas */}
-      <Card className="rounded-2xl shadow-sm bg-amber-50/40 border-amber-200/60">
+      <Card className="rounded-2xl shadow-sm bg-[#FFF7D6] border-[#F2C42B]/50">
         <CardContent className="p-4 space-y-2">
-          <div className="flex items-center gap-2 text-amber-700 font-medium">
+          <div className="flex items-center gap-2 text-[#8A6A00] font-medium">
             <Clock className="h-4 w-4" /> Análisis de Horas
           </div>
           {(data?.valleys ?? []).length > 0 ? (
@@ -365,12 +369,12 @@ function DashboardPage() {
               <p className="text-sm text-muted-foreground">Valles de facturación detectados:</p>
               <div className="flex flex-wrap gap-2">
                 {data!.valleys.map((h) => (
-                  <span key={h} className="px-3 py-1 rounded-full bg-amber-100 text-amber-800 text-sm font-medium">
+                  <span key={h} className="px-3 py-1 rounded-full bg-[#F2C42B]/25 text-[#8A6A00] text-sm font-medium">
                     {String(h).padStart(2, "0")}:00
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-amber-700 flex items-center gap-1 italic">
+              <p className="text-xs text-[#8A6A00] flex items-center gap-1 italic">
                 <Lightbulb className="h-3.5 w-3.5" /> Planear promociones para subir tráfico.
               </p>
             </>
@@ -387,12 +391,12 @@ function DashboardPage() {
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
-            <div className="bg-emerald-500 h-full" style={{ width: `${marginPct}%` }} />
-            <div className="bg-rose-500 h-full" style={{ width: `${gastoPct}%` }} />
+            <div className="h-full" style={{ width: `${marginPct}%`, background: "#A3D93A" }} />
+            <div className="h-full" style={{ width: `${gastoPct}%`, background: "#D6303A" }} />
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-emerald-600 font-semibold">MARGEN</span>
-            <span className="text-rose-600 font-semibold">GASTO</span>
+            <span className="font-semibold" style={{ color: "#5A8A00" }}>MARGEN</span>
+            <span className="font-semibold" style={{ color: "#D6303A" }}>GASTO</span>
           </div>
           <div className="text-sm text-muted-foreground">
             Gasto operativo: <span className="font-bold text-foreground">{gastoPct.toFixed(1)}%</span>
@@ -417,10 +421,10 @@ function FilterField({
 }
 
 const KPI_COLORS: Record<string, { border: string; text: string; bg: string }> = {
-  emerald: { border: "border-l-emerald-500", text: "text-emerald-600", bg: "bg-emerald-100 text-emerald-600" },
-  blue:    { border: "border-l-blue-500",    text: "text-blue-600",    bg: "bg-blue-100 text-blue-600" },
-  violet:  { border: "border-l-violet-500",  text: "text-violet-600",  bg: "bg-violet-100 text-violet-600" },
-  teal:    { border: "border-l-teal-500",    text: "text-teal-600",    bg: "bg-teal-100 text-teal-600" },
+  turquoise: { border: "border-l-[#3AB6C8]", text: "text-[#0F5A68]", bg: "bg-[#3AB6C8]/20 text-[#0F5A68]" },
+  lime:      { border: "border-l-[#A3D93A]", text: "text-[#5A8A00]", bg: "bg-[#A3D93A]/25 text-[#5A8A00]" },
+  pink:      { border: "border-l-[#E88A9A]", text: "text-[#D6303A]", bg: "bg-[#E88A9A]/25 text-[#D6303A]" },
+  yellow:    { border: "border-l-[#F2C42B]", text: "text-[#8A6A00]", bg: "bg-[#F2C42B]/25 text-[#8A6A00]" },
 };
 
 function KpiCard({
