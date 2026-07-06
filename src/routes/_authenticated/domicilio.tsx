@@ -156,12 +156,12 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
             }}
           />
           <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-6 sm:py-4">
-            <div className="min-w-0">
+            <div className="min-w-0 text-center sm:text-left">
               <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-sky-700 dark:text-sky-300">
                 <Bike className="h-3 w-3" /> Domicilios
               </div>
-              <h1 className="font-display mt-1 text-base sm:text-2xl font-extrabold tracking-tight leading-tight bg-gradient-to-br from-foreground to-sky-600 bg-clip-text text-transparent">
-                Nuevo pedido a domicilio
+              <h1 className="font-display mt-1 text-lg sm:text-3xl font-extrabold uppercase tracking-tight leading-tight bg-gradient-to-br from-foreground to-sky-600 bg-clip-text text-transparent">
+                NUEVO PEDIDO A DOMICILIO
               </h1>
             </div>
             <img
