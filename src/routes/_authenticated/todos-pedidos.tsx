@@ -91,7 +91,7 @@ function formatTimeShort(iso: string) {
 }
 
 function TodosPedidosPage() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, loading: authLoading, rolesLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
   const { session: cashSession } = useBranchCashSession(activeBranchId);
 
@@ -181,7 +181,7 @@ function TodosPedidosPage() {
     setSearch("");
   }
 
-  if (authLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
+  if (authLoading || rolesLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
   if (!isAdmin) return <Navigate to="/" />;
 
   return (
