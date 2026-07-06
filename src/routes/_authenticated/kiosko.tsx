@@ -63,15 +63,12 @@ function AutopedidoInbox() {
     <div className="space-y-4">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 items-center gap-2">
-          <Badge className="bg-purple-600 text-white shrink-0">
-            <Monitor className="h-3 w-3 mr-1" /> Autopedidos
-          </Badge>
-          <h1 className="font-display text-2xl font-extrabold tracking-tight truncate">Autopedidos</h1>
+          <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight truncate uppercase">Autopedidos</h1>
         </div>
         <img
           src={autopedidoCharacter}
           alt="Personaje Goloso con tablet de autopedidos"
-          className="hidden sm:block h-[72px] md:h-[90px] w-auto object-contain select-none shrink-0 mx-auto bg-transparent border-0 shadow-none"
+          className="block h-24 sm:h-32 md:h-40 w-auto object-contain select-none shrink-0 mx-auto bg-transparent border-0 shadow-none"
           draggable={false}
         />
         <div className="col-span-2 sm:col-auto sm:ml-auto">
