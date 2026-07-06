@@ -129,7 +129,7 @@ function GastosPage() {
     });
   }
   const KeyBtn = ({ label, onClick, variant = "num", wide = false, className = "" }:
-    { label: React.ReactNode; onClick: () => void; variant?: "num" | "op" | "act" | "primary"; wide?: boolean; className?: string }) => {
+    { label: ReactNode; onClick: () => void; variant?: "num" | "op" | "act" | "primary"; wide?: boolean; className?: string }) => {
     const styles = {
       num: "bg-white hover:bg-gray-50 text-foreground shadow-sm border border-gray-200",
       op:  "bg-[#EAF4F6] hover:bg-[#d9ecef] text-[#0F5A68] font-semibold shadow-sm",
