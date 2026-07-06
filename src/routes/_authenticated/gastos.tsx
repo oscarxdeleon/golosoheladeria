@@ -103,40 +103,123 @@ function GastosPage() {
     }
   }
 
+  // --- Calculadora ---
+  function safeEval(expr: string): number {
+    // Solo dígitos, . y operadores + - * /  %
+    const cleaned = expr.replace(/×/g, "*").replace(/÷/g, "/").replace(/−/g, "-");
+    if (!/^[0-9+\-*/.%\s]*$/.test(cleaned)) return NaN;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-implied-eval, no-new-func
+      const r = Function(`"use strict"; return (${cleaned || 0})`)();
+      return typeof r === "number" && Number.isFinite(r) ? r : NaN;
+    } catch { return NaN; }
+  }
+  const currentValue = (() => {
+    const v = safeEval(amount);
+    return Number.isFinite(v) ? Math.max(0, v) : 0;
+  })();
+  function pushKey(k: string) {
+    setAmount((prev) => {
+      if (k === "C") return "";
+      if (k === "back") return prev.slice(0, -1);
+      const ops = ["+", "-", "*", "/", "%"];
+      const last = prev.slice(-1);
+      if (ops.includes(k) && ops.includes(last)) return prev.slice(0, -1) + k;
+      if (k === "." && /\.\d*$/.test(prev.split(/[+\-*/%]/).pop() ?? "")) return prev;
+      return prev + k;
+    });
+  }
+  const KeyBtn = ({ label, onClick, variant = "num", wide = false, className = "" }:
+    { label: React.ReactNode; onClick: () => void; variant?: "num" | "op" | "act" | "primary"; wide?: boolean; className?: string }) => {
+    const styles = {
+      num: "bg-white hover:bg-gray-50 text-foreground shadow-sm border border-gray-200",
+      op:  "bg-[#EAF4F6] hover:bg-[#d9ecef] text-[#0F5A68] font-semibold shadow-sm",
+      act: "bg-[#EAF4F6] hover:bg-[#d9ecef] text-[#0F5A68] shadow-sm",
+      primary: "bg-[#0F5A68] hover:bg-[#0c4a56] text-white font-bold shadow-md",
+    }[variant];
+    return (
+      <button type="button" onClick={onClick}
+        className={`${styles} ${wide ? "row-span-2" : ""} rounded-2xl h-14 text-2xl font-semibold active:scale-95 transition ${className}`}>
+        {label}
+      </button>
+    );
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-5 max-w-2xl mx-auto pb-8">
       <div>
-        <h1 className="font-display text-3xl flex items-center gap-2"><Receipt className="h-7 w-7" />Nuevo gasto</h1>
-        <p className="text-sm text-muted-foreground">Registra egresos operativos (no afectan el stock).</p>
+        <h1 className="font-display text-2xl md:text-3xl flex items-center gap-2"><Receipt className="h-6 w-6" />Registrar gastos</h1>
+        <p className="text-sm text-muted-foreground">Sede activa: <b>{activeBranch?.name ?? "—"}</b></p>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Datos del gasto</CardTitle>
-          <CardDescription>Sede activa: <b>{activeBranch?.name ?? "—"}</b></CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-2">
-          <div>
-            <Label>Categoría</Label>
+      <Card className="rounded-3xl shadow-sm">
+        <CardContent className="p-4 md:p-5 space-y-4">
+          {/* Tipo de gasto */}
+          <div className="flex items-center justify-between gap-3">
+            <Label className="text-base font-medium shrink-0">Tipo de gasto</Label>
             <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-12 rounded-xl max-w-[60%]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-          <div>
-            <Label>Monto</Label>
-            <Input type="number" inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+
+          {/* Descripción */}
+          <div className="relative">
+            <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descripción (opcional)"
+              className="h-12 rounded-xl pl-10 text-base"
+            />
           </div>
-          <div className="md:col-span-2">
-            <Label>Descripción / concepto</Label>
-            <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Detalle del egreso" />
+
+          {/* Display valor */}
+          <div className="rounded-2xl bg-white px-4 py-4 text-right border border-gray-100">
+            <div className="text-2xl text-muted-foreground tabular-nums truncate min-h-[2rem]">
+              {amount || "0"}
+            </div>
+            <div className="text-4xl font-black tracking-tight tabular-nums text-foreground">
+              {formatMoney(currentValue)}
+            </div>
           </div>
-          <div>
-            <Label>Método de pago</Label>
+
+          {/* Teclado */}
+          <div className="grid grid-cols-4 gap-2.5">
+            <button type="button" onClick={() => pushKey("C")}
+              className="rounded-2xl h-14 bg-[#E85A6E] hover:bg-[#d94a5e] text-white text-2xl font-bold shadow-md active:scale-95 transition">C</button>
+            <KeyBtn variant="act" label={<Delete className="h-6 w-6 mx-auto" />} onClick={() => pushKey("back")} />
+            <KeyBtn variant="op" label="%" onClick={() => pushKey("%")} />
+            <KeyBtn variant="op" label="÷" onClick={() => pushKey("/")} />
+
+            <KeyBtn label="7" onClick={() => pushKey("7")} />
+            <KeyBtn label="8" onClick={() => pushKey("8")} />
+            <KeyBtn label="9" onClick={() => pushKey("9")} />
+            <KeyBtn variant="op" label="×" onClick={() => pushKey("*")} />
+
+            <KeyBtn label="4" onClick={() => pushKey("4")} />
+            <KeyBtn label="5" onClick={() => pushKey("5")} />
+            <KeyBtn label="6" onClick={() => pushKey("6")} />
+            <KeyBtn variant="op" label="−" onClick={() => pushKey("-")} />
+
+            <KeyBtn label="1" onClick={() => pushKey("1")} />
+            <KeyBtn label="2" onClick={() => pushKey("2")} />
+            <KeyBtn label="3" onClick={() => pushKey("3")} />
+            <button type="button" onClick={() => pushKey("+")}
+              className="row-span-2 rounded-2xl bg-[#0F5A68] hover:bg-[#0c4a56] text-white text-3xl font-bold shadow-md active:scale-95 transition">+</button>
+
+            <KeyBtn label="0" onClick={() => pushKey("0")} />
+            <KeyBtn label="00" onClick={() => pushKey("00")} />
+            <KeyBtn label="." onClick={() => pushKey(".")} />
+          </div>
+
+          {/* Método de pago */}
+          <div className="flex items-center justify-between gap-3 pt-1">
+            <Label className="text-base font-medium shrink-0">Método de pago</Label>
             <Select value={payment} onValueChange={setPayment}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectTrigger className="h-12 rounded-xl max-w-[60%]"><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="efectivo">Efectivo de caja</SelectItem>
                 <SelectItem value="nequi">Nequi</SelectItem>
@@ -145,19 +228,27 @@ function GastosPage() {
               </SelectContent>
             </Select>
           </div>
+
+          {/* Soporte */}
           <div>
-            <Label className="flex items-center gap-1"><Upload className="h-3.5 w-3.5" />Soporte (opcional)</Label>
-            <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+            <Label className="flex items-center gap-1 text-sm text-muted-foreground mb-1"><Upload className="h-3.5 w-3.5" />Soporte (opcional)</Label>
+            <Input type="file" accept="image/*,application/pdf" onChange={(e) => setFile(e.target.files?.[0] ?? null)} className="rounded-xl" />
             {file && <p className="text-xs text-muted-foreground mt-1">{file.name}</p>}
           </div>
         </CardContent>
       </Card>
 
-      <div className="flex items-center justify-end">
-        <Button size="lg" onClick={save} disabled={saving}>
-          {saving ? "Guardando…" : "Guardar gasto"}
+      <div className="grid grid-cols-2 gap-3">
+        <Button variant="secondary" size="lg" className="h-14 rounded-2xl text-base font-semibold"
+          onClick={() => { setAmount(""); setDescription(""); setFile(null); }}>
+          Limpiar
+        </Button>
+        <Button size="lg" onClick={() => { setAmount(String(currentValue)); save(); }} disabled={saving || currentValue <= 0}
+          className="h-14 rounded-2xl text-base font-bold bg-[#0F5A68] hover:bg-[#0c4a56]">
+          {saving ? "Guardando…" : "Agregar gasto"}
         </Button>
       </div>
+
 
       <Card>
         <CardHeader><CardTitle>Últimos gastos de esta sede</CardTitle></CardHeader>
