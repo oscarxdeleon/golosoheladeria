@@ -247,7 +247,7 @@ function DashboardPage() {
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 font-display text-lg">
-            <span className="grid place-items-center h-8 w-8 rounded-lg bg-rose-100 text-rose-600">
+            <span className="grid place-items-center h-8 w-8 rounded-lg bg-[#E88A9A]/20 text-[#D6303A]">
               <TrendingUp className="h-4 w-4" />
             </span>
             Evolución de Ventas
