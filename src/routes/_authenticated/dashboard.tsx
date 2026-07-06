@@ -71,10 +71,10 @@ function DashboardPage() {
     refetchInterval: 30_000,
     queryFn: async () => {
       const { start, end } = rangeFor(range);
-      const [salesRes, expensesRes, purchasesRes] = await Promise.all([
+      const [salesRes, expensesRes, purchasesRes, cashSessionsRes] = await Promise.all([
         supabase
           .from("sales")
-          .select("id,total,created_at,payment_method,source,status")
+          .select("id,total,created_at,payment_method,payment_details,source,status")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
@@ -85,6 +85,12 @@ function DashboardPage() {
           .from("purchases").select("total,created_at")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
+        supabase
+          .from("cash_sessions")
+          .select("opening_amount,cash_counted,nequi_counted,bancolombia_counted,cash_expected,nequi_expected,bancolombia_expected,cash_difference,nequi_difference,bancolombia_difference,closed_at,status")
+          .eq("branch_id", activeBranchId!)
+          .eq("status", "closed")
+          .gte("closed_at", start).lt("closed_at", end),
       ]);
 
       let sales = (salesRes.data ?? []).filter((s) => (s.status ?? "paid") !== "cancelled");
@@ -107,15 +113,39 @@ function DashboardPage() {
         .map(([name, v]) => ({ name, ...v }))
         .sort((a, b) => b.total - a.total).slice(0, 5);
 
-      // Payment breakdown
+      // Payment breakdown (considera pagos divididos en payment_details.splits[])
       const methodMap = new Map<string, number>();
       sales.forEach((s) => {
-        const key = (s.payment_method ?? "otro").trim() || "otro";
-        methodMap.set(key, (methodMap.get(key) ?? 0) + Number(s.total));
+        const pd: any = (s as any).payment_details;
+        const splits = pd && pd.split === true && Array.isArray(pd.splits) ? pd.splits : null;
+        if (splits && splits.length) {
+          splits.forEach((sp: any) => {
+            const key = (sp.method ?? "otro").toString().trim() || "otro";
+            methodMap.set(key, (methodMap.get(key) ?? 0) + Number(sp.amount ?? 0));
+          });
+        } else {
+          const key = (s.payment_method ?? "otro").trim() || "otro";
+          methodMap.set(key, (methodMap.get(key) ?? 0) + Number(s.total));
+        }
       });
       const methods = [...methodMap.entries()]
         .map(([name, total]) => ({ name, total }))
         .sort((a, b) => b.total - a.total);
+
+      // Efectivo real (arqueo de cajas cerradas en el período)
+      const cashSessions = cashSessionsRes.data ?? [];
+      const realCash = {
+        efectivo: cashSessions.reduce((a, c: any) => a + Number(c.cash_counted ?? 0), 0),
+        nequi: cashSessions.reduce((a, c: any) => a + Number(c.nequi_counted ?? 0), 0),
+        bancolombia: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_counted ?? 0), 0),
+        efectivoEsperado: cashSessions.reduce((a, c: any) => a + Number(c.cash_expected ?? 0), 0),
+        nequiEsperado: cashSessions.reduce((a, c: any) => a + Number(c.nequi_expected ?? 0), 0),
+        bancolombiaEsperado: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_expected ?? 0), 0),
+        diferenciaEfectivo: cashSessions.reduce((a, c: any) => a + Number(c.cash_difference ?? 0), 0),
+        diferenciaNequi: cashSessions.reduce((a, c: any) => a + Number(c.nequi_difference ?? 0), 0),
+        diferenciaBanco: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_difference ?? 0), 0),
+        cajasCerradas: cashSessions.length,
+      };
 
       // Hourly evolution (0..23)
       const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: h, total: 0 }));
@@ -152,7 +182,7 @@ function DashboardPage() {
       const utilidad = total - gastos;
       const qtyVendida = (items ?? []).reduce((a, i) => a + Number(i.qty ?? 0), 0);
 
-      return { total, txs, avg, gastos, utilidad, top, methods, hourly, bestDays, valleys, qtyVendida };
+      return { total, txs, avg, gastos, utilidad, top, methods, hourly, bestDays, valleys, qtyVendida, realCash };
     },
   });
 
@@ -330,25 +360,89 @@ function DashboardPage() {
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
           <CardTitle className="font-display text-lg">Métodos de Pago</CardTitle>
+          <p className="text-xs text-muted-foreground">Ingresos por medio de pago · incluye pagos divididos</p>
         </CardHeader>
         <CardContent className="space-y-2">
           {(data?.methods ?? []).length === 0 && (
             <p className="text-sm text-muted-foreground">Sin pagos registrados.</p>
           )}
-          {(data?.methods ?? []).map((m) => (
-            <div key={m.name} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`h-2.5 w-2.5 rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} />
-                <span className="uppercase text-sm">{m.name}</span>
-              </div>
-              <span className="font-semibold">{formatMoney(m.total)}</span>
-            </div>
-          ))}
-          <div className="pt-3 border-t text-[10px] tracking-widest uppercase text-muted-foreground text-center">
-            Distribución de ingresos
+          {(() => {
+            const totalMethods = (data?.methods ?? []).reduce((a, m) => a + m.total, 0);
+            return (data?.methods ?? []).map((m) => {
+              const pct = totalMethods > 0 ? (m.total / totalMethods) * 100 : 0;
+              return (
+                <div key={m.name} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className={`h-2.5 w-2.5 rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} />
+                      <span className="uppercase text-sm">{m.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-sm">{formatMoney(m.total)}</div>
+                      <div className="text-[10px] text-muted-foreground">{pct.toFixed(1)}%</div>
+                    </div>
+                  </div>
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <div className={`h-full rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            });
+          })()}
+          <div className="pt-3 border-t flex items-center justify-between text-xs">
+            <span className="tracking-widest uppercase text-muted-foreground">Total ingresos</span>
+            <span className="font-bold text-foreground">{formatMoney((data?.methods ?? []).reduce((a, m) => a + m.total, 0))}</span>
           </div>
         </CardContent>
       </Card>
+
+      {/* Efectivo Real (arqueo de caja) */}
+      <Card className="rounded-2xl shadow-sm">
+        <CardHeader className="pb-1">
+          <CardTitle className="font-display text-lg">Efectivo Real · Arqueo</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {data?.realCash.cajasCerradas
+              ? `${data.realCash.cajasCerradas} caja(s) cerrada(s) en el período`
+              : "Sin cajas cerradas en el período"}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {data?.realCash.cajasCerradas === 0 ? (
+            <p className="text-sm text-muted-foreground">Cierra una caja para ver el conteo real.</p>
+          ) : (
+            <>
+              <RealCashRow
+                label="Efectivo"
+                dotClass="bg-[#A3D93A]"
+                counted={data?.realCash.efectivo ?? 0}
+                expected={data?.realCash.efectivoEsperado ?? 0}
+                diff={data?.realCash.diferenciaEfectivo ?? 0}
+              />
+              <RealCashRow
+                label="Nequi"
+                dotClass="bg-[#3AB6C8]"
+                counted={data?.realCash.nequi ?? 0}
+                expected={data?.realCash.nequiEsperado ?? 0}
+                diff={data?.realCash.diferenciaNequi ?? 0}
+              />
+              <RealCashRow
+                label="Bancolombia"
+                dotClass="bg-[#F2C42B]"
+                counted={data?.realCash.bancolombia ?? 0}
+                expected={data?.realCash.bancolombiaEsperado ?? 0}
+                diff={data?.realCash.diferenciaBanco ?? 0}
+              />
+              <div className="pt-3 border-t flex items-center justify-between text-xs">
+                <span className="tracking-widest uppercase text-muted-foreground">Efectivo real total</span>
+                <span className="font-bold text-foreground">
+                  {formatMoney((data?.realCash.efectivo ?? 0) + (data?.realCash.nequi ?? 0) + (data?.realCash.bancolombia ?? 0))}
+                </span>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
 
       {/* Mejores días */}
       <Card className="rounded-2xl shadow-sm">
@@ -426,6 +520,38 @@ function FilterField({
         {icon} {label}
       </div>
       {children}
+    </div>
+  );
+}
+
+function RealCashRow({
+  label, dotClass, counted, expected, diff,
+}: { label: string; dotClass: string; counted: number; expected: number; diff: number }) {
+  const ok = Math.abs(diff) < 1;
+  const positive = diff > 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+          <span className="uppercase text-sm">{label}</span>
+        </div>
+        <div className="text-right">
+          <div className="font-semibold text-sm">{formatMoney(counted)}</div>
+          <div className="text-[10px] text-muted-foreground">Esperado: {formatMoney(expected)}</div>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <span
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+            ok ? "bg-muted text-muted-foreground"
+              : positive ? "bg-[#A3D93A]/25 text-[#5A8A00]"
+              : "bg-[#E88A9A]/25 text-[#D6303A]"
+          }`}
+        >
+          {ok ? "Cuadre exacto" : `${positive ? "Sobrante" : "Faltante"} ${formatMoney(Math.abs(diff))}`}
+        </span>
+      </div>
     </div>
   );
 }
