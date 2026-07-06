@@ -17,10 +17,14 @@ export const Route = createFileRoute("/_authenticated/estadisticas")({
   component: EstadisticasPage,
 });
 
+function toLocalISO(d: Date) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
 function todayISO() {
-  const d = new Date();
-  d.setHours(0, 0, 0, 0);
-  return d.toISOString().slice(0, 10);
+  return toLocalISO(new Date());
 }
 
 type CategoryRow = { key: string; name: string; qty: number; amount: number };
@@ -186,19 +190,26 @@ function EstadisticasPage() {
     [modRows],
   );
 
-  const setToday = () => { const d = todayISO(); setFrom(d); setTo(d); };
+  const setToday = () => { const d = todayISO(); setTo(d); setFrom(d); };
   const setYesterday = () => {
     const d = new Date(); d.setDate(d.getDate() - 1);
-    const iso = d.toISOString().slice(0, 10); setFrom(iso); setTo(iso);
+    const iso = toLocalISO(d); setTo(iso); setFrom(iso);
   };
   const setLast7 = () => {
-    const end = new Date(); const start = new Date(); start.setDate(end.getDate() - 6);
-    setFrom(start.toISOString().slice(0, 10)); setTo(end.toISOString().slice(0, 10));
+    const end = new Date();
+    const start = new Date(); start.setDate(end.getDate() - 6);
+    const endIso = toLocalISO(end);
+    const startIso = toLocalISO(start);
+    setTo(endIso); setFrom(startIso);
   };
   const setThisMonth = () => {
-    const end = new Date(); const start = new Date(end.getFullYear(), end.getMonth(), 1);
-    setFrom(start.toISOString().slice(0, 10)); setTo(end.toISOString().slice(0, 10));
+    const end = new Date();
+    const start = new Date(end.getFullYear(), end.getMonth(), 1);
+    const endIso = toLocalISO(end);
+    const startIso = toLocalISO(start);
+    setTo(endIso); setFrom(startIso);
   };
+
 
   return (
     <div className="space-y-6">
