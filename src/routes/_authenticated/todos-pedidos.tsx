@@ -91,7 +91,7 @@ function formatTimeShort(iso: string) {
 }
 
 function TodosPedidosPage() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, loading: authLoading, rolesLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
   const { session: cashSession } = useBranchCashSession(activeBranchId);
 
