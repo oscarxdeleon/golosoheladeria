@@ -52,8 +52,8 @@ const main = [
   { to: "/pos", label: "Punto de venta", icon: ShoppingCart, key: "pos" },
   { to: "/caja", label: "Caja", icon: Banknote, key: "caja" },
   { to: "/ventas", label: "Ventas", icon: Receipt, key: "ventas" },
-  { to: "/historial", label: "Historial de pedidos", icon: ReceiptIcon, key: "ventas" },
-  { to: "/estadisticas", label: "Estadísticas", icon: LayoutDashboard, key: "ventas" },
+  { to: "/historial", label: "Historial de pedidos", icon: ReceiptIcon, key: "__admin_only__" },
+  { to: "/estadisticas", label: "Estadísticas", icon: LayoutDashboard, key: "__admin_only__" },
 ];
 
 const orden = [
