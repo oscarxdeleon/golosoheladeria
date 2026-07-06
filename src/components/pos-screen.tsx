@@ -2190,9 +2190,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 No hay métodos de pago configurados.
               </div>
             )}
+            <button
+              type="button"
+              disabled={paying || (total <= 0 && !pendingSaleId && cart.length === 0)}
+              onClick={() => {
+                setPayDialogOpen(false);
+                setSplitDialogOpen(true);
+              }}
+              className="mt-1 flex h-14 w-full items-center justify-center gap-2 rounded-full border-2 border-dashed border-primary/50 bg-primary/5 px-4 text-base font-bold uppercase tracking-wide text-primary transition-all hover:-translate-y-0.5 hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Split className="h-5 w-5" /> Dividir cuenta
+            </button>
           </div>
         </DialogContent>
       </Dialog>
+
 
     </div>
   );
