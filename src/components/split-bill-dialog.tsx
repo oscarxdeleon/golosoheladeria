@@ -62,18 +62,20 @@ const METHOD_STYLE: Record<SplitMethod, { bg: string; color: string; shadow: str
 export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onConfirm }: Props) {
   const [tab, setTab] = useState<"cantidad" | "producto">("cantidad");
 
-  // --- POR CANTIDAD ---
-  const [parts, setParts] = useState(2);
-  const [amounts, setAmounts] = useState<number[]>([]);
-  const [methods, setMethods] = useState<SplitMethod[]>([]);
+  // --- POR CANTIDAD (flujo secuencial: aplicar pago → saldo automático) ---
+  interface CashPayment { method: SplitMethod; amount: number }
+  const [cashPayments, setCashPayments] = useState<CashPayment[]>([]);
+  const [draftAmount, setDraftAmount] = useState<number>(0);
+  const [draftMethod, setDraftMethod] = useState<SplitMethod>("Efectivo");
+  const [showDraft, setShowDraft] = useState<boolean>(true);
 
   useEffect(() => {
     if (!open) return;
     setTab("cantidad");
-    setParts(2);
-    const base = Math.floor(total / 2);
-    setAmounts([base, total - base]);
-    setMethods(["Efectivo", "Efectivo"]);
+    setCashPayments([]);
+    setDraftAmount(total);
+    setDraftMethod("Efectivo");
+    setShowDraft(true);
     setPicked(
       lines.map((l) => ({ key: l.key, name: l.name, unit_price: l.unit_price, qty: Math.min(1, l.qty), max: l.qty })),
     );
@@ -82,20 +84,27 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
     setCommittedBuckets([]);
   }, [open, total, lines]);
 
-  useEffect(() => {
-    setAmounts((prev) => {
-      const next = Array.from({ length: parts }, (_, i) => prev[i] ?? 0);
-      const base = Math.floor(total / parts);
-      const rem = total - base * parts;
-      for (let i = 0; i < parts; i++) next[i] = base + (i === parts - 1 ? rem : 0);
-      return next;
-    });
-    setMethods((prev) => Array.from({ length: parts }, (_, i) => prev[i] ?? "Efectivo"));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [parts, total]);
+  const cantidadPaid = cashPayments.reduce((s, p) => s + p.amount, 0);
+  const cantidadPending = Math.max(0, total - cantidadPaid);
 
-  const cantidadTotal = amounts.reduce((a, b) => a + Number(b || 0), 0);
-  const cantidadPending = total - cantidadTotal;
+  function applyDraftPayment() {
+    const n = round0(draftAmount);
+    if (n <= 0) return toast.error("Ingresa un valor a pagar");
+    if (n > cantidadPending) return toast.error(`El pago no puede superar ${formatMoney(cantidadPending)}`);
+    const next = [...cashPayments, { method: draftMethod, amount: n }];
+    setCashPayments(next);
+    const newPending = total - next.reduce((s, p) => s + p.amount, 0);
+    setDraftAmount(newPending);
+    setShowDraft(newPending === 0 ? false : false); // ocultar hasta pulsar "Agregar pago"
+  }
+
+  function removeCashPayment(idx: number) {
+    const next = cashPayments.filter((_, i) => i !== idx);
+    setCashPayments(next);
+    const newPending = total - next.reduce((s, p) => s + p.amount, 0);
+    setDraftAmount(newPending);
+  }
+
 
   // --- POR PRODUCTO ---
   interface PickRow { key: string; name: string; unit_price: number; qty: number; max: number }
@@ -141,16 +150,9 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
   async function handleConfirm() {
     if (tab === "cantidad") {
-      const fixed = [...amounts];
-      const sumOthers = fixed.slice(0, -1).reduce((s, a) => s + Number(a || 0), 0);
-      fixed[fixed.length - 1] = Math.max(0, total - sumOthers);
-      const finalSum = fixed.reduce((s, a) => s + Number(a || 0), 0);
-      if (finalSum !== total) return toast.error(`Pendiente ${formatMoney(total - finalSum)}. Ajusta los valores.`);
-      const splits: SplitPart[] = fixed
-        .map((a, i) => ({ method: methods[i], amount: round0(a) }))
-        .filter((s) => s.amount > 0);
-      if (splits.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
-      await onConfirm(splits);
+      if (cantidadPending !== 0) return toast.error(`Aún faltan ${formatMoney(cantidadPending)} por cobrar`);
+      if (cashPayments.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
+      await onConfirm(cashPayments.map((p) => ({ method: p.method, amount: p.amount })));
     } else {
       if (staged.length > 0) return toast.error("Aún tienes productos sin cobrar. Presiona COBRAR para asignarles un método de pago.");
       const all = committedBuckets;
@@ -232,91 +234,118 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
             `}</style>
 
             <TabsContent value="cantidad" className="space-y-3 pt-3">
-              {/* SELECTOR DE PARTES compacto */}
-              <div className="rounded-xl p-2.5 flex items-center justify-between gap-3" style={{ background: "rgba(79,70,229,0.08)", border: "1px dashed rgba(79,70,229,0.35)" }}>
-                <div className="sunset-body text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#94a3b8" }}>Personas</div>
-                <div className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setParts((p) => Math.max(2, p - 1))}
-                    disabled={parts <= 2}
-                    className="h-8 w-8 rounded-full flex items-center justify-center disabled:opacity-40"
-                    style={{ background: "#1e1e5a", border: "1.5px solid rgba(79,70,229,0.4)", color: "#4f46e5" }}
-                  >
-                    <Minus className="h-4 w-4" />
-                  </button>
-                  <div className="sunset-display text-3xl leading-none tabular-nums w-9 text-center" style={{ color: "#4f46e5" }}>{parts}</div>
-                  <button
-                    type="button"
-                    onClick={() => setParts((p) => Math.min(10, p + 1))}
-                    disabled={parts >= 10}
-                    className="h-8 w-8 rounded-full flex items-center justify-center text-white disabled:opacity-40"
-                    style={{ background: "var(--sunset-gradient-warm)", boxShadow: "0 4px 10px -3px rgba(79,70,229,0.55)" }}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </button>
+              {/* Resumen: Total / Pagado / Restante */}
+              <div className="rounded-xl p-2.5 grid grid-cols-3 gap-2 text-center" style={{ background: "linear-gradient(135deg, rgba(79,70,229,0.08), rgba(129,140,248,0.08))", border: "1px solid rgba(79,70,229,0.18)" }}>
+                <div>
+                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#94a3b8" }}>Total</div>
+                  <div className="sunset-display text-base leading-none mt-0.5" style={{ color: "#e8ecf1" }}>{formatMoney(total)}</div>
+                </div>
+                <div>
+                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#94a3b8" }}>Pagado</div>
+                  <div className="sunset-display text-base leading-none mt-0.5" style={{ color: "#16a34a" }}>{formatMoney(cantidadPaid)}</div>
+                </div>
+                <div>
+                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#94a3b8" }}>Restante</div>
+                  <div className="sunset-display text-base leading-none mt-0.5" style={{ color: cantidadPending === 0 ? "#16a34a" : "#4f46e5" }}>{formatMoney(cantidadPending)}</div>
                 </div>
               </div>
 
-              {/* PAGOS INDIVIDUALES compactos */}
-              <div className="space-y-2">
-                {amounts.map((amt, i) => {
-                  const st = METHOD_STYLE[methods[i] ?? "Efectivo"];
-                  return (
-                    <div
-                      key={i}
-                      className="rounded-xl p-2.5 space-y-2"
-                      style={{ border: `1.5px solid ${st.ring}44`, background: st.soft }}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="sunset-display flex h-7 w-7 items-center justify-center rounded-full text-sm"
-                            style={{ background: st.bg, color: st.color, boxShadow: st.shadow }}
-                          >
-                            {i + 1}
-                          </div>
-                          <span className="sunset-body text-[11px] font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Pago {i + 1}</span>
+              {/* Pagos aplicados */}
+              {cashPayments.length > 0 && (
+                <div className="space-y-1.5">
+                  <div className="sunset-display text-[11px] uppercase tracking-[0.18em]" style={{ color: "#94a3b8" }}>Pagos aplicados</div>
+                  {cashPayments.map((p, i) => {
+                    const s = METHOD_STYLE[p.method];
+                    return (
+                      <div key={i} className="flex items-center gap-2 rounded-lg p-2" style={{ border: `1.5px solid ${s.ring}55`, background: s.soft }}>
+                        <div
+                          className="sunset-display flex h-7 w-7 items-center justify-center rounded-full text-sm"
+                          style={{ background: s.bg, color: s.color, boxShadow: s.shadow }}
+                        >
+                          {i + 1}
                         </div>
-                        <div className="sunset-display text-lg tabular-nums" style={{ color: st.ring }}>
-                          {formatMoney(amt || 0)}
-                        </div>
+                        <div className="sunset-display flex-1 text-[13px] tracking-wider" style={{ color: s.ring }}>{p.method}</div>
+                        <div className="sunset-display tabular-nums text-base" style={{ color: s.ring }}>{formatMoney(p.amount)}</div>
+                        <button
+                          className="h-6 w-6 rounded-full flex items-center justify-center"
+                          onClick={() => removeCashPayment(i)}
+                          aria-label="Quitar pago"
+                        >
+                          <X className="h-3.5 w-3.5" style={{ color: "#818cf8" }} />
+                        </button>
                       </div>
+                    );
+                  })}
+                </div>
+              )}
 
-                      <MethodPicker
-                        value={methods[i] ?? "Efectivo"}
-                        onChange={(v) => setMethods((prev) => prev.map((m, idx) => idx === i ? v : m))}
-                      />
+              {/* Formulario de nuevo pago */}
+              {cantidadPending > 0 && showDraft && (
+                <div
+                  className="rounded-xl p-2.5 space-y-2"
+                  style={{ border: `1.5px solid ${METHOD_STYLE[draftMethod].ring}44`, background: METHOD_STYLE[draftMethod].soft }}
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="sunset-body text-[11px] font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>
+                      Nuevo pago
+                    </span>
+                    <span className="sunset-body text-[11px]" style={{ color: "#94a3b8" }}>
+                      Restante: <span className="sunset-display" style={{ color: METHOD_STYLE[draftMethod].ring }}>{formatMoney(cantidadPending)}</span>
+                    </span>
+                  </div>
 
-                      <div className="relative">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 sunset-display text-lg" style={{ color: "#94a3b8" }}>$</span>
-                        <Input
-                          inputMode="numeric"
-                          className="pl-8 h-10 text-right sunset-display text-xl tabular-nums rounded-lg bg-[#1e1e5a] shadow-inner"
-                          style={{ border: `1.5px solid ${st.ring}55` }}
-                          value={amt === 0 ? "" : Number(amt).toLocaleString("es-CO")}
-                          onChange={(e) => {
-                            const digits = e.target.value.replace(/\D/g, "");
-                            const n = digits === "" ? 0 : Math.min(total, Number(digits));
-                            setAmounts((prev) => {
-                              const next = prev.map((a, idx) => (idx === i ? n : a));
-                              const adjIdx = next.length - 1 === i ? Math.max(0, next.length - 2) : next.length - 1;
-                              if (next.length >= 2) {
-                                const rest = next.map((v, idx) => (idx === i ? n : idx === adjIdx ? 0 : Number(v || 0)));
-                                const usedByOthers = rest.reduce((s, v, idx) => (idx === i || idx === adjIdx ? s : s + Number(v || 0)), 0);
-                                rest[adjIdx] = Math.max(0, total - n - usedByOthers);
-                                return rest;
-                              }
-                              return next;
-                            });
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                  <MethodPicker value={draftMethod} onChange={setDraftMethod} />
+
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 sunset-display text-lg" style={{ color: "#94a3b8" }}>$</span>
+                    <Input
+                      inputMode="numeric"
+                      autoFocus
+                      className="pl-8 h-11 text-right sunset-display text-xl tabular-nums rounded-lg bg-[#1e1e5a] shadow-inner"
+                      style={{ border: `1.5px solid ${METHOD_STYLE[draftMethod].ring}55` }}
+                      value={draftAmount === 0 ? "" : Number(draftAmount).toLocaleString("es-CO")}
+                      onChange={(e) => {
+                        const digits = e.target.value.replace(/\D/g, "");
+                        const n = digits === "" ? 0 : Math.min(cantidadPending, Number(digits));
+                        setDraftAmount(n);
+                      }}
+                      placeholder={formatMoney(cantidadPending).replace(/\D/g, "")}
+                    />
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={applyDraftPayment}
+                    disabled={draftAmount <= 0 || draftAmount > cantidadPending}
+                    className="sunset-display w-full h-10 rounded-full tracking-wider text-white text-[13px] flex items-center justify-center gap-2 disabled:opacity-40"
+                    style={{ background: "var(--sunset-gradient-warm)", boxShadow: "0 6px 14px -5px rgba(79,70,229,0.55)" }}
+                  >
+                    <Check className="h-4 w-4" />
+                    APLICAR PAGO {formatMoney(draftAmount || 0)}
+                  </button>
+                </div>
+              )}
+
+              {/* Botón "Agregar pago" cuando el formulario está oculto y aún queda saldo */}
+              {cantidadPending > 0 && !showDraft && (
+                <button
+                  type="button"
+                  onClick={() => { setDraftAmount(cantidadPending); setShowDraft(true); }}
+                  className="sunset-display w-full h-11 rounded-full tracking-wider text-white text-[13px] flex items-center justify-center gap-2"
+                  style={{ background: "var(--sunset-gradient-cool)", boxShadow: "0 6px 14px -5px rgba(129,140,248,0.55)" }}
+                >
+                  <Plus className="h-4 w-4" />
+                  AGREGAR PAGO · Restan {formatMoney(cantidadPending)}
+                </button>
+              )}
+
+              {cantidadPending === 0 && cashPayments.length > 0 && (
+                <div className="rounded-lg p-2.5 text-center sunset-display text-[13px] tracking-wider" style={{ background: "rgba(22,163,74,0.12)", border: "1.5px solid rgba(22,163,74,0.4)", color: "#16a34a" }}>
+                  ✓ SALDO CUBIERTO — LISTO PARA COBRAR
+                </div>
+              )}
             </TabsContent>
+
 
             <TabsContent value="producto" className="space-y-3 pt-3">
               {/* Resumen compacto */}
