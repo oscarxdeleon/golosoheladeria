@@ -197,50 +197,15 @@ function DashboardPage() {
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto pb-6">
-      {/* Hero — estilo tarjeta bienvenida Goloso */}
-      <div
-        className="relative overflow-hidden rounded-3xl p-[2px] shadow-xl"
-        style={{
-          background:
-            "linear-gradient(135deg, #3AB6C8 0%, #A3D93A 50%, #3AB6C8 100%)",
-        }}
-      >
-        <div
-          className="relative overflow-hidden rounded-[calc(1.5rem-2px)] px-4 py-5 md:px-8 md:py-7"
-          style={{
-            background:
-              "radial-gradient(circle at top left, #0F3A5C 0%, #0A2540 60%, #061B30 100%)",
-          }}
-        >
-          <div className="pointer-events-none absolute inset-y-0 left-0 w-1/2"
-               style={{ background: "radial-gradient(ellipse at left, rgba(58,182,200,0.18), transparent 70%)" }} />
-          <div className="relative z-10 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 sm:gap-4">
-            <div className="min-w-0 text-center">
-              <p className="font-display text-xs sm:text-sm md:text-lg font-extrabold uppercase tracking-widest text-[#A3D93A] drop-shadow">
-                ¡Bienvenido!
-              </p>
-              <h1 className="font-display font-black leading-[0.95] mt-1 break-words text-white text-[1.75rem] sm:text-4xl md:text-5xl tracking-tight drop-shadow-[0_2px_0_rgba(0,0,0,0.35)]">
-                {(activeBranch?.name ?? "GOLOSO").toUpperCase()}
-              </h1>
-              <div className="my-2.5 mx-auto h-[2px] w-11/12 rounded-full bg-gradient-to-r from-transparent via-[#3AB6C8] to-transparent" />
-              <p className="text-white text-xs sm:text-sm md:text-base font-semibold leading-snug">
-                Resumen General y Financiero<br /> en Tiempo Real
-              </p>
-              <div className="my-2.5 mx-auto h-[2px] w-11/12 rounded-full bg-gradient-to-r from-transparent via-[#3AB6C8] to-transparent" />
-              <div className="inline-flex items-center gap-2 rounded-full border-2 border-[#A3D93A]/70 bg-[#0A2540]/60 px-3 py-1 sm:px-4 sm:py-1.5">
-                <span className="h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full bg-[#A3D93A] animate-pulse shadow-[0_0_8px_#A3D93A]" />
-                <span className="text-white text-xs sm:text-sm md:text-base font-semibold">Sistema Activo</span>
-              </div>
-            </div>
-            <img
-              src={golosoMascot.url}
-              alt="Personaje Goloso"
-              className="h-28 sm:h-36 md:h-48 w-auto shrink-0 object-contain drop-shadow-[0_8px_14px_rgba(0,0,0,0.45)]"
-              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = 'none'; }}
-            />
-          </div>
-        </div>
+      {/* Hero — banner bienvenida (idéntico a diseño de referencia) */}
+      <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl shadow-xl">
+        <img
+          src={welcomeBanner.url}
+          alt={`Bienvenido ${activeBranch?.name ?? "Goloso"}`}
+          className="block w-full h-auto"
+        />
       </div>
+
 
 
 
