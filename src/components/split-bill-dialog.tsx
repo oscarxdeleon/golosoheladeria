@@ -150,16 +150,9 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
   async function handleConfirm() {
     if (tab === "cantidad") {
-      const fixed = [...amounts];
-      const sumOthers = fixed.slice(0, -1).reduce((s, a) => s + Number(a || 0), 0);
-      fixed[fixed.length - 1] = Math.max(0, total - sumOthers);
-      const finalSum = fixed.reduce((s, a) => s + Number(a || 0), 0);
-      if (finalSum !== total) return toast.error(`Pendiente ${formatMoney(total - finalSum)}. Ajusta los valores.`);
-      const splits: SplitPart[] = fixed
-        .map((a, i) => ({ method: methods[i], amount: round0(a) }))
-        .filter((s) => s.amount > 0);
-      if (splits.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
-      await onConfirm(splits);
+      if (cantidadPending !== 0) return toast.error(`Aún faltan ${formatMoney(cantidadPending)} por cobrar`);
+      if (cashPayments.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
+      await onConfirm(cashPayments.map((p) => ({ method: p.method, amount: p.amount })));
     } else {
       if (staged.length > 0) return toast.error("Aún tienes productos sin cobrar. Presiona COBRAR para asignarles un método de pago.");
       const all = committedBuckets;
