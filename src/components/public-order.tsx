@@ -38,7 +38,7 @@ function toAbsolutePrintUrl(url?: string | null): string | undefined {
 type KioskService = "llevar" | "comer_aqui";
 type OnlineService = "domicilio" | "recoger";
 
-interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
+interface Category { id: string; name: string; sort_order: number; online_sort_order?: number; kiosk_sort_order?: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; modifier_group_ids?: string[] | null; }
 interface CartModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: CartModifier[]; }
