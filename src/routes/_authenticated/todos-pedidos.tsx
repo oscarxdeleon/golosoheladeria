@@ -96,7 +96,10 @@ function TodosPedidosPage() {
   const { session: cashSession } = useBranchCashSession(activeBranchId);
 
   const [turnoActual, setTurnoActual] = useState(true);
-  const [soloHoy, setSoloHoy] = useState(false);
+  const [dateFilter, setDateFilter] = useState<"todos" | "hoy" | "ayer" | "personalizada">("hoy");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [customFrom, setCustomFrom] = useState<string>(todayIso);
+  const [customTo, setCustomTo] = useState<string>(todayIso);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
