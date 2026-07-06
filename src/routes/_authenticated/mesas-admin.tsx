@@ -45,6 +45,7 @@ function MesasAdminPage() {
   const { activeBranchId, activeBranch, branches } = useBranch();
   const qc = useQueryClient();
   const [selectedRoomId, setSelectedRoomId] = useState<string | "all">("all");
+  const [exportingPdf, setExportingPdf] = useState(false);
 
   const { data: rooms = [] } = useQuery({
     queryKey: ["rooms", activeBranchId],
