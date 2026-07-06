@@ -54,9 +54,10 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
     setMethods(["Efectivo", "Efectivo"]);
     // productos
     setPicked(
-      lines.map((l) => ({ key: l.key, name: l.name, unit_price: l.unit_price, qty: 0, max: l.qty })),
+      lines.map((l) => ({ key: l.key, name: l.name, unit_price: l.unit_price, qty: Math.min(1, l.qty), max: l.qty })),
     );
-    setBucketMethod("Efectivo");
+    setStaged([]);
+    setMethodSheetOpen(false);
     setCommittedBuckets([]);
   }, [open, total, lines]);
 
@@ -78,30 +79,44 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
   // --- POR PRODUCTO ---
   interface PickRow { key: string; name: string; unit_price: number; qty: number; max: number }
-  const [picked, setPicked] = useState<PickRow[]>([]);
-  const [bucketMethod, setBucketMethod] = useState<SplitMethod>("Efectivo");
+  interface StagedItem { key: string; name: string; unit_price: number; qty: number }
   interface Bucket { method: SplitMethod; amount: number; items: { name: string; qty: number; unit_price: number }[] }
+  const [picked, setPicked] = useState<PickRow[]>([]);
+  const [staged, setStaged] = useState<StagedItem[]>([]);
+  const [methodSheetOpen, setMethodSheetOpen] = useState(false);
   const [committedBuckets, setCommittedBuckets] = useState<Bucket[]>([]);
 
-  const currentBucketTotal = useMemo(
-    () => picked.reduce((s, r) => s + r.unit_price * r.qty, 0),
-    [picked],
-  );
+  const stagedTotal = useMemo(() => staged.reduce((s, r) => s + r.unit_price * r.qty, 0), [staged]);
   const alreadyCharged = useMemo(() => committedBuckets.reduce((s, b) => s + b.amount, 0), [committedBuckets]);
-  const productoPending = total - alreadyCharged - currentBucketTotal;
+  const productoPending = total - alreadyCharged;
 
-  function commitBucket() {
-    if (currentBucketTotal <= 0) return toast.error("Selecciona productos primero");
+  function addRowToStaged(rowIdx: number) {
+    const row = picked[rowIdx];
+    if (!row || row.qty <= 0 || row.max <= 0) return toast.error("Selecciona una cantidad");
+    const q = Math.min(row.qty, row.max);
+    setStaged((prev) => {
+      const existing = prev.find((s) => s.key === row.key);
+      if (existing) return prev.map((s) => s.key === row.key ? { ...s, qty: s.qty + q } : s);
+      return [...prev, { key: row.key, name: row.name, unit_price: row.unit_price, qty: q }];
+    });
+    setPicked((prev) => prev.map((r, i) => i === rowIdx ? { ...r, max: r.max - q, qty: Math.min(1, r.max - q) } : r));
+  }
+
+  function removeStaged(idx: number) {
+    const item = staged[idx];
+    if (!item) return;
+    setStaged((prev) => prev.filter((_, i) => i !== idx));
+    setPicked((prev) => prev.map((r) => r.key === item.key ? { ...r, max: r.max + item.qty, qty: r.qty === 0 ? 1 : r.qty } : r));
+  }
+
+  function commitStagedAs(method: SplitMethod) {
+    if (stagedTotal <= 0) return;
     setCommittedBuckets((prev) => [
       ...prev,
-      {
-        method: bucketMethod,
-        amount: round0(currentBucketTotal),
-        items: picked.filter((p) => p.qty > 0).map(({ name, qty, unit_price }) => ({ name, qty, unit_price })),
-      },
+      { method, amount: round0(stagedTotal), items: staged.map(({ name, qty, unit_price }) => ({ name, qty, unit_price })) },
     ]);
-    // reduce max de cada línea por lo que ya se cobró
-    setPicked((prev) => prev.map((r) => ({ ...r, max: r.max - r.qty, qty: 0 })));
+    setStaged([]);
+    setMethodSheetOpen(false);
   }
 
   async function handleConfirm() {
@@ -118,17 +133,8 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
       if (splits.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
       await onConfirm(splits);
     } else {
-      let all = committedBuckets;
-      if (currentBucketTotal > 0) {
-        all = [
-          ...committedBuckets,
-          {
-            method: bucketMethod,
-            amount: round0(currentBucketTotal),
-            items: picked.filter((p) => p.qty > 0).map(({ name, qty, unit_price }) => ({ name, qty, unit_price })),
-          },
-        ];
-      }
+      if (staged.length > 0) return toast.error("Aún tienes productos sin cobrar. Presiona COBRAR para asignarles un método de pago.");
+      const all = committedBuckets;
       const sum = all.reduce((s, b) => s + b.amount, 0);
       if (sum !== total) return toast.error(`Aún faltan ${formatMoney(total - sum)} por cobrar`);
       if (all.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
@@ -336,42 +342,100 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
                     </div>
                   )}
                   {picked.map((row, idx) => row.max > 0 && (
-                    <div key={row.key} className="flex items-center gap-2 rounded-xl border-2 p-2.5 bg-background hover:border-primary/40 transition-colors">
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold truncate">{row.name}</div>
-                        <div className="text-[11px] text-muted-foreground">{formatMoney(row.unit_price)} · {row.qty} de {row.max}</div>
+                    <div key={row.key} className="rounded-xl border-2 p-2.5 bg-background hover:border-primary/40 transition-colors space-y-2">
+                      <div className="min-w-0">
+                        <div className="text-sm font-semibold">{row.name} <span className="text-muted-foreground font-normal">({formatMoney(row.unit_price)})</span></div>
+                        <div className="text-[11px] text-muted-foreground">0 de {row.max}</div>
                       </div>
-                      <Button size="icon" variant="outline" className="h-8 w-8 rounded-full" onClick={() => {
-                        setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.max(0, r.qty - 1) } : r));
-                      }}><Minus className="h-3.5 w-3.5" /></Button>
-                      <div className="w-7 text-center font-display font-black text-primary">{row.qty}</div>
-                      <Button size="icon" className="h-8 w-8 rounded-full" onClick={() => {
-                        setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.min(r.max, r.qty + 1) } : r));
-                      }}><Plus className="h-3.5 w-3.5" /></Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="icon" variant="outline" className="h-9 w-9 rounded-full" onClick={() => {
+                          setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.max(1, r.qty - 1) } : r));
+                        }}><Minus className="h-4 w-4" /></Button>
+                        <div className="w-10 text-center font-display font-black text-primary text-lg">{row.qty}</div>
+                        <Button size="icon" className="h-9 w-9 rounded-full" onClick={() => {
+                          setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.min(r.max, r.qty + 1) } : r));
+                        }}><Plus className="h-4 w-4" /></Button>
+                        <Button
+                          variant="outline"
+                          className="ml-auto h-9 rounded-full px-4 font-bold uppercase tracking-wide border-2 border-primary/60 text-primary hover:bg-primary hover:text-primary-foreground"
+                          onClick={() => addRowToStaged(idx)}
+                        >
+                          Agregar
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <div
-                className="rounded-2xl border-2 p-3 space-y-3"
-                style={{ borderColor: `${METHOD_STYLE[bucketMethod].ring}66`, background: METHOD_STYLE[bucketMethod].soft }}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="text-[11px] font-bold uppercase tracking-[0.18em] text-muted-foreground">Cobrar seleccionados</div>
-                  <div className="font-display text-xl font-black tabular-nums" style={{ color: METHOD_STYLE[bucketMethod].ring }}>
-                    {formatMoney(currentBucketTotal)}
+              {/* PRODUCTOS A COBRAR (staged) */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <div className="text-base font-black">Productos a cobrar</div>
+                    <div className="text-xs text-muted-foreground">Total a cobrar: <span className="font-display font-bold text-foreground">{formatMoney(stagedTotal)}</span></div>
+                  </div>
+                  <Button
+                    onClick={() => setMethodSheetOpen(true)}
+                    disabled={stagedTotal <= 0}
+                    className="h-11 rounded-full px-6 font-black uppercase tracking-wide shadow-md bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white disabled:opacity-40"
+                  >
+                    Cobrar <Banknote className="h-4 w-4 ml-1.5" />
+                  </Button>
+                </div>
+                {staged.length === 0 ? (
+                  <div className="rounded-xl border-2 border-dashed p-4 text-xs text-muted-foreground text-center">
+                    Agrega productos para cobrarlos con un método de pago
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {staged.map((it, idx) => (
+                      <div key={idx} className="flex items-center gap-2 rounded-xl border-2 p-2.5 bg-background">
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold truncate">{it.name} <span className="text-muted-foreground font-normal">({formatMoney(it.unit_price)})</span></div>
+                          <div className="text-[11px] text-muted-foreground">Cantidad {it.qty} · {formatMoney(it.unit_price * it.qty)}</div>
+                        </div>
+                        <Button variant="outline" className="h-9 rounded-full px-4 font-bold uppercase text-xs border-2 hover:bg-destructive hover:text-destructive-foreground hover:border-destructive" onClick={() => removeStaged(idx)}>
+                          Eliminar
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* METHOD SHEET */}
+              {methodSheetOpen && (
+                <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setMethodSheetOpen(false)}>
+                  <div className="w-full sm:max-w-md bg-background rounded-t-3xl sm:rounded-3xl p-5 space-y-3 shadow-2xl animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+                    <div className="text-center">
+                      <div className="mx-auto mb-2 h-1 w-12 rounded-full bg-muted sm:hidden" />
+                      <div className="text-lg font-black">Selecciona método de pago</div>
+                      <div className="text-xs text-muted-foreground">Total: <span className="font-display font-bold text-foreground">{formatMoney(stagedTotal)}</span></div>
+                    </div>
+                    <div className="space-y-2 pt-1">
+                      {SPLIT_METHODS.map((m) => {
+                        const s = METHOD_STYLE[m];
+                        return (
+                          <button
+                            key={m}
+                            onClick={() => commitStagedAs(m)}
+                            className="w-full flex items-center gap-3 rounded-2xl border-2 p-3 hover:scale-[1.01] transition-transform"
+                            style={{ borderColor: `${s.ring}55`, background: s.soft }}
+                          >
+                            <div className="h-11 w-11 rounded-full flex items-center justify-center font-black" style={{ background: s.bg, color: s.color, boxShadow: s.shadow }}>
+                              <Banknote className="h-5 w-5" />
+                            </div>
+                            <div className="flex-1 text-left font-black uppercase tracking-wide" style={{ color: s.ring }}>{m}</div>
+                            <Check className="h-4 w-4 text-muted-foreground" />
+                          </button>
+                        );
+                      })}
+                    </div>
+                    <Button variant="outline" className="w-full h-11 rounded-full font-semibold" onClick={() => setMethodSheetOpen(false)}>Cancelar</Button>
                   </div>
                 </div>
-                <MethodPicker value={bucketMethod} onChange={setBucketMethod} size="sm" />
-                <Button
-                  className="w-full h-11 rounded-full font-bold uppercase tracking-wide shadow-md"
-                  onClick={commitBucket}
-                  disabled={currentBucketTotal <= 0}
-                >
-                  <Plus className="h-4 w-4 mr-1" /> Agregar pago
-                </Button>
-              </div>
+              )}
 
               {committedBuckets.length > 0 && (
                 <div>
