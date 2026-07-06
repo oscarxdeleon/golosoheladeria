@@ -543,8 +543,9 @@ function ProductosPage() {
             <Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button>
 
 
-
+            <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
             <DialogContent className="flex flex-col gap-0 p-0 w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] rounded-2xl overflow-hidden">
+
               <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6 sm:py-4"><DialogTitle className="text-base sm:text-lg">{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
 
