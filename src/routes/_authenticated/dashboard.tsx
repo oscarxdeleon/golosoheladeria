@@ -421,10 +421,10 @@ function FilterField({
 }
 
 const KPI_COLORS: Record<string, { border: string; text: string; bg: string }> = {
-  emerald: { border: "border-l-emerald-500", text: "text-emerald-600", bg: "bg-emerald-100 text-emerald-600" },
-  blue:    { border: "border-l-blue-500",    text: "text-blue-600",    bg: "bg-blue-100 text-blue-600" },
-  violet:  { border: "border-l-violet-500",  text: "text-violet-600",  bg: "bg-violet-100 text-violet-600" },
-  teal:    { border: "border-l-teal-500",    text: "text-teal-600",    bg: "bg-teal-100 text-teal-600" },
+  turquoise: { border: "border-l-[#3AB6C8]", text: "text-[#0F5A68]", bg: "bg-[#3AB6C8]/20 text-[#0F5A68]" },
+  lime:      { border: "border-l-[#A3D93A]", text: "text-[#5A8A00]", bg: "bg-[#A3D93A]/25 text-[#5A8A00]" },
+  pink:      { border: "border-l-[#E88A9A]", text: "text-[#D6303A]", bg: "bg-[#E88A9A]/25 text-[#D6303A]" },
+  yellow:    { border: "border-l-[#F2C42B]", text: "text-[#8A6A00]", bg: "bg-[#F2C42B]/25 text-[#8A6A00]" },
 };
 
 function KpiCard({
