@@ -58,7 +58,7 @@ function ModPage() {
       if (error || !newGroup) throw new Error(error?.message || "No se pudo crear el grupo");
       const items = dupItems
         .filter((i) => i.name.trim())
-        .map((i) => ({ group_id: newGroup.id, name: i.name.trim(), price: Number(i.price) || 0, active: true }));
+        .map((i) => ({ group_id: newGroup.id, name: i.name.trim(), price: Number(i.price) || 0, active: true, image_url: i.image_url ?? null }));
       if (items.length > 0) {
         const { error: e2 } = await supabase.from("modifiers").insert(items);
         if (e2) throw new Error(e2.message);
