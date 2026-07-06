@@ -71,6 +71,20 @@ function ProductosPage() {
   const [editing, setEditing] = useState<Partial<Product> | null>(null);
   const [showRecipe, setShowRecipe] = useState(false);
   const [showMods, setShowMods] = useState(false);
+
+  // Safety cleanup: al cerrar el diálogo de edición aseguramos que Radix no
+  // deje el <body> con pointer-events/overflow bloqueados (evita pantalla en blanco).
+  useEffect(() => {
+    if (editing === null && typeof document !== "undefined") {
+      const t = setTimeout(() => {
+        document.body.style.pointerEvents = "";
+        document.body.style.overflow = "";
+        document.body.removeAttribute("data-scroll-locked");
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [editing]);
+
   const [duplicating, setDuplicating] = useState<Product | null>(null);
   const [dupName, setDupName] = useState("");
   const [dupMain, setDupMain] = useState(true);
