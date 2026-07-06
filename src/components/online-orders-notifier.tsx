@@ -12,9 +12,11 @@ const PUBLIC_ORDER_SOURCES = ["online_menu", "kiosk", "table_qr"] as const;
 const ACK_STORAGE_KEY = "goloso.pos.publicOrderAlerts.seen.v1";
 const BACKSTOP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/* ---------- Audio: un tono por cada pedido recibido ---------- */
-function useOrderAlertSound() {
+/* ---------- Audio: loop persistente hasta confirmar ---------- */
+function useOrderAlertLoop() {
   const ctxRef = useRef<AudioContext | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const activeRef = useRef(false);
 
   function ensureCtx() {
     let ctx = ctxRef.current;
@@ -23,55 +25,64 @@ function useOrderAlertSound() {
       ctx = new AC();
       ctxRef.current = ctx;
     }
-    if (ctx.state === "suspended") {
-      void ctx.resume().catch(() => { /* noop */ });
-    }
+    if (ctx.state === "suspended") void ctx.resume().catch(() => { /* noop */ });
     return ctx;
   }
 
-  const play = useCallback(() => {
+  function playOnce() {
     try {
       const ctx = ensureCtx();
-      // Triple tono ascendente para que se escuche con ruido de fondo.
       const freqs = [880, 1180, 1480];
       freqs.forEach((f, i) => {
-        const start = ctx.currentTime + i * 0.18;
+        const start = ctx.currentTime + i * 0.16;
         const o = ctx.createOscillator();
         const g = ctx.createGain();
         o.connect(g); g.connect(ctx.destination);
         o.type = "square"; o.frequency.value = f;
         g.gain.setValueAtTime(0.0001, start);
-        g.gain.exponentialRampToValueAtTime(0.45, start + 0.02);
-        g.gain.exponentialRampToValueAtTime(0.0001, start + 0.16);
-        o.start(start); o.stop(start + 0.18);
+        g.gain.exponentialRampToValueAtTime(0.5, start + 0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001, start + 0.15);
+        o.start(start); o.stop(start + 0.16);
       });
     } catch { /* noop */ }
+  }
+
+  const start = useCallback(() => {
+    if (activeRef.current) return;
+    activeRef.current = true;
+    // Reproducir de inmediato, luego cada 2.4s
+    playOnce();
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = setInterval(() => { if (activeRef.current) playOnce(); }, 2400);
   }, []);
 
-  // Desbloquear AudioContext en el primer gesto del usuario (política del navegador)
+  const stop = useCallback(() => {
+    activeRef.current = false;
+    if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null; }
+  }, []);
+
+  // Desbloqueo del AudioContext en el primer gesto (política del navegador)
   useEffect(() => {
     const unlock = () => {
       try {
         const ctx = ensureCtx();
-        // Reproducir un tick silencioso para armar el contexto
-        const o = ctx.createOscillator();
-        const g = ctx.createGain();
-        g.gain.value = 0.0001;
-        o.connect(g); g.connect(ctx.destination);
+        const o = ctx.createOscillator(); const g = ctx.createGain();
+        g.gain.value = 0.0001; o.connect(g); g.connect(ctx.destination);
         o.start(); o.stop(ctx.currentTime + 0.01);
       } catch { /* noop */ }
     };
-    const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart"];
-    events.forEach((e) => window.addEventListener(e, unlock, { once: false, passive: true }));
+    const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart", "click"];
+    events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
     return () => events.forEach((e) => window.removeEventListener(e, unlock));
   }, []);
 
   useEffect(() => () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
     try { ctxRef.current?.close(); } catch { /* noop */ }
     ctxRef.current = null;
   }, []);
 
-  return play;
+  return { start, stop };
 }
 
 type IncomingSale = {
@@ -87,6 +98,7 @@ type IncomingSale = {
   status: string | null;
   branch_id: string | null;
   table_id: string | null;
+  order_type: string | null;
   created_at: string;
   restaurant_tables?: { number: number | null; label: string | null } | null;
 };
@@ -146,16 +158,17 @@ async function printTableOrderComanda(saleId: string) {
   });
 }
 
+type OrderKind = "mesa" | "domicilio" | "recoger" | "kiosko";
 
 type PendingAlert = {
   id: string;
   ticket: number;
   source: string;
+  kind: OrderKind;
   total: number;
   customer: string | null;
   tableLabel: string | null;
   receivedAt: string;
-  statusLabel: string;
 };
 
 function readAcknowledgedIds() {
@@ -170,14 +183,24 @@ function readAcknowledgedIds() {
 
 function persistAcknowledgedIds(ids: Set<string>) {
   if (typeof window === "undefined") return;
-  const latest = Array.from(ids).slice(-300);
+  const latest = Array.from(ids).slice(-500);
   try { localStorage.setItem(ACK_STORAGE_KEY, JSON.stringify(latest)); } catch { /* noop */ }
 }
 
-function sourceLabel(source: string) {
-  if (source === "kiosk") return "Autopedido";
-  if (source === "table_qr") return "Mesa QR";
-  return "Menú en línea";
+function classifyKind(row: IncomingSale): OrderKind {
+  if (row.source === "table_qr") return "mesa";
+  if (row.source === "kiosk") return "kiosko";
+  const ot = (row.order_type ?? "").toLowerCase();
+  if (ot === "domicilio") return "domicilio";
+  if ((row.notes ?? "").toUpperCase().includes("RECOGER")) return "recoger";
+  return "domicilio";
+}
+
+function kindLabel(k: OrderKind) {
+  if (k === "mesa") return "Mesa";
+  if (k === "kiosko") return "Autopedido";
+  if (k === "recoger") return "Recoger en heladería";
+  return "Domicilio";
 }
 
 function receivedTime(iso: string) {
@@ -200,15 +223,22 @@ export function OnlineOrdersNotifier() {
   const { activeBranchId } = useBranch();
   const { roles, rolesLoading } = useAuth();
   const canReceiveAlerts = !rolesLoading && (roles.includes("admin") || roles.includes("cajero"));
+  // Dedupe SÍNCRONA: se marca antes de cualquier await.
   const seen = useRef<Set<string>>(new Set());
   const acknowledged = useRef<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingAlert[]>([]);
-  const playAlert = useOrderAlertSound();
+  const { start: startLoop, stop: stopLoop } = useOrderAlertLoop();
 
   useEffect(() => {
     acknowledged.current = readAcknowledgedIds();
     seen.current = new Set(acknowledged.current);
   }, []);
+
+  // Loop de sonido activo mientras haya pendientes
+  useEffect(() => {
+    if (pending.length > 0 && canReceiveAlerts) startLoop();
+    else stopLoop();
+  }, [pending.length, canReceiveAlerts, startLoop, stopLoop]);
 
   const acknowledge = useCallback((ids: string[]) => {
     if (ids.length === 0) return;
@@ -221,41 +251,41 @@ export function OnlineOrdersNotifier() {
 
   useEffect(() => {
     setPending([]);
-  }, [activeBranchId]);
+    stopLoop();
+  }, [activeBranchId, stopLoop]);
 
   function dismissAll() {
     acknowledge(pending.map((p) => p.id));
     setPending([]);
+    stopLoop();
   }
 
-  function confirmAndNavigate(source: string) {
-    // Al confirmar pedidos de mesa (QR), imprimir la comanda de cada pendiente
-    if (source === "table_qr") {
-      pending.filter((p) => p.source === "table_qr").forEach((p) => { void printTableOrderComanda(p.id); });
+  function confirmAndNavigate(kind: OrderKind) {
+    if (kind === "mesa") {
+      pending.filter((p) => p.kind === "mesa").forEach((p) => { void printTableOrderComanda(p.id); });
     }
     acknowledge(pending.map((p) => p.id));
     setPending([]);
+    stopLoop();
     navigate({
       to:
-        source === "kiosk"
-          ? "/kiosko"
-          : source === "table_qr"
-            ? "/mesas"
+        kind === "kiosko" ? "/kiosko"
+          : kind === "mesa" ? "/mesas"
             : "/pedidos-online",
     });
   }
 
   const invalidateOrderViews = useCallback(() => {
-      qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
-      qc.invalidateQueries({ queryKey: ["pending-sales"] });
-      qc.invalidateQueries({ queryKey: ["pending-sale"] });
-      qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
+    qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
+    qc.invalidateQueries({ queryKey: ["pending-sales"] });
+    qc.invalidateQueries({ queryKey: ["pending-sale"] });
+    qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+    qc.invalidateQueries({ queryKey: ["todos-pedidos"] });
+    window.setTimeout(() => {
       qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-      qc.invalidateQueries({ queryKey: ["todos-pedidos"] });
-      window.setTimeout(() => {
-        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-        qc.invalidateQueries({ queryKey: ["pending-sale"] });
-      }, 900);
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+    }, 900);
   }, [activeBranchId, qc]);
 
   const resolveTableLabel = useCallback(async (row: IncomingSale) => {
@@ -281,10 +311,13 @@ export function OnlineOrdersNotifier() {
       setPending((arr) => arr.filter((p) => p.id !== row.id));
       return;
     }
+    // ---- DEDUPE SÍNCRONA: marcar como visto ANTES de cualquier await ----
     if (seen.current.has(row.id) || acknowledged.current.has(row.id)) return;
-
     seen.current.add(row.id);
+
+    const kind = classifyKind(row);
     const tableLabel = await resolveTableLabel(row);
+
     setPending((arr) => {
       if (arr.some((p) => p.id === row.id)) return arr;
       return [
@@ -293,26 +326,25 @@ export function OnlineOrdersNotifier() {
           id: row.id,
           ticket: row.ticket_number,
           source: row.source,
+          kind,
           total: Number(row.total ?? 0),
           customer: row.customer_name,
           tableLabel,
           receivedAt: row.created_at,
-          statusLabel: "Nuevo Pedido",
         },
       ];
     });
-    playAlert();
 
     if (options.fromRealtime && row.source === "kiosk") void autoPrintKioskOrder(row.id);
     invalidateOrderViews();
-  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, playAlert, resolveTableLabel]);
+  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, resolveTableLabel]);
 
   const loadRecentPending = useCallback(async () => {
     if (!activeBranchId || !canReceiveAlerts) return;
     const since = new Date(Date.now() - BACKSTOP_WINDOW_MS).toISOString();
     const { data } = await supabase
       .from("sales")
-      .select("id,ticket_number,customer_name,user_name,total,subtotal,delivery_fee,notes,source,status,branch_id,table_id,created_at,restaurant_tables(number,label)")
+      .select("id,ticket_number,customer_name,user_name,total,subtotal,delivery_fee,notes,source,status,branch_id,table_id,order_type,created_at,restaurant_tables(number,label)")
       .eq("branch_id", activeBranchId)
       .eq("status", "pending")
       .in("source", [...PUBLIC_ORDER_SOURCES])
@@ -329,7 +361,7 @@ export function OnlineOrdersNotifier() {
     void loadRecentPending();
 
     const channel = supabase
-      .channel(`sales-public-orders-v2-${activeBranchId}`)
+      .channel(`sales-public-orders-v3-${activeBranchId}`)
       .on(
         "postgres_changes" as never,
         { event: "*", schema: "public", table: "sales" } as never,
@@ -355,25 +387,27 @@ export function OnlineOrdersNotifier() {
     };
   }, [acknowledge, activeBranchId, addAlert, canReceiveAlerts, invalidateOrderViews, loadRecentPending]);
 
-
   if (pending.length === 0 || !canReceiveAlerts) return null;
 
   const last = pending[pending.length - 1];
-  const isKiosk = last.source === "kiosk";
-  const isTable = last.source === "table_qr";
+  const isKiosk = last.kind === "kiosko";
+  const isTable = last.kind === "mesa";
+  const isPickup = last.kind === "recoger";
   const headline = isKiosk
     ? "¡NUEVO PEDIDO AUTOPEDIDO!"
     : isTable
       ? "¡NUEVO PEDIDO DE MESA!"
-      : "¡NUEVO PEDIDO EN LÍNEA!";
-  const accent = isKiosk ? "border-primary" : isTable ? "border-emerald-500" : "border-secondary";
-  const accentBg = isKiosk ? "bg-primary/15" : isTable ? "bg-emerald-500/15" : "bg-secondary/15";
+      : isPickup
+        ? "¡NUEVO PEDIDO PARA RECOGER!"
+        : "¡NUEVO PEDIDO A DOMICILIO!";
+  const accent = isKiosk ? "border-primary" : isTable ? "border-emerald-500" : isPickup ? "border-cyan-500" : "border-rose-500";
+  const accentBg = isKiosk ? "bg-primary/15" : isTable ? "bg-emerald-500/15" : isPickup ? "bg-cyan-500/15" : "bg-rose-500/15";
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] w-[min(94vw,440px)] animate-in slide-in-from-bottom-6 duration-300" role="status" aria-live="polite">
       <div className={`rounded-2xl border-4 ${accent} bg-background shadow-2xl overflow-hidden`}>
         <div className={`flex items-center gap-3 px-4 py-3 ${accentBg}`}>
-          <div className={`relative ${isKiosk ? "text-primary" : isTable ? "text-emerald-600" : "text-secondary-foreground"}`}>
+          <div className="relative text-foreground">
             <Bell className="h-7 w-7 animate-bounce" />
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
@@ -401,34 +435,34 @@ export function OnlineOrdersNotifier() {
         <div className="max-h-[48vh] overflow-y-auto divide-y">
           {pending.slice().reverse().slice(0, 5).map((p) => (
             <div key={p.id} className="px-4 py-3 flex items-start gap-3">
-              <div className="rounded-xl bg-primary/10 px-2.5 py-1 font-display text-xl text-primary">#{p.ticket}</div>
-              <div className="flex-1 leading-tight">
+              <div className="rounded-xl bg-primary/10 px-2.5 py-1 font-display text-xl text-primary shrink-0">#{p.ticket}</div>
+              <div className="flex-1 min-w-0 leading-tight">
                 <div className="text-sm font-semibold truncate">
-                  {p.source === "table_qr"
-                    ? p.tableLabel ?? "Mesa QR"
-                    : p.customer ?? (p.source === "kiosk" ? "Autopedido" : "Cliente")}
+                  {p.kind === "mesa"
+                    ? (p.tableLabel ?? "Mesa QR")
+                    : (p.customer ?? (p.kind === "kiosko" ? "Autopedido" : "Cliente"))}
                 </div>
                 <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                  <span>{sourceLabel(p.source)}</span>
+                  <span className="font-medium text-foreground">{kindLabel(p.kind)}</span>
                   <span>·</span>
                   <span>Recibido {receivedTime(p.receivedAt)}</span>
                   <span>·</span>
                   <span>Pedido #{p.ticket}</span>
                 </div>
                 <div className="mt-2 inline-flex rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-semibold text-emerald-700 dark:text-emerald-300">
-                  {p.statusLabel}
+                  Nuevo Pedido
                 </div>
               </div>
-              <div className="font-mono text-sm">${Math.round(p.total).toLocaleString("es-CO")}</div>
+              <div className="font-mono text-sm shrink-0">${Math.round(p.total).toLocaleString("es-CO")}</div>
             </div>
           ))}
         </div>
 
         <div className="grid grid-cols-2 gap-2 p-3 bg-muted/40">
           <Button variant="outline" onClick={dismissAll} className="gap-2">
-            <BellOff className="h-4 w-4" /> Marcar visto
+            <BellOff className="h-4 w-4" /> Silenciar
           </Button>
-          <Button onClick={() => confirmAndNavigate(last.source)} className="gap-2">
+          <Button onClick={() => confirmAndNavigate(last.kind)} className="gap-2">
             {isTable ? "Confirmar e imprimir" : "Confirmar pedido"}
           </Button>
         </div>
@@ -436,4 +470,3 @@ export function OnlineOrdersNotifier() {
     </div>
   );
 }
-
