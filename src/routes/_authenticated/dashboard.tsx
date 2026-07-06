@@ -524,6 +524,38 @@ function FilterField({
   );
 }
 
+function RealCashRow({
+  label, dotClass, counted, expected, diff,
+}: { label: string; dotClass: string; counted: number; expected: number; diff: number }) {
+  const ok = Math.abs(diff) < 1;
+  const positive = diff > 0;
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <span className={`h-2.5 w-2.5 rounded-full ${dotClass}`} />
+          <span className="uppercase text-sm">{label}</span>
+        </div>
+        <div className="text-right">
+          <div className="font-semibold text-sm">{formatMoney(counted)}</div>
+          <div className="text-[10px] text-muted-foreground">Esperado: {formatMoney(expected)}</div>
+        </div>
+      </div>
+      <div className="flex justify-end">
+        <span
+          className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${
+            ok ? "bg-muted text-muted-foreground"
+              : positive ? "bg-[#A3D93A]/25 text-[#5A8A00]"
+              : "bg-[#E88A9A]/25 text-[#D6303A]"
+          }`}
+        >
+          {ok ? "Cuadre exacto" : `${positive ? "Sobrante" : "Faltante"} ${formatMoney(Math.abs(diff))}`}
+        </span>
+      </div>
+    </div>
+  );
+}
+
 const KPI_COLORS: Record<string, { border: string; text: string; bg: string }> = {
   turquoise: { border: "border-l-[#3AB6C8]", text: "text-[#0F5A68]", bg: "bg-[#3AB6C8]/20 text-[#0F5A68]" },
   lime:      { border: "border-l-[#A3D93A]", text: "text-[#5A8A00]", bg: "bg-[#A3D93A]/25 text-[#5A8A00]" },
