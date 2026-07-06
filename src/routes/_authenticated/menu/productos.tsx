@@ -688,7 +688,7 @@ function ProductosPage() {
               </div>
 
               </div>
-              <DialogFooter className="shrink-0 border-t bg-background px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]"><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
+              <DialogFooter className="shrink-0 flex-row justify-end gap-2 border-t bg-background px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6"><Button variant="outline" className="flex-1 sm:flex-none" onClick={() => setEditing(null)}>Cancelar</Button><Button className="flex-1 sm:flex-none" onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
             </Dialog>
           </div>
