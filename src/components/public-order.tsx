@@ -943,7 +943,13 @@ export function PublicOrder({
               )}
             </div>
             <CardContent className="p-3">
-              <div className="font-medium leading-tight line-clamp-2">{p.name}</div>
+              <div
+                className="font-bold leading-tight line-clamp-2 uppercase tracking-wide text-[15px]"
+                style={{ fontFamily: '"Bebas Neue", "Fraunces Variable", sans-serif', letterSpacing: "0.04em" }}
+              >
+                {p.name}
+              </div>
+
               <div className="font-display text-primary mt-1">{formatMoney(p.price)}</div>
             </CardContent>
           </Card>
