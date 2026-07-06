@@ -517,7 +517,7 @@ function ProductosPage() {
               <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
 
 
-            <DialogContent className="left-0 top-0 flex h-[100dvh] max-h-[100dvh] w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-0 rounded-none border-0 p-0 sm:left-[50%] sm:top-[50%] sm:h-auto sm:max-h-[90vh] sm:w-full sm:max-w-2xl sm:translate-x-[-50%] sm:translate-y-[-50%] sm:rounded-lg sm:border">
+            <DialogContent className="flex max-h-[92dvh] w-[calc(100vw-1rem)] max-w-[calc(100vw-1rem)] flex-col gap-0 p-0 sm:max-h-[90vh] sm:w-full sm:max-w-2xl">
               <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6 sm:py-4"><DialogTitle className="text-base sm:text-lg">{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
 
