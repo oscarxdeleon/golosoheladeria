@@ -146,8 +146,21 @@ function ProductosPage() {
       ? await supabase.from("products").update(payload as never).eq("id", editing.id)
       : await supabase.from("products").insert(payload as never);
     if (error) return toast.error(error.message);
-    toast.success(isLinkedChild ? "Guardado y desvinculado de la sede principal" : "Guardado");
+    // Cierra el modal ANTES de invalidar queries / mostrar toast para evitar
+    // que Radix Dialog deje el <body> con pointer-events/overflow bloqueados
+    // (produciría una pantalla en blanco al volver al listado en móvil).
     setEditing(null);
+    setShowRecipe(false);
+    setShowMods(false);
+    // Restaurar estilos del body por si Radix no limpió (bug conocido con toasts).
+    if (typeof document !== "undefined") {
+      requestAnimationFrame(() => {
+        document.body.style.pointerEvents = "";
+        document.body.style.overflow = "";
+        document.body.removeAttribute("data-scroll-locked");
+      });
+    }
+    toast.success(isLinkedChild ? "Guardado y desvinculado de la sede principal" : "Guardado");
     qc.invalidateQueries({ queryKey: ["products-all"] });
     qc.invalidateQueries({ queryKey: ["products"] });
     qc.invalidateQueries({ queryKey: ["public-products"] });
