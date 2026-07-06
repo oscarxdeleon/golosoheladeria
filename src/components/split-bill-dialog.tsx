@@ -37,25 +37,25 @@ const round0 = (n: number) => Math.max(0, Math.round(n));
 // Paleta Sunset Blaze por método de pago
 const METHOD_STYLE: Record<SplitMethod, { bg: string; color: string; shadow: string; ring: string; soft: string }> = {
   Efectivo: {
-    bg: "linear-gradient(135deg, #ff6b35 0%, #f7931e 100%)",
+    bg: "linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)",
     color: "#fff",
-    shadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 14px -6px rgba(255,107,53,0.55)",
-    ring: "#ff6b35",
-    soft: "rgba(255,107,53,0.10)",
+    shadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 14px -6px rgba(79,70,229,0.55)",
+    ring: "#4f46e5",
+    soft: "rgba(79,70,229,0.10)",
   },
   Nequi: {
-    bg: "linear-gradient(135deg, #e84393 0%, #c44583 100%)",
+    bg: "linear-gradient(135deg, #818cf8 0%, #4338ca 100%)",
     color: "#fff",
-    shadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 14px -6px rgba(232,67,147,0.55)",
-    ring: "#e84393",
-    soft: "rgba(232,67,147,0.10)",
+    shadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 14px -6px rgba(129,140,248,0.55)",
+    ring: "#818cf8",
+    soft: "rgba(129,140,248,0.10)",
   },
   Bancolombia: {
-    bg: "linear-gradient(135deg, #6c5ce7 0%, #4834b4 100%)",
+    bg: "linear-gradient(135deg, #4338ca 0%, #312e81 100%)",
     color: "#fff",
-    shadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 14px -6px rgba(108,92,231,0.55)",
-    ring: "#6c5ce7",
-    soft: "rgba(108,92,231,0.10)",
+    shadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 6px 14px -6px rgba(67,56,202,0.55)",
+    ring: "#4338ca",
+    soft: "rgba(67,56,202,0.10)",
   },
 };
 
@@ -174,7 +174,7 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
               onClick={() => onChange(m)}
               style={active
                 ? { background: s.bg, color: s.color, boxShadow: s.shadow }
-                : { background: "rgba(255,247,237,0.7)", color: "#78655c", border: "1px solid rgba(255,107,53,0.18)" }}
+                : { background: "rgba(20,20,50,0.85)", color: "#94a3b8", border: "1px solid rgba(79,70,229,0.18)" }}
               className={`sunset-display flex items-center justify-center gap-1 rounded-lg h-8 text-[13px] tracking-wider transition-all duration-150 ${active ? "scale-[1.02]" : "hover:opacity-90"}`}
             >
               {active && <Check className="h-3 w-3" strokeWidth={3} />}
@@ -188,11 +188,11 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!paying) onOpenChange(o); }}>
-      <DialogContent className="sunset-theme sm:max-w-md p-0 gap-0 flex flex-col max-h-[92vh] overflow-hidden border-0" style={{ background: "linear-gradient(180deg, #fff7ed 0%, #ffffff 40%)" }}>
+      <DialogContent className="sunset-theme sm:max-w-md p-0 gap-0 flex flex-col max-h-[92vh] overflow-hidden border-0" style={{ background: "linear-gradient(180deg, #0a0a1a 0%, #141432 100%)" }}>
         {/* HERO — compacto */}
         <div className="relative shrink-0 overflow-hidden px-4 pt-3 pb-4" style={{ background: "var(--sunset-gradient)", color: "#fff" }}>
-          <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-white/15 blur-2xl" />
-          <div className="pointer-events-none absolute -left-6 -bottom-6 h-24 w-24 rounded-full bg-white/10 blur-2xl" />
+          <div className="pointer-events-none absolute -right-8 -top-8 h-28 w-28 rounded-full bg-[#1e1e5a]/15 blur-2xl" />
+          <div className="pointer-events-none absolute -left-6 -bottom-6 h-24 w-24 rounded-full bg-[#1e1e5a]/10 blur-2xl" />
           <DialogHeader className="relative space-y-0.5">
             <DialogTitle className="sunset-display text-center text-2xl leading-none flex items-center justify-center gap-2">
               <Flame className="h-4 w-4" />
@@ -217,8 +217,8 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
         <div className="flex-1 overflow-y-auto px-4 py-3 space-y-3">
           <Tabs value={tab} onValueChange={(v) => setTab(v as "cantidad" | "producto")}>
-            <TabsList className="grid grid-cols-2 w-full h-9 rounded-lg p-0.5" style={{ background: "rgba(255,107,53,0.10)" }}>
-              <TabsTrigger value="cantidad" className="sunset-display tracking-wider text-[13px] rounded-md data-[state=active]:text-white data-[state=active]:shadow-md" style={{ ["--tw-shadow-color" as string]: "rgba(255,107,53,0.4)" }}>
+            <TabsList className="grid grid-cols-2 w-full h-9 rounded-lg p-0.5" style={{ background: "rgba(79,70,229,0.10)" }}>
+              <TabsTrigger value="cantidad" className="sunset-display tracking-wider text-[13px] rounded-md data-[state=active]:text-white data-[state=active]:shadow-md" style={{ ["--tw-shadow-color" as string]: "rgba(79,70,229,0.4)" }}>
                 <span className="flex items-center gap-1"><Users className="h-3.5 w-3.5" />CANTIDAD</span>
               </TabsTrigger>
               <TabsTrigger value="producto" className="sunset-display tracking-wider text-[13px] rounded-md data-[state=active]:text-white data-[state=active]:shadow-md">
@@ -233,25 +233,25 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
             <TabsContent value="cantidad" className="space-y-3 pt-3">
               {/* SELECTOR DE PARTES compacto */}
-              <div className="rounded-xl p-2.5 flex items-center justify-between gap-3" style={{ background: "rgba(255,107,53,0.08)", border: "1px dashed rgba(255,107,53,0.35)" }}>
-                <div className="sunset-body text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#78655c" }}>Personas</div>
+              <div className="rounded-xl p-2.5 flex items-center justify-between gap-3" style={{ background: "rgba(79,70,229,0.08)", border: "1px dashed rgba(79,70,229,0.35)" }}>
+                <div className="sunset-body text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: "#94a3b8" }}>Personas</div>
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
                     onClick={() => setParts((p) => Math.max(2, p - 1))}
                     disabled={parts <= 2}
                     className="h-8 w-8 rounded-full flex items-center justify-center disabled:opacity-40"
-                    style={{ background: "#fff", border: "1.5px solid rgba(255,107,53,0.4)", color: "#ff6b35" }}
+                    style={{ background: "#1e1e5a", border: "1.5px solid rgba(79,70,229,0.4)", color: "#4f46e5" }}
                   >
                     <Minus className="h-4 w-4" />
                   </button>
-                  <div className="sunset-display text-3xl leading-none tabular-nums w-9 text-center" style={{ color: "#ff6b35" }}>{parts}</div>
+                  <div className="sunset-display text-3xl leading-none tabular-nums w-9 text-center" style={{ color: "#4f46e5" }}>{parts}</div>
                   <button
                     type="button"
                     onClick={() => setParts((p) => Math.min(10, p + 1))}
                     disabled={parts >= 10}
                     className="h-8 w-8 rounded-full flex items-center justify-center text-white disabled:opacity-40"
-                    style={{ background: "var(--sunset-gradient-warm)", boxShadow: "0 4px 10px -3px rgba(255,107,53,0.55)" }}
+                    style={{ background: "var(--sunset-gradient-warm)", boxShadow: "0 4px 10px -3px rgba(79,70,229,0.55)" }}
                   >
                     <Plus className="h-4 w-4" />
                   </button>
@@ -276,7 +276,7 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
                           >
                             {i + 1}
                           </div>
-                          <span className="sunset-body text-[11px] font-bold uppercase tracking-wide" style={{ color: "#78655c" }}>Pago {i + 1}</span>
+                          <span className="sunset-body text-[11px] font-bold uppercase tracking-wide" style={{ color: "#94a3b8" }}>Pago {i + 1}</span>
                         </div>
                         <div className="sunset-display text-lg tabular-nums" style={{ color: st.ring }}>
                           {formatMoney(amt || 0)}
@@ -289,10 +289,10 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
                       />
 
                       <div className="relative">
-                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 sunset-display text-lg" style={{ color: "#78655c" }}>$</span>
+                        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 sunset-display text-lg" style={{ color: "#94a3b8" }}>$</span>
                         <Input
                           inputMode="numeric"
-                          className="pl-8 h-10 text-right sunset-display text-xl tabular-nums rounded-lg bg-white shadow-inner"
+                          className="pl-8 h-10 text-right sunset-display text-xl tabular-nums rounded-lg bg-[#1e1e5a] shadow-inner"
                           style={{ border: `1.5px solid ${st.ring}55` }}
                           value={amt === 0 ? "" : Number(amt).toLocaleString("es-CO")}
                           onChange={(e) => {
@@ -320,47 +320,47 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
             <TabsContent value="producto" className="space-y-3 pt-3">
               {/* Resumen compacto */}
-              <div className="rounded-xl p-2.5 grid grid-cols-3 gap-2 text-center" style={{ background: "linear-gradient(135deg, rgba(255,107,53,0.08), rgba(232,67,147,0.08))", border: "1px solid rgba(255,107,53,0.18)" }}>
+              <div className="rounded-xl p-2.5 grid grid-cols-3 gap-2 text-center" style={{ background: "linear-gradient(135deg, rgba(79,70,229,0.08), rgba(129,140,248,0.08))", border: "1px solid rgba(79,70,229,0.18)" }}>
                 <div>
-                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#78655c" }}>Total</div>
-                  <div className="sunset-display text-base leading-none mt-0.5" style={{ color: "#1a0f0a" }}>{formatMoney(total)}</div>
+                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#94a3b8" }}>Total</div>
+                  <div className="sunset-display text-base leading-none mt-0.5" style={{ color: "#e8ecf1" }}>{formatMoney(total)}</div>
                 </div>
                 <div>
-                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#78655c" }}>Cobrado</div>
+                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#94a3b8" }}>Cobrado</div>
                   <div className="sunset-display text-base leading-none mt-0.5" style={{ color: "#16a34a" }}>{formatMoney(alreadyCharged)}</div>
                 </div>
                 <div>
-                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#78655c" }}>Pendiente</div>
-                  <div className="sunset-display text-base leading-none mt-0.5" style={{ color: productoPending === 0 ? "#16a34a" : "#ff6b35" }}>{formatMoney(productoPending)}</div>
+                  <div className="sunset-body text-[10px] uppercase tracking-wide" style={{ color: "#94a3b8" }}>Pendiente</div>
+                  <div className="sunset-display text-base leading-none mt-0.5" style={{ color: productoPending === 0 ? "#16a34a" : "#4f46e5" }}>{formatMoney(productoPending)}</div>
                 </div>
               </div>
 
               <div>
-                <div className="sunset-display text-[11px] uppercase tracking-[0.18em] mb-1.5" style={{ color: "#78655c" }}>Disponibles</div>
+                <div className="sunset-display text-[11px] uppercase tracking-[0.18em] mb-1.5" style={{ color: "#94a3b8" }}>Disponibles</div>
                 <div className="space-y-1.5">
                   {picked.filter((p) => p.max > 0).length === 0 && (
-                    <div className="rounded-lg p-3 text-[11px] text-center sunset-body" style={{ border: "1.5px dashed rgba(255,107,53,0.3)", color: "#78655c" }}>
+                    <div className="rounded-lg p-3 text-[11px] text-center sunset-body" style={{ border: "1.5px dashed rgba(79,70,229,0.3)", color: "#94a3b8" }}>
                       Todos los productos ya fueron asignados ✓
                     </div>
                   )}
                   {picked.map((row, idx) => row.max > 0 && (
-                    <div key={row.key} className="rounded-lg p-2 bg-white space-y-1.5" style={{ border: "1.5px solid rgba(255,107,53,0.18)" }}>
+                    <div key={row.key} className="rounded-lg p-2 bg-[#1e1e5a] space-y-1.5" style={{ border: "1.5px solid rgba(79,70,229,0.18)" }}>
                       <div className="min-w-0 flex items-baseline justify-between gap-2">
-                        <div className="sunset-body text-[13px] font-semibold truncate" style={{ color: "#1a0f0a" }}>{row.name}</div>
-                        <div className="sunset-display text-xs whitespace-nowrap" style={{ color: "#ff6b35" }}>{formatMoney(row.unit_price)}</div>
+                        <div className="sunset-body text-[13px] font-semibold truncate" style={{ color: "#e8ecf1" }}>{row.name}</div>
+                        <div className="sunset-display text-xs whitespace-nowrap" style={{ color: "#4f46e5" }}>{formatMoney(row.unit_price)}</div>
                       </div>
                       <div className="flex items-center gap-1.5">
-                        <button className="h-7 w-7 rounded-full flex items-center justify-center" style={{ background: "#fff", border: "1.5px solid rgba(255,107,53,0.4)", color: "#ff6b35" }} onClick={() => {
+                        <button className="h-7 w-7 rounded-full flex items-center justify-center" style={{ background: "#1e1e5a", border: "1.5px solid rgba(79,70,229,0.4)", color: "#4f46e5" }} onClick={() => {
                           setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.max(1, r.qty - 1) } : r));
                         }}><Minus className="h-3.5 w-3.5" /></button>
-                        <div className="sunset-display w-7 text-center text-base" style={{ color: "#ff6b35" }}>{row.qty}</div>
+                        <div className="sunset-display w-7 text-center text-base" style={{ color: "#4f46e5" }}>{row.qty}</div>
                         <button className="h-7 w-7 rounded-full flex items-center justify-center text-white" style={{ background: "var(--sunset-gradient-warm)" }} onClick={() => {
                           setPicked((prev) => prev.map((r, i) => i === idx ? { ...r, qty: Math.min(r.max, r.qty + 1) } : r));
                         }}><Plus className="h-3.5 w-3.5" /></button>
-                        <div className="sunset-body text-[10px] ml-1" style={{ color: "#78655c" }}>de {row.max}</div>
+                        <div className="sunset-body text-[10px] ml-1" style={{ color: "#94a3b8" }}>de {row.max}</div>
                         <button
                           className="sunset-display ml-auto h-7 rounded-full px-3 text-[12px] tracking-wider text-white"
-                          style={{ background: "var(--sunset-gradient-cool)", boxShadow: "0 4px 10px -4px rgba(232,67,147,0.5)" }}
+                          style={{ background: "var(--sunset-gradient-cool)", boxShadow: "0 4px 10px -4px rgba(129,140,248,0.5)" }}
                           onClick={() => addRowToStaged(idx)}
                         >
                           AGREGAR
@@ -375,31 +375,31 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <div className="sunset-display text-sm tracking-wider" style={{ color: "#1a0f0a" }}>A COBRAR</div>
-                    <div className="sunset-body text-[11px]" style={{ color: "#78655c" }}>Subtotal: <span className="sunset-display" style={{ color: "#1a0f0a" }}>{formatMoney(stagedTotal)}</span></div>
+                    <div className="sunset-display text-sm tracking-wider" style={{ color: "#e8ecf1" }}>A COBRAR</div>
+                    <div className="sunset-body text-[11px]" style={{ color: "#94a3b8" }}>Subtotal: <span className="sunset-display" style={{ color: "#e8ecf1" }}>{formatMoney(stagedTotal)}</span></div>
                   </div>
                   <button
                     onClick={() => setMethodSheetOpen(true)}
                     disabled={stagedTotal <= 0}
                     className="sunset-display h-9 rounded-full px-4 text-[13px] tracking-wider text-white disabled:opacity-40 flex items-center gap-1.5"
-                    style={{ background: "var(--sunset-gradient-warm)", boxShadow: "0 6px 14px -5px rgba(255,107,53,0.6)" }}
+                    style={{ background: "var(--sunset-gradient-warm)", boxShadow: "0 6px 14px -5px rgba(79,70,229,0.6)" }}
                   >
                     COBRAR <Banknote className="h-3.5 w-3.5" />
                   </button>
                 </div>
                 {staged.length === 0 ? (
-                  <div className="rounded-lg p-2.5 text-[11px] text-center sunset-body" style={{ border: "1.5px dashed rgba(255,107,53,0.3)", color: "#78655c" }}>
+                  <div className="rounded-lg p-2.5 text-[11px] text-center sunset-body" style={{ border: "1.5px dashed rgba(79,70,229,0.3)", color: "#94a3b8" }}>
                     Agrega productos y elige un método de pago
                   </div>
                 ) : (
                   <div className="space-y-1">
                     {staged.map((it, idx) => (
-                      <div key={idx} className="flex items-center gap-2 rounded-lg p-2 bg-white" style={{ border: "1.5px solid rgba(255,107,53,0.18)" }}>
+                      <div key={idx} className="flex items-center gap-2 rounded-lg p-2 bg-[#1e1e5a]" style={{ border: "1.5px solid rgba(79,70,229,0.18)" }}>
                         <div className="flex-1 min-w-0">
-                          <div className="sunset-body text-[13px] font-semibold truncate" style={{ color: "#1a0f0a" }}>{it.name}</div>
-                          <div className="sunset-body text-[10px]" style={{ color: "#78655c" }}>{it.qty}× · {formatMoney(it.unit_price * it.qty)}</div>
+                          <div className="sunset-body text-[13px] font-semibold truncate" style={{ color: "#e8ecf1" }}>{it.name}</div>
+                          <div className="sunset-body text-[10px]" style={{ color: "#94a3b8" }}>{it.qty}× · {formatMoney(it.unit_price * it.qty)}</div>
                         </div>
-                        <button className="sunset-display h-7 rounded-full px-3 text-[11px] tracking-wider" style={{ color: "#e84393", border: "1.5px solid rgba(232,67,147,0.35)" }} onClick={() => removeStaged(idx)}>
+                        <button className="sunset-display h-7 rounded-full px-3 text-[11px] tracking-wider" style={{ color: "#818cf8", border: "1.5px solid rgba(129,140,248,0.35)" }} onClick={() => removeStaged(idx)}>
                           QUITAR
                         </button>
                       </div>
@@ -411,11 +411,11 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
               {/* Method sheet */}
               {methodSheetOpen && (
                 <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/50 backdrop-blur-sm" onClick={() => setMethodSheetOpen(false)}>
-                  <div className="sunset-theme w-full sm:max-w-sm bg-white rounded-t-2xl sm:rounded-2xl p-4 space-y-2 shadow-2xl animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
+                  <div className="sunset-theme w-full sm:max-w-sm bg-[#1e1e5a] rounded-t-2xl sm:rounded-2xl p-4 space-y-2 shadow-2xl animate-in slide-in-from-bottom" onClick={(e) => e.stopPropagation()}>
                     <div className="text-center">
                       <div className="mx-auto mb-2 h-1 w-10 rounded-full bg-neutral-200 sm:hidden" />
-                      <div className="sunset-display text-lg tracking-wider" style={{ color: "#1a0f0a" }}>MÉTODO DE PAGO</div>
-                      <div className="sunset-body text-[11px]" style={{ color: "#78655c" }}>Total: <span className="sunset-display" style={{ color: "#1a0f0a" }}>{formatMoney(stagedTotal)}</span></div>
+                      <div className="sunset-display text-lg tracking-wider" style={{ color: "#e8ecf1" }}>MÉTODO DE PAGO</div>
+                      <div className="sunset-body text-[11px]" style={{ color: "#94a3b8" }}>Total: <span className="sunset-display" style={{ color: "#e8ecf1" }}>{formatMoney(stagedTotal)}</span></div>
                     </div>
                     <div className="space-y-1.5 pt-1">
                       {SPLIT_METHODS.map((m) => {
@@ -443,7 +443,7 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
               {committedBuckets.length > 0 && (
                 <div>
-                  <div className="sunset-display text-[11px] uppercase tracking-[0.18em] mb-1.5" style={{ color: "#78655c" }}>Pagos asignados</div>
+                  <div className="sunset-display text-[11px] uppercase tracking-[0.18em] mb-1.5" style={{ color: "#94a3b8" }}>Pagos asignados</div>
                   <div className="space-y-1">
                     {committedBuckets.map((b, i) => {
                       const s = METHOD_STYLE[b.method];
@@ -455,7 +455,7 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
                           >
                             {b.method}
                           </div>
-                          <div className="flex-1 min-w-0 sunset-body text-[11px] truncate" style={{ color: "#78655c" }}>
+                          <div className="flex-1 min-w-0 sunset-body text-[11px] truncate" style={{ color: "#94a3b8" }}>
                             {b.items.map((it) => `${it.qty}× ${it.name}`).join(", ")}
                           </div>
                           <div className="sunset-display tabular-nums text-sm" style={{ color: s.ring }}>{formatMoney(b.amount)}</div>
@@ -469,7 +469,7 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
                               }
                               return next;
                             });
-                          }}><X className="h-3 w-3" style={{ color: "#e84393" }} /></button>
+                          }}><X className="h-3 w-3" style={{ color: "#818cf8" }} /></button>
                         </div>
                       );
                     })}
@@ -480,7 +480,7 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
           </Tabs>
         </div>
 
-        <DialogFooter className="shrink-0 border-t px-4 py-2.5 gap-2 sm:gap-2" style={{ background: "rgba(255,247,237,0.7)", borderColor: "rgba(255,107,53,0.18)" }}>
+        <DialogFooter className="shrink-0 border-t px-4 py-2.5 gap-2 sm:gap-2" style={{ background: "rgba(20,20,50,0.85)", borderColor: "rgba(79,70,229,0.18)" }}>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={paying} className="sunset-display h-10 rounded-full tracking-wider">
             CANCELAR
           </Button>
@@ -488,7 +488,7 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
             onClick={handleConfirm}
             disabled={paying}
             className="sunset-display h-10 flex-1 rounded-full tracking-wider text-white text-[15px] flex items-center justify-center gap-2 disabled:opacity-50 transition-transform hover:scale-[1.01] active:scale-[0.99]"
-            style={{ background: "var(--sunset-gradient)", boxShadow: "0 8px 20px -6px rgba(232,67,147,0.55), inset 0 1px 0 rgba(255,255,255,0.35)" }}
+            style={{ background: "var(--sunset-gradient)", boxShadow: "0 8px 20px -6px rgba(129,140,248,0.55), inset 0 1px 0 rgba(255,255,255,0.35)" }}
           >
             <Banknote className="h-4 w-4" />
             {paying ? "COBRANDO…" : `COBRAR ${formatMoney(total)}`}
