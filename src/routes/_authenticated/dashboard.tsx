@@ -17,7 +17,7 @@ import {
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
-import golosoMascot from "@/assets/goloso-character.png.asset.json";
+import welcomeBanner from "@/assets/welcome-goloso.jpeg.asset.json";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Goloso POS" }] }),
