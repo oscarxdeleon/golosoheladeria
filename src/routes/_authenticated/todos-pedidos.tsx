@@ -181,7 +181,7 @@ function TodosPedidosPage() {
     setSearch("");
   }
 
-  if (authLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
+  if (authLoading || rolesLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
   if (!isAdmin) return <Navigate to="/" />;
 
   return (
