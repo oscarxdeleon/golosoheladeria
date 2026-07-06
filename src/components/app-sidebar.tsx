@@ -44,7 +44,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutGrid } from "lucide-react";
+import { LayoutGrid, MessageSquareHeart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const main = [
@@ -86,6 +86,7 @@ const egresos = [
 const admin = [
   { to: "/todos-pedidos", label: "Todos los pedidos", icon: ReceiptIcon, key: "todos-pedidos" },
   { to: "/mesas-admin", label: "Gestión de mesas", icon: LayoutGrid, key: "mesas-admin" },
+  { to: "/opiniones", label: "Opiniones de clientes", icon: MessageSquareHeart, key: "__admin_only__" },
   { to: "/repartidores", label: "Repartidores", icon: Bike, key: "usuarios" },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace, key: "asistencia" },
   { to: "/usuarios", label: "Usuarios", icon: Users, key: "usuarios" },

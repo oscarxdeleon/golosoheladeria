@@ -578,6 +578,48 @@ export type Database = {
           },
         ]
       }
+      kiosk_feedback: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          id: string
+          rating: number
+          sale_id: string | null
+          source: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          rating: number
+          sale_id?: string | null
+          source?: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          rating?: number
+          sale_id?: string | null
+          source?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kiosk_feedback_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "kiosk_feedback_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       modifier_groups: {
         Row: {
           created_at: string

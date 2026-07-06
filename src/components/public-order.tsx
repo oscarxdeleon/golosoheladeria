@@ -78,6 +78,11 @@ export function PublicOrder({
   const [onlineService, setOnlineService] = useState<OnlineService | null>(null);
   const [resetCountdown, setResetCountdown] = useState(30);
   const resetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [kioskStage, setKioskStage] = useState<"ticket" | "feedback">("ticket");
+  const ticketAdvanceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
+  const [feedbackSentRating, setFeedbackSentRating] = useState<number | null>(null);
+  const [lastSaleId, setLastSaleId] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
@@ -137,6 +142,10 @@ export function PublicOrder({
       clearInterval(resetTimerRef.current);
       resetTimerRef.current = null;
     }
+    if (ticketAdvanceRef.current) {
+      clearTimeout(ticketAdvanceRef.current);
+      ticketAdvanceRef.current = null;
+    }
     setConfirmOpen(false);
     setTicketNumber(null);
     setCart([]);
@@ -149,11 +158,27 @@ export function PublicOrder({
     setCartOpen(false);
     setActiveCat("all");
     setResetCountdown(30);
+    setKioskStage("ticket");
+    setFeedbackSentRating(null);
+    setLastSaleId(null);
     if (source === "kiosk") setKioskService(null);
   }
 
+  // Kiosk: mostrar ticket ~8s, luego pasar a pantalla de calificación
   useEffect(() => {
-    if (!confirmOpen || source !== "kiosk") return;
+    if (!confirmOpen || source !== "kiosk" || kioskStage !== "ticket") return;
+    ticketAdvanceRef.current = setTimeout(() => {
+      setKioskStage("feedback");
+    }, 8000);
+    return () => {
+      if (ticketAdvanceRef.current) clearTimeout(ticketAdvanceRef.current);
+      ticketAdvanceRef.current = null;
+    };
+  }, [confirmOpen, source, kioskStage]);
+
+  // Kiosk: cuenta regresiva de 30s durante la pantalla de calificación
+  useEffect(() => {
+    if (!confirmOpen || source !== "kiosk" || kioskStage !== "feedback") return;
     setResetCountdown(30);
     resetTimerRef.current = setInterval(() => {
       setResetCountdown((s) => {
@@ -171,7 +196,26 @@ export function PublicOrder({
       resetTimerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirmOpen, source]);
+  }, [confirmOpen, source, kioskStage]);
+
+  async function submitFeedback(rating: number) {
+    if (feedbackSubmitting || feedbackSentRating != null) return;
+    setFeedbackSubmitting(true);
+    setFeedbackSentRating(rating);
+    try {
+      await supabase.from("kiosk_feedback").insert({
+        rating,
+        branch_id: branchId ?? null,
+        sale_id: lastSaleId,
+        source: "kiosk",
+      });
+    } catch (e) {
+      console.error("kiosk_feedback insert failed", e);
+    } finally {
+      setFeedbackSubmitting(false);
+      setTimeout(() => resetKiosk(), 1500);
+    }
+  }
 
 
 
@@ -400,7 +444,7 @@ export function PublicOrder({
         _payload: JSON.parse(JSON.stringify(payload)),
       });
       if (error) throw error;
-      const result = data as { ticket_number: number } | null;
+      const result = data as { ticket_number: number; sale_id?: string | null } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
 
       // Recordar datos del cliente para futuros pedidos (solo pedidos en línea)
@@ -429,6 +473,9 @@ export function PublicOrder({
       }
 
       setTicketNumber(result.ticket_number);
+      setLastSaleId(result.sale_id ?? null);
+      setKioskStage("ticket");
+      setFeedbackSentRating(null);
       setConfirmOpen(true);
       setCartOpen(false);
 
@@ -526,6 +573,90 @@ export function PublicOrder({
 
   if (confirmOpen && ticketNumber) {
     const isKiosk = source === "kiosk";
+
+    // KIOSK: pantalla de calificación después del ticket
+    if (isKiosk && kioskStage === "feedback") {
+      const ratings = [
+        { value: 1, emoji: "😡", label: "MUY MALO" },
+        { value: 2, emoji: "🙁", label: "MALO" },
+        { value: 3, emoji: "😐", label: "REGULAR" },
+        { value: 4, emoji: "😊", label: "BUENO" },
+        { value: 5, emoji: "🤩", label: "EXCELENTE" },
+      ];
+      return (
+        <div
+          className="min-h-screen flex flex-col items-center justify-between px-6 py-10 text-center text-white relative overflow-hidden"
+          style={{ background: "radial-gradient(circle at 20% 15%, #1e3a8a 0%, #0b1a5c 55%, #060f3d 100%)" }}
+        >
+          <div className="absolute -top-24 -left-16 h-72 w-72 rounded-full bg-blue-500/40 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-24 -right-16 h-72 w-72 rounded-full bg-blue-900/60 blur-3xl pointer-events-none" />
+
+          <div className="flex-1 flex flex-col items-center justify-center gap-6 relative z-10">
+            <img
+              src="/__l5e/assets-v1/8acb9227-b9fd-468e-b2b8-63d3cc30c823/goloso-mascot.png"
+              alt="Goloso"
+              className="h-56 sm:h-72 w-auto drop-shadow-2xl select-none"
+              draggable={false}
+            />
+            <h1 className="font-display text-3xl sm:text-4xl font-extrabold tracking-tight">
+              ¿Cómo fue tu experiencia?
+            </h1>
+            <div className="flex items-center gap-2 text-2xl sm:text-3xl text-green-400 drop-shadow">
+              {"★★★★★".split("").map((s, i) => (
+                <span key={i}>{s}</span>
+              ))}
+            </div>
+
+            <div className="w-full max-w-2xl rounded-3xl bg-white text-slate-900 shadow-2xl px-4 py-6 sm:px-8 sm:py-8">
+              <div className="grid grid-cols-5 gap-2 sm:gap-4">
+                {ratings.map((r) => {
+                  const selected = feedbackSentRating === r.value;
+                  const disabled = feedbackSubmitting || feedbackSentRating != null;
+                  return (
+                    <button
+                      key={r.value}
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => submitFeedback(r.value)}
+                      className={`flex flex-col items-center gap-2 rounded-2xl p-2 sm:p-3 transition active:scale-95 ${selected ? "bg-primary/10 ring-2 ring-primary" : "hover:bg-slate-100"} ${disabled && !selected ? "opacity-50" : ""}`}
+                    >
+                      <span className="text-4xl sm:text-5xl leading-none">{r.emoji}</span>
+                      <span className="text-[10px] sm:text-xs font-bold tracking-wide text-slate-700 whitespace-pre-line">
+                        {r.label.replace(" ", "\n")}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+              {feedbackSentRating != null && (
+                <p className="mt-4 text-sm font-semibold text-primary">
+                  ¡Gracias por tu opinión!
+                </p>
+              )}
+            </div>
+          </div>
+
+          <div className="relative z-10 mt-6 flex flex-col items-center gap-3">
+            <div className="inline-flex items-center gap-3 rounded-full bg-white/10 px-5 py-2 border border-white/20 backdrop-blur">
+              <div className="relative h-8 w-8 flex items-center justify-center">
+                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
+                  <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-white/20" />
+                  <circle
+                    cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3"
+                    strokeDasharray={`${(resetCountdown / 30) * 100.5} 100.5`}
+                    className="text-green-400 transition-all duration-1000 ease-linear"
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <span className="text-xs font-bold">{resetCountdown}</span>
+              </div>
+              <span className="text-sm font-medium">Volviendo al inicio en {resetCountdown}s</span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-primary/10 via-background to-secondary/10">
         <CheckCircle2 className="h-24 w-24 text-success mb-4 animate-in zoom-in duration-500" />
@@ -540,28 +671,9 @@ export function PublicOrder({
             : "Acércate a la caja con este número para pagar y recibir tu pedido."}
         </p>
         {isKiosk && (
-          <>
-            <div className="mt-8 inline-flex items-center gap-3 rounded-full bg-primary/10 px-6 py-3 border border-primary/20">
-              <div className="relative h-10 w-10 flex items-center justify-center">
-                <svg className="absolute inset-0 -rotate-90" viewBox="0 0 36 36">
-                  <circle cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3" className="text-primary/20" />
-                  <circle
-                    cx="18" cy="18" r="16" fill="none" stroke="currentColor" strokeWidth="3"
-                    strokeDasharray={`${(resetCountdown / 30) * 100.5} 100.5`}
-                    className="text-primary transition-all duration-1000 ease-linear"
-                    strokeLinecap="round"
-                  />
-                </svg>
-                <span className="font-display text-sm font-bold text-primary">{resetCountdown}</span>
-              </div>
-              <span className="font-medium text-primary">
-                La pantalla se reiniciará en {resetCountdown} segundo{resetCountdown === 1 ? "" : "s"}...
-              </span>
-            </div>
-            <Button className="mt-6" size="lg" variant="outline" onClick={resetKiosk}>
-              <ArrowLeft className="h-5 w-5" /> Volver al inicio
-            </Button>
-          </>
+          <Button className="mt-8" size="lg" onClick={() => setKioskStage("feedback")}>
+            Continuar
+          </Button>
         )}
         {!isKiosk && (
           <Button className="mt-8" size="lg" onClick={() => setConfirmOpen(false)}>
