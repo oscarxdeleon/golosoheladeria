@@ -382,7 +382,7 @@ function OnlineOrdersPage() {
     return { ticketArgs, waMessage, waPhone: o.customer_phone ?? null };
   }
 
-  /** Cobra el pedido con el método indicado. NO imprime — abre el diálogo de éxito para elegir. */
+  /** Cobra el pedido con el método indicado. El ticket físico se imprime solo después de confirmar el pago. */
   async function payWithMethod(method: string, cashReceivedRaw?: string) {
     if (!payOrder) return;
     if (!activeBranchId || payOrder.branch_id !== activeBranchId) {
@@ -427,8 +427,8 @@ function OnlineOrdersPage() {
 
     toast.success(`Pedido #${payOrder.ticket_number} cobrado con ${method}`);
 
-    // Diferimos la impresión y el WhatsApp: se decide desde el diálogo de éxito.
     const artifacts = buildTicketArtifacts(payOrder, its, method, cashReceived);
+    setTimeout(() => { void printTicketFinal(artifacts.ticketArgs); }, 0);
     setSuccessDialog({
       ticket: payOrder.ticket_number,
       method,
@@ -811,7 +811,7 @@ function OnlineOrdersPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Diálogo de éxito con pregunta "¿imprimir ticket?" — idéntico al POS */}
+      {/* Diálogo de éxito posterior al cobro: el ticket físico ya fue enviado a impresión. */}
       <Dialog open={!!successDialog} onOpenChange={(open) => { if (!open) setSuccessDialog(null); }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -828,43 +828,30 @@ function OnlineOrdersPage() {
               )}
             </DialogDescription>
           </DialogHeader>
-          <p className="text-center text-base font-medium">¿Desea imprimir el ticket de venta?</p>
+          <p className="text-center text-base font-medium">Ticket de venta enviado a impresión.</p>
           <DialogFooter className="sm:justify-center gap-2 flex-wrap">
             <Button
               variant="outline"
               className="font-bold"
               onClick={() => {
-                const wa = successDialog?.waMessage;
-                const phone = successDialog?.waPhone;
                 setSuccessDialog(null);
-                if (wa && phone) {
-                  const send = window.confirm(`¿Enviar ticket digital por WhatsApp al cliente?\n\nNúmero: ${phone}`);
-                  if (send) window.open(waLink(phone, wa), "_blank", "noopener");
-                }
               }}
             >
-              No, finalizar
+              Finalizar
             </Button>
-            <Button
-              className="font-bold"
-              onClick={() => {
-                const args = successDialog?.ticketArgs;
-                const wa = successDialog?.waMessage;
-                const phone = successDialog?.waPhone;
-                setSuccessDialog(null);
-                if (args) {
-                  setTimeout(() => { void printTicketFinal(args); }, 0);
-                }
-                if (wa && phone) {
-                  setTimeout(() => {
-                    const send = window.confirm(`¿Enviar también el ticket digital por WhatsApp al cliente?\n\nNúmero: ${phone}`);
-                    if (send) window.open(waLink(phone, wa), "_blank", "noopener");
-                  }, 300);
-                }
-              }}
-            >
-              <Printer className="h-4 w-4 mr-1" /> Sí, imprimir
-            </Button>
+            {successDialog?.waMessage && successDialog.waPhone && (
+              <Button
+                className="font-bold"
+                onClick={() => {
+                  const wa = successDialog?.waMessage;
+                  const phone = successDialog?.waPhone;
+                  setSuccessDialog(null);
+                  if (wa && phone) window.open(waLink(phone, wa), "_blank", "noopener");
+                }}
+              >
+                <MessageCircle className="h-4 w-4 mr-1" /> Enviar WhatsApp
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
