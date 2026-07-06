@@ -31,13 +31,13 @@ function ModPage() {
   const [modEdit, setModEdit] = useState<Partial<Mod> | null>(null);
   const [dupSource, setDupSource] = useState<Group | null>(null);
   const [dupName, setDupName] = useState("");
-  const [dupItems, setDupItems] = useState<{ name: string; price: number }[]>([]);
+  const [dupItems, setDupItems] = useState<{ name: string; price: number; image_url?: string | null }[]>([]);
   const [dupSaving, setDupSaving] = useState(false);
 
   function openDuplicate(g: Group) {
     setDupSource(g);
     setDupName(`${g.name} - Copia`);
-    setDupItems(mods.filter((m) => m.group_id === g.id).map((m) => ({ name: m.name, price: m.price })));
+    setDupItems(mods.filter((m) => m.group_id === g.id).map((m) => ({ name: m.name, price: m.price, image_url: m.image_url ?? null })));
   }
 
   async function confirmDuplicate() {
@@ -58,7 +58,7 @@ function ModPage() {
       if (error || !newGroup) throw new Error(error?.message || "No se pudo crear el grupo");
       const items = dupItems
         .filter((i) => i.name.trim())
-        .map((i) => ({ group_id: newGroup.id, name: i.name.trim(), price: Number(i.price) || 0, active: true }));
+        .map((i) => ({ group_id: newGroup.id, name: i.name.trim(), price: Number(i.price) || 0, active: true, image_url: i.image_url ?? null }));
       if (items.length > 0) {
         const { error: e2 } = await supabase.from("modifiers").insert(items);
         if (e2) throw new Error(e2.message);
@@ -295,6 +295,13 @@ function ModPage() {
                 {dupItems.length === 0 && <p className="text-xs text-muted-foreground">El grupo original no tiene opciones.</p>}
                 {dupItems.map((it, idx) => (
                   <div key={idx} className="flex items-center gap-2">
+                    {it.image_url ? (
+                      <img src={it.image_url} alt={it.name} className="h-10 w-10 rounded object-cover border shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center shrink-0">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
                     <Input
                       className="flex-1"
                       placeholder="Nombre"
