@@ -111,43 +111,6 @@ function preCuentaHTML(o: { ticket: number; header: string; items: { name: strin
   </body></html>`;
 }
 
-function reciboDomicilioHTML(o: { ticket: number; customer: string; address: string; neighborhood: string; phone: string; total: number; payment_method: string; created_at: string; }) {
-  return `<!doctype html><html><head><title> </title><style>
-    @page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}
-    html,body{width:80mm}body{font-family:'Arial Black','Helvetica',sans-serif;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.3}
-    h1{font-size:30px;margin:0 0 4px;text-align:center;letter-spacing:1px}
-    h2{font-size:38px;margin:6px 0;text-align:center;border:3px solid #000;padding:8px 0;background:#000;color:#fff}
-    .label{font-size:18px;text-transform:uppercase;margin-top:10px;letter-spacing:1px}
-    .val{font-size:30px;border-bottom:3px solid #000;padding:4px 0;word-wrap:break-word}
-    .val.lg{font-size:34px}
-    .total-box{margin-top:14px;border:4px double #000;padding:10px;text-align:center}
-    .total-box .t{font-size:22px;text-transform:uppercase}
-    .total-box .v{font-size:48px;line-height:1.1}
-    .pay-box{margin-top:14px;border:3px solid #000;padding:10px}
-    .pay-box .line{border-bottom:3px solid #000;height:42px;margin-top:6px}
-    .footer{margin-top:14px;text-align:center;font-size:18px;border-top:2px dashed #000;padding-top:8px}
-  </style></head><body>
-    <h1>HELADERÍA GOLOSO</h1>
-    <h2>DOMICILIO #${o.ticket}</h2>
-    <div style="text-align:center;font-size:16px;margin-bottom:6px">${new Date(o.created_at).toLocaleString("es-CO")}</div>
-    <div class="label">Cliente</div><div class="val lg">${o.customer || "—"}</div>
-    <div class="label">Teléfono</div><div class="val lg">${o.phone || "—"}</div>
-    <div class="label">Dirección</div><div class="val">${o.address || "—"}${o.neighborhood ? `<br/>${o.neighborhood}` : ""}</div>
-    <div class="total-box">
-      <div class="t">Total a cobrar</div>
-      <div class="v">${formatMoney(o.total)}</div>
-      <div style="font-size:18px;margin-top:4px">Pago: ${o.payment_method || "Pendiente"}</div>
-    </div>
-    <div class="pay-box">
-      <div style="font-size:20px;text-transform:uppercase">Paga con:</div>
-      <div class="line"></div>
-      <div style="font-size:20px;text-transform:uppercase;margin-top:10px">Cambio:</div>
-      <div class="line"></div>
-    </div>
-    <div class="footer">Entregar al domiciliario<br/>¡Gracias por tu compra!</div>
-  </body></html>`;
-}
-
 function OnlineOrdersPage() {
   const qc = useQueryClient();
   const { activeBranchId, activeBranch } = useBranch();
@@ -248,39 +211,7 @@ function OnlineOrdersPage() {
       created_at: o.created_at,
     }), { silent: true });
 
-    // 2) Recibo para el domiciliario (solo si es domicilio o hay dirección)
-    if (o.order_type === "domicilio" || o.delivery_address) {
-      const reciboPayload: PrintPayload = {
-        type: "comprobante",
-        ticket: o.ticket_number,
-        header: `DOMICILIO #${o.ticket_number}`,
-        items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-        subtotal: Number(o.subtotal ?? 0),
-        deliveryFee: Number(o.delivery_fee ?? 0),
-        total: Number(o.total ?? 0),
-        customer: o.customer_name ?? "",
-        address: o.delivery_address ?? "",
-        phone: o.customer_phone ?? "",
-        payment_method: o.payment_method ?? "Pendiente",
-        created_at: o.created_at,
-        cashierMessage: "RECIBO DE DOMICILIO · Paga con: ____  Cambio: ____",
-      };
-      // Pequeño retraso para evitar colisión con la comanda en la cola del servidor
-      setTimeout(() => {
-        void printSilent(reciboPayload, reciboDomicilioHTML({
-          ticket: o.ticket_number,
-          customer: o.customer_name ?? "",
-          address: o.delivery_address ?? "",
-          neighborhood: o.delivery_neighborhood ?? "",
-          phone: o.customer_phone ?? "",
-          total: Number(o.total ?? 0),
-          payment_method: o.payment_method ?? "Pendiente",
-          created_at: o.created_at,
-        }), { silent: true });
-      }, 600);
-    }
-
-    // Estado intermedio: confirmado, listo para cobro
+    // Estado intermedio: confirmado, listo para cobro. No se imprime ningún ticket de venta aquí.
     const { error } = await supabase
       .from("sales")
       .update({
@@ -298,7 +229,7 @@ function OnlineOrdersPage() {
   function printPreCuenta(o: SaleRow, its: ItemRow[]) {
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
     const payload: PrintPayload = {
-      type: "comprobante",
+      type: "precuenta",
       ticket: o.ticket_number,
       header: `PRE-CUENTA · ${header}`,
       items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),

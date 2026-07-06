@@ -530,7 +530,8 @@ export function PublicOrder({
       setConfirmOpen(true);
       setCartOpen(false);
 
-      // Auto-impresión (comanda + comprobante) para AUTOPEDIDO y pedidos en línea
+      // Auto-impresión: solo comanda de cocina/preparación.
+      // El ticket de venta se emite únicamente al confirmar el pago desde el POS.
       if (source === "kiosk" || source === "online_menu") {
         const br = branch as { name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null } | null | undefined;
         const st = settings as { business_name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null; footer_text?: string | null; email?: string | null; ticket_config?: Record<string, unknown> | null } | null | undefined;
@@ -545,9 +546,7 @@ export function PublicOrder({
         const logo_url = toAbsolutePrintUrl(br?.logo_url || st?.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
         const logo_fallback_url = toAbsolutePrintUrl(golosoLogo);
         const ticket_config = { ...(st?.ticket_config ?? {}), show_logo: true };
-        const footer_text = st?.footer_text || "Gracias por su compra";
         const created_at = new Date().toISOString();
-        const cashReceivedNum = Number(cashAmount.replace(/[^\d]/g, "")) || total;
 
         // Comanda cocina
         void sendToLocalPrinter({
@@ -569,36 +568,6 @@ export function PublicOrder({
           logo_fallback_url,
           ticket_config,
           ticket_template: "goloso_personalizado",
-        });
-
-        // Comprobante/recibo cliente
-        void sendToLocalPrinter({
-          type: "comprobante",
-          ticket: result.ticket_number,
-          ticket_number: result.ticket_number,
-          header: "COMPROBANTE DE PEDIDO",
-          items: printItems,
-          subtotal,
-          deliveryFee,
-          total,
-          payment_method: payMethod,
-          cash_received: payMethod === "Efectivo" ? cashReceivedNum : undefined,
-          customer: customerName || undefined,
-          notes: payload.notes ?? undefined,
-          address: isDelivery ? address : undefined,
-          phone: phone || undefined,
-          created_at,
-          business_name,
-          nit,
-          address_biz,
-          phone_biz,
-          email_biz: st?.email ?? undefined,
-          footer_text,
-          logo_url,
-          logo_fallback_url,
-          ticket_config,
-          ticket_template: "goloso_personalizado",
-          cashierMessage: "Conserve este comprobante.\nGracias por su compra.",
         });
       }
 

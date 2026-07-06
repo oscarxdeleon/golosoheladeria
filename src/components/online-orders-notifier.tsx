@@ -66,6 +66,7 @@ function useOrderAlertLoop() {
       a.loop = true;
       a.preload = "auto";
       a.volume = 1;
+      a.setAttribute("playsinline", "true");
       audioRef.current = a;
     }
     return audioRef.current;
@@ -108,9 +109,20 @@ function useOrderAlertLoop() {
         const prevMuted = a.muted;
         a.muted = true;
         const p = a.play();
-        const finish = () => { try { a.pause(); a.currentTime = 0; a.muted = prevMuted; } catch { /* noop */ } };
+        const finish = () => {
+          try {
+            a.muted = prevMuted;
+            if (activeRef.current) {
+              void a.play().catch(() => { /* se reintenta con el watchdog */ });
+            } else {
+              a.pause();
+              a.currentTime = 0;
+            }
+          } catch { /* noop */ }
+        };
         if (p && typeof p.then === "function") p.then(finish).catch(() => { a.muted = prevMuted; });
         else finish();
+        return;
       }
       if (activeRef.current && a.paused) attemptPlay();
     };
@@ -118,9 +130,14 @@ function useOrderAlertLoop() {
     events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
     const onVisible = () => { if (activeRef.current) attemptPlay(); };
     document.addEventListener("visibilitychange", onVisible);
+    const watchdog = window.setInterval(() => {
+      const a = audioRef.current;
+      if (activeRef.current && (!a || a.paused)) attemptPlay();
+    }, 1500);
     return () => {
       events.forEach((e) => window.removeEventListener(e, unlock));
       document.removeEventListener("visibilitychange", onVisible);
+      window.clearInterval(watchdog);
     };
   }, [attemptPlay, ensureAudio]);
 
