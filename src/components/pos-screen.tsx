@@ -845,7 +845,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
-  async function pay(method: string) {
+  async function pay(method: string, paymentDetails?: Record<string, unknown> | null) {
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
     if (!effectiveSessionId) return toast.error("Debes abrir caja antes de cobrar");
@@ -871,6 +871,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             tax,
             total,
             payment_method: method,
+            payment_details: paymentDetails ?? null,
             status: "paid",
             cash_session_id: effectiveSessionId,
             customer_name: customer || null,
@@ -899,6 +900,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             tax,
             total,
             payment_method: method,
+            payment_details: paymentDetails ?? null,
             status: "paid",
             cash_session_id: effectiveSessionId,
             customer_name: customer || null,
