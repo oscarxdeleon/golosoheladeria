@@ -200,6 +200,9 @@ export function OnlineOrdersNotifier() {
     if (!activeBranchId) return;
     const handler = (payload: { new: IncomingSale }) => {
       const row = payload.new;
+      if (!row || !row.id) return;
+      // Solo pedidos públicos (kiosko / mesa QR / menú en línea)
+      if (!["online_menu", "kiosk", "table_qr"].includes(row.source)) return;
       if (seen.current.has(row.id)) return;
       // Filtro estricto por sede activa — pedidos de otra sucursal no alertan acá
       if (row.branch_id !== activeBranchId) return;
@@ -225,26 +228,17 @@ export function OnlineOrdersNotifier() {
       qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
     };
 
-    const channel = supabase.channel(`sales-public-orders-${activeBranchId}`);
-    channel
+    const channel = supabase
+      .channel(`sales-public-orders-${activeBranchId}`)
       .on(
         "postgres_changes" as never,
-        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.online_menu" } as never,
-        handler as never,
-      )
-      .on(
-        "postgres_changes" as never,
-        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.kiosk" } as never,
-        handler as never,
-      )
-      .on(
-        "postgres_changes" as never,
-        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.table_qr" } as never,
+        { event: "INSERT", schema: "public", table: "sales" } as never,
         handler as never,
       )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [navigate, qc, activeBranchId, start]);
+
 
   if (pending.length === 0) return null;
 
