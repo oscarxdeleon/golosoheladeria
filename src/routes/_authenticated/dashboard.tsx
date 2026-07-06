@@ -35,12 +35,12 @@ const norm = (s?: string | null) => (s ?? "").toLowerCase().trim();
 const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
 
 const METHOD_COLORS: Record<string, string> = {
-  efectivo:   "bg-emerald-500",
-  nequi:      "bg-blue-500",
-  bancolombia:"bg-violet-500",
-  daviplata:  "bg-rose-500",
-  tarjeta:    "bg-slate-500",
-  transferencia: "bg-amber-500",
+  efectivo:      "bg-[#A3D93A]",
+  nequi:         "bg-[#3AB6C8]",
+  bancolombia:   "bg-[#F2C42B]",
+  daviplata:     "bg-[#E88A9A]",
+  tarjeta:       "bg-[#6B3A1E]",
+  transferencia: "bg-[#D6303A]",
 };
 
 type Range = "hoy" | "ayer" | "semana" | "mes";
