@@ -221,8 +221,11 @@ export function PublicOrder({
 
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").maybeSingle()).data,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
+
   const { data: branch } = useQuery({
     queryKey: ["public-branch", branchSlug ?? null],
     queryFn: async () => {
@@ -711,7 +714,7 @@ export function PublicOrder({
   }
 
   if (source === "kiosk" && !kioskService) {
-    const kioskLogo = settings?.logo_url || (branch as { logo_url?: string | null } | null | undefined)?.logo_url;
+    const kioskLogo = settings?.logo_url ?? null;
     const kioskName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
@@ -777,7 +780,7 @@ export function PublicOrder({
   }
 
   if (source === "online_menu" && !onlineService && !readOnly) {
-    const onlineLogo = settings?.logo_url || (branch as { logo_url?: string | null } | null | undefined)?.logo_url;
+    const onlineLogo = settings?.logo_url ?? null;
     const onlineName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
