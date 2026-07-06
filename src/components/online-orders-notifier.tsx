@@ -129,6 +129,30 @@ async function autoPrintKioskOrder(saleId: string) {
   });
 }
 
+async function printTableOrderComanda(saleId: string) {
+  const [{ data: sale }, { data: items }] = await Promise.all([
+    supabase.from("sales").select("ticket_number, customer_name, notes, created_at, table_id").eq("id", saleId).maybeSingle(),
+    supabase.from("sale_items").select("product_name, qty, unit_price").eq("sale_id", saleId),
+  ]);
+  if (!sale || !items?.length) return;
+  let tableLabel = "";
+  if (sale.table_id) {
+    const { data: t } = await supabase.from("restaurant_tables").select("number,label").eq("id", sale.table_id).maybeSingle();
+    if (t) tableLabel = t.label ?? `Mesa ${t.number}`;
+  }
+  const printItems = items.map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) }));
+  void sendToLocalPrinter({
+    type: "comanda",
+    ticket: sale.ticket_number,
+    header: `PEDIDO MESA${tableLabel ? " · " + tableLabel.toUpperCase() : ""}`,
+    items: printItems,
+    customer: sale.customer_name ?? tableLabel ?? undefined,
+    notes: sale.notes ?? undefined,
+    created_at: sale.created_at ?? undefined,
+  });
+}
+
+
 type PendingAlert = {
   id: string;
   ticket: number;
