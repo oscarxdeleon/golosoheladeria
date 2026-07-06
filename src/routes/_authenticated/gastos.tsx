@@ -51,12 +51,12 @@ function GastosPage() {
       .limit(30)).data ?? [],
   });
 
-  async function save() {
+  async function save(overrideAmount?: number) {
     if (!user) return toast.error("Sin sesión");
     if (!activeBranchId) return toast.error("Selecciona una sede activa");
-    const value = Number(amount);
+    const value = overrideAmount ?? Number(amount);
     if (!Number.isFinite(value) || value <= 0) return toast.error("Monto inválido");
-    if (!description.trim()) return toast.error("Describe el gasto");
+    if (!description.trim()) return toast.error("Agrega una descripción");
 
     setSaving(true);
     try {
