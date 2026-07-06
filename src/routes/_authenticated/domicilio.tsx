@@ -170,7 +170,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
             <img
               src={domicilioMotoImg}
               alt="Repartidor Goloso"
-              className="h-16 w-auto sm:h-20 object-contain select-none drop-shadow-md"
+              className="h-24 w-auto sm:h-32 object-contain select-none drop-shadow-md"
               draggable={false}
             />
           </div>
