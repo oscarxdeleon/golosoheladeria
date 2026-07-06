@@ -96,7 +96,10 @@ function TodosPedidosPage() {
   const { session: cashSession } = useBranchCashSession(activeBranchId);
 
   const [turnoActual, setTurnoActual] = useState(true);
-  const [soloHoy, setSoloHoy] = useState(false);
+  const [dateFilter, setDateFilter] = useState<"todos" | "hoy" | "ayer" | "personalizada">("hoy");
+  const todayIso = new Date().toISOString().slice(0, 10);
+  const [customFrom, setCustomFrom] = useState<string>(todayIso);
+  const [customTo, setCustomTo] = useState<string>(todayIso);
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
@@ -123,7 +126,8 @@ function TodosPedidosPage() {
     queryKey: [
       "todos-pedidos", activeBranchId,
       turnoActual ? cashSession?.id ?? "no-session" : "all",
-      soloHoy ? "hoy" : "sin-fecha",
+      dateFilter,
+      dateFilter === "personalizada" ? `${customFrom}_${customTo}` : "",
     ],
     enabled: !!activeBranchId && isAdmin,
     queryFn: async () => {
@@ -138,10 +142,25 @@ function TodosPedidosPage() {
         if (!cashSession?.id) return [];
         q = q.eq("cash_session_id", cashSession.id);
       }
-      if (soloHoy) {
-        const d = new Date();
-        const start = new Date(d.getFullYear(), d.getMonth(), d.getDate());
-        const end = new Date(start.getTime() + 86400000);
+      if (dateFilter !== "todos") {
+        const now = new Date();
+        let start: Date;
+        let end: Date;
+        if (dateFilter === "hoy") {
+          start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          end = new Date(start.getTime() + 86400000);
+        } else if (dateFilter === "ayer") {
+          const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+          start = new Date(t.getTime() - 86400000);
+          end = t;
+        } else {
+          // personalizada
+          const [fy, fm, fd] = customFrom.split("-").map(Number);
+          const [ty, tm, td] = customTo.split("-").map(Number);
+          start = new Date(fy, (fm ?? 1) - 1, fd ?? 1);
+          const endBase = new Date(ty, (tm ?? 1) - 1, td ?? 1);
+          end = new Date(endBase.getTime() + 86400000);
+        }
         q = q.gte("created_at", start.toISOString()).lt("created_at", end.toISOString());
       }
 
@@ -176,7 +195,9 @@ function TodosPedidosPage() {
 
   function clearFilters() {
     setTurnoActual(true);
-    setSoloHoy(false);
+    setDateFilter("hoy");
+    setCustomFrom(todayIso);
+    setCustomTo(todayIso);
     setStatusFilter("all");
     setSearch("");
   }
@@ -215,7 +236,7 @@ function TodosPedidosPage() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-5">
+          <div className="flex flex-wrap items-center gap-3">
             <label className="flex items-center gap-2 cursor-pointer select-none">
               <Checkbox
                 checked={turnoActual}
@@ -224,15 +245,43 @@ function TodosPedidosPage() {
               />
               <span className="text-base">Turno actual</span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={soloHoy}
-                onCheckedChange={(v) => setSoloHoy(Boolean(v))}
-                className="h-5 w-5"
-              />
-              <span className="text-base">Hoy</span>
-            </label>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground">Fecha:</span>
+              <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
+                <SelectTrigger className="h-10 w-[170px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="hoy">📅 Hoy</SelectItem>
+                  <SelectItem value="ayer">🕘 Ayer</SelectItem>
+                  <SelectItem value="personalizada">🎯 Personalizada</SelectItem>
+                  <SelectItem value="todos">Todas las fechas</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {dateFilter === "personalizada" && (
+              <div className="flex items-center gap-2 flex-wrap">
+                <Input
+                  type="date"
+                  value={customFrom}
+                  max={customTo || undefined}
+                  onChange={(e) => setCustomFrom(e.target.value)}
+                  className="h-10 w-[160px]"
+                />
+                <span className="text-muted-foreground text-sm">a</span>
+                <Input
+                  type="date"
+                  value={customTo}
+                  min={customFrom || undefined}
+                  onChange={(e) => setCustomTo(e.target.value)}
+                  className="h-10 w-[160px]"
+                />
+              </div>
+            )}
           </div>
+
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-11">
