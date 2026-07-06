@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid } from "lucide-react";
+import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage } from "lucide-react";
 import { toast } from "sonner";
+
+// Genera un PNG de alta resolución del QR listo para imprimir.
+// 1200px con margen amplio y corrección de errores alta = imprime nítido hasta ~15cm.
+async function generateHiResQrDataUrl(url: string, size = 1200): Promise<string> {
+  return await QRCode.toDataURL(url, {
+    errorCorrectionLevel: "H",
+    margin: 2,
+    width: size,
+    color: { dark: "#000000", light: "#FFFFFF" },
+  });
+}
 
 export const Route = createFileRoute("/_authenticated/mesas-admin")({
   head: () => ({ meta: [{ title: "Gestión de mesas · Goloso POS" }] }),
