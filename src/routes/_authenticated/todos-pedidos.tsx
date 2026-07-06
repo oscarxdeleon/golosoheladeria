@@ -93,7 +93,7 @@ function formatTimeShort(iso: string) {
 function TodosPedidosPage() {
   const { isAdmin, loading: authLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
-  const { data: cashSession } = useBranchCashSession(activeBranchId);
+  const { session: cashSession } = useBranchCashSession(activeBranchId);
 
   const [turnoActual, setTurnoActual] = useState(true);
   const [soloHoy, setSoloHoy] = useState(false);
