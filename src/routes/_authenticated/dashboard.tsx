@@ -287,7 +287,7 @@ function DashboardPage() {
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
           <CardTitle className="flex items-center gap-2 font-display text-lg">
-            <span className="grid place-items-center h-8 w-8 rounded-lg bg-teal-100 text-teal-600">
+            <span className="grid place-items-center h-8 w-8 rounded-lg bg-[#3AB6C8]/20 text-[#0F5A68]">
               <Package className="h-4 w-4" />
             </span>
             Top 5 Productos
