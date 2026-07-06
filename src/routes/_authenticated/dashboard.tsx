@@ -308,7 +308,7 @@ function DashboardPage() {
                   <span className="font-semibold">{formatMoney(p.total)}</span>
                 </div>
                 <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-                  <div className="h-full bg-rose-500 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                  <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: "linear-gradient(90deg, #A3D93A, #3AB6C8)" }} />
                 </div>
               </div>
             );
