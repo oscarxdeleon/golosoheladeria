@@ -11,8 +11,9 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage } from "lucide-react";
+import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
 
 // Genera un PNG de alta resolución del QR listo para imprimir.
 // 1200px con margen amplio y corrección de errores alta = imprime nítido hasta ~15cm.
