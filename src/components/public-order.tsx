@@ -38,7 +38,7 @@ function toAbsolutePrintUrl(url?: string | null): string | undefined {
 type KioskService = "llevar" | "comer_aqui";
 type OnlineService = "domicilio" | "recoger";
 
-interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
+interface Category { id: string; name: string; sort_order: number; online_sort_order?: number; kiosk_sort_order?: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
 interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; show_in_online?: boolean; available_branch_ids?: string[] | null; modifier_group_ids?: string[] | null; }
 interface CartModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: CartModifier[]; }
@@ -245,10 +245,17 @@ export function PublicOrder({
     },
   });
   const { data: cats = [] } = useQuery<Category[]>({
-    queryKey: ["public-cats"],
+    queryKey: ["public-cats", source],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("*").eq("active", true).order("sort_order");
-      return ((data ?? []) as Category[]).filter((c) => c.show_in_online_menu !== false);
+      const { data } = await supabase.from("categories").select("*").eq("active", true);
+      const list = ((data ?? []) as Category[]).filter((c) => c.show_in_online_menu !== false);
+      const key: keyof Category = source === "kiosk" ? "kiosk_sort_order" : "online_sort_order";
+      return list.sort((a, b) => {
+        const oa = (a[key] as number | undefined) ?? a.sort_order ?? 0;
+        const ob = (b[key] as number | undefined) ?? b.sort_order ?? 0;
+        if (oa !== ob) return oa - ob;
+        return a.name.localeCompare(b.name, "es");
+      });
     },
   });
   const { data: products = [] } = useQuery<Product[]>({
@@ -274,7 +281,7 @@ export function PublicOrder({
     const list = visibleProducts.filter((p) => activeCat === "all" || p.category_id === activeCat);
     if (activeCat !== "all") return list;
     // Orden global: por categoría (sort_order) y luego nombre del producto.
-    const order = new Map(cats.map((c, i) => [c.id, c.sort_order ?? i]));
+    const order = new Map(cats.map((c, i) => [c.id, i]));
     return [...list].sort((a, b) => {
       const oa = a.category_id ? (order.get(a.category_id) ?? 999) : 999;
       const ob = b.category_id ? (order.get(b.category_id) ?? 999) : 999;

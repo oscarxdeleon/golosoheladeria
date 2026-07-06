@@ -348,7 +348,9 @@ export type Database = {
           color: string | null
           created_at: string
           id: string
+          kiosk_sort_order: number
           name: string
+          online_sort_order: number
           show_in_online_menu: boolean
           show_in_pos: boolean
           sort_order: number
@@ -358,7 +360,9 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          kiosk_sort_order?: number
           name: string
+          online_sort_order?: number
           show_in_online_menu?: boolean
           show_in_pos?: boolean
           sort_order?: number
@@ -368,7 +372,9 @@ export type Database = {
           color?: string | null
           created_at?: string
           id?: string
+          kiosk_sort_order?: number
           name?: string
+          online_sort_order?: number
           show_in_online_menu?: boolean
           show_in_pos?: boolean
           sort_order?: number

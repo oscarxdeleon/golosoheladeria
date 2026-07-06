@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent } from "@/components/ui/card";
@@ -10,8 +10,9 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
-import { Plus, Trash2, Pencil, Store, Globe } from "lucide-react";
+import { Plus, Trash2, Pencil, Store, Globe, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/menu/categorias")({
@@ -23,6 +24,8 @@ interface Category {
   id: string;
   name: string;
   sort_order: number;
+  online_sort_order: number;
+  kiosk_sort_order: number;
   color: string | null;
   active: boolean;
   show_in_pos: boolean;
@@ -81,12 +84,14 @@ function CategoriasPage() {
           <p className="text-muted-foreground">Organiza el menú y controla en qué canales aparece cada categoría.</p>
         </div>
         {isAdmin && (
-          <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditing({ show_in_pos: true, show_in_online_menu: true, active: true })}>
-                <Plus className="h-4 w-4 mr-1" /> Nueva
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <ReorderCategoriesDialog cats={cats} />
+            <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditing({ show_in_pos: true, show_in_online_menu: true, active: true })}>
+                  <Plus className="h-4 w-4 mr-1" /> Nueva
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nueva"} categoría</DialogTitle></DialogHeader>
               <div className="space-y-4">
@@ -136,6 +141,7 @@ function CategoriasPage() {
               <DialogFooter><Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
             </DialogContent>
           </Dialog>
+          </div>
         )}
       </div>
       <Card>
@@ -191,5 +197,98 @@ function CategoriasPage() {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+type Channel = "online" | "kiosk";
+
+function ReorderCategoriesDialog({ cats }: { cats: Category[] }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [channel, setChannel] = useState<Channel>("online");
+  const [items, setItems] = useState<Category[]>([]);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    const key = channel === "kiosk" ? "kiosk_sort_order" : "online_sort_order";
+    const visible = cats.filter((c) => c.show_in_online_menu);
+    setItems([...visible].sort((a, b) => (a[key] ?? 0) - (b[key] ?? 0) || a.name.localeCompare(b.name, "es")));
+  }, [open, channel, cats]);
+
+  function move(idx: number, dir: -1 | 1) {
+    setItems((arr) => {
+      const next = [...arr];
+      const j = idx + dir;
+      if (j < 0 || j >= next.length) return arr;
+      [next[idx], next[j]] = [next[j], next[idx]];
+      return next;
+    });
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      for (let i = 0; i < items.length; i++) {
+        const payload = channel === "kiosk" ? { kiosk_sort_order: i + 1 } : { online_sort_order: i + 1 };
+        const { error } = await supabase.from("categories").update(payload).eq("id", items[i].id);
+        if (error) throw error;
+      }
+      toast.success("Orden guardado");
+      qc.invalidateQueries({ queryKey: ["categories-all"] });
+      qc.invalidateQueries({ queryKey: ["categories"] });
+      qc.invalidateQueries({ queryKey: ["public-cats"] });
+      setOpen(false);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button variant="outline"><ArrowUpDown className="h-4 w-4 mr-1" /> Reordenar</Button>
+      </DialogTrigger>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle>Ordenar categorías</DialogTitle>
+        </DialogHeader>
+        <Tabs value={channel} onValueChange={(v) => setChannel(v as Channel)}>
+          <TabsList className="grid grid-cols-2 w-full">
+            <TabsTrigger value="online"><Globe className="h-4 w-4 mr-1" /> Menú en línea</TabsTrigger>
+            <TabsTrigger value="kiosk"><Store className="h-4 w-4 mr-1" /> Autopedido / Kiosco</TabsTrigger>
+          </TabsList>
+          <TabsContent value={channel} className="mt-3">
+            <p className="text-xs text-muted-foreground mb-2">
+              Usa las flechas para acomodar el orden en el que aparecerán las categorías en este canal.
+            </p>
+            <ul className="divide-y rounded-md border max-h-[50vh] overflow-y-auto">
+              {items.map((c, i) => (
+                <li key={c.id} className="flex items-center gap-2 p-2">
+                  <span className="w-6 text-center text-xs text-muted-foreground">{i + 1}</span>
+                  <span className="inline-block h-4 w-4 rounded" style={{ background: c.color ?? "#ddd" }} />
+                  <span className="flex-1 truncate text-sm">{c.name}</span>
+                  <Button size="icon" variant="ghost" disabled={i === 0} onClick={() => move(i, -1)}>
+                    <ArrowUp className="h-4 w-4" />
+                  </Button>
+                  <Button size="icon" variant="ghost" disabled={i === items.length - 1} onClick={() => move(i, 1)}>
+                    <ArrowDown className="h-4 w-4" />
+                  </Button>
+                </li>
+              ))}
+              {items.length === 0 && (
+                <li className="p-6 text-center text-sm text-muted-foreground">Sin categorías visibles en este canal</li>
+              )}
+            </ul>
+          </TabsContent>
+        </Tabs>
+        <DialogFooter>
+          <Button variant="outline" onClick={() => setOpen(false)}>Cancelar</Button>
+          <Button onClick={save} disabled={saving || items.length === 0}>{saving ? "Guardando…" : "Guardar orden"}</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
