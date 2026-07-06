@@ -219,6 +219,10 @@ export function OnlineOrdersNotifier() {
     persistAcknowledgedIds(acknowledged.current);
   }, []);
 
+  useEffect(() => {
+    setPending([]);
+  }, [activeBranchId]);
+
   function dismissAll() {
     acknowledge(pending.map((p) => p.id));
     setPending([]);
