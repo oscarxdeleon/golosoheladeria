@@ -780,7 +780,7 @@ export function PublicOrder({
   }
 
   if (source === "online_menu" && !onlineService && !readOnly) {
-    const onlineLogo = settings?.logo_url || (branch as { logo_url?: string | null } | null | undefined)?.logo_url;
+    const onlineLogo = settings?.logo_url ?? null;
     const onlineName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
       <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
