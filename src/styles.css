@@ -8,6 +8,12 @@
 @import "@fontsource-variable/manrope";
 @import "@fontsource-variable/fraunces";
 @import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource/bebas-neue/400.css";
+@import "@fontsource/barlow/400.css";
+@import "@fontsource/barlow/500.css";
+@import "@fontsource/barlow/600.css";
+@import "@fontsource/barlow/700.css";
+@import "@fontsource/barlow/800.css";
 
 /* Hide Lovable "Made with Lovable" badge on published site */
 #lovable-badge,
@@ -178,6 +184,25 @@ iframe[src*="lovable.app/badge"] {
 @utility shadow-soft { box-shadow: var(--shadow-soft); }
 @utility shadow-glow { box-shadow: var(--shadow-glow); }
 @utility shadow-glow-accent { box-shadow: var(--shadow-glow-accent); }
+
+/* ===== Sunset Blaze theme (scoped: SplitBillDialog) ===== */
+.sunset-theme {
+  --sunset-orange: #ff6b35;
+  --sunset-amber: #f7931e;
+  --sunset-pink: #e84393;
+  --sunset-violet: #6c5ce7;
+  --sunset-cream: #fff7ed;
+  --sunset-ink: #1a0f0a;
+  --sunset-muted: #78655c;
+  --sunset-border: rgba(255,107,53,0.22);
+  --sunset-gradient: linear-gradient(135deg, #ff6b35 0%, #f7931e 35%, #e84393 75%, #6c5ce7 100%);
+  --sunset-gradient-warm: linear-gradient(135deg, #ff6b35 0%, #f7931e 100%);
+  --sunset-gradient-cool: linear-gradient(135deg, #e84393 0%, #6c5ce7 100%);
+  font-family: "Barlow", "Manrope Variable", system-ui, sans-serif;
+  color: var(--sunset-ink);
+}
+.sunset-display { font-family: "Bebas Neue", "Barlow", sans-serif; letter-spacing: 0.02em; font-weight: 400; }
+.sunset-body { font-family: "Barlow", system-ui, sans-serif; }
 
 @utility glass {
   background-color: color-mix(in oklab, var(--color-card) 70%, transparent);
