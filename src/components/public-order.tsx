@@ -444,7 +444,7 @@ export function PublicOrder({
         _payload: JSON.parse(JSON.stringify(payload)),
       });
       if (error) throw error;
-      const result = data as { ticket_number: number } | null;
+      const result = data as { ticket_number: number; sale_id?: string | null } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
 
       // Recordar datos del cliente para futuros pedidos (solo pedidos en línea)
@@ -473,6 +473,9 @@ export function PublicOrder({
       }
 
       setTicketNumber(result.ticket_number);
+      setLastSaleId(result.sale_id ?? null);
+      setKioskStage("ticket");
+      setFeedbackSentRating(null);
       setConfirmOpen(true);
       setCartOpen(false);
 
