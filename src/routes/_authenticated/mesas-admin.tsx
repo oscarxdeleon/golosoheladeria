@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { QRCodeCanvas } from "qrcode.react";
+import QRCode from "qrcode";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { Button } from "@/components/ui/button";
@@ -10,8 +11,19 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid } from "lucide-react";
+import { Plus, Pencil, Trash2, QrCode, Download, Printer, LayoutGrid, FileImage } from "lucide-react";
 import { toast } from "sonner";
+
+// Genera un PNG de alta resolución del QR listo para imprimir.
+// 1200px con margen amplio y corrección de errores alta = imprime nítido hasta ~15cm.
+async function generateHiResQrDataUrl(url: string, size = 1200): Promise<string> {
+  return await QRCode.toDataURL(url, {
+    errorCorrectionLevel: "H",
+    margin: 2,
+    width: size,
+    color: { dark: "#000000", light: "#FFFFFF" },
+  });
+}
 
 export const Route = createFileRoute("/_authenticated/mesas-admin")({
   head: () => ({ meta: [{ title: "Gestión de mesas · Goloso POS" }] }),
@@ -360,19 +372,49 @@ function TableQrCard({
     return canvasRef.current?.querySelector<HTMLCanvasElement>("canvas") ?? null;
   }
 
-  function download() {
-    const c = getCanvas();
-    if (!c) return;
-    const a = document.createElement("a");
-    a.href = c.toDataURL("image/png");
-    a.download = `mesa-${table.number}-${roomName.replace(/\s+/g, "-").toLowerCase()}.png`;
-    a.click();
+  async function download(hiRes = true) {
+    try {
+      const dataUrl = hiRes
+        ? await generateHiResQrDataUrl(url, 1600)
+        : getCanvas()?.toDataURL("image/png");
+      if (!dataUrl) return;
+      const a = document.createElement("a");
+      a.href = dataUrl;
+      a.download = `mesa-${table.number}-${roomName.replace(/\s+/g, "-").toLowerCase()}${hiRes ? "-hires" : ""}.png`;
+      a.click();
+    } catch (e) {
+      toast.error("No se pudo generar el QR");
+    }
   }
 
-  function print() {
-    const c = getCanvas();
-    if (!c) return;
-    const dataUrl = c.toDataURL("image/png");
+  async function downloadSvg() {
+    try {
+      const svg = await QRCode.toString(url, {
+        type: "svg",
+        errorCorrectionLevel: "H",
+        margin: 2,
+        color: { dark: "#000000", light: "#FFFFFF" },
+      });
+      const blob = new Blob([svg], { type: "image/svg+xml" });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = href;
+      a.download = `mesa-${table.number}-${roomName.replace(/\s+/g, "-").toLowerCase()}.svg`;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(href), 1000);
+    } catch {
+      toast.error("No se pudo generar el SVG");
+    }
+  }
+
+  async function print() {
+    let dataUrl: string | undefined;
+    try {
+      dataUrl = await generateHiResQrDataUrl(url, 1600);
+    } catch {
+      dataUrl = getCanvas()?.toDataURL("image/png");
+    }
+    if (!dataUrl) return;
     const w = window.open("", "_blank", "width=420,height=600");
     if (!w) return;
     w.document.write(`
@@ -382,7 +424,7 @@ function TableQrCard({
         body { font-family: system-ui, -apple-system, sans-serif; text-align: center; margin: 0; padding: 12px; color: #000; }
         h1 { font-size: 26px; margin: 4px 0; }
         h2 { font-size: 16px; margin: 2px 0; font-weight: 500; color: #444; }
-        img { width: 80%; max-width: 280px; margin: 10px auto; display: block; }
+        img { width: 80%; max-width: 320px; margin: 10px auto; display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
         p { font-size: 12px; color: #555; margin: 4px 0; }
       </style></head>
       <body>
@@ -390,7 +432,7 @@ function TableQrCard({
         <h1>${roomName} · Mesa ${table.number}</h1>
         <img src="${dataUrl}" alt="QR" />
         <p>Escanea para ver el menú y pedir desde tu mesa</p>
-        <script>window.onload=()=>{setTimeout(()=>{window.print();},150);};</script>
+        <script>window.onload=()=>{setTimeout(()=>{window.print();},200);};</script>
       </body></html>
     `);
     w.document.close();
@@ -436,15 +478,18 @@ function TableQrCard({
       </CardHeader>
       <CardContent className="flex flex-col items-center gap-2">
         <div ref={canvasRef} className="rounded-lg border bg-white p-3">
-          <QRCodeCanvas value={url} size={160} level="M" includeMargin />
+          <QRCodeCanvas value={url} size={160} level="H" includeMargin />
         </div>
         <p className="text-[10px] text-muted-foreground break-all text-center max-w-full">{url}</p>
-        <div className="flex gap-2 w-full">
-          <Button variant="outline" size="sm" className="flex-1" onClick={download}>
-            <Download className="h-4 w-4" /> PNG
+        <div className="grid grid-cols-2 gap-2 w-full">
+          <Button variant="outline" size="sm" onClick={() => download(true)}>
+            <Download className="h-4 w-4" /> PNG HD
           </Button>
-          <Button variant="outline" size="sm" className="flex-1" onClick={print}>
-            <Printer className="h-4 w-4" /> Imprimir
+          <Button variant="outline" size="sm" onClick={downloadSvg}>
+            <FileImage className="h-4 w-4" /> SVG
+          </Button>
+          <Button variant="outline" size="sm" className="col-span-2" onClick={print}>
+            <Printer className="h-4 w-4" /> Imprimir HD
           </Button>
         </div>
       </CardContent>
