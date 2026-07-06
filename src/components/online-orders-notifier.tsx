@@ -129,6 +129,30 @@ async function autoPrintKioskOrder(saleId: string) {
   });
 }
 
+async function printTableOrderComanda(saleId: string) {
+  const [{ data: sale }, { data: items }] = await Promise.all([
+    supabase.from("sales").select("ticket_number, customer_name, notes, created_at, table_id").eq("id", saleId).maybeSingle(),
+    supabase.from("sale_items").select("product_name, qty, unit_price").eq("sale_id", saleId),
+  ]);
+  if (!sale || !items?.length) return;
+  let tableLabel = "";
+  if (sale.table_id) {
+    const { data: t } = await supabase.from("restaurant_tables").select("number,label").eq("id", sale.table_id).maybeSingle();
+    if (t) tableLabel = t.label ?? `Mesa ${t.number}`;
+  }
+  const printItems = items.map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) }));
+  void sendToLocalPrinter({
+    type: "comanda",
+    ticket: sale.ticket_number,
+    header: `PEDIDO MESA${tableLabel ? " · " + tableLabel.toUpperCase() : ""}`,
+    items: printItems,
+    customer: sale.customer_name ?? tableLabel ?? undefined,
+    notes: sale.notes ?? undefined,
+    created_at: sale.created_at ?? undefined,
+  });
+}
+
+
 type PendingAlert = {
   id: string;
   ticket: number;
@@ -156,9 +180,20 @@ export function OnlineOrdersNotifier() {
   }
 
   function confirmAndNavigate(source: string) {
+    // Al confirmar pedidos de mesa (QR), imprimir la comanda de cada pendiente
+    if (source === "table_qr") {
+      pending.filter((p) => p.source === "table_qr").forEach((p) => { void printTableOrderComanda(p.id); });
+    }
     setPending([]);
     stop();
-    navigate({ to: source === "kiosk" ? "/kiosko" : "/pedidos-online" });
+    navigate({
+      to:
+        source === "kiosk"
+          ? "/kiosko"
+          : source === "table_qr"
+            ? "/mesas"
+            : "/pedidos-online",
+    });
   }
 
   useEffect(() => {
@@ -187,6 +222,7 @@ export function OnlineOrdersNotifier() {
       qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
       qc.invalidateQueries({ queryKey: ["pending-sales"] });
       qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
+      qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
     };
 
     const channel = supabase.channel(`sales-public-orders-${activeBranchId}`);
@@ -201,6 +237,11 @@ export function OnlineOrdersNotifier() {
         { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.kiosk" } as never,
         handler as never,
       )
+      .on(
+        "postgres_changes" as never,
+        { event: "INSERT", schema: "public", table: "sales", filter: "source=eq.table_qr" } as never,
+        handler as never,
+      )
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, [navigate, qc, activeBranchId, start]);
@@ -209,12 +250,20 @@ export function OnlineOrdersNotifier() {
 
   const last = pending[pending.length - 1];
   const isKiosk = last.source === "kiosk";
+  const isTable = last.source === "table_qr";
+  const headline = isKiosk
+    ? "¡NUEVO PEDIDO AUTOPEDIDO!"
+    : isTable
+      ? "¡NUEVO PEDIDO DE MESA!"
+      : "¡NUEVO PEDIDO EN LÍNEA!";
+  const accent = isKiosk ? "border-primary" : isTable ? "border-emerald-500" : "border-secondary";
+  const accentBg = isKiosk ? "bg-primary/15" : isTable ? "bg-emerald-500/15" : "bg-secondary/15";
 
   return (
     <div className="fixed bottom-6 right-6 z-[100] w-[min(94vw,420px)] animate-in slide-in-from-bottom-6 duration-300">
-      <div className={`rounded-2xl border-4 ${isKiosk ? "border-primary" : "border-secondary"} bg-background shadow-2xl overflow-hidden`}>
-        <div className={`flex items-center gap-3 px-4 py-3 ${isKiosk ? "bg-primary/15" : "bg-secondary/15"}`}>
-          <div className={`relative ${isKiosk ? "text-primary" : "text-secondary-foreground"}`}>
+      <div className={`rounded-2xl border-4 ${accent} bg-background shadow-2xl overflow-hidden`}>
+        <div className={`flex items-center gap-3 px-4 py-3 ${accentBg}`}>
+          <div className={`relative ${isKiosk ? "text-primary" : isTable ? "text-emerald-600" : "text-secondary-foreground"}`}>
             <Bell className="h-7 w-7 animate-bounce" />
             <span className="absolute -top-1 -right-1 flex h-3 w-3">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-destructive opacity-75" />
@@ -222,7 +271,7 @@ export function OnlineOrdersNotifier() {
             </span>
           </div>
           <div className="flex-1 font-display text-lg leading-tight">
-            {isKiosk ? "¡NUEVO PEDIDO AUTOPEDIDO!" : "¡NUEVO PEDIDO EN LÍNEA!"}
+            {headline}
             {pending.length > 1 && (
               <span className="ml-2 inline-flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-sm h-6 min-w-6 px-2">
                 {pending.length}
@@ -244,8 +293,12 @@ export function OnlineOrdersNotifier() {
             <div key={p.id} className="px-4 py-2 flex items-center gap-3">
               <div className="font-display text-xl text-primary">#{p.ticket}</div>
               <div className="flex-1 leading-tight">
-                <div className="text-sm font-medium truncate">{p.customer ?? (p.source === "kiosk" ? "Autopedido" : "Cliente")}</div>
-                <div className="text-xs text-muted-foreground">{p.source === "kiosk" ? "Auto-pedido" : "Menú en línea"}</div>
+                <div className="text-sm font-medium truncate">
+                  {p.customer ?? (p.source === "kiosk" ? "Autopedido" : p.source === "table_qr" ? "Pedido de mesa" : "Cliente")}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {p.source === "kiosk" ? "Auto-pedido" : p.source === "table_qr" ? "Mesa QR" : "Menú en línea"}
+                </div>
               </div>
               <div className="font-mono text-sm">${Math.round(p.total).toLocaleString("es-CO")}</div>
             </div>
@@ -257,10 +310,11 @@ export function OnlineOrdersNotifier() {
             <BellOff className="h-4 w-4" /> Detener alerta
           </Button>
           <Button onClick={() => confirmAndNavigate(last.source)} className="gap-2">
-            Confirmar pedido
+            {isTable ? "Confirmar e imprimir" : "Confirmar pedido"}
           </Button>
         </div>
       </div>
     </div>
   );
 }
+

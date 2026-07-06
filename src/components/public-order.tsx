@@ -352,12 +352,13 @@ export function PublicOrder({
     if (isPickup && payMethod !== "Nequi" && payMethod !== "Bancolombia") {
       return "Para recoger en heladería el pago debe ser por Nequi o Bancolombia";
     }
-    if (payMethod === "Efectivo") {
+    if (source !== "table_qr" && payMethod === "Efectivo") {
       const v = Number(cashAmount.replace(/[^\d]/g, ""));
       if (!v || v < total) return `Con efectivo debes pagar al menos ${formatMoney(total)}`;
     }
     return null;
   }
+
 
   function buildWhatsappMessage(ticket: number) {
     const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
@@ -418,8 +419,10 @@ export function PublicOrder({
     setSubmitting(true);
     try {
       const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
-      const payment_details =
-        payMethod === "Efectivo"
+      const isTableQr = source === "table_qr";
+      const payment_details = isTableQr
+        ? {}
+        : payMethod === "Efectivo"
           ? { cash_received: cashReceived, change: cashReceived - total }
           : payMethod === "Nequi"
           ? { nequi_number: nequiNum }
@@ -443,10 +446,11 @@ export function PublicOrder({
           : isPickup
           ? `[RECOGER EN HELADERÍA]${notes ? " " + notes : ""}`
           : notes || null,
-        payment_method: payMethod,
+        payment_method: isTableQr ? "Pendiente" : payMethod,
         payment_details,
         items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
       };
+
       const { data, error } = await supabase.rpc("create_public_order", {
         _payload: JSON.parse(JSON.stringify(payload)),
       });
@@ -1081,6 +1085,7 @@ export function PublicOrder({
                 rows={2}
               />
 
+              {source !== "table_qr" && (
               <div className="rounded-lg border p-3 space-y-3">
                 <div className="text-sm font-medium">Método de pago</div>
                 {isPickup && (
@@ -1168,6 +1173,14 @@ export function PublicOrder({
                   </div>
                 )}
               </div>
+              )}
+
+              {source === "table_qr" && (
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3 text-xs text-muted-foreground leading-snug">
+                  El pago se realiza directamente en caja. Al confirmar, tu pedido llegará al cajero para prepararlo.
+                </div>
+              )}
+
 
               <div className="rounded-lg border p-3 space-y-1 text-sm">
                 <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal)}</span></div>
@@ -1178,8 +1191,13 @@ export function PublicOrder({
               </div>
 
               <Button size="lg" className="w-full" onClick={submit} disabled={submitting}>
-                {submitting ? "Enviando..." : `Finalizar pedido · ${formatMoney(total)}`}
+                {submitting
+                  ? "Enviando..."
+                  : source === "table_qr"
+                    ? "Confirmar pedido"
+                    : `Finalizar pedido · ${formatMoney(total)}`}
               </Button>
+
             </div>
           </div>
         </div>
