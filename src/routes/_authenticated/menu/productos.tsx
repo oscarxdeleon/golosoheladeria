@@ -166,19 +166,26 @@ function ProductosPage() {
     setEditing(null);
     setShowRecipe(false);
     setShowMods(false);
-    // Restaurar estilos del body por si Radix no limpió (bug conocido con toasts).
-    if (typeof document !== "undefined") {
-      requestAnimationFrame(() => {
+    // Esperar a que Radix termine su animación de cierre (~200ms) antes de
+    // invalidar queries y mostrar la toast, para no interrumpir el desmontaje
+    // del portal/overlay (causa raíz de la pantalla en blanco).
+    setTimeout(() => {
+      if (typeof document !== "undefined") {
         document.body.style.pointerEvents = "";
         document.body.style.overflow = "";
         document.body.removeAttribute("data-scroll-locked");
-      });
-    }
-    toast.success(isLinkedChild ? "Guardado y desvinculado de la sede principal" : "Guardado");
-    qc.invalidateQueries({ queryKey: ["products-all"] });
-    qc.invalidateQueries({ queryKey: ["products"] });
-    qc.invalidateQueries({ queryKey: ["public-products"] });
+        // Elimina overlays huérfanos de Radix Dialog si quedaron pegados
+        document
+          .querySelectorAll('[data-radix-dialog-overlay][data-state="closed"]')
+          .forEach((el) => el.remove());
+      }
+      toast.success(isLinkedChild ? "Guardado y desvinculado de la sede principal" : "Guardado");
+      qc.invalidateQueries({ queryKey: ["products-all"] });
+      qc.invalidateQueries({ queryKey: ["products"] });
+      qc.invalidateQueries({ queryKey: ["public-products"] });
+    }, 250);
   }
+
 
   async function resyncFromParent(childId: string) {
     if (!confirm("Volver a sincronizar este producto con la sede principal. Se sobrescribirán los cambios personalizados (excepto el stock). ¿Continuar?")) return;
@@ -540,11 +547,12 @@ function ProductosPage() {
               </label>
             </Button>
             <CloneToBranchDialog branches={branches} qc={qc} />
+            <Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button>
+
+
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-              <DialogTrigger asChild><Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button></DialogTrigger>
-
-
             <DialogContent className="flex flex-col gap-0 p-0 w-[calc(100vw-1rem)] max-w-2xl max-h-[92dvh] rounded-2xl overflow-hidden">
+
               <DialogHeader className="shrink-0 border-b px-4 py-3 sm:px-6 sm:py-4"><DialogTitle className="text-base sm:text-lg">{editing?.id ? "Editar" : "Nuevo"} producto</DialogTitle></DialogHeader>
               <div className="flex-1 overflow-y-auto px-4 py-3 sm:px-6 sm:py-4">
 
