@@ -878,17 +878,19 @@ export function PublicOrder({
               const br = branch?.name?.trim();
               if (source === "table_qr") {
                 const sedeName = br || biz;
+                const mesaOnly = tableLabel ? tableLabel.split("·")[0].trim() : "";
                 return (
                   <>
-                    <div className="font-display text-lg">{sedeName}</div>
-                    {tableLabel ? (
-                      <div className="font-display text-xl font-extrabold tracking-tight">
-                        {tableLabel}
+                    <div className="font-display text-2xl">{sedeName}</div>
+                    {mesaOnly ? (
+                      <div className="font-display text-lg font-extrabold tracking-tight">
+                        {mesaOnly}
                       </div>
                     ) : null}
                   </>
                 );
               }
+
               const showBranch = br && br.toLowerCase() !== biz.toLowerCase();
               return (
                 <>
