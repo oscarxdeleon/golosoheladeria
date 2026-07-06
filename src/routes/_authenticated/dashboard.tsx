@@ -71,10 +71,10 @@ function DashboardPage() {
     refetchInterval: 30_000,
     queryFn: async () => {
       const { start, end } = rangeFor(range);
-      const [salesRes, expensesRes, purchasesRes] = await Promise.all([
+      const [salesRes, expensesRes, purchasesRes, cashSessionsRes] = await Promise.all([
         supabase
           .from("sales")
-          .select("id,total,created_at,payment_method,source,status")
+          .select("id,total,created_at,payment_method,payment_details,source,status")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
@@ -85,6 +85,12 @@ function DashboardPage() {
           .from("purchases").select("total,created_at")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
+        supabase
+          .from("cash_sessions")
+          .select("opening_amount,cash_counted,nequi_counted,bancolombia_counted,cash_expected,nequi_expected,bancolombia_expected,cash_difference,nequi_difference,bancolombia_difference,closed_at,status")
+          .eq("branch_id", activeBranchId!)
+          .eq("status", "closed")
+          .gte("closed_at", start).lt("closed_at", end),
       ]);
 
       let sales = (salesRes.data ?? []).filter((s) => (s.status ?? "paid") !== "cancelled");
@@ -107,15 +113,39 @@ function DashboardPage() {
         .map(([name, v]) => ({ name, ...v }))
         .sort((a, b) => b.total - a.total).slice(0, 5);
 
-      // Payment breakdown
+      // Payment breakdown (considera pagos divididos en payment_details.splits[])
       const methodMap = new Map<string, number>();
       sales.forEach((s) => {
-        const key = (s.payment_method ?? "otro").trim() || "otro";
-        methodMap.set(key, (methodMap.get(key) ?? 0) + Number(s.total));
+        const pd: any = (s as any).payment_details;
+        const splits = pd && pd.split === true && Array.isArray(pd.splits) ? pd.splits : null;
+        if (splits && splits.length) {
+          splits.forEach((sp: any) => {
+            const key = (sp.method ?? "otro").toString().trim() || "otro";
+            methodMap.set(key, (methodMap.get(key) ?? 0) + Number(sp.amount ?? 0));
+          });
+        } else {
+          const key = (s.payment_method ?? "otro").trim() || "otro";
+          methodMap.set(key, (methodMap.get(key) ?? 0) + Number(s.total));
+        }
       });
       const methods = [...methodMap.entries()]
         .map(([name, total]) => ({ name, total }))
         .sort((a, b) => b.total - a.total);
+
+      // Efectivo real (arqueo de cajas cerradas en el período)
+      const cashSessions = cashSessionsRes.data ?? [];
+      const realCash = {
+        efectivo: cashSessions.reduce((a, c: any) => a + Number(c.cash_counted ?? 0), 0),
+        nequi: cashSessions.reduce((a, c: any) => a + Number(c.nequi_counted ?? 0), 0),
+        bancolombia: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_counted ?? 0), 0),
+        efectivoEsperado: cashSessions.reduce((a, c: any) => a + Number(c.cash_expected ?? 0), 0),
+        nequiEsperado: cashSessions.reduce((a, c: any) => a + Number(c.nequi_expected ?? 0), 0),
+        bancolombiaEsperado: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_expected ?? 0), 0),
+        diferenciaEfectivo: cashSessions.reduce((a, c: any) => a + Number(c.cash_difference ?? 0), 0),
+        diferenciaNequi: cashSessions.reduce((a, c: any) => a + Number(c.nequi_difference ?? 0), 0),
+        diferenciaBanco: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_difference ?? 0), 0),
+        cajasCerradas: cashSessions.length,
+      };
 
       // Hourly evolution (0..23)
       const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: h, total: 0 }));
@@ -152,7 +182,7 @@ function DashboardPage() {
       const utilidad = total - gastos;
       const qtyVendida = (items ?? []).reduce((a, i) => a + Number(i.qty ?? 0), 0);
 
-      return { total, txs, avg, gastos, utilidad, top, methods, hourly, bestDays, valleys, qtyVendida };
+      return { total, txs, avg, gastos, utilidad, top, methods, hourly, bestDays, valleys, qtyVendida, realCash };
     },
   });
 
