@@ -231,13 +231,13 @@ function DashboardPage() {
           <>{[0,1,2,3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</>
         ) : (
           <>
-            <KpiCard color="emerald" icon={<DollarSign className="h-5 w-5" />}
+            <KpiCard color="turquoise" icon={<DollarSign className="h-5 w-5" />}
               label="Ventas Totales" value={formatMoney(data?.total ?? 0)} hint="Período seleccionado" />
-            <KpiCard color="blue" icon={<ShoppingBag className="h-5 w-5" />}
+            <KpiCard color="lime" icon={<ShoppingBag className="h-5 w-5" />}
               label="Transacciones" value={String(data?.txs ?? 0)} hint="Pedidos completados" />
-            <KpiCard color="violet" icon={<Target className="h-5 w-5" />}
+            <KpiCard color="pink" icon={<Target className="h-5 w-5" />}
               label="Ticket Promedio" value={formatMoney(data?.avg ?? 0)} hint="Valor por pedido" />
-            <KpiCard color="teal" icon={<TrendingUp className="h-5 w-5" />}
+            <KpiCard color="yellow" icon={<TrendingUp className="h-5 w-5" />}
               label="Utilidad Estimada" value={formatMoney(data?.utilidad ?? 0)} hint="Ventas − Gastos" />
           </>
         )}
