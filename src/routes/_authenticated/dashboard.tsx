@@ -264,8 +264,8 @@ function DashboardPage() {
               <AreaChart data={hourlyData} margin={{ top: 10, right: 8, left: -18, bottom: 0 }}>
                 <defs>
                   <linearGradient id="salesGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="hsl(346 77% 50%)" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="hsl(346 77% 50%)" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#E88A9A" stopOpacity={0.5} />
+                    <stop offset="100%" stopColor="#E88A9A" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" />
@@ -276,7 +276,7 @@ function DashboardPage() {
                   labelFormatter={(l) => `Hora: ${l}`}
                   contentStyle={{ borderRadius: 8, fontSize: 12 }}
                 />
-                <Area type="monotone" dataKey="total" stroke="hsl(346 77% 50%)" strokeWidth={2} fill="url(#salesGrad)" />
+                <Area type="monotone" dataKey="total" stroke="#D6303A" strokeWidth={2} fill="url(#salesGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
