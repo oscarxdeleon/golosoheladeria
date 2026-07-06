@@ -419,8 +419,10 @@ export function PublicOrder({
     setSubmitting(true);
     try {
       const cashReceived = Number(cashAmount.replace(/[^\d]/g, "")) || 0;
-      const payment_details =
-        payMethod === "Efectivo"
+      const isTableQr = source === "table_qr";
+      const payment_details = isTableQr
+        ? {}
+        : payMethod === "Efectivo"
           ? { cash_received: cashReceived, change: cashReceived - total }
           : payMethod === "Nequi"
           ? { nequi_number: nequiNum }
@@ -444,10 +446,11 @@ export function PublicOrder({
           : isPickup
           ? `[RECOGER EN HELADERÍA]${notes ? " " + notes : ""}`
           : notes || null,
-        payment_method: payMethod,
+        payment_method: isTableQr ? "Pendiente" : payMethod,
         payment_details,
         items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
       };
+
       const { data, error } = await supabase.rpc("create_public_order", {
         _payload: JSON.parse(JSON.stringify(payload)),
       });
