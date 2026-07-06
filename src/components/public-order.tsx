@@ -142,6 +142,10 @@ export function PublicOrder({
       clearInterval(resetTimerRef.current);
       resetTimerRef.current = null;
     }
+    if (ticketAdvanceRef.current) {
+      clearTimeout(ticketAdvanceRef.current);
+      ticketAdvanceRef.current = null;
+    }
     setConfirmOpen(false);
     setTicketNumber(null);
     setCart([]);
@@ -154,11 +158,27 @@ export function PublicOrder({
     setCartOpen(false);
     setActiveCat("all");
     setResetCountdown(30);
+    setKioskStage("ticket");
+    setFeedbackSentRating(null);
+    setLastSaleId(null);
     if (source === "kiosk") setKioskService(null);
   }
 
+  // Kiosk: mostrar ticket ~8s, luego pasar a pantalla de calificación
   useEffect(() => {
-    if (!confirmOpen || source !== "kiosk") return;
+    if (!confirmOpen || source !== "kiosk" || kioskStage !== "ticket") return;
+    ticketAdvanceRef.current = setTimeout(() => {
+      setKioskStage("feedback");
+    }, 8000);
+    return () => {
+      if (ticketAdvanceRef.current) clearTimeout(ticketAdvanceRef.current);
+      ticketAdvanceRef.current = null;
+    };
+  }, [confirmOpen, source, kioskStage]);
+
+  // Kiosk: cuenta regresiva de 30s durante la pantalla de calificación
+  useEffect(() => {
+    if (!confirmOpen || source !== "kiosk" || kioskStage !== "feedback") return;
     setResetCountdown(30);
     resetTimerRef.current = setInterval(() => {
       setResetCountdown((s) => {
@@ -176,7 +196,26 @@ export function PublicOrder({
       resetTimerRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [confirmOpen, source]);
+  }, [confirmOpen, source, kioskStage]);
+
+  async function submitFeedback(rating: number) {
+    if (feedbackSubmitting || feedbackSentRating != null) return;
+    setFeedbackSubmitting(true);
+    setFeedbackSentRating(rating);
+    try {
+      await supabase.from("kiosk_feedback").insert({
+        rating,
+        branch_id: branchId ?? null,
+        sale_id: lastSaleId,
+        source: "kiosk",
+      });
+    } catch (e) {
+      console.error("kiosk_feedback insert failed", e);
+    } finally {
+      setFeedbackSubmitting(false);
+      setTimeout(() => resetKiosk(), 1500);
+    }
+  }
 
 
 
