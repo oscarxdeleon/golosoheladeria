@@ -19,6 +19,8 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
+import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
+import { Split } from "lucide-react";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.png";
@@ -549,6 +551,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
   const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [successDialog, setSuccessDialog] = useState<null | {
     ticket: number;
     method: string;
