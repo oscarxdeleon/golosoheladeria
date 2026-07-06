@@ -59,6 +59,7 @@
     "embla-carousel-react": "^8.6.0",
     "face-api.js": "^0.22.2",
     "input-otp": "^1.4.2",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.575.0",
     "pdfjs-dist": "^6.1.200",
     "qrcode": "^1.5.4",
