@@ -195,7 +195,9 @@ function TodosPedidosPage() {
 
   function clearFilters() {
     setTurnoActual(true);
-    setSoloHoy(false);
+    setDateFilter("hoy");
+    setCustomFrom(todayIso);
+    setCustomTo(todayIso);
     setStatusFilter("all");
     setSearch("");
   }
