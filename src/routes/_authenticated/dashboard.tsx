@@ -360,25 +360,89 @@ function DashboardPage() {
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
           <CardTitle className="font-display text-lg">Métodos de Pago</CardTitle>
+          <p className="text-xs text-muted-foreground">Ingresos por medio de pago · incluye pagos divididos</p>
         </CardHeader>
         <CardContent className="space-y-2">
           {(data?.methods ?? []).length === 0 && (
             <p className="text-sm text-muted-foreground">Sin pagos registrados.</p>
           )}
-          {(data?.methods ?? []).map((m) => (
-            <div key={m.name} className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <span className={`h-2.5 w-2.5 rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} />
-                <span className="uppercase text-sm">{m.name}</span>
-              </div>
-              <span className="font-semibold">{formatMoney(m.total)}</span>
-            </div>
-          ))}
-          <div className="pt-3 border-t text-[10px] tracking-widest uppercase text-muted-foreground text-center">
-            Distribución de ingresos
+          {(() => {
+            const totalMethods = (data?.methods ?? []).reduce((a, m) => a + m.total, 0);
+            return (data?.methods ?? []).map((m) => {
+              const pct = totalMethods > 0 ? (m.total / totalMethods) * 100 : 0;
+              return (
+                <div key={m.name} className="space-y-1">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <span className={`h-2.5 w-2.5 rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} />
+                      <span className="uppercase text-sm">{m.name}</span>
+                    </div>
+                    <div className="text-right">
+                      <div className="font-semibold text-sm">{formatMoney(m.total)}</div>
+                      <div className="text-[10px] text-muted-foreground">{pct.toFixed(1)}%</div>
+                    </div>
+                  </div>
+                  <div className="h-1 rounded-full bg-muted overflow-hidden">
+                    <div className={`h-full rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              );
+            });
+          })()}
+          <div className="pt-3 border-t flex items-center justify-between text-xs">
+            <span className="tracking-widest uppercase text-muted-foreground">Total ingresos</span>
+            <span className="font-bold text-foreground">{formatMoney((data?.methods ?? []).reduce((a, m) => a + m.total, 0))}</span>
           </div>
         </CardContent>
       </Card>
+
+      {/* Efectivo Real (arqueo de caja) */}
+      <Card className="rounded-2xl shadow-sm">
+        <CardHeader className="pb-1">
+          <CardTitle className="font-display text-lg">Efectivo Real · Arqueo</CardTitle>
+          <p className="text-xs text-muted-foreground">
+            {data?.realCash.cajasCerradas
+              ? `${data.realCash.cajasCerradas} caja(s) cerrada(s) en el período`
+              : "Sin cajas cerradas en el período"}
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {data?.realCash.cajasCerradas === 0 ? (
+            <p className="text-sm text-muted-foreground">Cierra una caja para ver el conteo real.</p>
+          ) : (
+            <>
+              <RealCashRow
+                label="Efectivo"
+                dotClass="bg-[#A3D93A]"
+                counted={data?.realCash.efectivo ?? 0}
+                expected={data?.realCash.efectivoEsperado ?? 0}
+                diff={data?.realCash.diferenciaEfectivo ?? 0}
+              />
+              <RealCashRow
+                label="Nequi"
+                dotClass="bg-[#3AB6C8]"
+                counted={data?.realCash.nequi ?? 0}
+                expected={data?.realCash.nequiEsperado ?? 0}
+                diff={data?.realCash.diferenciaNequi ?? 0}
+              />
+              <RealCashRow
+                label="Bancolombia"
+                dotClass="bg-[#F2C42B]"
+                counted={data?.realCash.bancolombia ?? 0}
+                expected={data?.realCash.bancolombiaEsperado ?? 0}
+                diff={data?.realCash.diferenciaBanco ?? 0}
+              />
+              <div className="pt-3 border-t flex items-center justify-between text-xs">
+                <span className="tracking-widest uppercase text-muted-foreground">Efectivo real total</span>
+                <span className="font-bold text-foreground">
+                  {formatMoney((data?.realCash.efectivo ?? 0) + (data?.realCash.nequi ?? 0) + (data?.realCash.bancolombia ?? 0))}
+                </span>
+              </div>
+            </>
+          )}
+        </CardContent>
+      </Card>
+
 
       {/* Mejores días */}
       <Card className="rounded-2xl shadow-sm">
