@@ -84,12 +84,14 @@ function CategoriasPage() {
           <p className="text-muted-foreground">Organiza el menú y controla en qué canales aparece cada categoría.</p>
         </div>
         {isAdmin && (
-          <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
-            <DialogTrigger asChild>
-              <Button onClick={() => setEditing({ show_in_pos: true, show_in_online_menu: true, active: true })}>
-                <Plus className="h-4 w-4 mr-1" /> Nueva
-              </Button>
-            </DialogTrigger>
+          <div className="flex items-center gap-2">
+            <ReorderCategoriesDialog cats={cats} />
+            <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+              <DialogTrigger asChild>
+                <Button onClick={() => setEditing({ show_in_pos: true, show_in_online_menu: true, active: true })}>
+                  <Plus className="h-4 w-4 mr-1" /> Nueva
+                </Button>
+              </DialogTrigger>
             <DialogContent>
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nueva"} categoría</DialogTitle></DialogHeader>
               <div className="space-y-4">
