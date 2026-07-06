@@ -54,7 +54,7 @@ export function LlevarPendingPanel() {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-3 font-display text-2xl">
             <ShoppingBag className="h-7 w-7 text-amber-600" />
-            Para llevar · Pendientes de pago
+            Pendientes de pago
           </div>
           <Badge className="bg-amber-600 text-white text-sm px-3 py-1">{orders.length}</Badge>
           <span className="ml-auto text-sm text-muted-foreground inline-flex items-center gap-1">
