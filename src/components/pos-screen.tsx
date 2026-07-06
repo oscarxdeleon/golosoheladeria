@@ -1795,6 +1795,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   </div>
                 )}
               </div>
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full mt-2 border-dashed"
+                disabled={paying || (total <= 0 && !pendingSaleId && cart.length === 0)}
+                onClick={() => setSplitDialogOpen(true)}
+              >
+                <Split className="h-4 w-4 mr-1" /> Dividir cuenta
+              </Button>
             </div>
           )}
 
