@@ -1134,6 +1134,8 @@ export function PublicOrder({
                   <div className="space-y-1">
                     <Input
                       placeholder={`Nombre ${isDelivery ? "del cliente *" : "*"}`}
+                      name="customer-name"
+                      autoComplete="name"
                       value={customerName}
                       onChange={(e) => { setCustomerName(e.target.value); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: false }); }}
                       className={fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
@@ -1144,6 +1146,8 @@ export function PublicOrder({
                   <div className="space-y-1">
                     <Input
                       placeholder="Teléfono de contacto *"
+                      name="customer-phone"
+                      autoComplete="tel"
                       inputMode="tel"
                       value={phone}
                       onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
@@ -1157,6 +1161,8 @@ export function PublicOrder({
                       <div className="space-y-1">
                         <Input
                           placeholder="Dirección completa *"
+                          name="customer-address"
+                          autoComplete="street-address"
                           value={address}
                           onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
                           className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
@@ -1166,6 +1172,8 @@ export function PublicOrder({
                       <div className="space-y-1">
                         <Input
                           placeholder="Barrio *"
+                          name="customer-neighborhood"
+                          autoComplete="address-level3"
                           value={neighborhood}
                           onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
                           className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
