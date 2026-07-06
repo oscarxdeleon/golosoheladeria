@@ -271,7 +271,7 @@ function DashboardPage() {
       {/* Evolución */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
-          <CardTitle className="flex items-center gap-2 font-display text-lg">
+          <CardTitle className="flex items-center gap-2 font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">
             <span className="grid place-items-center h-8 w-8 rounded-lg bg-[#E88A9A]/20 text-[#D6303A]">
               <TrendingUp className="h-4 w-4" />
             </span>
@@ -311,7 +311,7 @@ function DashboardPage() {
       {/* Top 5 productos */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
-          <CardTitle className="flex items-center gap-2 font-display text-lg">
+          <CardTitle className="flex items-center gap-2 font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">
             <span className="grid place-items-center h-8 w-8 rounded-lg bg-[#3AB6C8]/20 text-[#0F5A68]">
               <Package className="h-4 w-4" />
             </span>
@@ -344,7 +344,7 @@ function DashboardPage() {
       {/* Métodos de Pago */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
-          <CardTitle className="font-display text-lg">Métodos de Pago</CardTitle>
+          <CardTitle className="font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Métodos de Pago</CardTitle>
           <p className="text-xs text-muted-foreground">Ingresos por medio de pago · incluye pagos divididos</p>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -384,7 +384,7 @@ function DashboardPage() {
       {/* Efectivo Real (arqueo de caja) */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
-          <CardTitle className="font-display text-lg">Efectivo Real · Arqueo</CardTitle>
+          <CardTitle className="font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Efectivo Real · Arqueo</CardTitle>
           <p className="text-xs text-muted-foreground">
             {data?.realCash.cajasCerradas
               ? `${data.realCash.cajasCerradas} caja(s) cerrada(s) en el período`
@@ -432,7 +432,7 @@ function DashboardPage() {
       {/* Mejores días */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
-          <CardTitle className="font-display text-lg">Mejores Días</CardTitle>
+          <CardTitle className="font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Mejores Días</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {(data?.bestDays ?? []).length === 0 && (
@@ -476,7 +476,7 @@ function DashboardPage() {
       {/* Gastos vs Ingresos */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
-          <CardTitle className="font-display text-lg">Gastos vs Ingresos</CardTitle>
+          <CardTitle className="font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Gastos vs Ingresos</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
@@ -501,10 +501,13 @@ function FilterField({
 }: { icon: React.ReactNode; label: string; children: React.ReactNode; className?: string }) {
   return (
     <div className={className}>
-      <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-widest text-muted-foreground mb-1">
-        {icon} {label}
+      <div className="flex items-center gap-1.5 font-display text-xs font-black uppercase tracking-[0.14em] text-primary mb-1.5">
+        <span className="grid place-items-center h-5 w-5 rounded-md bg-primary/10 text-primary">{icon}</span>
+        {label}
       </div>
-      {children}
+      <div className="[&_button]:font-display [&_button]:font-bold [&_button]:tracking-tight">
+        {children}
+      </div>
     </div>
   );
 }
