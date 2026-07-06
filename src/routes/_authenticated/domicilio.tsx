@@ -160,12 +160,9 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
               <div className="inline-flex items-center gap-1.5 rounded-full border border-sky-500/30 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-sky-700 dark:text-sky-300">
                 <Bike className="h-3 w-3" /> Domicilios
               </div>
-              <h1 className="font-display mt-1 text-lg sm:text-2xl font-extrabold tracking-tight leading-tight whitespace-nowrap bg-gradient-to-br from-foreground to-sky-600 bg-clip-text text-transparent">
+              <h1 className="font-display mt-1 text-base sm:text-2xl font-extrabold tracking-tight leading-tight bg-gradient-to-br from-foreground to-sky-600 bg-clip-text text-transparent">
                 Nuevo pedido a domicilio
               </h1>
-              <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground">
-                Busca al cliente o registra uno nuevo para tomar el pedido.
-              </p>
             </div>
             <img
               src={domicilioMotoImg}
