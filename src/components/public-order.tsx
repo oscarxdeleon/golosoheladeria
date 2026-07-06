@@ -245,10 +245,17 @@ export function PublicOrder({
     },
   });
   const { data: cats = [] } = useQuery<Category[]>({
-    queryKey: ["public-cats"],
+    queryKey: ["public-cats", source],
     queryFn: async () => {
-      const { data } = await supabase.from("categories").select("*").eq("active", true).order("sort_order");
-      return ((data ?? []) as Category[]).filter((c) => c.show_in_online_menu !== false);
+      const { data } = await supabase.from("categories").select("*").eq("active", true);
+      const list = ((data ?? []) as Category[]).filter((c) => c.show_in_online_menu !== false);
+      const key: keyof Category = source === "kiosk" ? "kiosk_sort_order" : "online_sort_order";
+      return list.sort((a, b) => {
+        const oa = (a[key] as number | undefined) ?? a.sort_order ?? 0;
+        const ob = (b[key] as number | undefined) ?? b.sort_order ?? 0;
+        if (oa !== ob) return oa - ob;
+        return a.name.localeCompare(b.name, "es");
+      });
     },
   });
   const { data: products = [] } = useQuery<Product[]>({
