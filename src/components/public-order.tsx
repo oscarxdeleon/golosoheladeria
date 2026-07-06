@@ -221,8 +221,11 @@ export function PublicOrder({
 
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").maybeSingle()).data,
+    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data,
+    staleTime: 0,
+    refetchOnWindowFocus: true,
   });
+
   const { data: branch } = useQuery({
     queryKey: ["public-branch", branchSlug ?? null],
     queryFn: async () => {
