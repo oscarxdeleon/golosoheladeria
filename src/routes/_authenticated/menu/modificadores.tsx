@@ -295,6 +295,13 @@ function ModPage() {
                 {dupItems.length === 0 && <p className="text-xs text-muted-foreground">El grupo original no tiene opciones.</p>}
                 {dupItems.map((it, idx) => (
                   <div key={idx} className="flex items-center gap-2">
+                    {it.image_url ? (
+                      <img src={it.image_url} alt={it.name} className="h-10 w-10 rounded object-cover border shrink-0" />
+                    ) : (
+                      <div className="h-10 w-10 rounded border bg-muted flex items-center justify-center shrink-0">
+                        <ImageIcon className="h-4 w-4 text-muted-foreground" />
+                      </div>
+                    )}
                     <Input
                       className="flex-1"
                       placeholder="Nombre"
