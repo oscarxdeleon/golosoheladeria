@@ -572,7 +572,7 @@ export function CreditPaymentDialog({
                     onClick={() => setAmount(String(Math.round(maxAmount * f)))}
                     className="flex-1 rounded-lg border-2 bg-background px-3 py-1.5 text-xs font-black uppercase transition hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
                   >
-                    {f === 1 ? "Saldar todo" : `${Math.round(f * 100)}%`}
+                    {f === 1 ? "Pagar todo" : `${Math.round(f * 100)}%`}
                   </button>
                 ))}
               </div>
