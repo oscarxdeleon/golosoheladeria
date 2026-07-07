@@ -573,7 +573,7 @@ function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose
                     <TableBody>
                       {data.items.map((i) => (
                         <TableRow key={i.id}>
-                          <TableCell>{i.product_name ?? i.supply_name ?? "—"}</TableCell>
+                          <TableCell>{i.item_name}</TableCell>
                           <TableCell className="text-right">{i.quantity}</TableCell>
                           <TableCell className="text-right">{formatMoney(i.unit_cost)}</TableCell>
                         </TableRow>
