@@ -428,10 +428,24 @@ function buildComandaRaw(p) {
   if (p.user_name) out += `Cajero: ${p.user_name}\n`;
   out += BOLD_OFF + ALIGN_L + DASH_LINE;
   if (p.header) {
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE;
-    for (const line of wrapText(String(p.header).toUpperCase(), Math.floor(WIDTH / 2))) out += line + "\n";
-    out += SIZE_NORMAL + BOLD_OFF + ALIGN_L + DASH_LINE;
+    // El número de mesa / destino es el dato más crítico para cocina: se
+    // imprime en el tamaño MÁXIMO soportado por ESC/POS (triple alto + ancho)
+    // y en negrita, centrado, con espacio en blanco alrededor para que
+    // destaque como el elemento dominante de la comanda. Se elimina la
+    // decoración "*** ... ***" porque en tamaño triple cada carácter mide
+    // 3 columnas y los asteriscos forzaban un wrap que reducía el texto.
+    const headerText = String(p.header)
+      .toUpperCase()
+      .replace(/^\**\s*/, "")
+      .replace(/\s*\**$/, "")
+      .trim();
+    // En triple ancho cada char ocupa 3 columnas → wrap a WIDTH/3.
+    const maxCols = Math.max(1, Math.floor(WIDTH / 3));
+    out += ALIGN_C + "\n" + BOLD_ON + SIZE_TRIPLE;
+    for (const line of wrapText(headerText, maxCols)) out += line + "\n";
+    out += SIZE_NORMAL + BOLD_OFF + "\n" + ALIGN_L + DASH_LINE;
   }
+
   if (p.customer || p.address || p.phone) {
     out += BOLD_ON;
     if (p.customer) out += `Cliente: ${String(p.customer).toUpperCase()}\n`;
