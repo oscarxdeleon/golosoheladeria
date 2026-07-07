@@ -48,6 +48,12 @@ const SIZE_DOUBLE_H = GS + "!" + "\x01"; // doble alto
 const SIZE_DOUBLE_W = GS + "!" + "\x10"; // doble ancho
 const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
+// Selección de familia tipográfica ESC/POS (ESC M n).
+//   FONT_A = 12x24, es la fuente "estándar" (más ancha y de trazo firme).
+//   FONT_B = 9x17, condensada, trazo fino: ideal para dar CONTRASTE
+//   tipográfico entre productos (Font A + negrita) y modificadores (Font B).
+const FONT_A = ESC + "M\x00";
+const FONT_B = ESC + "M\x01";
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 // Selección de página de códigos:
@@ -472,9 +478,11 @@ function buildComandaRaw(p) {
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
       .trim();
-    // En triple ancho cada char ocupa 3 columnas → wrap a WIDTH/3.
-    const maxCols = Math.max(1, Math.floor(WIDTH / 3));
-    out += ALIGN_C + "\n" + BOLD_ON + SIZE_TRIPLE;
+    // Mesa/destino: doble alto + doble ancho (un paso más pequeño que triple)
+    // pero manteniendo negrita y centrado. Sigue siendo el bloque más grande
+    // de la comanda tras esta reducción moderada de tamaño.
+    const maxCols = Math.max(1, Math.floor(WIDTH / 2));
+    out += ALIGN_C + "\n" + BOLD_ON + SIZE_DOUBLE;
     for (const line of wrapText(headerText, maxCols)) out += line + "\n";
     out += SIZE_NORMAL + BOLD_OFF + "\n" + ALIGN_L + DASH_LINE;
   }
@@ -487,35 +495,35 @@ function buildComandaRaw(p) {
     out += BOLD_OFF + DASH_LINE;
   }
   // ==== ITEMS CON JERARQUÍA VISUAL ====
-  // Producto (máximo protagonismo): doble alto + doble ancho + negrita. La
-  // cantidad se resalta al inicio ("1x"). Se hace wrap manual porque en
-  // tamaño doble cada carácter ocupa 2 columnas.
-  // Modificadores (subordinados): tamaño normal, SIN negrita, con sangría
-  // profunda y prefijo "- " para diferenciarlos claramente del producto.
+  // Producto: Font A + NEGRITA + doble alto (sin doble ancho). Ligeramente
+  // más compacto que antes y con trazo firme, pensado para térmicas.
+  // Modificadores: Font B (condensada, trazo fino) + tamaño normal + sangría
+  // con prefijo "- ". Sin negrita. La combinación Font A bold vs Font B fina
+  // crea el contraste tipográfico que buscamos en impresoras que solo
+  // exponen dos familias.
   // Se añade una línea en blanco entre productos para "respirar".
   const items = p.items || [];
-  const doubleCols = Math.max(1, Math.floor(WIDTH / 2));
-  const modCols = Math.max(1, WIDTH - 6);
+  const productCols = Math.max(1, WIDTH); // doble alto no cambia el ancho de char
+  const modCols = Math.max(1, Math.floor(WIDTH * 1.3) - 6); // Font B cabe más caracteres
   items.forEach((i, idx) => {
     if (idx > 0) out += "\n"; // separador entre productos
     const qty = Number(i.qty || 0);
     const productText = `${qty}x ${String(i.name || "").toUpperCase().trim()}`;
-    const lines = wrapText(productText, doubleCols);
-    out += BOLD_ON + SIZE_DOUBLE;
-    // Primera línea con la cantidad; líneas de continuación con sangría (dos espacios
-    // en doble ancho = ~4 columnas normales) para que se lea como el mismo bloque.
+    const lines = wrapText(productText, productCols);
+    out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
     out += lines[0] + "\n";
-    for (const cont of lines.slice(1)) out += "  " + cont + "\n";
+    // Sangría de continuación equivalente al ancho de "0x " para alinear.
+    for (const cont of lines.slice(1)) out += "   " + cont + "\n";
     out += SIZE_NORMAL + BOLD_OFF;
 
     if (Array.isArray(i.modifiers) && i.modifiers.length) {
+      out += FONT_B;
       for (const mod of i.modifiers) {
         const modLines = wrapText(String(mod).trim(), modCols);
-        // Sangría consistente + prefijo "- ". Sin negrita para contraste
-        // tipográfico con el producto (en térmicas el peso ES la tipografía).
         out += "    - " + modLines[0] + "\n";
         for (const cont of modLines.slice(1)) out += "      " + cont + "\n";
       }
+      out += FONT_A; // restablecer familia para el resto de la comanda
     }
   });
 
