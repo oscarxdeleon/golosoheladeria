@@ -210,11 +210,17 @@ function PorCobrar() {
 
 function CreditDetailDialog({ creditId, onClose }: { creditId: string; onClose: () => void }) {
   const qc = useQueryClient();
-  const { session } = useBranchCashSession();
+  const { activeBranchId } = useBranch();
+  const { session } = useBranchCashSession(activeBranchId);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("Efectivo");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  type CreditDetail = Omit<CreditRow, "customers" | "credit_payments"> & {
+    customers: { name: string; phone: string | null; address: string | null; neighborhood: string | null } | null;
+    credit_payments: { id: string; amount: number; payment_method: string; user_name: string; notes: string | null; created_at: string }[];
+  };
 
   const { data, refetch } = useQuery({
     queryKey: ["credit-detail", creditId],
@@ -223,7 +229,7 @@ function CreditDetailDialog({ creditId, onClose }: { creditId: string; onClose: 
         *, customers (name, phone, address, neighborhood),
         credit_payments (id, amount, payment_method, user_name, notes, created_at)
       `).eq("id", creditId).maybeSingle();
-      return c as unknown as (CreditRow & { customers: { name: string; phone: string | null; address: string | null; neighborhood: string | null }; credit_payments: { id: string; amount: number; payment_method: string; user_name: string; notes: string | null; created_at: string }[] }) | null;
+      return c as unknown as CreditDetail | null;
     },
   });
 
