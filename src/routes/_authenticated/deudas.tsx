@@ -3,20 +3,21 @@ import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Card, CardContent } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { formatDate, formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { Search, Eye, Wallet, Printer, HandCoins, CreditCard } from "lucide-react";
+import {
+  Search, Eye, Wallet, Printer, HandCoins, CreditCard, TrendingUp, TrendingDown,
+  Users, Truck, Calendar, User, Phone, MapPin, FileText, Clock, DollarSign,
+} from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { useBranch } from "@/contexts/branch-context";
+import { StatusPill } from "@/components/credit-dialogs";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
   head: () => ({ meta: [{ title: "Deudas · Goloso POS" }] }),
@@ -55,38 +56,126 @@ interface SupplierRow {
   purchase_id: string | null;
 }
 
-function statusBadge(s: string) {
-  if (s === "pagado") return <Badge className="bg-emerald-600 text-white">Pagado</Badge>;
-  if (s === "parcial") return <Badge className="bg-amber-500 text-white">Parcial</Badge>;
-  return <Badge variant="destructive">Pendiente</Badge>;
-}
-
+/* =========================================================
+   Page
+   ========================================================= */
 function DeudasPage() {
   const { isAdmin, primaryRole, loading } = useAuth();
   if (loading) return null;
   if (!isAdmin && primaryRole !== "cajero") {
-    return <div className="p-8 text-center text-sm text-muted-foreground">No tienes permisos para ver esta sección.</div>;
+    return (
+      <div className="mx-auto mt-16 max-w-md rounded-2xl border-2 border-dashed p-8 text-center">
+        <p className="text-sm font-bold">No tienes permisos para ver esta sección.</p>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h1 className="font-display text-3xl">Deudas</h1>
-        <p className="text-muted-foreground">Cuentas por cobrar a clientes y por pagar a proveedores.</p>
+    <div className="space-y-5">
+      {/* Hero */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-6 text-white shadow-lg">
+        <div className="absolute -right-16 -top-16 h-64 w-64 rounded-full bg-gradient-to-br from-pink-500/30 to-amber-500/20 blur-3xl" />
+        <div className="absolute -bottom-20 -left-20 h-72 w-72 rounded-full bg-gradient-to-tr from-emerald-500/20 to-blue-500/20 blur-3xl" />
+        <div className="relative flex items-center gap-4">
+          <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/25 backdrop-blur-sm">
+            <DollarSign className="h-7 w-7" strokeWidth={2.5} />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display text-2xl font-black tracking-tight sm:text-3xl">Centro de Deudas</h1>
+            <p className="mt-0.5 text-sm font-medium text-white/70">
+              Administra cuentas por cobrar a clientes y por pagar a proveedores.
+            </p>
+          </div>
+        </div>
       </div>
+
       <Tabs defaultValue="cobrar" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-2">
-          <TabsTrigger value="cobrar"><HandCoins className="h-4 w-4 mr-2" /> Por Cobrar</TabsTrigger>
-          <TabsTrigger value="pagar"><CreditCard className="h-4 w-4 mr-2" /> Por Pagar</TabsTrigger>
+        <TabsList className="grid h-12 w-full max-w-lg grid-cols-2 rounded-xl bg-muted p-1">
+          <TabsTrigger value="cobrar" className="h-full gap-2 rounded-lg text-sm font-black data-[state=active]:bg-background data-[state=active]:shadow-md">
+            <TrendingUp className="h-4 w-4 text-emerald-600" />
+            Por Cobrar
+          </TabsTrigger>
+          <TabsTrigger value="pagar" className="h-full gap-2 rounded-lg text-sm font-black data-[state=active]:bg-background data-[state=active]:shadow-md">
+            <TrendingDown className="h-4 w-4 text-rose-600" />
+            Por Pagar
+          </TabsTrigger>
         </TabsList>
-        <TabsContent value="cobrar" className="mt-4"><PorCobrar /></TabsContent>
-        <TabsContent value="pagar" className="mt-4"><PorPagar /></TabsContent>
+        <TabsContent value="cobrar" className="mt-5 animate-in fade-in-50"><PorCobrar /></TabsContent>
+        <TabsContent value="pagar" className="mt-5 animate-in fade-in-50"><PorPagar /></TabsContent>
       </Tabs>
     </div>
   );
 }
 
-/* ================== POR COBRAR ================== */
+/* =========================================================
+   Shared UI helpers
+   ========================================================= */
+function KpiCard({
+  label, value, icon: Icon, tone,
+}: { label: string; value: string; icon: React.ComponentType<{ className?: string; strokeWidth?: number }>; tone: "emerald" | "amber" | "rose" | "sky" }) {
+  const tones = {
+    emerald: { bg: "from-emerald-500 to-emerald-700", text: "text-emerald-700 dark:text-emerald-400", ring: "ring-emerald-500/20" },
+    amber: { bg: "from-amber-500 to-orange-600", text: "text-amber-700 dark:text-amber-400", ring: "ring-amber-500/20" },
+    rose: { bg: "from-rose-500 to-red-600", text: "text-rose-700 dark:text-rose-400", ring: "ring-rose-500/20" },
+    sky: { bg: "from-sky-500 to-blue-600", text: "text-sky-700 dark:text-sky-400", ring: "ring-sky-500/20" },
+  }[tone];
+  return (
+    <div className={`relative overflow-hidden rounded-2xl border-2 bg-background p-4 shadow-sm ring-4 ${tones.ring} transition hover:-translate-y-0.5 hover:shadow-md`}>
+      <div className="flex items-center justify-between">
+        <div>
+          <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{label}</div>
+          <div className={`mt-1 font-mono text-xl font-black ${tones.text}`}>{value}</div>
+        </div>
+        <div className={`flex h-10 w-10 items-center justify-center rounded-xl bg-gradient-to-br ${tones.bg} text-white shadow-md`}>
+          <Icon className="h-5 w-5" strokeWidth={2.5} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FiltersBar({
+  search, setSearch, status, setStatus, dateFrom, setDateFrom, dateTo, setDateTo, placeholder,
+}: {
+  search: string; setSearch: (v: string) => void;
+  status: Status; setStatus: (s: Status) => void;
+  dateFrom: string; setDateFrom: (v: string) => void;
+  dateTo: string; setDateTo: (v: string) => void;
+  placeholder: string;
+}) {
+  return (
+    <div className="rounded-2xl border-2 bg-background p-4 shadow-sm">
+      <div className="grid gap-3 md:grid-cols-[minmax(0,2fr)_minmax(0,1fr)_minmax(0,1.2fr)]">
+        <div className="relative rounded-xl border-2 bg-background transition focus-within:border-primary focus-within:ring-4 focus-within:ring-primary/20">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <input
+            placeholder={placeholder}
+            className="h-11 w-full rounded-xl bg-transparent pl-10 pr-3 text-sm font-semibold outline-none placeholder:font-medium placeholder:text-muted-foreground"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+        <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
+          <SelectTrigger className="h-11 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="todos">Todos los estados</SelectItem>
+            <SelectItem value="pendiente">Pendiente</SelectItem>
+            <SelectItem value="parcial">Parcial</SelectItem>
+            <SelectItem value="pagado">Pagado</SelectItem>
+          </SelectContent>
+        </Select>
+        <div className="flex gap-2">
+          <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} className="h-11 rounded-xl border-2 font-semibold" />
+          <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} className="h-11 rounded-xl border-2 font-semibold" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   POR COBRAR
+   ========================================================= */
 function PorCobrar() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<Status>("todos");
@@ -123,91 +212,126 @@ function PorCobrar() {
   }, [rows, search]);
 
   const totalPend = filtered.reduce((s, r) => s + Number(r.balance), 0);
+  const totalCob = filtered.reduce((s, r) => s + (Number(r.total) - Number(r.balance)), 0);
+  const pendientes = filtered.filter((r) => r.status !== "pagado").length;
 
   return (
-    <div className="space-y-3">
-      <Card>
-        <CardContent className="p-4 grid gap-3 md:grid-cols-4">
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por cliente, celular o factura…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los estados</SelectItem>
-              <SelectItem value="pendiente">Pendiente</SelectItem>
-              <SelectItem value="parcial">Parcial</SelectItem>
-              <SelectItem value="pagado">Pagado</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2">
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{filtered.length} créditos · {isFetching && "actualizando…"}</span>
-        <span className="font-semibold">Saldo total pendiente: <span className="text-amber-700">{formatMoney(totalPend)}</span></span>
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="Créditos" value={String(filtered.length)} icon={Users} tone="sky" />
+        <KpiCard label="Pendientes" value={String(pendientes)} icon={Clock} tone="amber" />
+        <KpiCard label="Total Cobrado" value={formatMoney(totalCob)} icon={TrendingUp} tone="emerald" />
+        <KpiCard label="Saldo por Cobrar" value={formatMoney(totalPend)} icon={Wallet} tone="rose" />
       </div>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Cliente</TableHead>
-                <TableHead>Celular</TableHead>
-                <TableHead>Factura</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Abonado</TableHead>
-                <TableHead className="text-right">Saldo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Último abono</TableHead>
-                <TableHead>Vendedor</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => {
-                const abonado = Number(r.total) - Number(r.balance);
-                const last = r.credit_payments?.length ? r.credit_payments.reduce((a, b) => (a.created_at > b.created_at ? a : b)) : null;
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.customers?.name ?? "—"}</TableCell>
-                    <TableCell>{r.customers?.phone ?? "—"}</TableCell>
-                    <TableCell className="font-mono">#{r.ticket_number ?? "—"}</TableCell>
-                    <TableCell>{formatDate(r.created_at)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.total)}</TableCell>
-                    <TableCell className="text-right text-emerald-700">{formatMoney(abonado)}</TableCell>
-                    <TableCell className="text-right font-bold text-amber-700">{formatMoney(r.balance)}</TableCell>
-                    <TableCell>{statusBadge(r.status)}</TableCell>
-                    <TableCell className="text-xs">{last ? formatDate(last.created_at) : "—"}</TableCell>
-                    <TableCell className="text-xs">{r.created_by_name ?? "—"}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => setSelected(r)}>
-                        <Eye className="h-4 w-4 mr-1" /> Ver
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={11} className="py-10 text-center text-muted-foreground">Sin registros</TableCell></TableRow>
+      <FiltersBar
+        search={search} setSearch={setSearch}
+        status={status} setStatus={setStatus}
+        dateFrom={dateFrom} setDateFrom={setDateFrom}
+        dateTo={dateTo} setDateTo={setDateTo}
+        placeholder="Buscar por cliente, celular o factura…"
+      />
+
+      <div className="flex items-center gap-2 px-1 text-xs font-semibold text-muted-foreground">
+        <span>{filtered.length} registros</span>
+        {isFetching && <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> actualizando…</span>}
+      </div>
+
+      {/* Card list — modern rows */}
+      <div className="space-y-2.5">
+        {filtered.length === 0 && (
+          <div className="rounded-2xl border-2 border-dashed py-14 text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <Wallet className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-bold">Sin registros</p>
+            <p className="text-xs text-muted-foreground">Ajusta los filtros para ver más resultados.</p>
+          </div>
+        )}
+        {filtered.map((r) => {
+          const abonado = Number(r.total) - Number(r.balance);
+          const pct = Number(r.total) > 0 ? Math.min(100, (abonado / Number(r.total)) * 100) : 0;
+          const last = r.credit_payments?.length ? r.credit_payments.reduce((a, b) => (a.created_at > b.created_at ? a : b)) : null;
+          return (
+            <div
+              key={r.id}
+              className="group relative overflow-hidden rounded-2xl border-2 bg-background p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg"
+            >
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] md:items-center">
+                {/* Customer */}
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-pink-500 to-rose-600 text-base font-black text-white shadow">
+                    {(r.customers?.name ?? "?").charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-black">{r.customers?.name ?? "—"}</div>
+                    <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                      <Phone className="h-3 w-3" /> {r.customers?.phone ?? "—"}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Factura / fecha */}
+                <div className="min-w-0">
+                  <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Factura</div>
+                  <div className="font-mono text-sm font-black">#{r.ticket_number ?? "—"}</div>
+                  <div className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                    <Calendar className="h-3 w-3" /> {formatDate(r.created_at)}
+                  </div>
+                </div>
+
+                {/* Amounts + progress */}
+                <div className="min-w-0">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Saldo</div>
+                      <div className="font-mono text-lg font-black text-amber-700 dark:text-amber-400">{formatMoney(r.balance)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Abonado</div>
+                      <div className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-400">{formatMoney(abonado)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[10px] font-semibold text-muted-foreground">
+                    <span>Total {formatMoney(r.total)}</span>
+                    <span>{Math.round(pct)}% pagado</span>
+                  </div>
+                </div>
+
+                {/* Status + action */}
+                <div className="flex items-center gap-2 md:flex-col md:items-end">
+                  <StatusPill status={r.status} />
+                  <Button
+                    size="sm"
+                    onClick={() => setSelected(r)}
+                    className="h-9 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 px-3 font-black text-white shadow-md hover:from-slate-700 hover:to-slate-800"
+                  >
+                    <Eye className="mr-1.5 h-4 w-4" /> Ver Detalle
+                  </Button>
+                </div>
+              </div>
+              {last && (
+                <div className="mt-2 border-t pt-2 text-[11px] font-medium text-muted-foreground">
+                  Último abono: <span className="font-bold text-foreground">{formatDate(last.created_at)}</span>
+                  {r.created_by_name && <> · Vendedor: <span className="font-bold text-foreground">{r.created_by_name}</span></>}
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </div>
+          );
+        })}
+      </div>
 
       {selected && <CreditDetailDialog creditId={selected.id} onClose={() => setSelected(null)} />}
     </div>
   );
 }
 
+/* =========================================================
+   Credit Detail Dialog
+   ========================================================= */
 function CreditDetailDialog({ creditId, onClose }: { creditId: string; onClose: () => void }) {
   const qc = useQueryClient();
   const { activeBranchId } = useBranch();
@@ -235,6 +359,8 @@ function CreditDetailDialog({ creditId, onClose }: { creditId: string; onClose: 
 
   const amt = Number(amount.replace(/[^0-9.]/g, "")) || 0;
   const max = Number(data?.balance ?? 0);
+  const abonado = data ? Number(data.total) - Number(data.balance) : 0;
+  const pct = data && Number(data.total) > 0 ? Math.min(100, (abonado / Number(data.total)) * 100) : 0;
 
   async function submit() {
     if (amt <= 0) return toast.error("Ingresa un valor válido");
@@ -257,95 +383,170 @@ function CreditDetailDialog({ creditId, onClose }: { creditId: string; onClose: 
     w.document.write(`<html><head><title>Comprobante de Abono</title>
       <style>body{font-family:monospace;padding:12px;font-size:12px}h2{text-align:center;margin:4px 0}hr{border:none;border-top:1px dashed #999;margin:6px 0}</style>
       </head><body>
-      <h2>COMPROBANTE DE ABONO</h2>
-      <hr/>
+      <h2>COMPROBANTE DE ABONO</h2><hr/>
       <div>Cliente: ${data?.customers?.name ?? ""}</div>
       <div>Celular: ${data?.customers?.phone ?? ""}</div>
-      <div>Factura: #${data?.ticket_number ?? ""}</div>
-      <hr/>
+      <div>Factura: #${data?.ticket_number ?? ""}</div><hr/>
       <div>Fecha: ${new Date(pay.created_at).toLocaleString()}</div>
       <div>Método: ${pay.payment_method}</div>
       <div>Recibido por: ${pay.user_name}</div>
-      <h2>${formatMoney(pay.amount)}</h2>
-      <hr/>
+      <h2>${formatMoney(pay.amount)}</h2><hr/>
       <div>Saldo actual: ${formatMoney(data?.balance ?? 0)}</div>
-      <script>window.print();</script>
-      </body></html>`);
+      <script>window.print();</script></body></html>`);
     w.document.close();
   }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Crédito · Factura #{data?.ticket_number ?? "—"}</DialogTitle>
-          <DialogDescription>Detalle y registro de abonos</DialogDescription>
-        </DialogHeader>
-        {data && (
-          <div className="space-y-4">
-            <div className="grid gap-2 rounded-md border bg-muted/40 p-3 text-sm md:grid-cols-2">
-              <div><strong>Cliente:</strong> {data.customers?.name}</div>
-              <div><strong>Celular:</strong> {data.customers?.phone ?? "—"}</div>
-              <div><strong>Dirección:</strong> {data.customers?.address ?? "—"}</div>
-              <div><strong>Barrio:</strong> {data.customers?.neighborhood ?? "—"}</div>
-              <div><strong>Fecha crédito:</strong> {formatDate(data.created_at)}</div>
-              <div><strong>Vendedor:</strong> {data.created_by_name ?? "—"}</div>
-              <div><strong>Total:</strong> {formatMoney(data.total)}</div>
-              <div><strong>Saldo:</strong> <span className="font-bold text-amber-700">{formatMoney(data.balance)}</span></div>
-              <div><strong>Estado:</strong> {statusBadge(data.status)}</div>
+      <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-3xl">
+        {/* Header */}
+        <div className="relative overflow-hidden bg-gradient-to-br from-pink-600 via-rose-600 to-red-700 p-6 text-white">
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+          <div className="relative flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/15 text-2xl font-black ring-1 ring-white/30 backdrop-blur-sm">
+              {(data?.customers?.name ?? "?").charAt(0).toUpperCase()}
             </div>
-
-            <div>
-              <h3 className="font-medium mb-2">Historial de abonos</h3>
-              <div className="max-h-56 overflow-y-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha/Hora</TableHead>
-                      <TableHead>Método</TableHead>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.credit_payments.length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4">Sin abonos</TableCell></TableRow>
-                    )}
-                    {data.credit_payments.slice().sort((a,b) => b.created_at.localeCompare(a.created_at)).map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="text-xs">{new Date(p.created_at).toLocaleString()}</TableCell>
-                        <TableCell>{p.payment_method}</TableCell>
-                        <TableCell className="text-xs">{p.user_name}</TableCell>
-                        <TableCell className="text-right font-mono">{formatMoney(p.amount)}</TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => printReceipt(p)}><Printer className="h-3 w-3" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-black uppercase tracking-widest text-white/70">Cuenta por Cobrar</div>
+              <h2 className="mt-0.5 truncate text-2xl font-black tracking-tight" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.25)" }}>
+                {data?.customers?.name ?? "—"}
+              </h2>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-semibold text-white/85">
+                <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /> Factura #{data?.ticket_number ?? "—"}</span>
+                <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {data?.customers?.phone ?? "—"}</span>
+                <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {data ? formatDate(data.created_at) : "—"}</span>
               </div>
             </div>
+            {data && <StatusPill status={data.status} />}
+          </div>
+        </div>
 
-            {data.status !== "pagado" && (
-              <div className="rounded-md border p-3 space-y-2">
-                <h3 className="font-medium flex items-center gap-2"><Wallet className="h-4 w-4" /> Registrar abono</h3>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <Input inputMode="decimal" placeholder="Valor" value={amount} onChange={(e) => setAmount(e.target.value)} />
-                  <Select value={method} onValueChange={setMethod}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Efectivo">Efectivo</SelectItem>
-                      <SelectItem value="Nequi">Nequi</SelectItem>
-                      <SelectItem value="Bancolombia">Bancolombia</SelectItem>
-                    </SelectContent>
-                  </Select>
+        {data && (
+          <div className="space-y-5 p-6">
+            {/* Amounts */}
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border-2 bg-muted/30 p-3">
+                <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Total</div>
+                <div className="font-mono text-xl font-black">{formatMoney(data.total)}</div>
+              </div>
+              <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <div className="text-[10px] font-black uppercase tracking-wider text-emerald-800/80 dark:text-emerald-400/80">Abonado</div>
+                <div className="font-mono text-xl font-black text-emerald-700 dark:text-emerald-400">{formatMoney(abonado)}</div>
+              </div>
+              <div className="rounded-xl border-2 border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
+                <div className="text-[10px] font-black uppercase tracking-wider text-amber-800/80 dark:text-amber-400/80">Saldo</div>
+                <div className="font-mono text-xl font-black text-amber-700 dark:text-amber-400">{formatMoney(data.balance)}</div>
+              </div>
+            </div>
+            <div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="mt-1 text-right text-xs font-bold text-muted-foreground">{Math.round(pct)}% pagado</div>
+            </div>
+
+            {/* Customer info */}
+            <div className="grid gap-2 rounded-xl border-2 bg-muted/20 p-4 text-sm sm:grid-cols-2">
+              <InfoRow icon={User} label="Cliente" value={data.customers?.name ?? "—"} />
+              <InfoRow icon={Phone} label="Celular" value={data.customers?.phone ?? "—"} />
+              <InfoRow icon={MapPin} label="Dirección" value={data.customers?.address ?? "—"} />
+              <InfoRow icon={MapPin} label="Barrio" value={data.customers?.neighborhood ?? "—"} />
+              <InfoRow icon={User} label="Vendedor" value={data.created_by_name ?? "—"} />
+              <InfoRow icon={Calendar} label="Fecha crédito" value={formatDate(data.created_at)} />
+            </div>
+
+            {/* Payment history */}
+            <div>
+              <div className="mb-2 flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                  <Clock className="h-4 w-4" strokeWidth={2.5} />
                 </div>
-                <Textarea rows={2} placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setAmount(String(max))}>Saldar todo ({formatMoney(max)})</Button>
-                  <Button onClick={submit} disabled={saving || amt <= 0}>
+                <h3 className="text-sm font-black uppercase tracking-wide">Historial de Abonos</h3>
+                <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-black">{data.credit_payments.length}</span>
+              </div>
+              {data.credit_payments.length === 0 ? (
+                <div className="rounded-xl border-2 border-dashed py-8 text-center text-xs font-semibold text-muted-foreground">
+                  Sin abonos registrados
+                </div>
+              ) : (
+                <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                  {data.credit_payments.slice().sort((a, b) => b.created_at.localeCompare(a.created_at)).map((p) => (
+                    <div key={p.id} className="flex items-center gap-3 rounded-xl border-2 bg-background p-3 shadow-sm transition hover:border-emerald-300 hover:shadow-md">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow">
+                        <HandCoins className="h-5 w-5" strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-base font-black text-emerald-700 dark:text-emerald-400">{formatMoney(p.amount)}</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black uppercase">{p.payment_method}</span>
+                        </div>
+                        <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+                          <span className="font-bold">{p.user_name}</span> · {new Date(p.created_at).toLocaleString()}
+                        </div>
+                        {p.notes && <div className="mt-0.5 text-[11px] italic text-muted-foreground">"{p.notes}"</div>}
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => printReceipt(p)} className="shrink-0 rounded-lg font-bold">
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Register payment */}
+            {data.status !== "pagado" && (
+              <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 via-white to-orange-50 p-4 dark:border-amber-900/50 dark:from-amber-950/30 dark:via-background dark:to-orange-950/30">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow">
+                    <Wallet className="h-4 w-4" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-wide">Registrar Abono</h3>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Valor</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-black text-muted-foreground">$</span>
+                      <Input
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="h-12 rounded-xl border-2 pl-8 text-xl font-black focus-visible:border-amber-500 focus-visible:ring-amber-500/30"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Medio de pago</label>
+                    <Select value={method} onValueChange={setMethod}>
+                      <SelectTrigger className="mt-1 h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Efectivo">Efectivo</SelectItem>
+                        <SelectItem value="Nequi">Nequi</SelectItem>
+                        <SelectItem value="Bancolombia">Bancolombia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Textarea rows={2} placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-3 rounded-xl" />
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setAmount(String(max))}
+                    className="rounded-lg border-2 font-black hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  >
+                    Saldar todo ({formatMoney(max)})
+                  </Button>
+                  <Button
+                    onClick={submit}
+                    disabled={saving || amt <= 0}
+                    className="ml-auto rounded-lg font-black uppercase tracking-wide text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)" }}
+                  >
                     {saving ? "Registrando…" : `Confirmar ${formatMoney(amt)}`}
                   </Button>
                 </div>
@@ -353,15 +554,29 @@ function CreditDetailDialog({ creditId, onClose }: { creditId: string; onClose: 
             )}
           </div>
         )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+        <DialogFooter className="border-t bg-muted/30 px-6 py-3">
+          <Button variant="outline" onClick={onClose} className="rounded-lg font-bold">Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
 }
 
-/* ================== POR PAGAR ================== */
+function InfoRow({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
+  return (
+    <div className="flex items-start gap-2">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{label}</div>
+        <div className="truncate text-sm font-bold">{value}</div>
+      </div>
+    </div>
+  );
+}
+
+/* =========================================================
+   POR PAGAR
+   ========================================================= */
 function PorPagar() {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<Status>("todos");
@@ -392,89 +607,114 @@ function PorPagar() {
   }, [rows, search]);
 
   const totalPend = filtered.reduce((s, r) => s + Number(r.balance), 0);
+  const totalPag = filtered.reduce((s, r) => s + (Number(r.total) - Number(r.balance)), 0);
+  const pendientes = filtered.filter((r) => r.status !== "pagado").length;
 
   return (
-    <div className="space-y-3">
-      <Card>
-        <CardContent className="p-4 grid gap-3 md:grid-cols-4">
-          <div className="relative md:col-span-2">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="Buscar por proveedor o factura…" className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
-          </div>
-          <Select value={status} onValueChange={(v) => setStatus(v as Status)}>
-            <SelectTrigger><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="todos">Todos los estados</SelectItem>
-              <SelectItem value="pendiente">Pendiente</SelectItem>
-              <SelectItem value="parcial">Parcial</SelectItem>
-              <SelectItem value="pagado">Pagado</SelectItem>
-            </SelectContent>
-          </Select>
-          <div className="flex gap-2">
-            <Input type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-            <Input type="date" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex items-center justify-between text-sm">
-        <span className="text-muted-foreground">{filtered.length} deudas · {isFetching && "actualizando…"}</span>
-        <span className="font-semibold">Saldo total por pagar: <span className="text-rose-700">{formatMoney(totalPend)}</span></span>
+    <div className="space-y-4">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="Deudas" value={String(filtered.length)} icon={Truck} tone="sky" />
+        <KpiCard label="Pendientes" value={String(pendientes)} icon={Clock} tone="amber" />
+        <KpiCard label="Total Pagado" value={formatMoney(totalPag)} icon={TrendingUp} tone="emerald" />
+        <KpiCard label="Saldo por Pagar" value={formatMoney(totalPend)} icon={CreditCard} tone="rose" />
       </div>
 
-      <Card>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Proveedor</TableHead>
-                <TableHead>Factura</TableHead>
-                <TableHead>Fecha</TableHead>
-                <TableHead className="text-right">Total</TableHead>
-                <TableHead className="text-right">Abonado</TableHead>
-                <TableHead className="text-right">Saldo</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead>Último pago</TableHead>
-                <TableHead>Registrado por</TableHead>
-                <TableHead></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filtered.map((r) => {
-                const abonado = Number(r.total) - Number(r.balance);
-                const last = r.supplier_credit_payments?.length ? r.supplier_credit_payments.reduce((a, b) => (a.created_at > b.created_at ? a : b)) : null;
-                return (
-                  <TableRow key={r.id}>
-                    <TableCell className="font-medium">{r.supplier || "—"}</TableCell>
-                    <TableCell className="font-mono">{r.invoice_number ?? "—"}</TableCell>
-                    <TableCell>{formatDate(r.created_at)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(r.total)}</TableCell>
-                    <TableCell className="text-right text-emerald-700">{formatMoney(abonado)}</TableCell>
-                    <TableCell className="text-right font-bold text-rose-700">{formatMoney(r.balance)}</TableCell>
-                    <TableCell>{statusBadge(r.status)}</TableCell>
-                    <TableCell className="text-xs">{last ? formatDate(last.created_at) : "—"}</TableCell>
-                    <TableCell className="text-xs">{r.created_by_name ?? "—"}</TableCell>
-                    <TableCell>
-                      <Button size="sm" variant="ghost" onClick={() => setSelected(r)}>
-                        <Eye className="h-4 w-4 mr-1" /> Ver
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-              {filtered.length === 0 && (
-                <TableRow><TableCell colSpan={10} className="py-10 text-center text-muted-foreground">Sin registros</TableCell></TableRow>
+      <FiltersBar
+        search={search} setSearch={setSearch}
+        status={status} setStatus={setStatus}
+        dateFrom={dateFrom} setDateFrom={setDateFrom}
+        dateTo={dateTo} setDateTo={setDateTo}
+        placeholder="Buscar por proveedor o factura…"
+      />
+
+      <div className="flex items-center gap-2 px-1 text-xs font-semibold text-muted-foreground">
+        <span>{filtered.length} registros</span>
+        {isFetching && <span className="inline-flex items-center gap-1"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" /> actualizando…</span>}
+      </div>
+
+      <div className="space-y-2.5">
+        {filtered.length === 0 && (
+          <div className="rounded-2xl border-2 border-dashed py-14 text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <CreditCard className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-bold">Sin registros</p>
+          </div>
+        )}
+        {filtered.map((r) => {
+          const abonado = Number(r.total) - Number(r.balance);
+          const pct = Number(r.total) > 0 ? Math.min(100, (abonado / Number(r.total)) * 100) : 0;
+          const last = r.supplier_credit_payments?.length ? r.supplier_credit_payments.reduce((a, b) => (a.created_at > b.created_at ? a : b)) : null;
+          return (
+            <div key={r.id} className="group relative overflow-hidden rounded-2xl border-2 bg-background p-4 shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:shadow-lg">
+              <div className="grid gap-3 md:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_minmax(0,1.4fr)_auto] md:items-center">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-700 to-slate-900 text-white shadow">
+                    <Truck className="h-5 w-5" strokeWidth={2.5} />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="truncate text-sm font-black">{r.supplier || "—"}</div>
+                    <div className="text-xs font-medium text-muted-foreground">Registrado por {r.created_by_name ?? "—"}</div>
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Factura</div>
+                  <div className="font-mono text-sm font-black">{r.invoice_number ?? "—"}</div>
+                  <div className="mt-0.5 flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+                    <Calendar className="h-3 w-3" /> {formatDate(r.created_at)}
+                  </div>
+                </div>
+
+                <div className="min-w-0">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <div>
+                      <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Saldo</div>
+                      <div className="font-mono text-lg font-black text-rose-700 dark:text-rose-400">{formatMoney(r.balance)}</div>
+                    </div>
+                    <div className="text-right">
+                      <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Pagado</div>
+                      <div className="font-mono text-sm font-bold text-emerald-700 dark:text-emerald-400">{formatMoney(abonado)}</div>
+                    </div>
+                  </div>
+                  <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                    <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600 transition-all" style={{ width: `${pct}%` }} />
+                  </div>
+                  <div className="mt-1 flex items-center justify-between text-[10px] font-semibold text-muted-foreground">
+                    <span>Total {formatMoney(r.total)}</span>
+                    <span>{Math.round(pct)}% pagado</span>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 md:flex-col md:items-end">
+                  <StatusPill status={r.status} />
+                  <Button
+                    size="sm"
+                    onClick={() => setSelected(r)}
+                    className="h-9 rounded-lg bg-gradient-to-br from-slate-800 to-slate-900 px-3 font-black text-white shadow-md hover:from-slate-700 hover:to-slate-800"
+                  >
+                    <Eye className="mr-1.5 h-4 w-4" /> Ver Detalle
+                  </Button>
+                </div>
+              </div>
+              {last && (
+                <div className="mt-2 border-t pt-2 text-[11px] font-medium text-muted-foreground">
+                  Último pago: <span className="font-bold text-foreground">{formatDate(last.created_at)}</span>
+                </div>
               )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </div>
+          );
+        })}
+      </div>
 
       {selected && <SupplierDetailDialog creditId={selected.id} onClose={() => setSelected(null)} />}
     </div>
   );
 }
 
+/* =========================================================
+   Supplier Detail Dialog
+   ========================================================= */
 function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose: () => void }) {
   const qc = useQueryClient();
   const { activeBranchId } = useBranch();
@@ -508,6 +748,8 @@ function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose
 
   const amt = Number(amount.replace(/[^0-9.]/g, "")) || 0;
   const max = Number(data?.credit?.balance ?? 0);
+  const abonado = data ? Number(data.credit.total) - Number(data.credit.balance) : 0;
+  const pct = data && Number(data.credit.total) > 0 ? Math.min(100, (abonado / Number(data.credit.total)) * 100) : 0;
 
   async function submit() {
     if (amt <= 0) return toast.error("Ingresa un valor válido");
@@ -532,110 +774,173 @@ function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose
       </head><body>
       <h2>COMPROBANTE DE PAGO</h2><hr/>
       <div>Proveedor: ${data.credit.supplier}</div>
-      <div>Factura: ${data.credit.invoice_number ?? ""}</div>
-      <hr/>
+      <div>Factura: ${data.credit.invoice_number ?? ""}</div><hr/>
       <div>Fecha: ${new Date(pay.created_at).toLocaleString()}</div>
       <div>Método: ${pay.payment_method}</div>
       <div>Pagado por: ${pay.user_name}</div>
-      <h2>${formatMoney(pay.amount)}</h2>
-      <hr/>
+      <h2>${formatMoney(pay.amount)}</h2><hr/>
       <div>Saldo actual: ${formatMoney(data.credit.balance)}</div>
-      <script>window.print();</script>
-      </body></html>`);
+      <script>window.print();</script></body></html>`);
     w.document.close();
   }
 
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="sm:max-w-2xl">
-        <DialogHeader>
-          <DialogTitle>Deuda · {data?.credit.supplier}</DialogTitle>
-          <DialogDescription>Factura {data?.credit.invoice_number ?? "—"}</DialogDescription>
-        </DialogHeader>
+      <DialogContent className="max-h-[92vh] overflow-y-auto p-0 sm:max-w-3xl">
+        <div className="relative overflow-hidden bg-gradient-to-br from-slate-800 via-slate-900 to-black p-6 text-white">
+          <div className="absolute -right-16 -top-16 h-48 w-48 rounded-full bg-rose-500/20 blur-3xl" />
+          <div className="relative flex items-start gap-4">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/10 ring-1 ring-white/25 backdrop-blur-sm">
+              <Truck className="h-7 w-7" strokeWidth={2.5} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="text-xs font-black uppercase tracking-widest text-white/70">Cuenta por Pagar</div>
+              <h2 className="mt-0.5 truncate text-2xl font-black tracking-tight">{data?.credit.supplier ?? "—"}</h2>
+              <div className="mt-1 flex flex-wrap items-center gap-3 text-xs font-semibold text-white/85">
+                <span className="inline-flex items-center gap-1"><FileText className="h-3 w-3" /> Factura {data?.credit.invoice_number ?? "—"}</span>
+                <span className="inline-flex items-center gap-1"><Calendar className="h-3 w-3" /> {data ? formatDate(data.credit.created_at) : "—"}</span>
+              </div>
+            </div>
+            {data && <StatusPill status={data.credit.status} />}
+          </div>
+        </div>
+
         {data && (
-          <div className="space-y-4">
-            <div className="grid gap-2 rounded-md border bg-muted/40 p-3 text-sm md:grid-cols-2">
-              <div><strong>Proveedor:</strong> {data.credit.supplier}</div>
-              <div><strong>Factura:</strong> {data.credit.invoice_number ?? "—"}</div>
-              <div><strong>Fecha compra:</strong> {formatDate(data.credit.created_at)}</div>
-              <div><strong>Registrado por:</strong> {data.credit.created_by_name ?? "—"}</div>
-              <div><strong>Total:</strong> {formatMoney(data.credit.total)}</div>
-              <div><strong>Saldo:</strong> <span className="font-bold text-rose-700">{formatMoney(data.credit.balance)}</span></div>
-              <div><strong>Estado:</strong> {statusBadge(data.credit.status)}</div>
+          <div className="space-y-5 p-6">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border-2 bg-muted/30 p-3">
+                <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Total</div>
+                <div className="font-mono text-xl font-black">{formatMoney(data.credit.total)}</div>
+              </div>
+              <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <div className="text-[10px] font-black uppercase tracking-wider text-emerald-800/80 dark:text-emerald-400/80">Pagado</div>
+                <div className="font-mono text-xl font-black text-emerald-700 dark:text-emerald-400">{formatMoney(abonado)}</div>
+              </div>
+              <div className="rounded-xl border-2 border-rose-200 bg-rose-50 p-3 dark:border-rose-900/50 dark:bg-rose-950/30">
+                <div className="text-[10px] font-black uppercase tracking-wider text-rose-800/80 dark:text-rose-400/80">Saldo</div>
+                <div className="font-mono text-xl font-black text-rose-700 dark:text-rose-400">{formatMoney(data.credit.balance)}</div>
+              </div>
+            </div>
+            <div>
+              <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
+                <div className="h-full rounded-full bg-gradient-to-r from-emerald-400 to-emerald-600" style={{ width: `${pct}%` }} />
+              </div>
+              <div className="mt-1 text-right text-xs font-bold text-muted-foreground">{Math.round(pct)}% pagado</div>
             </div>
 
             {data.items.length > 0 && (
               <div>
-                <h3 className="font-medium mb-2">Productos comprados</h3>
-                <div className="max-h-40 overflow-y-auto rounded-md border">
-                  <Table>
-                    <TableHeader><TableRow><TableHead>Item</TableHead><TableHead className="text-right">Cant.</TableHead><TableHead className="text-right">Costo</TableHead></TableRow></TableHeader>
-                    <TableBody>
-                      {data.items.map((i) => (
-                        <TableRow key={i.id}>
-                          <TableCell>{i.item_name}</TableCell>
-                          <TableCell className="text-right">{i.quantity}</TableCell>
-                          <TableCell className="text-right">{formatMoney(i.unit_cost)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                <div className="mb-2 flex items-center gap-2">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-400">
+                    <FileText className="h-4 w-4" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-wide">Productos Comprados</h3>
+                </div>
+                <div className="max-h-48 space-y-1.5 overflow-y-auto pr-1">
+                  {data.items.map((i) => (
+                    <div key={i.id} className="flex items-center justify-between rounded-lg border bg-muted/30 px-3 py-2 text-sm">
+                      <span className="truncate font-semibold">{i.item_name}</span>
+                      <div className="flex items-center gap-3 shrink-0 text-xs">
+                        <span className="font-bold">×{i.quantity}</span>
+                        <span className="font-mono font-black">{formatMoney(i.unit_cost)}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
 
             <div>
-              <h3 className="font-medium mb-2">Historial de pagos</h3>
-              <div className="max-h-56 overflow-y-auto rounded-md border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Fecha/Hora</TableHead>
-                      <TableHead>Método</TableHead>
-                      <TableHead>Usuario</TableHead>
-                      <TableHead className="text-right">Valor</TableHead>
-                      <TableHead></TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {data.credit.supplier_credit_payments.length === 0 && (
-                      <TableRow><TableCell colSpan={5} className="text-center text-xs text-muted-foreground py-4">Sin pagos</TableCell></TableRow>
-                    )}
-                    {data.credit.supplier_credit_payments.slice().sort((a,b) => b.created_at.localeCompare(a.created_at)).map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="text-xs">{new Date(p.created_at).toLocaleString()}</TableCell>
-                        <TableCell>{p.payment_method}</TableCell>
-                        <TableCell className="text-xs">{p.user_name}</TableCell>
-                        <TableCell className="text-right font-mono">{formatMoney(p.amount)}</TableCell>
-                        <TableCell>
-                          <Button size="sm" variant="ghost" onClick={() => printReceipt(p)}><Printer className="h-3 w-3" /></Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <div className="mb-2 flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                  <Clock className="h-4 w-4" strokeWidth={2.5} />
+                </div>
+                <h3 className="text-sm font-black uppercase tracking-wide">Historial de Pagos</h3>
+                <span className="ml-auto rounded-full bg-muted px-2 py-0.5 text-xs font-black">{data.credit.supplier_credit_payments.length}</span>
               </div>
+              {data.credit.supplier_credit_payments.length === 0 ? (
+                <div className="rounded-xl border-2 border-dashed py-8 text-center text-xs font-semibold text-muted-foreground">
+                  Sin pagos registrados
+                </div>
+              ) : (
+                <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
+                  {data.credit.supplier_credit_payments.slice().sort((a, b) => b.created_at.localeCompare(a.created_at)).map((p) => (
+                    <div key={p.id} className="flex items-center gap-3 rounded-xl border-2 bg-background p-3 shadow-sm transition hover:border-emerald-300">
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-emerald-600 text-white shadow">
+                        <HandCoins className="h-5 w-5" strokeWidth={2.5} />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-base font-black text-emerald-700 dark:text-emerald-400">{formatMoney(p.amount)}</span>
+                          <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-black uppercase">{p.payment_method}</span>
+                        </div>
+                        <div className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+                          <span className="font-bold">{p.user_name}</span> · {new Date(p.created_at).toLocaleString()}
+                        </div>
+                        {p.notes && <div className="mt-0.5 text-[11px] italic text-muted-foreground">"{p.notes}"</div>}
+                      </div>
+                      <Button size="sm" variant="ghost" onClick={() => printReceipt(p)} className="shrink-0 rounded-lg">
+                        <Printer className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {data.credit.status !== "pagado" && (
-              <div className="rounded-md border p-3 space-y-2">
-                <h3 className="font-medium flex items-center gap-2"><Wallet className="h-4 w-4" /> Registrar pago</h3>
-                <div className="grid gap-2 md:grid-cols-2">
-                  <Input inputMode="decimal" placeholder="Valor" value={amount} onChange={(e) => setAmount(e.target.value)} />
-                  <Select value={method} onValueChange={setMethod}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="Efectivo">Efectivo</SelectItem>
-                      <SelectItem value="Nequi">Nequi</SelectItem>
-                      <SelectItem value="Bancolombia">Bancolombia</SelectItem>
-                      <SelectItem value="Transferencia">Transferencia</SelectItem>
-                    </SelectContent>
-                  </Select>
+              <div className="rounded-2xl border-2 border-rose-200 bg-gradient-to-br from-rose-50 via-white to-red-50 p-4 dark:border-rose-900/50 dark:from-rose-950/30 dark:via-background dark:to-red-950/30">
+                <div className="mb-3 flex items-center gap-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-red-600 text-white shadow">
+                    <Wallet className="h-4 w-4" strokeWidth={2.5} />
+                  </div>
+                  <h3 className="text-sm font-black uppercase tracking-wide">Registrar Pago</h3>
                 </div>
-                <Textarea rows={2} placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} />
-                <div className="flex gap-2 justify-end">
-                  <Button variant="outline" onClick={() => setAmount(String(max))}>Saldar todo ({formatMoney(max)})</Button>
-                  <Button onClick={submit} disabled={saving || amt <= 0}>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Valor</label>
+                    <div className="relative mt-1">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-black text-muted-foreground">$</span>
+                      <Input
+                        inputMode="decimal"
+                        placeholder="0"
+                        value={amount}
+                        onChange={(e) => setAmount(e.target.value)}
+                        className="h-12 rounded-xl border-2 pl-8 text-xl font-black focus-visible:border-rose-500 focus-visible:ring-rose-500/30"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">Medio de pago</label>
+                    <Select value={method} onValueChange={setMethod}>
+                      <SelectTrigger className="mt-1 h-12 rounded-xl border-2 font-bold"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Efectivo">Efectivo</SelectItem>
+                        <SelectItem value="Nequi">Nequi</SelectItem>
+                        <SelectItem value="Bancolombia">Bancolombia</SelectItem>
+                        <SelectItem value="Transferencia">Transferencia</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                <Textarea rows={2} placeholder="Notas (opcional)" value={notes} onChange={(e) => setNotes(e.target.value)} className="mt-3 rounded-xl" />
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setAmount(String(max))}
+                    className="rounded-lg border-2 font-black hover:border-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
+                  >
+                    Saldar todo ({formatMoney(max)})
+                  </Button>
+                  <Button
+                    onClick={submit}
+                    disabled={saving || amt <= 0}
+                    className="ml-auto rounded-lg font-black uppercase tracking-wide text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
+                    style={{ background: "linear-gradient(135deg, #f43f5e 0%, #b91c1c 100%)" }}
+                  >
                     {saving ? "Registrando…" : `Confirmar ${formatMoney(amt)}`}
                   </Button>
                 </div>
@@ -643,8 +948,8 @@ function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose
             )}
           </div>
         )}
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cerrar</Button>
+        <DialogFooter className="border-t bg-muted/30 px-6 py-3">
+          <Button variant="outline" onClick={onClose} className="rounded-lg font-bold">Cerrar</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
