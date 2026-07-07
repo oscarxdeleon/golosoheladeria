@@ -420,13 +420,40 @@ async function buildPersonalizedTicketRaw(p) {
 // ---------- Comanda de cocina (fuente compacta) ----------
 function buildComandaRaw(p) {
   let out = INIT + CODEPAGE + INTL_CHARSET;
-  // Encabezado compacto
-  out += ALIGN_C + BOLD_ON;
-  if (p.business_name) out += String(p.business_name).toUpperCase() + "\n";
-  out += SIZE_DOUBLE_H + `PEDIDO #${p.ticket ?? p.ticket_number ?? ""}\n` + SIZE_NORMAL;
-  out += new Date(p.created_at || Date.now()).toLocaleString("es-CO") + "\n";
-  if (p.user_name) out += `Cajero: ${p.user_name}\n`;
-  out += BOLD_OFF + ALIGN_L + DASH_LINE;
+
+  // ==== ENCABEZADO CON JERARQUÍA VISUAL ====
+  // 1) Sede: doble alto + ancho, negrita — elemento dominante del encabezado.
+  // 2) Pedido #: doble alto + ancho, negrita — segundo nivel de prominencia.
+  // 3) Fecha y hora: doble alto (mismo ancho que el resto), en negrita, en
+  //    dos líneas separadas para lectura rápida.
+  // Todo centrado por la impresora (ALIGN_C), sin padding manual.
+  out += ALIGN_C;
+
+  if (p.business_name) {
+    const business = String(p.business_name).toUpperCase().trim();
+    const maxCols = Math.max(1, Math.floor(WIDTH / 2)); // doble ancho → cada char = 2 columnas
+    out += BOLD_ON + SIZE_DOUBLE;
+    for (const line of wrapText(business, maxCols)) out += line + "\n";
+    out += SIZE_NORMAL + BOLD_OFF;
+  }
+
+  const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim();
+  if (ticketNum) {
+    out += "\n" + BOLD_ON + SIZE_DOUBLE + `PEDIDO #${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
+  }
+
+  // Fecha y hora separadas y en doble alto para máxima legibilidad térmica.
+  const now = new Date(p.created_at || Date.now());
+  const fecha = now.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true });
+  out += BOLD_ON + SIZE_DOUBLE_H + fecha + "   " + hora + "\n" + SIZE_NORMAL + BOLD_OFF;
+
+  if (p.user_name) {
+    out += BOLD_ON + `Cajero: ${String(p.user_name).trim()}` + "\n" + BOLD_OFF;
+  }
+
+  out += ALIGN_L + DASH_LINE;
+
   if (p.header) {
     // El número de mesa / destino es el dato más crítico para cocina: se
     // imprime en el tamaño MÁXIMO soportado por ESC/POS (triple alto + ancho)
