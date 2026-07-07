@@ -2144,6 +2144,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 <Split className="h-3 w-3" strokeWidth={2.5} />
               </span>
             </button>
+            <CreditActionButtons
+              disabledCredit={paying || cart.length === 0}
+              onAbonar={() => { setPayDialogOpen(false); setAbonoDialogOpen(true); }}
+              onCredito={() => { setPayDialogOpen(false); setCreditDialogOpen(true); }}
+            />
             {methods.map((m: { id: string; name: string }) => {
               const lower = m.name.toLowerCase();
               const isCash = lower.includes("efectivo");
