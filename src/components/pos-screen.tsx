@@ -1559,36 +1559,34 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   </span>
                   <span className="font-display text-lg text-primary tabular-nums leading-none">{formatMoney(total)}</span>
                 </div>
-                <div className={meseroMode ? "grid grid-cols-1 gap-1.5" : "grid grid-cols-3 gap-1.5"}>
+                <div className={meseroMode ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-2"}>
                   <Button
                     size="sm"
-                    variant="outline"
                     disabled={paying || cart.length === 0}
                     onClick={saveComanda}
-                    className="h-10 border-primary text-primary hover:bg-primary/10"
+                    className="h-11 rounded-xl bg-gradient-to-b from-sky-400 to-sky-600 text-white font-extrabold uppercase tracking-wide text-xs border border-sky-300/50 shadow-[0_4px_0_0_hsl(210_90%_35%),0_8px_20px_-4px_hsl(210_90%_45%/0.5)] hover:from-sky-300 hover:to-sky-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(210_90%_35%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
                   >
-                    <Save className="h-4 w-4 sm:mr-1" />
+                    <Save className="h-4 w-4 sm:mr-1.5" />
                     <span className="hidden sm:inline">Guardar</span>
                   </Button>
                   {!meseroMode && (
                     <>
                       <Button
                         size="sm"
-                        variant="outline"
                         disabled={cart.length === 0}
                         onClick={handlePrecuenta}
-                        className="h-10"
+                        className="h-11 rounded-xl bg-gradient-to-b from-violet-400 to-violet-600 text-white font-extrabold uppercase tracking-wide text-xs border border-violet-300/50 shadow-[0_4px_0_0_hsl(270_70%_35%),0_8px_20px_-4px_hsl(270_70%_50%/0.5)] hover:from-violet-300 hover:to-violet-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(270_70%_35%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
                       >
-                        <Printer className="h-4 w-4 sm:mr-1" />
+                        <Printer className="h-4 w-4 sm:mr-1.5" />
                         <span className="hidden sm:inline">Precuenta</span>
                       </Button>
                       <Button
                         size="sm"
                         disabled={paying || (cart.length === 0 && !pendingSaleId)}
                         onClick={() => setPayDialogOpen(true)}
-                        className="h-10 bg-gradient-primary font-bold"
+                        className="h-11 rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-600 text-white font-black uppercase tracking-wide text-sm border border-emerald-300/50 shadow-[0_4px_0_0_hsl(150_70%_25%),0_10px_25px_-4px_hsl(150_80%_40%/0.6)] hover:from-emerald-300 hover:to-emerald-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(150_70%_25%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
                       >
-                        <Banknote className="h-4 w-4 sm:mr-1" />
+                        <Banknote className="h-4 w-4 sm:mr-1.5" />
                         <span className="hidden sm:inline">Cobrar</span>
                       </Button>
                     </>
