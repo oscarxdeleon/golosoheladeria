@@ -2254,6 +2254,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         </DialogContent>
       </Dialog>
 
+      <CreditSaleDialog
+        open={creditDialogOpen}
+        onOpenChange={setCreditDialogOpen}
+        total={total}
+        onConfirm={(c) => {
+          setCreditDialogOpen(false);
+          void pay("Crédito", { credit: true, customer_id: c.id, customer_name: c.name }, { id: c.id, name: c.name });
+        }}
+      />
+      <CreditPaymentDialog
+        open={abonoDialogOpen}
+        onOpenChange={setAbonoDialogOpen}
+        cashSessionId={effectiveSessionId ?? null}
+        onPaid={() => { qc.invalidateQueries({ queryKey: ["credits"] }); }}
+      />
 
     </div>
   );
