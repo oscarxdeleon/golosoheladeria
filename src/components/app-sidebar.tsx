@@ -82,6 +82,7 @@ const egresos = [
   { to: "/compras", label: "Nueva compra", icon: ShoppingBag, key: "compras" },
   { to: "/gastos", label: "Nuevo gasto", icon: ReceiptIcon, key: "gastos" },
   { to: "/egresos", label: "Historial egresos", icon: TrendingDown, key: "egresos" },
+  { to: "/deudas", label: "Deudas", icon: Wallet, key: "deudas" },
 ];
 
 const admin = [
