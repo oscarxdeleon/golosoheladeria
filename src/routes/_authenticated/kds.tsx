@@ -109,12 +109,8 @@ function KdsPage() {
       qc.invalidateQueries({ queryKey: ["kds-pending", activeBranchId] });
       return;
     }
-    // Si con este ítem el pedido queda 100% listo, notificar al cliente (Autopedido)
-    const pendingCount = sale.sale_items.filter((i) => i.id !== itemId && !i.ready_at).length;
-    if (pendingCount === 0) {
-      const notified = notifyCustomerReady(sale);
-      if (notified) toast.success("WhatsApp enviado al cliente");
-    }
+    // "Marcar" solo actualiza el estado interno del ítem. NO envía WhatsApp
+    // al cliente; ese aviso se dispara únicamente desde "Despachar todo".
   }
 
   async function markAllReady(sale: Pending) {

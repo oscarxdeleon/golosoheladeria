@@ -12,14 +12,15 @@ const PUBLIC_ORDER_SOURCES = ["online_menu", "kiosk", "table_qr"] as const;
 const ACK_STORAGE_KEY = "goloso.pos.publicOrderAlerts.seen.v1";
 const BACKSTOP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
-/* ---------- Audio: loop persistente hasta confirmar ----------
- * Usa un HTMLAudioElement con loop=true para que la alerta continúe
- * reproduciéndose aunque el navegador suspenda el AudioContext, cambie
- * de pestaña o el usuario navegue a otras secciones del POS.
+/* ---------- Audio: un solo beep por cada pedido nuevo ----------
+ * Se reproduce una única vez cuando llega un pedido nuevo. Requiere que el
+ * usuario haya interactuado alguna vez con la página (política de autoplay
+ * del navegador); mientras tanto se hace un "unlock" silencioso en el primer
+ * gesto para que los beeps posteriores no queden bloqueados.
  */
 function buildBeepBlobUrl(): string {
   const sr = 44100;
-  const dur = 2.4; // beep + silencio, se repite en loop
+  const dur = 0.7; // beep corto de una sola pasada
   const N = Math.floor(sr * dur);
   const data = new Float32Array(N);
   const tones: Array<{ f: number; t0: number; t1: number }> = [
@@ -52,12 +53,10 @@ function buildBeepBlobUrl(): string {
   return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
 }
 
-function useOrderAlertLoop() {
+function useOrderAlertBeep() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
-  const fallbackTimerRef = useRef<number | null>(null);
   const urlRef = useRef<string | null>(null);
-  const activeRef = useRef(false);
   const unlockedRef = useRef(false);
 
   const ensureAudio = useCallback(() => {
@@ -65,7 +64,7 @@ function useOrderAlertLoop() {
     if (!urlRef.current) urlRef.current = buildBeepBlobUrl();
     if (!audioRef.current) {
       const a = new Audio(urlRef.current);
-      a.loop = true;
+      a.loop = false;
       a.preload = "auto";
       a.volume = 1;
       a.setAttribute("playsinline", "true");
@@ -84,13 +83,12 @@ function useOrderAlertLoop() {
     return ctxRef.current;
   }, []);
 
-  const playFallbackBeep = useCallback(() => {
-    const a = audioRef.current;
-    if (!activeRef.current || (a && !a.paused)) return;
+  // Reproduce un beep usando WebAudio como fallback si el elemento <audio>
+  // está bloqueado por política de autoplay.
+  const playOscBeep = useCallback(() => {
     const ctx = ensureAudioContext();
-    if (!ctx) return;
+    if (!ctx) return false;
     const fire = () => {
-      if (!activeRef.current) return;
       const startAt = ctx.currentTime;
       [880, 1180, 1480].forEach((freq, idx) => {
         const osc = ctx.createOscillator();
@@ -106,113 +104,65 @@ function useOrderAlertLoop() {
         osc.stop(startAt + idx * 0.18 + 0.17);
       });
     };
-    if (ctx.state === "suspended") void ctx.resume().then(fire).catch(() => { /* bloqueado hasta un gesto */ });
-    else fire();
+    if (ctx.state === "suspended") {
+      ctx.resume().then(fire).catch(() => { /* bloqueado hasta un gesto */ });
+    } else {
+      fire();
+    }
+    return true;
   }, [ensureAudioContext]);
 
-  const startFallbackLoop = useCallback(() => {
-    if (fallbackTimerRef.current !== null) return;
-    playFallbackBeep();
-    fallbackTimerRef.current = window.setInterval(playFallbackBeep, 2400);
-  }, [playFallbackBeep]);
-
-  const stopFallbackLoop = useCallback(() => {
-    if (fallbackTimerRef.current !== null) {
-      window.clearInterval(fallbackTimerRef.current);
-      fallbackTimerRef.current = null;
-    }
-  }, []);
-
-  const attemptPlay = useCallback(() => {
+  // Reproduce UN beep (una sola pasada). Se llama por cada pedido nuevo.
+  const beep = useCallback(() => {
     const a = ensureAudio();
-    if (!a) return;
-    const p = a.play();
-    if (p && typeof p.catch === "function") {
-      p.catch(() => { /* bloqueado hasta el próximo gesto; se reintenta en unlock */ });
-    }
-  }, [ensureAudio]);
-
-  const start = useCallback(() => {
-    if (activeRef.current) {
-      const a = audioRef.current;
-      if (a && a.paused) attemptPlay();
-      startFallbackLoop();
-      return;
-    }
-    activeRef.current = true;
-    attemptPlay();
-    startFallbackLoop();
-  }, [attemptPlay, startFallbackLoop]);
-
-  const stop = useCallback(() => {
-    activeRef.current = false;
-    const a = audioRef.current;
     if (a) {
       try { a.pause(); a.currentTime = 0; } catch { /* noop */ }
+      const p = a.play();
+      if (p && typeof p.catch === "function") {
+        p.catch(() => { playOscBeep(); });
+      }
+      return;
     }
-    stopFallbackLoop();
-  }, [stopFallbackLoop]);
+    playOscBeep();
+  }, [ensureAudio, playOscBeep]);
 
-  // Desbloqueo por gesto del usuario y recuperación al volver a la pestaña.
+  // Desbloqueo silencioso en el primer gesto del usuario para que los beeps
+  // posteriores no queden bloqueados por el navegador.
   useEffect(() => {
     const unlock = () => {
+      if (unlockedRef.current) return;
+      unlockedRef.current = true;
       const a = ensureAudio();
-      if (!a) return;
-      if (!unlockedRef.current) {
-        unlockedRef.current = true;
+      if (a) {
         const prevMuted = a.muted;
         a.muted = true;
         const p = a.play();
         const finish = () => {
-          try {
-            a.muted = prevMuted;
-            if (activeRef.current) {
-              void a.play().catch(() => { /* se reintenta con el watchdog */ });
-            } else {
-              a.pause();
-              a.currentTime = 0;
-            }
-          } catch { /* noop */ }
+          try { a.pause(); a.currentTime = 0; a.muted = prevMuted; } catch { /* noop */ }
         };
         if (p && typeof p.then === "function") p.then(finish).catch(() => { a.muted = prevMuted; });
         else finish();
-        return;
       }
-      if (activeRef.current && a.paused) attemptPlay();
-      if (activeRef.current) {
-        const ctx = ensureAudioContext();
-        if (ctx?.state === "suspended") void ctx.resume().catch(() => { /* noop */ });
-        startFallbackLoop();
-      }
+      const ctx = ensureAudioContext();
+      if (ctx?.state === "suspended") void ctx.resume().catch(() => { /* noop */ });
     };
     const events: Array<keyof WindowEventMap> = ["pointerdown", "keydown", "touchstart", "click"];
     events.forEach((e) => window.addEventListener(e, unlock, { passive: true }));
-    const onVisible = () => { if (activeRef.current) attemptPlay(); };
-    document.addEventListener("visibilitychange", onVisible);
-    const watchdog = window.setInterval(() => {
-      const a = audioRef.current;
-      if (activeRef.current && (!a || a.paused)) attemptPlay();
-    }, 1500);
-    return () => {
-      events.forEach((e) => window.removeEventListener(e, unlock));
-      document.removeEventListener("visibilitychange", onVisible);
-      window.clearInterval(watchdog);
-    };
-  }, [attemptPlay, ensureAudio, ensureAudioContext, startFallbackLoop]);
+    return () => { events.forEach((e) => window.removeEventListener(e, unlock)); };
+  }, [ensureAudio, ensureAudioContext]);
 
   useEffect(() => () => {
     const a = audioRef.current;
     if (a) { try { a.pause(); } catch { /* noop */ } }
-    stopFallbackLoop();
     const ctx = ctxRef.current;
     if (ctx) { try { void ctx.close(); } catch { /* noop */ } }
     if (urlRef.current) { try { URL.revokeObjectURL(urlRef.current); } catch { /* noop */ } }
     audioRef.current = null;
     ctxRef.current = null;
     urlRef.current = null;
-  }, [stopFallbackLoop]);
+  }, []);
 
-  return { start, stop };
+  return { beep };
 }
 
 type IncomingSale = {
@@ -347,18 +297,12 @@ export function OnlineOrdersNotifier() {
   const seen = useRef<Set<string>>(new Set());
   const acknowledged = useRef<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingAlert[]>([]);
-  const { start: startLoop, stop: stopLoop } = useOrderAlertLoop();
+  const { beep } = useOrderAlertBeep();
 
   useEffect(() => {
     acknowledged.current = readAcknowledgedIds();
     seen.current = new Set(acknowledged.current);
   }, []);
-
-  // Loop de sonido activo mientras haya pendientes
-  useEffect(() => {
-    if (pending.length > 0 && canReceiveAlerts) startLoop();
-    else stopLoop();
-  }, [pending.length, canReceiveAlerts, startLoop, stopLoop]);
 
   const acknowledge = useCallback((ids: string[]) => {
     if (ids.length === 0) return;
@@ -371,13 +315,11 @@ export function OnlineOrdersNotifier() {
 
   useEffect(() => {
     setPending([]);
-    stopLoop();
-  }, [activeBranchId, stopLoop]);
+  }, [activeBranchId]);
 
   function dismissAll() {
     acknowledge(pending.map((p) => p.id));
     setPending([]);
-    stopLoop();
   }
 
   function confirmAndNavigate(kind: OrderKind) {
@@ -386,7 +328,6 @@ export function OnlineOrdersNotifier() {
     }
     acknowledge(pending.map((p) => p.id));
     setPending([]);
-    stopLoop();
     navigate({
       to:
         kind === "kiosko" ? "/kiosko"
@@ -456,8 +397,10 @@ export function OnlineOrdersNotifier() {
     });
 
     if (options.fromRealtime && row.source === "kiosk") void autoPrintKioskOrder(row.id);
+    // Un único beep por cada pedido nuevo detectado (ya está deduplicado por seen/acknowledged).
+    beep();
     invalidateOrderViews();
-  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, resolveTableLabel]);
+  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, resolveTableLabel, beep]);
 
   const loadRecentPending = useCallback(async () => {
     if (!activeBranchId || !canReceiveAlerts) return;
