@@ -552,6 +552,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [cashReceived, setCashReceived] = useState("");
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
   const [successDialog, setSuccessDialog] = useState<null | {
     ticket: number;
     method: string;
