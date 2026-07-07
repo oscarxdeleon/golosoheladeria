@@ -480,14 +480,39 @@ function buildComandaRaw(p) {
     if (p.phone) out += `Tel: ${String(p.phone).toUpperCase()}\n`;
     out += BOLD_OFF + DASH_LINE;
   }
-  // Items en doble alto (30% menor que doble alto+ancho previo) con negrita.
-  for (const i of p.items || []) {
-    out += BOLD_ON + SIZE_DOUBLE_H + `${i.qty} X ${String(i.name).toUpperCase()}\n` + SIZE_NORMAL + BOLD_OFF;
-    if (i.modifiers && Array.isArray(i.modifiers)) {
-      // Modificadores en tamaño normal (50% menor que doble alto previo) con negrita.
-      for (const mod of i.modifiers) out += BOLD_ON + `  + ${String(mod).toUpperCase()}\n` + BOLD_OFF;
+  // ==== ITEMS CON JERARQUÍA VISUAL ====
+  // Producto (máximo protagonismo): doble alto + doble ancho + negrita. La
+  // cantidad se resalta al inicio ("1x"). Se hace wrap manual porque en
+  // tamaño doble cada carácter ocupa 2 columnas.
+  // Modificadores (subordinados): tamaño normal, SIN negrita, con sangría
+  // profunda y prefijo "- " para diferenciarlos claramente del producto.
+  // Se añade una línea en blanco entre productos para "respirar".
+  const items = p.items || [];
+  const doubleCols = Math.max(1, Math.floor(WIDTH / 2));
+  const modCols = Math.max(1, WIDTH - 6);
+  items.forEach((i, idx) => {
+    if (idx > 0) out += "\n"; // separador entre productos
+    const qty = Number(i.qty || 0);
+    const productText = `${qty}x ${String(i.name || "").toUpperCase().trim()}`;
+    const lines = wrapText(productText, doubleCols);
+    out += BOLD_ON + SIZE_DOUBLE;
+    // Primera línea con la cantidad; líneas de continuación con sangría (dos espacios
+    // en doble ancho = ~4 columnas normales) para que se lea como el mismo bloque.
+    out += lines[0] + "\n";
+    for (const cont of lines.slice(1)) out += "  " + cont + "\n";
+    out += SIZE_NORMAL + BOLD_OFF;
+
+    if (Array.isArray(i.modifiers) && i.modifiers.length) {
+      for (const mod of i.modifiers) {
+        const modLines = wrapText(String(mod).trim(), modCols);
+        // Sangría consistente + prefijo "- ". Sin negrita para contraste
+        // tipográfico con el producto (en térmicas el peso ES la tipografía).
+        out += "    - " + modLines[0] + "\n";
+        for (const cont of modLines.slice(1)) out += "      " + cont + "\n";
+      }
     }
-  }
+  });
+
   out += DASH_LINE;
   if (p.notes) {
     out += BOLD_ON + "OBSERVACION: " + BOLD_OFF + String(p.notes).toUpperCase() + "\n";
