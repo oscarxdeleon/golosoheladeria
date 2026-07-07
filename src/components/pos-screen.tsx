@@ -1771,29 +1771,83 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
           {!meseroMode && (
-            <div className="border-t pt-3">
-              <div className="text-xs text-muted-foreground mb-2">
-                Cobrar ahora:
-                {!effectiveSessionId && (
-                  <span className="ml-2 text-destructive">· Abre caja para cobrar</span>
-                )}
-                {effectiveSessionId && total <= 0 && !pendingSaleId && (
-                  <span className="ml-2">· Agrega productos para activar</span>
-                )}
+            <div className="relative mt-3 overflow-hidden rounded-2xl border border-primary/15 bg-gradient-to-br from-primary/5 via-background to-secondary/5 p-3 sm:p-4 shadow-[0_10px_30px_-18px_rgba(0,0,0,0.25)]">
+              <div className="mb-3 flex items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary/70 text-white shadow-md">
+                    <Banknote className="h-4 w-4" strokeWidth={2.5} />
+                  </span>
+                  <div>
+                    <div className="text-[11px] font-black uppercase tracking-[0.18em] text-foreground/80">Medios de pago</div>
+                    <div className="text-[10px] text-muted-foreground">
+                      {!effectiveSessionId ? (
+                        <span className="text-destructive font-semibold">Abre caja para cobrar</span>
+                      ) : total <= 0 && !pendingSaleId ? (
+                        <span>Agrega productos para activar</span>
+                      ) : (
+                        <span>Selecciona una opción para cerrar la venta</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <div className="hidden sm:flex flex-col items-end">
+                  <div className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground">Total</div>
+                  <div className="font-display text-lg font-black leading-none text-primary tabular-nums">{formatMoney(total)}</div>
+                </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
+
+              <div className="grid grid-cols-2 gap-2.5">
                 {methods.map((m: { id: string; name: string }) => {
-                  const isCash = m.name.toLowerCase().includes("efectivo");
+                  const lower = m.name.toLowerCase();
+                  const isCash = lower.includes("efectivo");
+                  const isNequi = lower.includes("nequi");
+                  const isBanco = lower.includes("bancolombia");
                   const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
-                  // Solo bloqueamos mientras se procesa un cobro o no hay nada que cobrar.
-                  // La validación de caja abierta se maneja dentro de pay() con un toast claro,
-                  // así evitamos botones "muertos" por estados de carga o sincronización.
                   const isDisabled = paying || !hasOrder;
+
+                  let style: React.CSSProperties = {
+                    background: "linear-gradient(180deg, #e5e7eb 0%, #cbd5e1 100%)",
+                    color: "#1f2937",
+                    boxShadow:
+                      "inset 0 2px 0 rgba(255,255,255,0.6), inset 0 -4px 0 rgba(0,0,0,0.15), 0 8px 18px -6px rgba(0,0,0,0.35)",
+                    textShadow: "0 1px 0 rgba(255,255,255,0.4)",
+                  };
+                  let Icon: React.ComponentType<{ className?: string; strokeWidth?: number }> = Banknote;
+                  if (isCash) {
+                    Icon = Banknote;
+                    style = {
+                      background: "linear-gradient(180deg, #4ade80 0%, #16a34a 100%)",
+                      color: "#ffffff",
+                      boxShadow:
+                        "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 10px 22px -8px rgba(22,163,74,0.6)",
+                      textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+                    };
+                  } else if (isNequi) {
+                    Icon = Smartphone;
+                    style = {
+                      background: "linear-gradient(180deg, #f0abfc 0%, #c026d3 100%)",
+                      color: "#ffffff",
+                      boxShadow:
+                        "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 10px 22px -8px rgba(192,38,211,0.55)",
+                      textShadow: "0 1px 2px rgba(0,0,0,0.25)",
+                    };
+                  } else if (isBanco) {
+                    Icon = Building2;
+                    style = {
+                      background: "linear-gradient(180deg, #fde047 0%, #eab308 100%)",
+                      color: "#1a1a1a",
+                      boxShadow:
+                        "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 10px 22px -8px rgba(202,138,4,0.55)",
+                      textShadow: "0 1px 0 rgba(255,255,255,0.35)",
+                    };
+                  }
+
                   return (
-                    <Button
+                    <button
                       key={m.id}
                       type="button"
                       disabled={isDisabled}
+                      style={style}
                       onClick={() => {
                         try {
                           if (isDisabled) return;
@@ -1808,14 +1862,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                           toast.error("No se pudo iniciar el cobro. Recarga la mesa e intenta de nuevo.");
                         }
                       }}
-                      variant={isCash ? "default" : "secondary"}
+                      className="group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
                     >
-                      {isCash && <Banknote className="h-4 w-4 mr-1" />}
-                      {m.name}
-                    </Button>
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25">
+                        <Icon className="h-3.5 w-3.5" strokeWidth={2.75} />
+                      </span>
+                      <span className="truncate">{m.name}</span>
+                    </button>
                   );
-
-
                 })}
                 {methods.length === 0 && (
                   <div className="col-span-2 text-xs text-muted-foreground text-center py-2">
@@ -1823,15 +1877,38 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   </div>
                 )}
               </div>
-              <Button
+
+              {/* Abonar / A Crédito */}
+              <div className="mt-2.5">
+                <CreditActionButtons
+                  disabledCredit={paying || cart.length === 0}
+                  onAbonar={() => setAbonoDialogOpen(true)}
+                  onCredito={() => setCreditDialogOpen(true)}
+                />
+              </div>
+
+              {/* Dividir cuenta */}
+              <button
                 type="button"
-                variant="outline"
-                className="w-full mt-2 border-dashed"
                 disabled={paying || (total <= 0 && !pendingSaleId && cart.length === 0)}
                 onClick={() => setSplitDialogOpen(true)}
+                style={{
+                  background: "linear-gradient(180deg, #a3e635 0%, #65a30d 100%)",
+                  color: "#1a2e05",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.18), 0 10px 22px -8px rgba(101,163,13,0.55)",
+                  textShadow: "0 1px 0 rgba(255,255,255,0.35)",
+                }}
+                className="group relative mt-2.5 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
               >
-                <Split className="h-4 w-4 mr-1" /> Dividir cuenta
-              </Button>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/30">
+                  <Users className="h-3.5 w-3.5" strokeWidth={2.75} />
+                </span>
+                <span>Dividir cuenta</span>
+                <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/30">
+                  <Split className="h-3.5 w-3.5" strokeWidth={2.75} />
+                </span>
+              </button>
             </div>
           )}
 
