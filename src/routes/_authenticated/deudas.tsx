@@ -477,11 +477,18 @@ function PorPagar() {
 
 function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose: () => void }) {
   const qc = useQueryClient();
-  const { session } = useBranchCashSession();
+  const { activeBranchId } = useBranch();
+  const { session } = useBranchCashSession(activeBranchId);
   const [amount, setAmount] = useState("");
   const [method, setMethod] = useState("Efectivo");
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
+
+  type SupplierDetail = Omit<SupplierRow, "supplier_credit_payments"> & {
+    notes: string | null;
+    supplier_credit_payments: { id: string; amount: number; payment_method: string; user_name: string; notes: string | null; created_at: string }[];
+  };
+  type PurchaseItem = { id: string; item_name: string; quantity: number; unit_cost: number };
 
   const { data, refetch } = useQuery({
     queryKey: ["supplier-credit-detail", creditId],
@@ -490,12 +497,12 @@ function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose
         *, supplier_credit_payments (id, amount, payment_method, user_name, notes, created_at)
       `).eq("id", creditId).maybeSingle();
       if (!c) return null;
-      let items: { id: string; product_name: string | null; supply_name: string | null; quantity: number; unit_cost: number }[] = [];
-      if (c.purchase_id) {
-        const { data: pit } = await supabase.from("purchase_items").select("id, product_name, supply_name, quantity, unit_cost").eq("purchase_id", c.purchase_id);
-        items = (pit ?? []) as typeof items;
+      let items: PurchaseItem[] = [];
+      if ((c as { purchase_id: string | null }).purchase_id) {
+        const { data: pit } = await supabase.from("purchase_items").select("id, item_name, quantity, unit_cost").eq("purchase_id", (c as { purchase_id: string }).purchase_id);
+        items = (pit ?? []) as unknown as PurchaseItem[];
       }
-      return { credit: c as SupplierRow & { notes: string | null; supplier_credit_payments: { id: string; amount: number; payment_method: string; user_name: string; notes: string | null; created_at: string }[] }, items };
+      return { credit: c as unknown as SupplierDetail, items };
     },
   });
 
