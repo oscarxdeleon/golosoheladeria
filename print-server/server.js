@@ -429,63 +429,72 @@ async function buildPersonalizedTicketRaw(p) {
   return textBuf;
 }
 
-// ---------- Comanda de cocina (fuente compacta) ----------
+// ---------- Comanda de cocina (réplica del formato de referencia) ----------
+// Diseño basado en la imagen de referencia del cliente:
+//   ** GOLOSO SANTA **
+//       PEDIDO # 1100
+//            6B9
+//    10:47 PM   06-07-2026
+//         MESA # 2
+//   ---------------------------
+//   1x PRODUCTO EN NEGRITA
+//       + MODIFICADOR
+//   ---------------------------
 function buildComandaRaw(p) {
   let out = INIT + CODEPAGE + INTL_CHARSET;
 
-  // ==== ENCABEZADO CON JERARQUÍA VISUAL ====
-  // 1) Sede: doble alto + ancho, negrita — elemento dominante del encabezado.
-  // 2) Pedido #: doble alto + ancho, negrita — segundo nivel de prominencia.
-  // 3) Fecha y hora: doble alto (mismo ancho que el resto), en negrita, en
-  //    dos líneas separadas para lectura rápida.
-  // Todo centrado por la impresora (ALIGN_C), sin padding manual.
   out += ALIGN_C;
 
+  // Sede: doble alto + ancho, negrita, envuelta con ** ... **
   if (p.business_name) {
     const business = String(p.business_name).toUpperCase().trim();
-    const maxCols = Math.max(1, Math.floor(WIDTH / 2)); // doble ancho → cada char = 2 columnas
+    const maxCols = Math.max(1, Math.floor(WIDTH / 2));
     out += BOLD_ON + SIZE_DOUBLE;
-    for (const line of wrapText(business, maxCols)) out += line + "\n";
+    const lines = wrapText(business, Math.max(1, maxCols - 6));
+    if (lines.length === 1) {
+      out += `** ${lines[0]} **\n`;
+    } else {
+      lines.forEach((line, i) => {
+        if (i === 0) out += `** ${line}\n`;
+        else if (i === lines.length - 1) out += `${line} **\n`;
+        else out += `${line}\n`;
+      });
+    }
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
+  // PEDIDO # NNNN — doble alto + ancho, negrita
   const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim();
   if (ticketNum) {
-    out += "\n" + BOLD_ON + SIZE_DOUBLE + `PEDIDO #${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO # ${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
-  // Fecha y hora separadas y en doble alto para máxima legibilidad térmica.
+  // Código corto del cajero — tamaño normal, centrado
+  if (p.user_name) {
+    out += String(p.user_name).trim().toUpperCase() + "\n";
+  }
+
+  // Hora y fecha en una sola línea, negrita, tamaño normal
   const now = new Date(p.created_at || Date.now());
   const fecha = now.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
-  const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true });
-  out += BOLD_ON + SIZE_DOUBLE_H + fecha + "   " + hora + "\n" + SIZE_NORMAL + BOLD_OFF;
+  const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
+  out += BOLD_ON + `${hora}    ${fecha}` + "\n" + BOLD_OFF;
 
-  if (p.user_name) {
-    out += BOLD_ON + `Cajero: ${String(p.user_name).trim()}` + "\n" + BOLD_OFF;
-  }
-
-  out += ALIGN_L + DASH_LINE;
-
+  // MESA # N (o destino) — doble alto + ancho, negrita
   if (p.header) {
-    // El número de mesa / destino es el dato más crítico para cocina: se
-    // imprime en el tamaño MÁXIMO soportado por ESC/POS (triple alto + ancho)
-    // y en negrita, centrado, con espacio en blanco alrededor para que
-    // destaque como el elemento dominante de la comanda. Se elimina la
-    // decoración "*** ... ***" porque en tamaño triple cada carácter mide
-    // 3 columnas y los asteriscos forzaban un wrap que reducía el texto.
     const headerText = String(p.header)
       .toUpperCase()
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
+      .replace(/^MESA\s*#?\s*/i, "MESA # ")
       .trim();
-    // Mesa/destino: doble alto + doble ancho (un paso más pequeño que triple)
-    // pero manteniendo negrita y centrado. Sigue siendo el bloque más grande
-    // de la comanda tras esta reducción moderada de tamaño.
     const maxCols = Math.max(1, Math.floor(WIDTH / 2));
-    out += ALIGN_C + "\n" + BOLD_ON + SIZE_DOUBLE;
+    out += BOLD_ON + SIZE_DOUBLE;
     for (const line of wrapText(headerText, maxCols)) out += line + "\n";
-    out += SIZE_NORMAL + BOLD_OFF + "\n" + ALIGN_L + DASH_LINE;
+    out += SIZE_NORMAL + BOLD_OFF;
   }
+
+  out += ALIGN_L + DASH_LINE;
 
   if (p.customer || p.address || p.phone) {
     out += BOLD_ON;
@@ -494,45 +503,36 @@ function buildComandaRaw(p) {
     if (p.phone) out += `Tel: ${String(p.phone).toUpperCase()}\n`;
     out += BOLD_OFF + DASH_LINE;
   }
-  // ==== ITEMS CON JERARQUÍA VISUAL ====
-  // Producto: Font A + NEGRITA + doble alto (sin doble ancho). Ligeramente
-  // más compacto que antes y con trazo firme, pensado para térmicas.
-  // Modificadores: Font B (condensada, trazo fino) + tamaño normal + sangría
-  // con prefijo "- ". Sin negrita. La combinación Font A bold vs Font B fina
-  // crea el contraste tipográfico que buscamos en impresoras que solo
-  // exponen dos familias.
-  // Se añade una línea en blanco entre productos para "respirar".
+
+  // ITEMS — producto y modificadores en doble alto + negrita, separados por
+  // una línea de guiones entre cada producto (como en la referencia).
   const items = p.items || [];
-  const productCols = Math.max(1, WIDTH); // doble alto no cambia el ancho de char
-  const modCols = Math.max(1, Math.floor(WIDTH * 1.3) - 6); // Font B cabe más caracteres
-  items.forEach((i, idx) => {
-    if (idx > 0) out += "\n"; // separador entre productos
+  const productCols = Math.max(1, WIDTH);
+  const modCols = Math.max(1, WIDTH - 6);
+  items.forEach((i) => {
     const qty = Number(i.qty || 0);
     const productText = `${qty}x ${String(i.name || "").toUpperCase().trim()}`;
     const lines = wrapText(productText, productCols);
-    out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
+    out += BOLD_ON + SIZE_DOUBLE_H;
     out += lines[0] + "\n";
-    // Sangría de continuación equivalente al ancho de "0x " para alinear.
     for (const cont of lines.slice(1)) out += "   " + cont + "\n";
-    out += SIZE_NORMAL + BOLD_OFF;
 
     if (Array.isArray(i.modifiers) && i.modifiers.length) {
-      out += FONT_B;
       for (const mod of i.modifiers) {
-        const modLines = wrapText(String(mod).trim(), modCols);
-        out += "    - " + modLines[0] + "\n";
+        const modLines = wrapText(String(mod).toUpperCase().trim(), modCols);
+        out += "    + " + modLines[0] + "\n";
         for (const cont of modLines.slice(1)) out += "      " + cont + "\n";
       }
-      out += FONT_A; // restablecer familia para el resto de la comanda
     }
+    out += SIZE_NORMAL + BOLD_OFF;
+    out += DASH_LINE;
   });
 
-  out += DASH_LINE;
   if (p.notes) {
     out += BOLD_ON + "OBSERVACION: " + BOLD_OFF + String(p.notes).toUpperCase() + "\n";
     out += DASH_LINE;
   }
-  out += ALIGN_C + BOLD_ON + "*** ENVIAR A COCINA ***\n" + BOLD_OFF + ALIGN_L;
+
   out += FEED(4) + CUT;
   return encodeEscPos(out);
 }
