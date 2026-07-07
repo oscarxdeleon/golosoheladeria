@@ -539,7 +539,7 @@ function CreditDetailDialog({ creditId, onClose }: { creditId: string; onClose: 
                     onClick={() => setAmount(String(max))}
                     className="rounded-lg border-2 font-black hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
                   >
-                    Saldar todo ({formatMoney(max)})
+                    Pagar todo ({formatMoney(max)})
                   </Button>
                   <Button
                     onClick={submit}
@@ -933,7 +933,7 @@ function SupplierDetailDialog({ creditId, onClose }: { creditId: string; onClose
                     onClick={() => setAmount(String(max))}
                     className="rounded-lg border-2 font-black hover:border-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/30"
                   >
-                    Saldar todo ({formatMoney(max)})
+                    Pagar todo ({formatMoney(max)})
                   </Button>
                   <Button
                     onClick={submit}
