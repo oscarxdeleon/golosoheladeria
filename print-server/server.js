@@ -48,6 +48,12 @@ const SIZE_DOUBLE_H = GS + "!" + "\x01"; // doble alto
 const SIZE_DOUBLE_W = GS + "!" + "\x10"; // doble ancho
 const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
+// Selección de familia tipográfica ESC/POS (ESC M n).
+//   FONT_A = 12x24, es la fuente "estándar" (más ancha y de trazo firme).
+//   FONT_B = 9x17, condensada, trazo fino: ideal para dar CONTRASTE
+//   tipográfico entre productos (Font A + negrita) y modificadores (Font B).
+const FONT_A = ESC + "M\x00";
+const FONT_B = ESC + "M\x01";
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 // Selección de página de códigos:
