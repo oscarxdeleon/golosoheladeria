@@ -1,6 +1,6 @@
 {
   "name": "goloso-print-server",
-  "version": "1.8.1",
+  "version": "1.8.2",
   "description": "Servidor local de impresión silenciosa para la impresora térmica del POS Heladería Goloso",
   "type": "module",
   "main": "server.js",
