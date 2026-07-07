@@ -21,6 +21,7 @@ import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
 import { Split } from "lucide-react";
+import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/components/credit-dialogs";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.png";
@@ -552,6 +553,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [cashReceived, setCashReceived] = useState("");
   const [payDialogOpen, setPayDialogOpen] = useState(false);
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
+  const [creditDialogOpen, setCreditDialogOpen] = useState(false);
+  const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
   const [successDialog, setSuccessDialog] = useState<null | {
     ticket: number;
     method: string;
@@ -848,7 +851,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
-  async function pay(method: string, paymentDetails?: Record<string, unknown> | null) {
+  async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
@@ -945,6 +948,29 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       }
 
       console.log(`[pay] venta #${sale.ticket_number} registrada como ${method}`);
+
+      // Si es venta a crédito, crear cuenta por cobrar
+      if (creditCustomer) {
+        // Vincular cliente a la venta
+        await supabase.from("sales").update({ customer_id: creditCustomer.id, customer_name: creditCustomer.name }).eq("id", sale.id);
+        const { error: cErr } = await supabase.from("credits").insert({
+          sale_id: sale.id,
+          customer_id: creditCustomer.id,
+          branch_id: activeBranchId,
+          ticket_number: sale.ticket_number,
+          total: Number(sale.total),
+          balance: Number(sale.total),
+          status: "pendiente",
+          created_by: user.id,
+          created_by_name: profile?.full_name ?? user.email ?? "Cajero",
+        });
+        if (cErr) {
+          console.error("[pay] insert credit error", cErr);
+          toast.error("La venta se registró pero no se pudo crear el crédito: " + cErr.message);
+        } else {
+          toast.success(`Crédito creado para ${creditCustomer.name}`);
+        }
+      }
 
       // ───────────────────────────────────────────────────────────────
       // PASO 2: Liberar mesa y limpiar estado local
@@ -2119,6 +2145,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 <Split className="h-3 w-3" strokeWidth={2.5} />
               </span>
             </button>
+            <CreditActionButtons
+              disabledCredit={paying || cart.length === 0}
+              onAbonar={() => { setPayDialogOpen(false); setAbonoDialogOpen(true); }}
+              onCredito={() => { setPayDialogOpen(false); setCreditDialogOpen(true); }}
+            />
             {methods.map((m: { id: string; name: string }) => {
               const lower = m.name.toLowerCase();
               const isCash = lower.includes("efectivo");
@@ -2223,6 +2254,21 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         </DialogContent>
       </Dialog>
 
+      <CreditSaleDialog
+        open={creditDialogOpen}
+        onOpenChange={setCreditDialogOpen}
+        total={total}
+        onConfirm={(c) => {
+          setCreditDialogOpen(false);
+          void pay("Crédito", { credit: true, customer_id: c.id, customer_name: c.name }, { id: c.id, name: c.name });
+        }}
+      />
+      <CreditPaymentDialog
+        open={abonoDialogOpen}
+        onOpenChange={setAbonoDialogOpen}
+        cashSessionId={effectiveSessionId ?? null}
+        onPaid={() => { qc.invalidateQueries({ queryKey: ["credits"] }); }}
+      />
 
     </div>
   );

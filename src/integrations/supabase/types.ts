@@ -422,6 +422,147 @@ export type Database = {
           },
         ]
       }
+      credit_payments: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          cash_session_id: string | null
+          created_at: string
+          credit_id: string
+          customer_id: string | null
+          id: string
+          notes: string | null
+          payment_method: string
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          cash_session_id?: string | null
+          created_at?: string
+          credit_id: string
+          customer_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          cash_session_id?: string | null
+          created_at?: string
+          credit_id?: string
+          customer_id?: string | null
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_payments_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_payments_credit_id_fkey"
+            columns: ["credit_id"]
+            isOneToOne: false
+            referencedRelation: "credits"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_payments_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      credits: {
+        Row: {
+          balance: number
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          customer_id: string
+          id: string
+          notes: string | null
+          sale_id: string | null
+          status: string
+          ticket_number: number | null
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          balance: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_id: string
+          id?: string
+          notes?: string | null
+          sale_id?: string | null
+          status?: string
+          ticket_number?: number | null
+          total: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          customer_id?: string
+          id?: string
+          notes?: string | null
+          sale_id?: string | null
+          status?: string
+          ticket_number?: number | null
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credits_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credits_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credits_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -1768,6 +1909,16 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      register_credit_payment: {
+        Args: {
+          _amount: number
+          _cash_session_id?: string
+          _credit_id: string
+          _method?: string
+          _notes?: string
+        }
+        Returns: Json
       }
       release_table: {
         Args: { _reason: string; _table_id: string }
