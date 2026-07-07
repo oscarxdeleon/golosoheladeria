@@ -297,18 +297,12 @@ export function OnlineOrdersNotifier() {
   const seen = useRef<Set<string>>(new Set());
   const acknowledged = useRef<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingAlert[]>([]);
-  const { start: startLoop, stop: stopLoop } = useOrderAlertLoop();
+  const { beep } = useOrderAlertBeep();
 
   useEffect(() => {
     acknowledged.current = readAcknowledgedIds();
     seen.current = new Set(acknowledged.current);
   }, []);
-
-  // Loop de sonido activo mientras haya pendientes
-  useEffect(() => {
-    if (pending.length > 0 && canReceiveAlerts) startLoop();
-    else stopLoop();
-  }, [pending.length, canReceiveAlerts, startLoop, stopLoop]);
 
   const acknowledge = useCallback((ids: string[]) => {
     if (ids.length === 0) return;
