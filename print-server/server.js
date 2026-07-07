@@ -264,7 +264,7 @@ function logoRasterFromBase64(value) {
 
 async function buildPersonalizedTicketRaw(p) {
   const cfg = mergeCfg(p.ticket_config);
-  let out = INIT + CODEPAGE;
+  let out = INIT + CODEPAGE + INTL_CHARSET;
   if (p.open_drawer) out += DRAWER;
 
   // ==== LOGO (raster) ====
@@ -404,14 +404,14 @@ async function buildPersonalizedTicketRaw(p) {
   const textBuf = encodeEscPos(out);
   if (logoBuf) {
     // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
-    return Buffer.concat([encodeEscPos(INIT + CODEPAGE), logoBuf, textBuf]);
+    return Buffer.concat([encodeEscPos(INIT + CODEPAGE + INTL_CHARSET), logoBuf, textBuf]);
   }
   return textBuf;
 }
 
 // ---------- Comanda de cocina (fuente compacta) ----------
 function buildComandaRaw(p) {
-  let out = INIT + CODEPAGE;
+  let out = INIT + CODEPAGE + INTL_CHARSET;
   // Encabezado compacto
   out += ALIGN_C + BOLD_ON;
   if (p.business_name) out += String(p.business_name).toUpperCase() + "\n";
