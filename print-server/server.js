@@ -19,6 +19,12 @@
 
 import http from "node:http";
 import net from "node:net";
+import { readFileSync } from "node:fs";
+
+let APP_VERSION = "dev";
+try {
+  APP_VERSION = JSON.parse(readFileSync(new URL("./package.json", import.meta.url), "utf8")).version || APP_VERSION;
+} catch {}
 
 const PORT = Number(process.env.PORT || 3001);
 const PRINTER_TYPE = (process.env.PRINTER_TYPE || "usb").toLowerCase();
@@ -190,7 +196,7 @@ async function fetchLogoRaster(url, maxWidthPx = 384) {
       const res = await fetch(url, {
         signal: controller.signal,
         redirect: "follow",
-        headers: { "User-Agent": "GolosoPrintServer/1.5.1", Accept: "image/*,*/*" },
+        headers: { "User-Agent": `GolosoPrintServer/${APP_VERSION}`, Accept: "image/*,*/*" },
       });
       console.log(`[logo] GET ${url} -> HTTP ${res.status} ${res.headers.get("content-type") || ""}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -602,7 +608,16 @@ const server = http.createServer(async (req, res) => {
   if (req.method === "OPTIONS") { res.writeHead(204, CORS); return res.end(); }
 
   if (req.method === "GET" && req.url === "/health") {
-    return send(200, { ok: true, version: "1.5.1", printerType: PRINTER_TYPE, ip: PRINTER_IP, port: PRINTER_PORT, width: WIDTH });
+    return send(200, {
+      ok: true,
+      version: APP_VERSION,
+      printerType: PRINTER_TYPE,
+      ip: PRINTER_IP,
+      port: PRINTER_PORT,
+      width: WIDTH,
+      codepageId: CODEPAGE_ID,
+      charset: "ESC/POS + Windows-1252 + Spain international charset",
+    });
   }
 
   // Diagnóstico del logo: GET /logo-test?url=https://...
@@ -668,7 +683,7 @@ const server = http.createServer(async (req, res) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`Goloso print-server escuchando en http://localhost:${PORT}`);
+  console.log(`Goloso print-server v${APP_VERSION} escuchando en http://localhost:${PORT}`);
   console.log(`Modo: ${PRINTER_TYPE}${PRINTER_TYPE !== "usb" ? ` ${PRINTER_IP}:${PRINTER_PORT}` : ""}`);
   console.log(`Ancho: ${WIDTH} columnas`);
   console.log(`Prueba rápida: abre http://localhost:${PORT}/test en el navegador`);
