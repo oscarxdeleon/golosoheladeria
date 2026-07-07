@@ -1,4 +1,4 @@
-@antml:parameter>@echo off
+@echo off
 REM ============================================================
 REM  Elimina el arranque automatico del Goloso Print Server.
 REM ============================================================
