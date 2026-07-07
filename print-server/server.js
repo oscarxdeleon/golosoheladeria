@@ -478,9 +478,11 @@ function buildComandaRaw(p) {
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
       .trim();
-    // En triple ancho cada char ocupa 3 columnas → wrap a WIDTH/3.
-    const maxCols = Math.max(1, Math.floor(WIDTH / 3));
-    out += ALIGN_C + "\n" + BOLD_ON + SIZE_TRIPLE;
+    // Mesa/destino: doble alto + doble ancho (un paso más pequeño que triple)
+    // pero manteniendo negrita y centrado. Sigue siendo el bloque más grande
+    // de la comanda tras esta reducción moderada de tamaño.
+    const maxCols = Math.max(1, Math.floor(WIDTH / 2));
+    out += ALIGN_C + "\n" + BOLD_ON + SIZE_DOUBLE;
     for (const line of wrapText(headerText, maxCols)) out += line + "\n";
     out += SIZE_NORMAL + BOLD_OFF + "\n" + ALIGN_L + DASH_LINE;
   }
