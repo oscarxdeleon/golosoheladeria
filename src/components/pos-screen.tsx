@@ -850,7 +850,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
-  async function pay(method: string, paymentDetails?: Record<string, unknown> | null) {
+  async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (!user) return toast.error("Inicia sesión para cobrar");
