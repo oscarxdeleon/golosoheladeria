@@ -289,8 +289,8 @@ export function CreditPaymentDialog({
       _credit_id: selectedCredit.id,
       _amount: amtNum,
       _method: method,
-      _notes: notes || null,
-      _cash_session_id: cashSessionId,
+      _notes: notes || undefined,
+      _cash_session_id: cashSessionId ?? undefined,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
