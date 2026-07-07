@@ -1,13 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
-import { Search, UserPlus, CreditCard, HandCoins, ArrowLeft, Check } from "lucide-react";
+import {
+  Search, UserPlus, CreditCard, HandCoins, ArrowLeft, Check,
+  User, Phone, MapPin, FileText, Calendar, Wallet, Sparkles, ShieldCheck,
+} from "lucide-react";
 
 export interface CreditCustomer {
   id: string;
@@ -43,17 +46,17 @@ export function CreditActionButtons({
       <button
         type="button"
         onClick={onAbonar}
-        className="group relative flex h-10 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5"
+        className="group relative flex h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5"
         style={{
           background: "linear-gradient(180deg, #fbbf24 0%, #d97706 100%)",
           color: "#ffffff",
           boxShadow:
-            "inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -4px 0 rgba(0,0,0,0.22), 0 6px 14px -5px rgba(217,119,6,0.6)",
+            "inset 0 2px 0 rgba(255,255,255,0.5), inset 0 -4px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(217,119,6,0.55)",
           textShadow: "0 1px 2px rgba(0,0,0,0.25)",
         }}
       >
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
-          <HandCoins className="h-3 w-3" strokeWidth={2.5} />
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/25">
+          <HandCoins className="h-3 w-3" strokeWidth={2.75} />
         </span>
         Abonar
       </button>
@@ -61,20 +64,56 @@ export function CreditActionButtons({
         type="button"
         disabled={disabledCredit}
         onClick={onCredito}
-        className="group relative flex h-10 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
+        className="group relative flex h-11 flex-1 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50"
         style={{
           background: "linear-gradient(180deg, #f472b6 0%, #be185d 100%)",
           color: "#ffffff",
           boxShadow:
-            "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(0,0,0,0.25), 0 6px 14px -5px rgba(190,24,93,0.6)",
+            "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -4px 0 rgba(0,0,0,0.25), 0 8px 18px -6px rgba(190,24,93,0.55)",
           textShadow: "0 1px 2px rgba(0,0,0,0.25)",
         }}
       >
-        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/20">
-          <CreditCard className="h-3 w-3" strokeWidth={2.5} />
+        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white/25">
+          <CreditCard className="h-3 w-3" strokeWidth={2.75} />
         </span>
         A Crédito
       </button>
+    </div>
+  );
+}
+
+/* =========================================================
+   Shared header — premium gradient with icon
+   ========================================================= */
+function PremiumHeader({
+  icon: Icon,
+  title,
+  subtitle,
+  gradient,
+}: {
+  icon: React.ComponentType<{ className?: string; strokeWidth?: number }>;
+  title: string;
+  subtitle?: string;
+  gradient: string;
+}) {
+  return (
+    <div
+      className="relative -m-6 mb-2 overflow-hidden rounded-t-lg p-5 text-white"
+      style={{ background: gradient }}
+    >
+      <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-white/10 blur-2xl" />
+      <div className="absolute -bottom-6 -left-6 h-24 w-24 rounded-full bg-white/10 blur-xl" />
+      <div className="relative flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/20 backdrop-blur-sm ring-1 ring-white/30">
+          <Icon className="h-5 w-5" strokeWidth={2.5} />
+        </div>
+        <div className="min-w-0 flex-1">
+          <h2 className="truncate text-xl font-black tracking-tight" style={{ textShadow: "0 1px 3px rgba(0,0,0,0.25)" }}>
+            {title}
+          </h2>
+          {subtitle && <p className="truncate text-sm font-medium text-white/85">{subtitle}</p>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -85,9 +124,11 @@ export function CreditActionButtons({
 function CustomerPicker({
   onSelect,
   onClose,
+  accent = "pink",
 }: {
   onSelect: (c: CreditCustomer) => void;
   onClose: () => void;
+  accent?: "pink" | "amber";
 }) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<CreditCustomer[]>([]);
@@ -95,6 +136,11 @@ function CustomerPicker({
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({ name: "", phone: "", document: "", address: "", notes: "" });
   const [saving, setSaving] = useState(false);
+
+  const accentGrad = accent === "pink"
+    ? "linear-gradient(135deg, #ec4899 0%, #be185d 100%)"
+    : "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)";
+  const accentRing = accent === "pink" ? "focus-within:ring-pink-500/40" : "focus-within:ring-amber-500/40";
 
   useEffect(() => {
     let alive = true;
@@ -104,11 +150,8 @@ function CustomerPicker({
       setLoading(true);
       const digits = q.replace(/[^0-9]/g, "");
       let req = supabase.from("customers").select("id,name,phone,address,neighborhood").limit(15);
-      if (digits.length >= 3) {
-        req = req.ilike("phone", `%${digits}%`);
-      } else {
-        req = req.ilike("name", `%${q}%`);
-      }
+      if (digits.length >= 3) req = req.ilike("phone", `%${digits}%`);
+      else req = req.ilike("name", `%${q}%`);
       const { data } = await req;
       if (!alive) return;
       setResults((data ?? []) as CreditCustomer[]);
@@ -135,29 +178,37 @@ function CustomerPicker({
       toast.error(error?.message ?? "No se pudo crear el cliente");
       return;
     }
-    toast.success("Cliente creado");
+    toast.success("Cliente creado exitosamente");
     onSelect(data as CreditCustomer);
   }
 
   if (creating) {
     return (
-      <div className="space-y-3">
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setCreating(false)}>
-            <ArrowLeft className="h-4 w-4 mr-1" /> Volver
-          </Button>
-          <h3 className="font-medium">Nuevo cliente</h3>
+      <div className="space-y-4">
+        <button
+          onClick={() => setCreating(false)}
+          className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition hover:text-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" /> Volver a búsqueda
+        </button>
+        <div className="rounded-xl border-2 border-dashed border-primary/25 bg-primary/5 p-4">
+          <div className="mb-3 flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/15">
+              <UserPlus className="h-4 w-4 text-primary" strokeWidth={2.5} />
+            </div>
+            <h3 className="text-base font-black">Nuevo Cliente</h3>
+          </div>
+          <div className="grid gap-2.5">
+            <FieldInput icon={User} placeholder="Nombre completo *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
+            <FieldInput icon={Phone} placeholder="Celular *" inputMode="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
+            <FieldInput icon={FileText} placeholder="Documento (opcional)" value={form.document} onChange={(v) => setForm({ ...form, document: v })} />
+            <FieldInput icon={MapPin} placeholder="Dirección (opcional)" value={form.address} onChange={(v) => setForm({ ...form, address: v })} />
+            <Textarea placeholder="Observaciones (opcional)" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-lg" />
+          </div>
         </div>
-        <div className="grid gap-2">
-          <Input placeholder="Nombre completo *" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-          <Input placeholder="Celular *" inputMode="tel" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
-          <Input placeholder="Documento (opcional)" value={form.document} onChange={(e) => setForm({ ...form, document: e.target.value })} />
-          <Input placeholder="Dirección (opcional)" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
-          <Textarea placeholder="Observaciones (opcional)" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={createCustomer} disabled={saving}>
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} className="font-bold">Cancelar</Button>
+          <Button onClick={createCustomer} disabled={saving} className="font-black shadow-lg" style={{ background: accentGrad }}>
             {saving ? "Guardando…" : "Crear y continuar"}
           </Button>
         </DialogFooter>
@@ -167,41 +218,95 @@ function CustomerPicker({
 
   return (
     <div className="space-y-3">
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input autoFocus placeholder="Buscar por nombre o celular…" className="pl-9" value={query} onChange={(e) => setQuery(e.target.value)} />
+      <div className={`relative rounded-xl border-2 bg-background transition ${accentRing} focus-within:ring-4`}>
+        <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+        <input
+          autoFocus
+          placeholder="Buscar por nombre o celular…"
+          className="h-11 w-full rounded-xl bg-transparent pl-10 pr-3 text-sm font-semibold outline-none placeholder:font-medium placeholder:text-muted-foreground"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </div>
-      <div className="max-h-64 overflow-y-auto rounded-md border">
-        {loading && <div className="p-3 text-center text-xs text-muted-foreground">Buscando…</div>}
+
+      <div className="max-h-72 overflow-y-auto rounded-xl border-2 bg-muted/30">
+        {loading && <div className="p-6 text-center text-xs font-semibold text-muted-foreground">Buscando…</div>}
         {!loading && results.length === 0 && query.trim() && (
-          <div className="p-4 text-center text-sm text-muted-foreground">Sin resultados</div>
+          <div className="p-6 text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <Search className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-semibold">Sin resultados</p>
+            <p className="mt-1 text-xs text-muted-foreground">Crea un nuevo cliente abajo</p>
+          </div>
         )}
         {!loading && !query.trim() && (
-          <div className="p-4 text-center text-xs text-muted-foreground">Escribe un nombre o celular para buscar</div>
+          <div className="p-8 text-center">
+            <div className="mx-auto mb-2 flex h-12 w-12 items-center justify-center rounded-full bg-muted">
+              <User className="h-5 w-5 text-muted-foreground" />
+            </div>
+            <p className="text-sm font-semibold text-muted-foreground">Escribe un nombre o celular</p>
+          </div>
         )}
         {results.map((c) => (
           <button
             key={c.id}
             onClick={() => onSelect(c)}
-            className="flex w-full items-center justify-between border-b px-3 py-2 text-left last:border-b-0 hover:bg-muted"
+            className="group flex w-full items-center gap-3 border-b border-border/60 bg-background/60 px-3 py-2.5 text-left transition last:border-b-0 hover:bg-primary/10"
           >
-            <div>
-              <div className="font-medium">{c.name}</div>
-              <div className="text-xs text-muted-foreground">{c.phone ?? "Sin teléfono"}</div>
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-primary/20 to-primary/5 font-black text-primary">
+              {c.name.charAt(0).toUpperCase()}
             </div>
-            <Check className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100" />
+            <div className="min-w-0 flex-1">
+              <div className="truncate text-sm font-bold">{c.name}</div>
+              <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                <Phone className="h-3 w-3" /> {c.phone ?? "Sin teléfono"}
+              </div>
+            </div>
+            <Check className="h-4 w-4 text-primary opacity-0 transition group-hover:opacity-100" />
           </button>
         ))}
       </div>
-      <Button variant="outline" className="w-full" onClick={() => { setForm((f) => ({ ...f, name: query.replace(/[0-9]/g, "").trim() || f.name, phone: query.replace(/[^0-9]/g, "") || f.phone })); setCreating(true); }}>
-        <UserPlus className="h-4 w-4 mr-2" /> Crear nuevo cliente
-      </Button>
+
+      <button
+        onClick={() => {
+          setForm((f) => ({
+            ...f,
+            name: query.replace(/[0-9]/g, "").trim() || f.name,
+            phone: query.replace(/[^0-9]/g, "") || f.phone,
+          }));
+          setCreating(true);
+        }}
+        className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-xl px-4 py-3 text-sm font-black uppercase tracking-wide text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:translate-y-0"
+        style={{ background: accentGrad }}
+      >
+        <UserPlus className="h-4 w-4" strokeWidth={2.5} />
+        Crear Nuevo Cliente
+        <Sparkles className="h-3.5 w-3.5 opacity-70" />
+      </button>
+    </div>
+  );
+}
+
+function FieldInput({
+  icon: Icon, placeholder, value, onChange, inputMode,
+}: { icon: React.ComponentType<{ className?: string }>; placeholder: string; value: string; onChange: (v: string) => void; inputMode?: "tel" | "decimal" | "text" }) {
+  return (
+    <div className="relative rounded-lg border bg-background transition focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/25">
+      <Icon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+      <input
+        className="h-10 w-full bg-transparent pl-9 pr-3 text-sm font-medium outline-none placeholder:text-muted-foreground"
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        inputMode={inputMode}
+      />
     </div>
   );
 }
 
 /* =========================================================
-   Dialog: A Crédito — select customer, then callback
+   Dialog: A Crédito — pick customer → confirmation screen
    ========================================================= */
 export function CreditSaleDialog({
   open,
@@ -214,18 +319,87 @@ export function CreditSaleDialog({
   total: number;
   onConfirm: (customer: CreditCustomer) => void;
 }) {
+  const [customer, setCustomer] = useState<CreditCustomer | null>(null);
+
+  useEffect(() => { if (!open) setCustomer(null); }, [open]);
+
+  const now = new Date();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <CreditCard className="h-5 w-5 text-pink-600" /> Venta a Crédito · {formatMoney(total)}
-          </DialogTitle>
-          <DialogDescription>Selecciona el cliente al que se le asignará la deuda.</DialogDescription>
-        </DialogHeader>
-        <CustomerPicker onSelect={onConfirm} onClose={() => onOpenChange(false)} />
+      <DialogContent className="overflow-hidden p-6 sm:max-w-md">
+        <PremiumHeader
+          icon={CreditCard}
+          title="Venta a Crédito"
+          subtitle={`Total: ${formatMoney(total)}`}
+          gradient="linear-gradient(135deg, #ec4899 0%, #9d174d 100%)"
+        />
+
+        {!customer && (
+          <div className="pt-2">
+            <p className="mb-3 text-sm font-semibold text-muted-foreground">
+              Selecciona el cliente que asumirá la deuda.
+            </p>
+            <CustomerPicker onSelect={setCustomer} onClose={() => onOpenChange(false)} accent="pink" />
+          </div>
+        )}
+
+        {customer && (
+          <div className="space-y-4 pt-2">
+            <button
+              onClick={() => setCustomer(null)}
+              className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground transition hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" /> Cambiar cliente
+            </button>
+
+            <div className="relative overflow-hidden rounded-2xl border-2 border-pink-200 bg-gradient-to-br from-pink-50 via-white to-rose-50 p-5 shadow-md dark:border-pink-900/50 dark:from-pink-950/40 dark:via-background dark:to-rose-950/40">
+              <div className="mb-4 flex items-center gap-3">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-500 to-rose-600 text-xl font-black text-white shadow-lg">
+                  {customer.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="truncate text-lg font-black">{customer.name}</div>
+                  <div className="flex items-center gap-1 text-xs font-semibold text-muted-foreground">
+                    <Phone className="h-3 w-3" /> {customer.phone ?? "Sin teléfono"}
+                  </div>
+                </div>
+                <ShieldCheck className="h-6 w-6 shrink-0 text-emerald-600" strokeWidth={2.5} />
+              </div>
+
+              <div className="grid gap-2 border-t border-pink-200/60 pt-3 dark:border-pink-900/40">
+                <Row icon={Calendar} label="Fecha" value={now.toLocaleString()} />
+                <Row icon={Wallet} label="Valor del crédito" value={formatMoney(total)} highlight />
+              </div>
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="font-bold">Cancelar</Button>
+              <Button
+                onClick={() => onConfirm(customer)}
+                className="font-black uppercase tracking-wide text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl"
+                style={{ background: "linear-gradient(135deg, #ec4899 0%, #be185d 100%)" }}
+              >
+                <CreditCard className="mr-1.5 h-4 w-4" /> Confirmar Crédito
+              </Button>
+            </DialogFooter>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Row({
+  icon: Icon, label, value, highlight,
+}: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; highlight?: boolean }) {
+  return (
+    <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </div>
+      <div className={highlight ? "text-lg font-black text-pink-700 dark:text-pink-400" : "text-sm font-bold"}>{value}</div>
+    </div>
   );
 }
 
@@ -279,6 +453,7 @@ export function CreditPaymentDialog({
 
   const maxAmount = selectedCredit?.balance ?? 0;
   const amtNum = Number(amount.replace(/[^0-9.]/g, "")) || 0;
+  const newBalance = Math.max(0, maxAmount - amtNum);
 
   async function submit() {
     if (!selectedCredit) return;
@@ -302,43 +477,54 @@ export function CreditPaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <HandCoins className="h-5 w-5 text-amber-600" /> Registrar Abono
-          </DialogTitle>
-          <DialogDescription>
-            {customer ? `Cliente: ${customer.name}` : "Busca al cliente que va a abonar."}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="overflow-hidden p-6 sm:max-w-md">
+        <PremiumHeader
+          icon={HandCoins}
+          title="Registrar Abono"
+          subtitle={customer ? customer.name : "Busca al cliente que va a abonar"}
+          gradient="linear-gradient(135deg, #f59e0b 0%, #b45309 100%)"
+        />
 
         {!customer && (
-          <CustomerPicker onSelect={setCustomer} onClose={() => onOpenChange(false)} />
+          <div className="pt-2">
+            <CustomerPicker onSelect={setCustomer} onClose={() => onOpenChange(false)} accent="amber" />
+          </div>
         )}
 
         {customer && !selectedCredit && (
-          <div className="space-y-2">
+          <div className="space-y-3 pt-2">
             <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setCustomer(null)}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> Cambiar cliente
-              </Button>
-              <span className="text-xs text-muted-foreground">{credits.length} crédito(s) activos</span>
+              <button onClick={() => setCustomer(null)} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+                <ArrowLeft className="h-4 w-4" /> Cambiar cliente
+              </button>
+              <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-xs font-black text-amber-800 dark:bg-amber-900/40 dark:text-amber-300">
+                {credits.length} crédito(s)
+              </span>
             </div>
-            <div className="max-h-72 overflow-y-auto rounded-md border">
-              {loadingCredits && <div className="p-3 text-center text-xs text-muted-foreground">Cargando…</div>}
+            <div className="max-h-80 space-y-2 overflow-y-auto pr-1">
+              {loadingCredits && <div className="p-4 text-center text-xs font-semibold text-muted-foreground">Cargando…</div>}
               {!loadingCredits && credits.length === 0 && (
-                <div className="p-4 text-center text-sm text-muted-foreground">Este cliente no tiene créditos pendientes</div>
+                <div className="rounded-xl border-2 border-dashed p-6 text-center">
+                  <p className="text-sm font-bold">Sin créditos pendientes</p>
+                  <p className="mt-1 text-xs text-muted-foreground">Este cliente no tiene deudas activas.</p>
+                </div>
               )}
               {credits.map((c) => (
-                <button key={c.id} onClick={() => { setSelectedCredit(c); setAmount(String(c.balance)); }}
-                  className="flex w-full items-center justify-between border-b px-3 py-2 text-left last:border-b-0 hover:bg-muted">
-                  <div>
-                    <div className="font-medium">Factura #{c.ticket_number ?? "—"}</div>
-                    <div className="text-xs text-muted-foreground">{formatDate(c.created_at)} · Total {formatMoney(c.total)}</div>
+                <button
+                  key={c.id}
+                  onClick={() => { setSelectedCredit(c); setAmount(String(c.balance)); }}
+                  className="group flex w-full items-center gap-3 rounded-xl border-2 border-border bg-background p-3 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-amber-400 hover:shadow-md"
+                >
+                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-100 to-amber-200 text-amber-800 dark:from-amber-900/40 dark:to-amber-800/40 dark:text-amber-300">
+                    <FileText className="h-5 w-5" strokeWidth={2.5} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-black">Factura #{c.ticket_number ?? "—"}</div>
+                    <div className="text-xs font-medium text-muted-foreground">{formatDate(c.created_at)} · Total {formatMoney(c.total)}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-mono font-bold text-amber-700">{formatMoney(c.balance)}</div>
-                    <Badge variant={c.status === "parcial" ? "secondary" : "outline"} className="text-[10px]">{c.status}</Badge>
+                    <div className="font-mono text-base font-black text-amber-700 dark:text-amber-400">{formatMoney(c.balance)}</div>
+                    <StatusPill status={c.status} size="xs" />
                   </div>
                 </button>
               ))}
@@ -347,42 +533,86 @@ export function CreditPaymentDialog({
         )}
 
         {customer && selectedCredit && (
-          <div className="space-y-3">
-            <div className="flex items-center justify-between">
-              <Button variant="ghost" size="sm" onClick={() => setSelectedCredit(null)}>
-                <ArrowLeft className="h-4 w-4 mr-1" /> Cambiar crédito
-              </Button>
+          <div className="space-y-4 pt-2">
+            <button onClick={() => setSelectedCredit(null)} className="flex items-center gap-1.5 text-sm font-semibold text-muted-foreground hover:text-foreground">
+              <ArrowLeft className="h-4 w-4" /> Cambiar crédito
+            </button>
+
+            <div className="rounded-2xl border-2 border-amber-200 bg-gradient-to-br from-amber-50 to-orange-50 p-4 shadow-sm dark:border-amber-900/50 dark:from-amber-950/30 dark:to-orange-950/30">
+              <div className="mb-3 flex items-center justify-between">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-amber-800/70 dark:text-amber-400/70">Factura</div>
+                  <div className="font-mono text-lg font-black">#{selectedCredit.ticket_number ?? "—"}</div>
+                </div>
+                <StatusPill status={selectedCredit.status} />
+              </div>
+              <div className="grid grid-cols-2 gap-3 border-t border-amber-200/60 pt-3 dark:border-amber-900/40">
+                <Stat label="Total" value={formatMoney(selectedCredit.total)} />
+                <Stat label="Saldo" value={formatMoney(selectedCredit.balance)} accent="amber" big />
+              </div>
             </div>
-            <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
-              <div className="flex justify-between"><span>Factura</span><span className="font-mono">#{selectedCredit.ticket_number ?? "—"}</span></div>
-              <div className="flex justify-between"><span>Fecha</span><span>{formatDate(selectedCredit.created_at)}</span></div>
-              <div className="flex justify-between"><span>Total crédito</span><span className="font-medium">{formatMoney(selectedCredit.total)}</span></div>
-              <div className="flex justify-between"><span>Saldo pendiente</span><span className="font-bold text-amber-700">{formatMoney(selectedCredit.balance)}</span></div>
-              <div className="flex justify-between"><span>Estado</span><Badge variant="outline">{selectedCredit.status}</Badge></div>
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Valor del abono</label>
-              <Input inputMode="decimal" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
-              <div className="flex gap-1 flex-wrap">
+
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">Valor del abono</label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-lg font-black text-muted-foreground">$</span>
+                <Input
+                  inputMode="decimal"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0"
+                  className="h-14 rounded-xl border-2 pl-8 text-2xl font-black tracking-tight focus-visible:border-amber-500 focus-visible:ring-amber-500/30"
+                />
+              </div>
+              <div className="flex gap-1.5">
                 {[0.25, 0.5, 1].map((f) => (
-                  <Button key={f} type="button" variant="outline" size="sm" onClick={() => setAmount(String(Math.round(maxAmount * f)))}>
+                  <button
+                    key={f}
+                    type="button"
+                    onClick={() => setAmount(String(Math.round(maxAmount * f)))}
+                    className="flex-1 rounded-lg border-2 bg-background px-3 py-1.5 text-xs font-black uppercase transition hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                  >
                     {f === 1 ? "Saldar todo" : `${Math.round(f * 100)}%`}
-                  </Button>
+                  </button>
                 ))}
               </div>
             </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium">Medio de pago</label>
-              <div className="flex gap-1">
+
+            <div className="space-y-2">
+              <label className="text-xs font-black uppercase tracking-wider text-muted-foreground">Medio de pago</label>
+              <div className="grid grid-cols-3 gap-1.5">
                 {["Efectivo", "Nequi", "Bancolombia"].map((m) => (
-                  <Button key={m} type="button" variant={method === m ? "default" : "outline"} size="sm" onClick={() => setMethod(m)}>{m}</Button>
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => setMethod(m)}
+                    className={`rounded-lg border-2 px-2 py-2 text-xs font-black transition ${method === m ? "border-amber-500 bg-amber-500 text-white shadow-md" : "border-border bg-background hover:border-amber-300"}`}
+                  >
+                    {m}
+                  </button>
                 ))}
               </div>
             </div>
-            <Textarea placeholder="Notas (opcional)" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-            <DialogFooter>
-              <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-              <Button onClick={submit} disabled={saving || amtNum <= 0}>
+
+            {amtNum > 0 && (
+              <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 px-3 py-2 dark:border-emerald-900/50 dark:bg-emerald-950/30">
+                <div className="flex items-center justify-between text-xs font-bold text-emerald-800 dark:text-emerald-300">
+                  <span>Saldo después del abono</span>
+                  <span className="font-mono text-base font-black">{formatMoney(newBalance)}</span>
+                </div>
+              </div>
+            )}
+
+            <Textarea placeholder="Notas (opcional)" rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} className="rounded-lg" />
+
+            <DialogFooter className="gap-2">
+              <Button variant="outline" onClick={() => onOpenChange(false)} className="font-bold">Cancelar</Button>
+              <Button
+                onClick={submit}
+                disabled={saving || amtNum <= 0}
+                className="font-black uppercase tracking-wide text-white shadow-lg transition hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-50"
+                style={{ background: "linear-gradient(135deg, #f59e0b 0%, #b45309 100%)" }}
+              >
                 {saving ? "Registrando…" : `Confirmar ${formatMoney(amtNum)}`}
               </Button>
             </DialogFooter>
@@ -390,5 +620,32 @@ export function CreditPaymentDialog({
         )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+function Stat({ label, value, accent, big }: { label: string; value: string; accent?: "amber" | "rose"; big?: boolean }) {
+  const color = accent === "amber" ? "text-amber-700 dark:text-amber-400"
+    : accent === "rose" ? "text-rose-700 dark:text-rose-400"
+    : "text-foreground";
+  return (
+    <div>
+      <div className="text-[10px] font-black uppercase tracking-wider text-muted-foreground">{label}</div>
+      <div className={`font-mono font-black ${big ? "text-xl" : "text-base"} ${color}`}>{value}</div>
+    </div>
+  );
+}
+
+export function StatusPill({ status, size = "sm" }: { status: string; size?: "xs" | "sm" }) {
+  const map: Record<string, { label: string; cls: string }> = {
+    pagado: { label: "Pagado", cls: "bg-gradient-to-r from-emerald-500 to-emerald-600 text-white ring-emerald-400/30" },
+    parcial: { label: "Parcial", cls: "bg-gradient-to-r from-amber-400 to-amber-500 text-white ring-amber-400/30" },
+    pendiente: { label: "Pendiente", cls: "bg-gradient-to-r from-rose-500 to-red-600 text-white ring-rose-400/30" },
+  };
+  const s = map[status] ?? map.pendiente;
+  const sz = size === "xs" ? "px-2 py-0.5 text-[10px]" : "px-2.5 py-1 text-xs";
+  return (
+    <Badge className={`${s.cls} ${sz} font-black uppercase tracking-wider shadow-sm ring-2`}>
+      {s.label}
+    </Badge>
   );
 }
