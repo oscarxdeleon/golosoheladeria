@@ -44,32 +44,46 @@ const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
-const CODEPAGE = ESC + "t" + "\x02"; // CP850: español/LatAm con tildes y ñ
+// Selección de página de códigos:
+//   ESC t 16 => WPC1252 (Windows-1252). Es la codificación más universalmente
+//   soportada por las impresoras térmicas ESC/POS modernas (Epson, Bixolon,
+//   Star, Xprinter, GOOJPRT y clones). A diferencia de CP850, en Windows-1252
+//   los caracteres Latin-1 (á, é, í, ó, ú, ñ, ¡, ¿, etc.) coinciden byte a
+//   byte con su code point Unicode (U+0080..U+00FF), por lo que no hace falta
+//   una tabla de traducción y se elimina la causa raíz del glifo erróneo
+//   (por ejemplo "í" imprimiéndose como "=") en impresoras que no incluyen
+//   CP850 en su ROM.
+const CODEPAGE_ID = Number(process.env.PRINTER_CODEPAGE_ID || 16);
+const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
+// ESC R n => juego de caracteres internacional. 7 = España, garantiza que
+// ¿, ¡, ñ, Ñ se rendericen correctamente aunque la impresora ignore ESC t.
+const INTL_CHARSET = ESC + "R" + "\x07";
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
 const STAR_LINE = "*".repeat(WIDTH) + "\n";
 const EQ_LINE = "=".repeat(WIDTH) + "\n";
 
-const CP850 = {
-  "Ç": 0x80, "ü": 0x81, "é": 0x82, "â": 0x83, "ä": 0x84, "à": 0x85, "å": 0x86, "ç": 0x87,
-  "ê": 0x88, "ë": 0x89, "è": 0x8a, "ï": 0x8b, "î": 0x8c, "ì": 0x8d, "Ä": 0x8e, "Å": 0x8f,
-  "É": 0x90, "æ": 0x91, "Æ": 0x92, "ô": 0x93, "ö": 0x94, "ò": 0x95, "û": 0x96, "ù": 0x97,
-  "ÿ": 0x98, "Ö": 0x99, "Ü": 0x9a, "á": 0xa0, "í": 0xa1, "ó": 0xa2, "ú": 0xa3, "ñ": 0xa4,
-  "Ñ": 0xa5, "¿": 0xa8, "¡": 0xad, "Á": 0xb5, "Â": 0xb6, "À": 0xb7, "ã": 0xc6, "Ã": 0xc7,
-  "ð": 0xd0, "Ð": 0xd1, "Ê": 0xd2, "Ë": 0xd3, "È": 0xd4, "Í": 0xd6, "Î": 0xd7, "Ï": 0xd8,
-  "Ó": 0xe0, "ß": 0xe1, "Ô": 0xe2, "Ò": 0xe3, "õ": 0xe4, "Õ": 0xe5, "µ": 0xe6, "þ": 0xe7,
-  "Þ": 0xe8, "Ú": 0xe9, "Û": 0xea, "Ù": 0xeb, "ý": 0xec, "Ý": 0xed, "¯": 0xee, "´": 0xef,
-  "±": 0xf1, "‗": 0xf2, "¾": 0xf3, "¶": 0xf4, "§": 0xf5, "÷": 0xf6, "¸": 0xf7, "°": 0xf8,
-  "¨": 0xf9, "·": 0xfa, "¹": 0xfb, "³": 0xfc, "²": 0xfd, "■": 0xfe, " ": 0xff,
+// Overrides para caracteres cuya representación en Windows-1252 no coincide
+// con Unicode (comillas tipográficas, guiones em, €, etc. viven en 0x80..0x9F
+// en CP1252 en vez de sus code points Unicode). El sanitizador del cliente ya
+// normaliza la mayoría a ASCII, pero este mapa actúa como red de seguridad.
+const CP1252_OVERRIDES = {
+  "€": 0x80, "‚": 0x82, "ƒ": 0x83, "„": 0x84, "…": 0x85, "†": 0x86, "‡": 0x87,
+  "ˆ": 0x88, "‰": 0x89, "Š": 0x8a, "‹": 0x8b, "Œ": 0x8c, "Ž": 0x8e,
+  "‘": 0x91, "’": 0x92, "“": 0x93, "”": 0x94, "•": 0x95, "–": 0x96, "—": 0x97,
+  "˜": 0x98, "™": 0x99, "š": 0x9a, "›": 0x9b, "œ": 0x9c, "ž": 0x9e, "Ÿ": 0x9f,
 };
 
 function encodeEscPos(text) {
   const bytes = [];
   for (const ch of String(text ?? "")) {
+    const override = CP1252_OVERRIDES[ch];
+    if (override !== undefined) { bytes.push(override); continue; }
     const code = ch.charCodeAt(0);
-    if (code <= 0xff) bytes.push(CP850[ch] ?? code);
-    else bytes.push(0x20);
+    // 0x00-0x7F: ASCII. 0x80-0xFF: Latin-1 (idéntico a Windows-1252 en ese rango).
+    if (code <= 0xff) bytes.push(code);
+    else bytes.push(0x3f); // '?' para code points fuera de Latin-1
   }
   return Buffer.from(bytes);
 }
@@ -250,7 +264,7 @@ function logoRasterFromBase64(value) {
 
 async function buildPersonalizedTicketRaw(p) {
   const cfg = mergeCfg(p.ticket_config);
-  let out = INIT + CODEPAGE;
+  let out = INIT + CODEPAGE + INTL_CHARSET;
   if (p.open_drawer) out += DRAWER;
 
   // ==== LOGO (raster) ====
@@ -390,14 +404,14 @@ async function buildPersonalizedTicketRaw(p) {
   const textBuf = encodeEscPos(out);
   if (logoBuf) {
     // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
-    return Buffer.concat([encodeEscPos(INIT + CODEPAGE), logoBuf, textBuf]);
+    return Buffer.concat([encodeEscPos(INIT + CODEPAGE + INTL_CHARSET), logoBuf, textBuf]);
   }
   return textBuf;
 }
 
 // ---------- Comanda de cocina (fuente compacta) ----------
 function buildComandaRaw(p) {
-  let out = INIT + CODEPAGE;
+  let out = INIT + CODEPAGE + INTL_CHARSET;
   // Encabezado compacto
   out += ALIGN_C + BOLD_ON;
   if (p.business_name) out += String(p.business_name).toUpperCase() + "\n";
