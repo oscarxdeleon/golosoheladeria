@@ -21,6 +21,7 @@ import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
 import { Split } from "lucide-react";
+import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/components/credit-dialogs";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.png";
