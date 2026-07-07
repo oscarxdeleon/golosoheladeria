@@ -16,6 +16,7 @@ import { toast } from "sonner";
 import { Search, Eye, Wallet, Printer, HandCoins, CreditCard } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/deudas")({
   head: () => ({ meta: [{ title: "Deudas · Goloso POS" }] }),
