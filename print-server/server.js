@@ -283,27 +283,35 @@ async function buildPersonalizedTicketRaw(p) {
     out += ALIGN_C + BOLD_ON + STAR_LINE + BOLD_OFF;
   }
 
+  // ==== ENCABEZADO / MARCA ====
+  // Toda la sección va centrada por la impresora (ESC a 1). NO usamos
+  // centerLine() aquí porque añade padding manual con espacios y, combinado
+  // con ALIGN_C, la impresora recentra el texto ya padeado y lo desplaza
+  // hacia la derecha (encabezado descentrado). Con ALIGN_C basta.
+  out += ALIGN_C;
+
   if (cfg.show_business_name) {
     const business = String(p.business_name || "Heladería Goloso").toUpperCase();
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE;
-    for (const line of wrapText(business, Math.floor(WIDTH / 2))) out += line + "\n";
+    out += BOLD_ON + SIZE_DOUBLE;
+    // wrapText usa WIDTH/2 porque en doble ancho cada char ocupa 2 columnas.
+    for (const line of wrapText(business, Math.floor(WIDTH / 2))) out += line.trim() + "\n";
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
+  if (cfg.show_nit && p.nit) out += `NIT: ${String(p.nit).trim()}\n`;
+  if (cfg.show_address && p.address_biz) {
+    for (const line of wrapText(String(p.address_biz).trim(), WIDTH)) out += line.trim() + "\n";
+  }
+  if (cfg.show_phone && p.phone_biz) out += `Tel: ${String(p.phone_biz).trim()}\n`;
+  if (cfg.show_email && p.email_biz) out += String(p.email_biz).trim() + "\n";
 
-  if (cfg.show_nit && p.nit) out += ALIGN_C + centerLine(`NIT: ${p.nit}`);
-  if (cfg.show_address && p.address_biz)
-    for (const line of wrapText(p.address_biz, WIDTH - 6)) out += centerLine(line);
-  if (cfg.show_phone && p.phone_biz) out += centerLine(`Tel: ${p.phone_biz}`);
-  if (cfg.show_email && p.email_biz) out += centerLine(p.email_biz);
-
-  // Encabezado libre opcional
+  // Encabezado libre opcional (sigue centrado por la impresora)
   if (p.ticket_header) {
-    out += ALIGN_C;
-    for (const line of wrapText(p.ticket_header, WIDTH)) out += centerLine(line);
+    for (const line of wrapText(String(p.ticket_header).trim(), WIDTH)) out += line.trim() + "\n";
   }
 
   out += ALIGN_L + DASH_LINE;
+
 
   // ==== TITULO Y NUMERO ====
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + (cfg.title_text || "TICKET DE VENTA") + "\n" + SIZE_NORMAL + BOLD_OFF;
