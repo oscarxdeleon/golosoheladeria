@@ -397,8 +397,10 @@ export function OnlineOrdersNotifier() {
     });
 
     if (options.fromRealtime && row.source === "kiosk") void autoPrintKioskOrder(row.id);
+    // Un único beep por cada pedido nuevo detectado (ya está deduplicado por seen/acknowledged).
+    beep();
     invalidateOrderViews();
-  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, resolveTableLabel]);
+  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, resolveTableLabel, beep]);
 
   const loadRecentPending = useCallback(async () => {
     if (!activeBranchId || !canReceiveAlerts) return;
