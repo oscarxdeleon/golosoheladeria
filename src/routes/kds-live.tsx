@@ -73,11 +73,8 @@ function KdsLive() {
     );
     const { error } = await supabase.rpc("kds_public_mark_item_ready", { p_item_id: itemId });
     if (error) { toast.error("No se pudo marcar"); qc.invalidateQueries({ queryKey: ["kds-public", sede] }); return; }
-    const pendingCount = sale.sale_items.filter((i) => i.id !== itemId && !i.ready_at).length;
-    if (pendingCount === 0) {
-      const notified = notifyCustomerReady(sale);
-      if (notified) toast.success("WhatsApp enviado al cliente");
-    }
+    // "Marcar" solo actualiza el estado interno del ítem. NO envía WhatsApp
+    // al cliente; ese aviso se dispara únicamente desde "Despachar todo".
   }
 
   async function markAllReady(sale: Pending) {
