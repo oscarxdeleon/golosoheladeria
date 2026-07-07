@@ -315,13 +315,11 @@ export function OnlineOrdersNotifier() {
 
   useEffect(() => {
     setPending([]);
-    stopLoop();
-  }, [activeBranchId, stopLoop]);
+  }, [activeBranchId]);
 
   function dismissAll() {
     acknowledge(pending.map((p) => p.id));
     setPending([]);
-    stopLoop();
   }
 
   function confirmAndNavigate(kind: OrderKind) {
@@ -330,7 +328,6 @@ export function OnlineOrdersNotifier() {
     }
     acknowledge(pending.map((p) => p.id));
     setPending([]);
-    stopLoop();
     navigate({
       to:
         kind === "kiosko" ? "/kiosko"
