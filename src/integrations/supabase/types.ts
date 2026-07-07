@@ -1530,6 +1530,130 @@ export type Database = {
         }
         Relationships: []
       }
+      supplier_credit_payments: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          cash_session_id: string | null
+          created_at: string
+          id: string
+          notes: string | null
+          payment_method: string
+          supplier_credit_id: string
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          cash_session_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          supplier_credit_id: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          cash_session_id?: string | null
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payment_method?: string
+          supplier_credit_id?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_credit_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_credit_payments_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_credit_payments_supplier_credit_id_fkey"
+            columns: ["supplier_credit_id"]
+            isOneToOne: false
+            referencedRelation: "supplier_credits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supplier_credits: {
+        Row: {
+          balance: number
+          branch_id: string | null
+          created_at: string
+          created_by: string | null
+          created_by_name: string | null
+          id: string
+          invoice_number: string | null
+          notes: string | null
+          purchase_id: string | null
+          status: string
+          supplier: string
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          balance: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          purchase_id?: string | null
+          status?: string
+          supplier?: string
+          total: number
+          updated_at?: string
+        }
+        Update: {
+          balance?: number
+          branch_id?: string | null
+          created_at?: string
+          created_by?: string | null
+          created_by_name?: string | null
+          id?: string
+          invoice_number?: string | null
+          notes?: string | null
+          purchase_id?: string | null
+          status?: string
+          supplier?: string
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supplier_credits_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_credits_purchase_id_fkey"
+            columns: ["purchase_id"]
+            isOneToOne: false
+            referencedRelation: "purchases"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplies: {
         Row: {
           cost: number
@@ -1917,6 +2041,16 @@ export type Database = {
           _credit_id: string
           _method?: string
           _notes?: string
+        }
+        Returns: Json
+      }
+      register_supplier_payment: {
+        Args: {
+          _amount: number
+          _cash_session_id?: string
+          _method?: string
+          _notes?: string
+          _supplier_credit_id: string
         }
         Returns: Json
       }
