@@ -948,6 +948,29 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
       console.log(`[pay] venta #${sale.ticket_number} registrada como ${method}`);
 
+      // Si es venta a crédito, crear cuenta por cobrar
+      if (creditCustomer) {
+        // Vincular cliente a la venta
+        await supabase.from("sales").update({ customer_id: creditCustomer.id, customer_name: creditCustomer.name }).eq("id", sale.id);
+        const { error: cErr } = await supabase.from("credits").insert({
+          sale_id: sale.id,
+          customer_id: creditCustomer.id,
+          branch_id: activeBranchId,
+          ticket_number: sale.ticket_number,
+          total: Number(sale.total),
+          balance: Number(sale.total),
+          status: "pendiente",
+          created_by: user.id,
+          created_by_name: profile?.full_name ?? user.email ?? "Cajero",
+        });
+        if (cErr) {
+          console.error("[pay] insert credit error", cErr);
+          toast.error("La venta se registró pero no se pudo crear el crédito: " + cErr.message);
+        } else {
+          toast.success(`Crédito creado para ${creditCustomer.name}`);
+        }
+      }
+
       // ───────────────────────────────────────────────────────────────
       // PASO 2: Liberar mesa y limpiar estado local
       // ───────────────────────────────────────────────────────────────
