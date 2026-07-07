@@ -2,9 +2,10 @@
 REM ============================================================
 REM  Heladeria Goloso - Instalador del servidor de impresion
 REM ============================================================
-REM  Requisitos:
-REM    - Node.js 18+ instalado (https://nodejs.org)
-REM    - Impresora termica ESC/POS conectada por USB o red
+REM  - Instala dependencias de Node.
+REM  - Registra el Print Server para que arranque automaticamente
+REM    con Windows (sin ventana visible y sin pedir confirmacion).
+REM  - Lo inicia inmediatamente en segundo plano.
 REM ============================================================
 
 setlocal
@@ -31,29 +32,50 @@ if errorlevel 1 (
 )
 
 echo.
-echo Creando acceso directo en el inicio de Windows...
+echo Registrando inicio automatico con Windows...
+
+REM ---- 1) Acceso directo en la carpeta de Inicio (respaldo visible) ----
 set "STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup"
 set "VBS=%TEMP%\goloso_shortcut.vbs"
 > "%VBS%" echo Set ws = WScript.CreateObject("WScript.Shell")
 >>"%VBS%" echo sLink = "%STARTUP%\Goloso Print Server.lnk"
 >>"%VBS%" echo Set s = ws.CreateShortcut(sLink)
->>"%VBS%" echo s.TargetPath = "%~dp0start-windows.bat"
+>>"%VBS%" echo s.TargetPath = "wscript.exe"
+>>"%VBS%" echo s.Arguments = """%~dp0start-hidden.vbs"""
 >>"%VBS%" echo s.WorkingDirectory = "%~dp0"
 >>"%VBS%" echo s.WindowStyle = 7
+>>"%VBS%" echo s.IconLocation = "wscript.exe, 0"
 >>"%VBS%" echo s.Description = "Servidor de impresion silenciosa Heladeria Goloso"
 >>"%VBS%" echo s.Save
-cscript //nologo "%VBS%"
+cscript //nologo "%VBS%" >nul
 del "%VBS%"
+
+REM ---- 2) Clave del registro Run (mas robusta ante bloqueos de la carpeta Startup) ----
+reg add "HKCU\Software\Microsoft\Windows\CurrentVersion\Run" ^
+  /v "GolosoPrintServer" ^
+  /t REG_SZ ^
+  /d "wscript.exe \"%~dp0start-hidden.vbs\"" ^
+  /f >nul
+
+REM ---- 3) Marcar los .bat/.vbs como confiables para evitar prompt SmartScreen ----
+REM (elimina la marca "Zone.Identifier" que Windows pone a archivos descargados)
+for %%F in ("%~dp0start-hidden.vbs" "%~dp0run-server.bat" "%~dp0start-windows.bat" "%~dp0server.js") do (
+  if exist "%%~F:Zone.Identifier" (
+    del "%%~F:Zone.Identifier" >nul 2>nul
+  )
+)
+
+echo.
+echo Iniciando el Print Server en segundo plano...
+start "" wscript.exe //nologo "%~dp0start-hidden.vbs"
 
 echo.
 echo === Instalacion completada ===
 echo.
-echo El servidor se iniciara automaticamente cuando enciendas Windows.
-echo Para iniciarlo ahora, ejecuta: start-windows.bat
+echo El Print Server ya esta corriendo y se iniciara automaticamente
+echo cada vez que enciendas este computador, sin pedir confirmacion.
 echo.
-echo En el navegador del POS (en esta misma PC) abre la consola (F12) y ejecuta:
-echo   localStorage.setItem("LOCAL_PRINT_URL","http://localhost:3001/print")
-echo o configuralo desde Ajustes ^> Impresoras en el POS.
+echo Verifica en el navegador: http://localhost:3001/health
 echo.
 pause
 endlocal
