@@ -707,8 +707,20 @@ function ProductosPage() {
                           />
                         ))}
                       </div>
+                      {/* Solo aplica al crear un producto nuevo con varias sedes seleccionadas */}
+                      {!editing?.id && branches.length > 1 && (
+                        <div className="mt-2">
+                          <ToggleRow
+                            label="Crear una copia independiente por sede"
+                            hint="Cada sede podrá editar el producto por separado (precio, imagen, receta…) sin afectar las demás. Desactiva esta opción para mantener un único producto compartido."
+                            checked={createInAllBranches}
+                            onChange={setCreateInAllBranches}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
+
 
                   {/* Recetas */}
                   <div className="mt-4">
