@@ -9,6 +9,8 @@ export type PrintPayload = {
   ticket?: number;
   ticket_number?: number;
   header: string;
+  /** Origen del pedido — se imprime como "PEDIDO PARA MESA / EN LÍNEA / DESDE QUIOSCO / PARA LLEVAR". */
+  order_type?: "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
   items: { name: string; qty: number; unit_price?: number }[];
   subtotal?: number;
   tax?: number;
