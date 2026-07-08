@@ -646,10 +646,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate,business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config").maybeSingle();
-      return data as (Branding & { delivery_fee: number; tax_rate: number; ticket_config?: Partial<TicketConfig> | null }) | null;
+      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate,business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config,enable_tips").maybeSingle();
+      return data as (Branding & { delivery_fee: number; tax_rate: number; enable_tips?: boolean | null; ticket_config?: Partial<TicketConfig> | null }) | null;
     },
   });
+  const tipsEnabled = !!settings?.enable_tips;
   const branding: Branding = {
     business_name: activeBranch?.name || settings?.business_name || "Heladería Goloso",
     nit: activeBranch?.nit ?? settings?.nit ?? null,
