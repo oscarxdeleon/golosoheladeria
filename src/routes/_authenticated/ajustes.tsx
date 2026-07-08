@@ -1110,6 +1110,7 @@ function ExtrasTab() {
   );
 }
 
+interface Branch {
   id: string; name: string; slug?: string | null; address: string | null; phone: string | null; city: string | null;
   is_main: boolean; inherits_main_catalog: boolean;
   neighborhood?: string | null; nit?: string | null;
