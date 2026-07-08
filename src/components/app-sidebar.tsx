@@ -22,6 +22,8 @@ import {
   Layers,
   Receipt,
   LogOut,
+  Power,
+  Loader2,
   Banknote,
   ShoppingBag,
   BellRing,
