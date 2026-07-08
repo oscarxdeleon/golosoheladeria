@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertTriangle, Banknote, LockOpen, LockKeyhole, History, Eye, Smartphone, Building2, Lock, Clock, Wallet, Coins, Calculator, NotebookPen } from "lucide-react";
-import mascotAsset from "@/assets/cierre-caja-mascot.png.asset.json";
+import mascotImage from "@/assets/cierre-caja-mascot.png";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
@@ -70,7 +70,7 @@ function CajaPage() {
   const [bancoCounted, setBancoCounted] = useState("");
 
   const COIN_DENOMS = [50, 100, 200, 500, 1000] as const;
-  const BILL_DENOMS = [1000, 2000, 5000, 10000, 20000, 50000, 100000] as const;
+  const BILL_DENOMS = [2000, 5000, 10000, 20000, 50000, 100000] as const;
   const [coinQty, setCoinQty] = useState<Record<number, string>>({});
   const [billQty, setBillQty] = useState<Record<number, string>>({});
   const [nowLabel, setNowLabel] = useState<string>(() => new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }));
@@ -432,7 +432,7 @@ function CajaPage() {
                 </DialogDescription>
               </DialogHeader>
               <img
-                src={mascotAsset.url}
+                src={mascotImage}
                 alt=""
                 aria-hidden
                 className="pointer-events-none absolute top-1 right-1 w-[42%] max-w-[240px] select-none"
