@@ -797,6 +797,7 @@ export type Database = {
       modifiers: {
         Row: {
           active: boolean
+          disabled_branch_ids: string[]
           group_id: string
           id: string
           image_url: string | null
@@ -805,6 +806,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          disabled_branch_ids?: string[]
           group_id: string
           id?: string
           image_url?: string | null
@@ -813,6 +815,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          disabled_branch_ids?: string[]
           group_id?: string
           id?: string
           image_url?: string | null

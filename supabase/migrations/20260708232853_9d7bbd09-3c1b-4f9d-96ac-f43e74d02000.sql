@@ -1,0 +1,1 @@
+ALTER TABLE public.modifiers ADD COLUMN IF NOT EXISTS disabled_branch_ids uuid[] NOT NULL DEFAULT '{}';

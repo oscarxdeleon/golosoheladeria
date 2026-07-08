@@ -15,6 +15,7 @@ import { Plus, Trash2, Pencil, Copy, ImageIcon } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ImageDropzone } from "@/components/image-dropzone";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/menu/modificadores")({
   head: () => ({ meta: [{ title: "Modificadores · Goloso POS" }] }),
@@ -22,11 +23,14 @@ export const Route = createFileRoute("/_authenticated/menu/modificadores")({
 });
 
 interface Group { id: string; name: string; min_select: number; max_select: number; required: boolean; }
-interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; image_url?: string | null; }
+interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; image_url?: string | null; disabled_branch_ids?: string[] | null; }
 
 function ModPage() {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
+  const { branches, activeBranchId } = useBranch();
+  const [selBranchId, setSelBranchId] = useState<string | null>(null);
+  const branchId = selBranchId ?? activeBranchId;
   const [groupEdit, setGroupEdit] = useState<Partial<Group> | null>(null);
   const [modEdit, setModEdit] = useState<Partial<Mod> | null>(null);
   const [dupSource, setDupSource] = useState<Group | null>(null);
@@ -127,6 +131,24 @@ function ModPage() {
     await supabase.from("modifiers").delete().eq("id", id);
     qc.invalidateQueries({ queryKey: ["mods"] });
   }
+  async function toggleAvailability(m: Mod, available: boolean) {
+    if (!branchId) return toast.error("Selecciona una sede");
+    const current = m.disabled_branch_ids ?? [];
+    const next = available
+      ? current.filter((id) => id !== branchId)
+      : Array.from(new Set([...current, branchId]));
+    // Optimistic
+    qc.setQueryData<Mod[]>(["mods"], (old) =>
+      (old ?? []).map((x) => (x.id === m.id ? { ...x, disabled_branch_ids: next } : x)),
+    );
+    const { error } = await supabase.from("modifiers").update({ disabled_branch_ids: next }).eq("id", m.id);
+    if (error) {
+      toast.error(error.message);
+      qc.invalidateQueries({ queryKey: ["mods"] });
+    } else {
+      toast.success(available ? "Disponible en esta sede" : "Ocultado en esta sede");
+    }
+  }
 
   return (
     <div className="space-y-4">
@@ -154,6 +176,23 @@ function ModPage() {
         )}
       </div>
 
+      {isAdmin && branches.length > 0 && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-3 py-3">
+            <Label className="text-sm">Disponibilidad por sede:</Label>
+            <Select value={branchId ?? ""} onValueChange={(v) => setSelBranchId(v)}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="Seleccionar sede…" /></SelectTrigger>
+              <SelectContent>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Usa el interruptor de cada modificador para activarlo o desactivarlo en la sede seleccionada.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {groups.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">Aún no hay grupos.</CardContent></Card>
       ) : (
@@ -178,29 +217,38 @@ function ModPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-1">
-                    {myMods.map((m) => (
-                      <li key={m.id} className="flex items-center justify-between rounded bg-muted/50 px-2 py-1.5 text-sm">
-                        <span className="flex items-center gap-2 min-w-0">
-                          {m.image_url ? (
-                            <img src={m.image_url} alt={m.name} className="h-8 w-8 rounded object-cover bg-white border" loading="lazy" />
-                          ) : (
-                            <span className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
-                              <ImageIcon className="h-3.5 w-3.5" />
-                            </span>
-                          )}
-                          <span className="truncate">{m.name}</span>
-                        </span>
-                        <span className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{formatMoney(m.price)}</span>
-                          {isAdmin && (
-                            <>
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
-                            </>
-                          )}
-                        </span>
-                      </li>
-                    ))}
+                    {myMods.map((m) => {
+                      const availableHere = !branchId || !(m.disabled_branch_ids ?? []).includes(branchId);
+                      return (
+                        <li key={m.id} className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${availableHere ? "bg-muted/50" : "bg-muted/30 opacity-60"}`}>
+                          <span className="flex items-center gap-2 min-w-0">
+                            {m.image_url ? (
+                              <img src={m.image_url} alt={m.name} className={`h-8 w-8 rounded object-cover bg-white border ${availableHere ? "" : "grayscale"}`} loading="lazy" />
+                            ) : (
+                              <span className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
+                                <ImageIcon className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <span className={`truncate ${availableHere ? "" : "line-through text-muted-foreground"}`}>{m.name}</span>
+                            {!availableHere && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Inactivo</span>}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <span className="text-muted-foreground">{formatMoney(m.price)}</span>
+                            {isAdmin && (
+                              <>
+                                <Switch
+                                  checked={availableHere}
+                                  onCheckedChange={(v) => toggleAvailability(m, v)}
+                                  title={availableHere ? "Disponible en esta sede" : "Inactivo en esta sede"}
+                                />
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
+                              </>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
                     {myMods.length === 0 && <li className="text-xs text-muted-foreground">Sin modificadores</li>}
                   </ul>
                 </CardContent>
