@@ -198,8 +198,19 @@ type IncomingSale = {
   table_id: string | null;
   order_type: string | null;
   created_at: string;
+  notify_ack_at?: string | null;
   restaurant_tables?: { number: number | null; label: string | null } | null;
 };
+
+// Marca el pedido como reconocido en la DB para que la alerta desaparezca
+// en tiempo real en todas las sesiones abiertas de la misma sede.
+async function ackOrdersInDb(ids: string[]) {
+  if (ids.length === 0) return;
+  try {
+    await supabase.from("sales").update({ notify_ack_at: new Date().toISOString() }).in("id", ids).is("notify_ack_at", null);
+  } catch { /* noop */ }
+}
+
 
 async function autoPrintKioskOrder(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
@@ -338,16 +349,20 @@ export function OnlineOrdersNotifier() {
   }, [activeBranchId]);
 
   function dismissAll() {
-    acknowledge(pending.map((p) => p.id));
+    const ids = pending.map((p) => p.id);
+    acknowledge(ids);
     setPending([]);
+    void ackOrdersInDb(ids);
   }
 
   function confirmAndNavigate(kind: OrderKind) {
     if (kind === "mesa") {
       pending.filter((p) => p.kind === "mesa").forEach((p) => { void printTableOrderComanda(p.id); });
     }
-    acknowledge(pending.map((p) => p.id));
+    const ids = pending.map((p) => p.id);
+    acknowledge(ids);
     setPending([]);
+    void ackOrdersInDb(ids);
     navigate({
       to:
         kind === "kiosko" ? "/kiosko"
@@ -355,6 +370,7 @@ export function OnlineOrdersNotifier() {
             : "/pedidos-online",
     });
   }
+
 
   const invalidateOrderViews = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
@@ -392,6 +408,12 @@ export function OnlineOrdersNotifier() {
       setPending((arr) => arr.filter((p) => p.id !== row.id));
       return;
     }
+    if (row.notify_ack_at) {
+      acknowledge([row.id]);
+      setPending((arr) => arr.filter((p) => p.id !== row.id));
+      return;
+    }
+
     // ---- DEDUPE SÍNCRONA: marcar como visto ANTES de cualquier await ----
     if (seen.current.has(row.id) || acknowledged.current.has(row.id)) return;
     seen.current.add(row.id);
@@ -435,13 +457,15 @@ export function OnlineOrdersNotifier() {
     const since = new Date(Date.now() - BACKSTOP_WINDOW_MS).toISOString();
     const { data } = await supabase
       .from("sales")
-      .select("id,ticket_number,customer_name,user_name,total,subtotal,delivery_fee,notes,source,status,branch_id,table_id,order_type,created_at,restaurant_tables(number,label)")
+      .select("id,ticket_number,customer_name,user_name,total,subtotal,delivery_fee,notes,source,status,branch_id,table_id,order_type,created_at,notify_ack_at,restaurant_tables(number,label)")
       .eq("branch_id", activeBranchId)
       .eq("status", "pending")
+      .is("notify_ack_at", null)
       .in("source", [...PUBLIC_ORDER_SOURCES])
       .gte("created_at", since)
       .order("created_at", { ascending: true })
       .limit(50);
+
     (data ?? []).forEach((row) => {
       void addAlert(row as unknown as IncomingSale, { fromRealtime: false });
     });
@@ -459,13 +483,16 @@ export function OnlineOrdersNotifier() {
         ((payload: { eventType: string; new: IncomingSale; old: Partial<IncomingSale> }) => {
           const row = (payload.new ?? payload.old) as IncomingSale | undefined;
           if (!row?.id) return;
-          if (payload.eventType === "DELETE" || (payload.eventType === "UPDATE" && row.status && row.status !== "pending")) {
+          const acked = payload.eventType === "UPDATE" && Boolean(row.notify_ack_at);
+          const closed = payload.eventType === "UPDATE" && row.status != null && row.status !== "pending";
+          if (payload.eventType === "DELETE" || acked || closed) {
             acknowledge([row.id]);
             setPending((arr) => arr.filter((p) => p.id !== row.id));
             invalidateOrderViews();
             return;
           }
           void addAlert(row, { fromRealtime: payload.eventType === "INSERT" });
+
         }) as never,
       )
       .subscribe((status) => {
