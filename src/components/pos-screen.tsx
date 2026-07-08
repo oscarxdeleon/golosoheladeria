@@ -125,6 +125,9 @@ export function comandaHTML(o: {
   user_name: string; created_at: string;
   order_type?: string;
   branding?: Branding;
+  /** Cuando true, imprime un banner "ADICIÓN AL PEDIDO" (productos añadidos
+   *  a un pedido de mesa ya servido). */
+  is_addition?: boolean;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
   const rows = o.items
