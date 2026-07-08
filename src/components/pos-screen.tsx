@@ -460,6 +460,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     subtotal: o.subtotal,
     tax: o.tax,
     deliveryFee: o.deliveryFee,
+    tip: o.tip,
     total: o.total,
     payment_method: o.payment_method,
     customer: o.customer,
