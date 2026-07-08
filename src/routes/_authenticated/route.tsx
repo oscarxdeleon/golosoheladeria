@@ -40,7 +40,7 @@ function AuthedLayout() {
                 aria-label="Abrir menú"
               >
                 <img
-                  src={mascotTriggerAsset.url}
+                  src={mascotTriggerAsset}
                   alt="Menú Goloso"
                   className="h-10 w-10 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.25)]"
                 />
