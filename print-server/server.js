@@ -67,9 +67,11 @@ const CUT = GS + "V\x00";
 //   CP850 en su ROM.
 const CODEPAGE_ID = Number(process.env.PRINTER_CODEPAGE_ID || 16);
 const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
-// ESC R n => juego de caracteres internacional. 7 = España, garantiza que
-// ¿, ¡, ñ, Ñ se rendericen correctamente aunque la impresora ignore ESC t.
-const INTL_CHARSET = ESC + "R" + "\x07";
+// ESC R n => juego de caracteres internacional. 0 = USA (ASCII puro): el
+// carácter '#' (0x23) se imprime correctamente. Con 7 = España, la impresora
+// remapea '#' a 'Ñ' y aparece un símbolo raro en el ticket.
+// Los acentos y ñ vienen de CP858/CP850 vía ESC t (CODEPAGE).
+const INTL_CHARSET = ESC + "R" + "\x00";
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
@@ -503,7 +505,7 @@ function fmtTable(header, mode) {
   if (!s) return "";
   if (mode === "Mesa: N") return `Mesa: ${s}`;
   if (mode === "MN") return `M${s}`;
-  return `MESA ${s}`;
+  return `MESA #${s}`;
 }
 const ORDER_TYPE_LABELS = {
   mesa: "PARA MESA",
@@ -554,8 +556,9 @@ function buildComandaFormatted(p, fmt) {
 
   let out = INIT + CODEPAGE + INTL_CHARSET + fontCmd;
 
-  // Encabezado (sede)
-  if (p.business_name) {
+  // Encabezado (sede) - se omite en comandas de mesa para un encabezado más limpio.
+  const otKeyEarly = String(p.order_type || "").toLowerCase();
+  if (p.business_name && otKeyEarly !== "mesa") {
     const business = String(p.business_name).toUpperCase().trim();
     out += bigLine(`** ${business} **`, f.titleSize, f.bold.title, f.align.header);
   }
@@ -664,7 +667,8 @@ function buildComandaLegacy(p) {
 
   out += ALIGN_C;
 
-  if (p.business_name) {
+  const otKeyEarlyL = String(p.order_type || "").toLowerCase();
+  if (p.business_name && otKeyEarlyL !== "mesa") {
     const business = String(p.business_name).toUpperCase().trim();
     const maxCols = Math.max(1, Math.floor(WIDTH / 2));
     out += BOLD_ON + SIZE_DOUBLE;
