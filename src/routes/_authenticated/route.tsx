@@ -8,7 +8,7 @@ import { WaiterCallsNotifier } from "@/components/waiter-calls-notifier";
 import { BranchProvider } from "@/contexts/branch-context";
 import { BranchSelector } from "@/components/branch-selector";
 import { RoleRouteGuard } from "@/components/role-route-guard";
-import mascotTriggerAsset from "@/assets/goloso-mascot-trigger.png.asset.json";
+import mascotTriggerAsset from "@/assets/goloso-mascot-trigger.png";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
@@ -40,7 +40,7 @@ function AuthedLayout() {
                 aria-label="Abrir menú"
               >
                 <img
-                  src={mascotTriggerAsset.url}
+                  src={mascotTriggerAsset}
                   alt="Menú Goloso"
                   className="h-10 w-10 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.25)]"
                 />

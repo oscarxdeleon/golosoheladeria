@@ -3,8 +3,7 @@ import { PosScreen } from "@/components/pos-screen";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { LlevarPendingPanel } from "@/components/llevar-pending-panel";
 import { Button } from "@/components/ui/button";
-import paraLlevarAsset from "@/assets/para-llevar.png.asset.json";
-const paraLlevarImg = paraLlevarAsset.url;
+import paraLlevarImg from "@/assets/para-llevar.png";
 
 export const Route = createFileRoute("/_authenticated/llevar")({
   head: () => ({ meta: [{ title: "Para llevar · Goloso POS" }] }),

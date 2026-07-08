@@ -17,8 +17,8 @@ import {
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
-import welcomeBanner from "@/assets/welcome-goloso.jpeg.asset.json";
-import welcomeBannerParque from "@/assets/welcome-goloso-parque.jpeg.asset.json";
+import welcomeBanner from "@/assets/welcome-goloso.jpeg";
+import welcomeBannerParque from "@/assets/welcome-goloso-parque.jpeg";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Goloso POS" }] }),
@@ -201,7 +201,7 @@ function DashboardPage() {
       {/* Hero — banner bienvenida (idéntico a diseño de referencia) */}
       <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl shadow-xl">
         <img
-          src={/parque/i.test(activeBranch?.name ?? "") ? welcomeBannerParque.url : welcomeBanner.url}
+          src={/parque/i.test(activeBranch?.name ?? "") ? welcomeBannerParque : welcomeBanner}
           alt={`Bienvenido ${activeBranch?.name ?? "Goloso"}`}
           className="block w-full h-auto"
         />
