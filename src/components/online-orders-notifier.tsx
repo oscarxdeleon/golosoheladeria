@@ -483,13 +483,16 @@ export function OnlineOrdersNotifier() {
         ((payload: { eventType: string; new: IncomingSale; old: Partial<IncomingSale> }) => {
           const row = (payload.new ?? payload.old) as IncomingSale | undefined;
           if (!row?.id) return;
-          if (payload.eventType === "DELETE" || (payload.eventType === "UPDATE" && row.status && row.status !== "pending")) {
+          const acked = payload.eventType === "UPDATE" && Boolean(row.notify_ack_at);
+          const closed = payload.eventType === "UPDATE" && row.status != null && row.status !== "pending";
+          if (payload.eventType === "DELETE" || acked || closed) {
             acknowledge([row.id]);
             setPending((arr) => arr.filter((p) => p.id !== row.id));
             invalidateOrderViews();
             return;
           }
           void addAlert(row, { fromRealtime: payload.eventType === "INSERT" });
+
         }) as never,
       )
       .subscribe((status) => {
