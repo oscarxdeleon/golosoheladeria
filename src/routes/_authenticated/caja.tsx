@@ -399,7 +399,7 @@ function CajaPage() {
             </div>
             <div>
               <label className="text-sm font-medium flex items-center gap-2"><Building2 className="h-4 w-4" />Total Bancolombia</label>
-              <Input type="number" inputMode="decimal" placeholder="Valor según comprobantes Bancolombia" value={bancoCounted} onChange={(e) => setBancoCounted(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="Valor según comprobantes Bancolombia" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
             </div>
             <div className="rounded-md bg-muted/50 p-3 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Total reportado</span><b>{formatMoney(totalCounted)}</b></div>
