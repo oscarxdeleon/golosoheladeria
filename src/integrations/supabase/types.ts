@@ -1345,6 +1345,7 @@ export type Database = {
           table_id: string | null
           tax: number
           ticket_number: number
+          tip_amount: number
           total: number
           user_id: string | null
           user_name: string | null
@@ -1382,6 +1383,7 @@ export type Database = {
           table_id?: string | null
           tax?: number
           ticket_number?: number
+          tip_amount?: number
           total?: number
           user_id?: string | null
           user_name?: string | null
@@ -1419,6 +1421,7 @@ export type Database = {
           table_id?: string | null
           tax?: number
           ticket_number?: number
+          tip_amount?: number
           total?: number
           user_id?: string | null
           user_name?: string | null
@@ -1472,6 +1475,7 @@ export type Database = {
           command_format_active: string
           command_formats: Json
           delivery_fee: number
+          enable_tips: boolean
           id: number
           local_print_url: string | null
           logo_url: string | null
@@ -1502,6 +1506,7 @@ export type Database = {
           command_format_active?: string
           command_formats?: Json
           delivery_fee?: number
+          enable_tips?: boolean
           id?: number
           local_print_url?: string | null
           logo_url?: string | null
@@ -1532,6 +1537,7 @@ export type Database = {
           command_format_active?: string
           command_formats?: Json
           delivery_fee?: number
+          enable_tips?: boolean
           id?: number
           local_print_url?: string | null
           logo_url?: string | null
