@@ -198,8 +198,19 @@ type IncomingSale = {
   table_id: string | null;
   order_type: string | null;
   created_at: string;
+  notify_ack_at?: string | null;
   restaurant_tables?: { number: number | null; label: string | null } | null;
 };
+
+// Marca el pedido como reconocido en la DB para que la alerta desaparezca
+// en tiempo real en todas las sesiones abiertas de la misma sede.
+async function ackOrdersInDb(ids: string[]) {
+  if (ids.length === 0) return;
+  try {
+    await supabase.from("sales").update({ notify_ack_at: new Date().toISOString() }).in("id", ids).is("notify_ack_at", null);
+  } catch { /* noop */ }
+}
+
 
 async function autoPrintKioskOrder(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
