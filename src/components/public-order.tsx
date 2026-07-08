@@ -535,7 +535,12 @@ export function PublicOrder({
       if (source === "kiosk" || source === "online_menu") {
         const br = branch as { name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null } | null | undefined;
         const st = settings as { business_name?: string | null; address?: string | null; phone?: string | null; nit?: string | null; logo_url?: string | null; footer_text?: string | null; email?: string | null; ticket_config?: Record<string, unknown> | null } | null | undefined;
-        const printItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
+        const printItems = cart.map((l) => ({
+          name: l.name,
+          qty: l.qty,
+          unit_price: l.unit_price,
+          modifiers: normalizeModifiers(l.modifiers),
+        }));
         const header = source === "kiosk"
           ? `PEDIDO AUTOPEDIDO${kioskService === "llevar" ? " · PARA LLEVAR" : kioskService === "comer_aqui" ? " · COMER AQUÍ" : ""}`
           : "PEDIDO EN LÍNEA";
