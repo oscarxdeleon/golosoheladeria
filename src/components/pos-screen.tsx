@@ -2438,58 +2438,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               </div>
             )}
 
-            {tipsEnabled && (
-              <div className="mt-1 rounded-xl border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
-                <div className="flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <Sparkles className="h-4 w-4 text-amber-500" />
-                    <span className="text-sm font-semibold">Propina</span>
-                    {effectiveTip > 0 && (
-                      <span className="text-sm font-bold tabular-nums">{formatMoney(effectiveTip)}</span>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    {effectiveTip > 0 && (
-                      <Button size="sm" variant="ghost" onClick={() => { setTip(0); setTipInput(""); }}>
-                        Quitar
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="border-amber-500 text-amber-700 hover:bg-amber-100 dark:text-amber-300"
-                      onClick={() => {
-                        setTipInput(effectiveTip > 0 ? String(effectiveTip) : "");
-                        setTipDialogOpen(true);
-                      }}
-                    >
-                      {effectiveTip > 0 ? "Modificar" : "Agregar propina"}
-                    </Button>
-                  </div>
-                </div>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { label: "5%", pct: 0.05 },
-                    { label: "10%", pct: 0.10 },
-                    { label: "15%", pct: 0.15 },
-                  ].map((q) => {
-                    const base = subtotal + tax + deliveryFee;
-                    const value = Math.round(base * q.pct);
-                    return (
-                      <Button
-                        key={q.label}
-                        size="sm"
-                        variant="outline"
-                        className="border-amber-400/60"
-                        onClick={() => { setTip(value); setTipInput(String(value)); }}
-                      >
-                        {q.label} · {formatMoney(value)}
-                      </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
 
           </div>
         </DialogContent>
