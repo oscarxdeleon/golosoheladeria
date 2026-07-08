@@ -1469,6 +1469,8 @@ export type Database = {
           cashier_printer_ip: string | null
           cashier_printer_port: number | null
           city: string | null
+          command_format_active: string
+          command_formats: Json
           delivery_fee: number
           id: number
           local_print_url: string | null
@@ -1497,6 +1499,8 @@ export type Database = {
           cashier_printer_ip?: string | null
           cashier_printer_port?: number | null
           city?: string | null
+          command_format_active?: string
+          command_formats?: Json
           delivery_fee?: number
           id?: number
           local_print_url?: string | null
@@ -1525,6 +1529,8 @@ export type Database = {
           cashier_printer_ip?: string | null
           cashier_printer_port?: number | null
           city?: string | null
+          command_format_active?: string
+          command_formats?: Json
           delivery_fee?: number
           id?: number
           local_print_url?: string | null

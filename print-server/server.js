@@ -437,23 +437,233 @@ async function buildPersonalizedTicketRaw(p) {
   return textBuf;
 }
 
-// ---------- Comanda de cocina (réplica del formato de referencia) ----------
-// Diseño basado en la imagen de referencia del cliente:
-//   ** GOLOSO SANTA **
-//       PEDIDO # 1100
-//            6B9
-//    10:47 PM   06-07-2026
-//         MESA # 2
-//   ---------------------------
-//   1x PRODUCTO EN NEGRITA
-//       + MODIFICADOR
-//   ---------------------------
-function buildComandaRaw(p) {
+// ---------- Comanda de cocina ----------
+// Cuando el payload trae `command_format` (configurado desde Ajustes →
+// Impresoras → Comandas), se usa ESE formato. Si no llega, se usa el layout
+// legacy (comportamiento original) para retrocompatibilidad.
+
+const SIZE_MAP = {
+  1: SIZE_NORMAL,
+  2: SIZE_DOUBLE_H,
+  3: SIZE_DOUBLE,
+  4: SIZE_TRIPLE,
+};
+const ALIGN_MAP = { left: ALIGN_L, center: ALIGN_C, right: ALIGN_R };
+const DEFAULT_CMD_FMT = {
+  font: "A",
+  titleSize: 2, productSize: 1, modifierSize: 1,
+  bold: { title: true, product: true, modifier: false },
+  align: { header: "center", product: "left", orderType: "center" },
+  separator: { char: "-", blankLines: 0 },
+  lineSpacing: 0,
+  margins: { left: 0, right: 0 },
+  modifiersLayout: "inline",
+  quantityFormat: "x",
+  orderNumberFormat: "hash",
+  tableFormat: "MESA N",
+  orderTypeFormat: "prefix",
+};
+
+function mergeCmdFmt(f) {
+  const base = DEFAULT_CMD_FMT;
+  const s = f || {};
+  return {
+    font: s.font || base.font,
+    titleSize: s.titleSize || base.titleSize,
+    productSize: s.productSize || base.productSize,
+    modifierSize: s.modifierSize || base.modifierSize,
+    bold: { ...base.bold, ...(s.bold || {}) },
+    align: { ...base.align, ...(s.align || {}) },
+    separator: { ...base.separator, ...(s.separator || {}) },
+    lineSpacing: s.lineSpacing ?? base.lineSpacing,
+    margins: { ...base.margins, ...(s.margins || {}) },
+    modifiersLayout: s.modifiersLayout || base.modifiersLayout,
+    quantityFormat: s.quantityFormat || base.quantityFormat,
+    orderNumberFormat: s.orderNumberFormat || base.orderNumberFormat,
+    tableFormat: s.tableFormat || base.tableFormat,
+    orderTypeFormat: s.orderTypeFormat || base.orderTypeFormat,
+  };
+}
+
+function fmtQty(qty, mode) {
+  const n = Number(qty || 0);
+  if (mode === "times") return `${n}\u00D7`; // × normalizado por sanitizador → 'x', pero funciona con Font B
+  if (mode === "paren") return `(${n})`;
+  return `${n}x`;
+}
+function fmtOrderNum(num, mode) {
+  const s = String(num ?? "").trim();
+  if (!s) return "";
+  if (mode === "pedido") return `PEDIDO ${s}`;
+  if (mode === "ticket") return `TICKET #${s}`;
+  return `#${s}`;
+}
+function fmtTable(header, mode) {
+  const s = String(header || "").replace(/^mesa\s*#?\s*/i, "").replace(/^pedido\s+mesa[\s·:-]*/i, "").replace(/\**/g, "").trim();
+  if (!s) return "";
+  if (mode === "Mesa: N") return `Mesa: ${s}`;
+  if (mode === "MN") return `M${s}`;
+  return `MESA ${s}`;
+}
+const ORDER_TYPE_LABELS = {
+  mesa: "PARA MESA",
+  llevar: "PARA LLEVAR",
+  domicilio: "A DOMICILIO",
+  kiosko: "DESDE QUIOSCO",
+  online: "EN LINEA",
+};
+function fmtOrderType(type, mode) {
+  if (mode === "hidden") return "";
+  const key = String(type || "").toLowerCase();
+  const base = ORDER_TYPE_LABELS[key] || (key ? key.toUpperCase() : "");
+  if (!base) return "";
+  if (mode === "arrow") return `>> ${base}`;
+  return `PEDIDO ${base}`;
+}
+
+function buildComandaFormatted(p, fmt) {
+  const f = mergeCmdFmt(fmt);
+  const fontCmd = f.font === "B" ? FONT_B : FONT_A;
+  const marginL = " ".repeat(f.margins.left || 0);
+  const usable = Math.max(10, WIDTH - (f.margins.left || 0) - (f.margins.right || 0));
+  const gap = "\n".repeat(f.lineSpacing || 0);
+  const sepLine = f.separator.char === " " || !f.separator.char
+    ? ""
+    : marginL + f.separator.char.repeat(usable) + "\n";
+  const blanks = "\n".repeat(f.separator.blankLines || 0);
+  const separator = sepLine + blanks;
+
+  const alignFor = (mode) => ALIGN_MAP[mode] || ALIGN_L;
+  const line = (text, alignMode) => {
+    const t = String(text ?? "");
+    if (!t) return "";
+    return alignFor(alignMode) + marginL + t + "\n";
+  };
+  const bigLine = (text, size, boldOn, alignMode) => {
+    const t = String(text ?? "");
+    if (!t) return "";
+    const sizeCmd = SIZE_MAP[size] || SIZE_NORMAL;
+    // En tamaño doble/triple el número de columnas se reduce; envolvemos si aplica.
+    const cols = size >= 3 ? Math.floor(usable / 3) : size === 2 ? Math.floor(usable / 2) : usable;
+    const lines = wrapText(t, Math.max(1, cols));
+    let out = alignFor(alignMode) + (boldOn ? BOLD_ON : "") + sizeCmd;
+    for (const ln of lines) out += marginL + ln + "\n";
+    out += SIZE_NORMAL + (boldOn ? BOLD_OFF : "");
+    return out;
+  };
+
+  let out = INIT + CODEPAGE + INTL_CHARSET + fontCmd;
+
+  // Encabezado (sede)
+  if (p.business_name) {
+    const business = String(p.business_name).toUpperCase().trim();
+    out += bigLine(`** ${business} **`, f.titleSize, f.bold.title, f.align.header);
+  }
+
+  // Número de pedido
+  const ticketNum = p.ticket ?? p.ticket_number;
+  const orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
+  if (orderNumTxt) {
+    out += bigLine(orderNumTxt, f.titleSize, f.bold.title, f.align.header);
+  }
+
+  // Cajero + fecha (siempre en tamaño normal)
+  if (p.user_name) out += line(String(p.user_name).toUpperCase().trim(), f.align.header);
+  const now = new Date(p.created_at || Date.now());
+  const fecha = now.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
+  out += (f.bold.title ? BOLD_ON : "") + line(`${hora}    ${fecha}`, f.align.header) + (f.bold.title ? BOLD_OFF : "");
+
+  // Tipo de pedido
+  const otKey = String(p.order_type || "").toLowerCase();
+  const otTxt = fmtOrderType(otKey, f.orderTypeFormat);
+  if (otTxt) {
+    out += bigLine(otTxt, Math.min(f.titleSize, 2), f.bold.title, f.align.orderType);
+  }
+
+  // Mesa
+  if (p.header && otKey === "mesa") {
+    const tableTxt = fmtTable(p.header, f.tableFormat);
+    if (tableTxt) out += bigLine(tableTxt, f.titleSize, f.bold.title, f.align.header);
+  }
+
+  out += separator;
+
+  // Banner adición
+  if (p.is_addition) {
+    out += bigLine("** ADICION AL PEDIDO **", 2, true, "center");
+    out += line("(solo productos adicionales)", "center");
+    out += separator;
+  }
+
+  // Cliente / dirección (para llevar / domicilio)
+  if (p.customer || p.address || p.phone) {
+    out += BOLD_ON;
+    if (p.customer) out += line(`Cliente: ${String(p.customer).toUpperCase()}`, "left");
+    if (p.address) out += line(`Dir: ${String(p.address).toUpperCase()}`, "left");
+    if (p.phone) out += line(`Tel: ${String(p.phone).toUpperCase()}`, "left");
+    out += BOLD_OFF + separator;
+  }
+
+  // Items
+  const items = p.items || [];
+  const modIndent = "  ";
+  const modCols = Math.max(10, Math.floor(usable * (f.font === "B" ? 4 / 3 : 1)) - modIndent.length);
+
+  items.forEach((it) => {
+    const qtyTxt = fmtQty(it.qty, f.quantityFormat);
+    const prodText = `${qtyTxt} ${String(it.name || "").toUpperCase().trim()}`;
+    out += bigLine(prodText, f.productSize, f.bold.product, f.align.product);
+    if (gap) out += gap;
+
+    if (Array.isArray(it.modifiers) && it.modifiers.length) {
+      const seen = new Set();
+      const parts = [];
+      for (const raw of it.modifiers) {
+        const clean = String(raw == null ? "" : raw).replace(/^\s*[+*]\s*/, "").trim();
+        if (!clean) continue;
+        const key = clean.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        parts.push(clean);
+      }
+      if (parts.length) {
+        const modSize = SIZE_MAP[f.modifierSize] || SIZE_NORMAL;
+        const modBold = f.bold.modifier;
+        // Alineación de modificadores hereda la de producto
+        out += alignFor(f.align.product) + FONT_B + modSize + (modBold ? BOLD_ON : "");
+        if (f.modifiersLayout === "inline") {
+          const joined = "+ " + parts.join(" + ");
+          for (const ln of wrapText(joined, modCols)) out += marginL + modIndent + ln + "\n";
+        } else {
+          for (const m of parts) {
+            for (const ln of wrapText(`+ ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
+          }
+        }
+        out += SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
+      }
+    }
+    out += separator;
+  });
+
+  if (p.notes) {
+    out += BOLD_ON + line("OBSERVACION:", "left") + BOLD_OFF;
+    for (const ln of wrapText(String(p.notes).toUpperCase(), usable)) out += line(ln, "left");
+    out += separator;
+  }
+
+  out += FEED(4) + CUT;
+  return encodeEscPos(out);
+}
+
+// ---------- Comanda de cocina (formato legacy fijo) ----------
+// Se usa cuando el payload NO trae `command_format` (compatibilidad con
+// clientes antiguos o con la primera instalación sin config).
+function buildComandaLegacy(p) {
   let out = INIT + CODEPAGE + INTL_CHARSET;
 
   out += ALIGN_C;
 
-  // Sede: doble alto + ancho, negrita, envuelta con ** ... **
   if (p.business_name) {
     const business = String(p.business_name).toUpperCase().trim();
     const maxCols = Math.max(1, Math.floor(WIDTH / 2));
@@ -462,33 +672,27 @@ function buildComandaRaw(p) {
     if (lines.length === 1) {
       out += `** ${lines[0]} **\n`;
     } else {
-      lines.forEach((line, i) => {
-        if (i === 0) out += `** ${line}\n`;
-        else if (i === lines.length - 1) out += `${line} **\n`;
-        else out += `${line}\n`;
+      lines.forEach((ln, i) => {
+        if (i === 0) out += `** ${ln}\n`;
+        else if (i === lines.length - 1) out += `${ln} **\n`;
+        else out += `${ln}\n`;
       });
     }
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  // PEDIDO # NNNN — doble alto + ancho, negrita
   const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim();
   if (ticketNum) {
     out += BOLD_ON + SIZE_DOUBLE + `PEDIDO # ${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
-  // Código corto del cajero — tamaño normal, centrado
-  if (p.user_name) {
-    out += String(p.user_name).trim().toUpperCase() + "\n";
-  }
+  if (p.user_name) out += String(p.user_name).trim().toUpperCase() + "\n";
 
-  // Hora y fecha en una sola línea, negrita, tamaño normal
   const now = new Date(p.created_at || Date.now());
   const fecha = now.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
   const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
   out += BOLD_ON + `${hora}    ${fecha}` + "\n" + BOLD_OFF;
 
-  // Tipo de pedido — SIEMPRE se imprime antes del header/mesa
   const orderTypeLabels = {
     mesa: "PEDIDO PARA MESA",
     llevar: "PEDIDO PARA LLEVAR",
@@ -502,7 +706,6 @@ function buildComandaRaw(p) {
     out += BOLD_ON + SIZE_DOUBLE_H + otLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
-  // MESA # N (o destino) — doble alto + ancho, negrita (solo para pedidos de mesa)
   if (p.header && otKey === "mesa") {
     const headerText = String(p.header)
       .toUpperCase()
@@ -521,9 +724,6 @@ function buildComandaRaw(p) {
 
   out += ALIGN_L + DASH_LINE;
 
-  // Banner "ADICIÓN AL PEDIDO" — se imprime SOLO cuando el cliente pide
-  // productos adicionales sobre un pedido de mesa ya servido, para evitar
-  // que cocina reprepare los ítems iniciales.
   if (p.is_addition) {
     out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "** ADICION AL PEDIDO **\n" + SIZE_NORMAL + BOLD_OFF;
     out += ALIGN_C + "(solo productos adicionales)\n";
@@ -538,16 +738,8 @@ function buildComandaRaw(p) {
     out += BOLD_OFF + DASH_LINE;
   }
 
-  // ITEMS — producto en doble alto + negrita (Font A). Los modificadores se
-  // imprimen justo debajo del producto en Font B (tipografía condensada, sin
-  // negrita) para diferenciarlos claramente y aprovechar mejor el ancho del
-  // papel: se agrupan en un solo renglón separados por " + " y solo se
-  // dividen en varias líneas cuando exceden el ancho imprimible.
   const items = p.items || [];
   const productCols = Math.max(1, WIDTH);
-  // Font B es más angosta que Font A (~9 vs 12 dots). Con 42 columnas Font A
-  // caben ~56 columnas Font B; dejamos margen (indent + guarda) y usamos
-  // floor(WIDTH * 4/3) como aproximación segura para todas las anchuras.
   const MOD_INDENT = "   ";
   const modCols = Math.max(10, Math.floor(WIDTH * 4 / 3) - MOD_INDENT.length);
   items.forEach((i) => {
@@ -560,14 +752,10 @@ function buildComandaRaw(p) {
     out += SIZE_NORMAL + BOLD_OFF;
 
     if (Array.isArray(i.modifiers) && i.modifiers.length) {
-      // Deduplicamos (case-insensitive) por si el cliente enviara repeticiones
-      // y limpiamos cualquier prefijo "+" o "*" preexistente.
       const seen = new Set();
       const parts = [];
       for (const raw of i.modifiers) {
-        const clean = String(raw == null ? "" : raw)
-          .replace(/^\s*[+*]\s*/, "")
-          .trim();
+        const clean = String(raw == null ? "" : raw).replace(/^\s*[+*]\s*/, "").trim();
         if (!clean) continue;
         const key = clean.toLowerCase();
         if (seen.has(key)) continue;
@@ -575,8 +763,6 @@ function buildComandaRaw(p) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Formato: "+ Mod1 + Mod2 + Mod3"; se envuelve automáticamente si
-        // excede el ancho, sin repetir modificadores.
         const joined = "+ " + parts.join(" + ");
         const modLines = wrapText(joined, modCols);
         out += FONT_B;
@@ -594,6 +780,13 @@ function buildComandaRaw(p) {
 
   out += FEED(4) + CUT;
   return encodeEscPos(out);
+}
+
+function buildComandaRaw(p) {
+  if (p && p.command_format && typeof p.command_format === "object") {
+    return buildComandaFormatted(p, p.command_format);
+  }
+  return buildComandaLegacy(p);
 }
 
 // ---------- Router de plantillas ----------

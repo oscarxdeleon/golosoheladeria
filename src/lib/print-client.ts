@@ -4,6 +4,9 @@
 // Configuración por máquina (se guarda en el navegador del POS):
 //   localStorage.setItem("LOCAL_PRINT_URL", "http://localhost:3001/print")
 
+import type { CommandFormat, CommandFormatsMap } from "@/lib/command-format";
+import { DEFAULT_FORMATS, normalizeFormat } from "@/lib/command-format";
+
 export type PrintPayload = {
   type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
   /** Cuando true, se imprime como "ADICIÓN AL PEDIDO" (solo comandas). */
@@ -42,6 +45,9 @@ export type PrintPayload = {
   printer_port?: number;
   cashierMessage?: string;
   open_drawer?: boolean;
+  /** Formato de comanda activo (inyectado automáticamente por el cliente
+   *  al imprimir comandas). El Print Server lo aplica al renderizar. */
+  command_format?: CommandFormat;
 };
 
 
@@ -295,9 +301,47 @@ async function withDefaultPrinterTarget(payload: PrintPayload): Promise<PrintPay
   return target?.printer_ip ? { ...payload, ...target } : payload;
 }
 
+// ---------- Formato de comanda (Ajustes → Impresoras → Comandas) ----------
+let _commandFormatPromise: Promise<CommandFormat | null> | null = null;
+
+async function loadActiveCommandFormat(): Promise<CommandFormat | null> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await supabase
+      .from("settings")
+      .select("command_formats, command_format_active")
+      .limit(1)
+      .maybeSingle();
+    const row = data as { command_formats?: CommandFormatsMap | null; command_format_active?: string | null } | null;
+    const key = row?.command_format_active || "clasico";
+    const map = (row?.command_formats ?? DEFAULT_FORMATS) as CommandFormatsMap;
+    const raw = map[key] ?? DEFAULT_FORMATS[key] ?? DEFAULT_FORMATS.clasico;
+    return normalizeFormat(raw);
+  } catch {
+    return normalizeFormat(DEFAULT_FORMATS.clasico);
+  }
+}
+
+function getActiveCommandFormat(): Promise<CommandFormat | null> {
+  if (!_commandFormatPromise) _commandFormatPromise = loadActiveCommandFormat();
+  return _commandFormatPromise;
+}
+
+/** Invalida el cache del formato activo. Llamado tras guardar en Ajustes. */
+export function refreshCommandFormatCache(): void {
+  _commandFormatPromise = null;
+}
+
+async function withActiveCommandFormat(payload: PrintPayload): Promise<PrintPayload> {
+  if (payload.type !== "comanda" || payload.command_format) return payload;
+  const fmt = await getActiveCommandFormat();
+  return fmt ? { ...payload, command_format: fmt } : payload;
+}
+
 // Dispara bootstrap en segundo plano lo antes posible.
 if (typeof window !== "undefined") {
   void bootstrapLocalPrintUrl();
+  void getActiveCommandFormat();
 }
 
 /**
@@ -326,9 +370,15 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   );
 
   const TIMEOUT_MS = 12000;
-  // Normalizamos comillas/controles, conservando tildes para que el servidor
-  // local las codifique en CP850 antes de enviarlas a la impresora.
-  const body = JSON.stringify(sanitizePayloadForPrinter(await withClientRasterLogo(await withDefaultPrinterTarget(payload))));
+  const body = JSON.stringify(
+    sanitizePayloadForPrinter(
+      await withClientRasterLogo(
+        await withActiveCommandFormat(
+          await withDefaultPrinterTarget(payload),
+        ),
+      ),
+    ),
+  );
 
 
   for (const url of candidates) {
