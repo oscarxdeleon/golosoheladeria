@@ -81,13 +81,24 @@ function sanitizePayloadForPrinter(p: PrintPayload): PrintPayload {
     if (typeof v === "string") (out as Record<string, unknown>)[k] = sanitizeForPrinter(v);
   }
   if (Array.isArray(out.items)) {
-    out.items = out.items.map((i) => ({
-      ...i,
-      name: sanitizeForPrinter(i.name),
-      modifiers: Array.isArray(i.modifiers)
-        ? i.modifiers.map((m) => sanitizeForPrinter(m)).filter((m) => m.length > 0)
-        : undefined,
-    }));
+    out.items = out.items.map((i) => {
+      // Algunas rutas guardan el nombre con los modificadores embebidos como
+      // líneas ("Producto\n  + 1× Mod"). El array `modifiers` ya los lleva
+      // aparte, así que conservamos SOLO la primera línea del nombre para
+      // evitar que se impriman por partida doble en la comanda.
+      const firstLine = String(i.name ?? "").split(/\r?\n/)[0] ?? "";
+      const cleaned = Array.isArray(i.modifiers)
+        ? i.modifiers
+            .map((m) => sanitizeForPrinter(m))
+            .map((m) => m.replace(/^\s*[+*]\s*/, "").trim())
+            .filter((m) => m.length > 0)
+        : undefined;
+      // Deduplicar (case-insensitive) manteniendo el orden original.
+      const modifiers = cleaned
+        ? cleaned.filter((m, idx, arr) => arr.findIndex((x) => x.toLowerCase() === m.toLowerCase()) === idx)
+        : undefined;
+      return { ...i, name: sanitizeForPrinter(firstLine), modifiers };
+    });
   }
   return out;
 }
