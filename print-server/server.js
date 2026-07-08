@@ -67,7 +67,9 @@ const CUT = GS + "V\x00";
 //   CP850 en su ROM.
 const CODEPAGE_ID = Number(process.env.PRINTER_CODEPAGE_ID || 16);
 const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
-// ESC R n => juego de caracteres internacional. 7 = España, garantiza que
+// ESC R n => juego de caracteres internacional. 0 = USA (ASCII puro): el
+// carácter '#' (0x23) se imprime correctamente. Con 7 = España, la impresora
+// remapea '#' a 'Ñ' y aparece un símbolo raro en el ticket.
 // ¿, ¡, ñ, Ñ se rendericen correctamente aunque la impresora ignore ESC t.
 const INTL_CHARSET = ESC + "R" + "\x07";
 const FEED = (n) => "\n".repeat(n);
