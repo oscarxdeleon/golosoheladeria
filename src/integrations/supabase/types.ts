@@ -1329,6 +1329,7 @@ export type Database = {
           id: string
           kds_ack_at: string | null
           notes: string | null
+          notify_ack_at: string | null
           order_type: string
           payment_details: Json | null
           payment_method: string
@@ -1360,6 +1361,7 @@ export type Database = {
           id?: string
           kds_ack_at?: string | null
           notes?: string | null
+          notify_ack_at?: string | null
           order_type?: string
           payment_details?: Json | null
           payment_method: string
@@ -1391,6 +1393,7 @@ export type Database = {
           id?: string
           kds_ack_at?: string | null
           notes?: string | null
+          notify_ack_at?: string | null
           order_type?: string
           payment_details?: Json | null
           payment_method?: string
