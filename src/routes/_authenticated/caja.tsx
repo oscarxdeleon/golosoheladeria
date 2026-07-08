@@ -134,14 +134,14 @@ function CajaPage() {
   });
 
   const totalCounted = useMemo(
-    () => Number(cashCounted || 0) + Number(nequiCounted || 0) + Number(bancoCounted || 0),
+    () => parseAmount(cashCounted) + parseAmount(nequiCounted) + parseAmount(bancoCounted),
     [cashCounted, nequiCounted, bancoCounted],
   );
 
   async function openSession() {
     if (!user) return toast.error("Esperando sesión de usuario…");
     if (!activeBranchId) return toast.error("Selecciona una sede antes de abrir caja");
-    const amount = Number(openingAmount);
+    const amount = parseAmount(openingAmount);
     if (!Number.isFinite(amount) || amount < 0) return toast.error("Monto inicial inválido");
     setSaving(true);
     try {
