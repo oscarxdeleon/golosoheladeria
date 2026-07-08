@@ -15,6 +15,8 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight } from "lucide-react";
+import printServerPkg from "../../../print-server/package.json";
+const PRINT_SERVER_VERSION = (printServerPkg as { version: string }).version;
 import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
@@ -882,12 +884,12 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
             <div className="text-xs text-muted-foreground flex-1 min-w-[200px]">
-              Descarga la última versión del <b>Print Server</b> (incluye instaladores para Windows y Linux, y auto-inicio con el sistema).
+              Descarga la última versión del <b>Print Server</b> (v{PRINT_SERVER_VERSION}) — incluye instaladores para Windows y Linux, y auto-inicio con el sistema.
             </div>
             <Button asChild variant="default">
-              <a href={`/downloads/print-server.zip?v=${Date.now()}`} download="print-server.zip">
+              <a href={`/downloads/print-server.zip?v=${PRINT_SERVER_VERSION}`} download={`print-server-v${PRINT_SERVER_VERSION}.zip`}>
                 <Download className="h-4 w-4" />
-                Descargar Print Server
+                Descargar Print Server v{PRINT_SERVER_VERSION}
               </a>
             </Button>
           </div>
