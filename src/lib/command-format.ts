@@ -125,7 +125,7 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
   mesa: "PARA MESA",
   llevar: "PARA LLEVAR",
   domicilio: "A DOMICILIO",
-  kiosko: "DESDE QUIOSCO",
+  kiosko: "AUTOPEDIDO",
   online: "EN LINEA",
 };
 
@@ -134,6 +134,7 @@ export function formatOrderType(type: string | null | undefined, fmt: CommandFor
   const key = String(type || "").toLowerCase();
   const base = ORDER_TYPE_LABELS[key] || (key ? key.toUpperCase() : "");
   if (!base) return "";
+  if (key === "kiosko") return base;
   if (fmt === "arrow") return `>> ${base}`;
   return `PEDIDO ${base}`;
 }
