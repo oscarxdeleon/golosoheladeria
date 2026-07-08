@@ -131,6 +131,24 @@ function ModPage() {
     await supabase.from("modifiers").delete().eq("id", id);
     qc.invalidateQueries({ queryKey: ["mods"] });
   }
+  async function toggleAvailability(m: Mod, available: boolean) {
+    if (!branchId) return toast.error("Selecciona una sede");
+    const current = m.disabled_branch_ids ?? [];
+    const next = available
+      ? current.filter((id) => id !== branchId)
+      : Array.from(new Set([...current, branchId]));
+    // Optimistic
+    qc.setQueryData<Mod[]>(["mods"], (old) =>
+      (old ?? []).map((x) => (x.id === m.id ? { ...x, disabled_branch_ids: next } : x)),
+    );
+    const { error } = await supabase.from("modifiers").update({ disabled_branch_ids: next }).eq("id", m.id);
+    if (error) {
+      toast.error(error.message);
+      qc.invalidateQueries({ queryKey: ["mods"] });
+    } else {
+      toast.success(available ? "Disponible en esta sede" : "Ocultado en esta sede");
+    }
+  }
 
   return (
     <div className="space-y-4">
