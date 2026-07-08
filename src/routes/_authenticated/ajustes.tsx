@@ -19,6 +19,7 @@ import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
 import { FidelizacionTab } from "@/components/ajustes/fidelizacion-tab";
+import { ComandasFormatTab } from "@/components/ajustes/comandas-format-tab";
 import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
