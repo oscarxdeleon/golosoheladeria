@@ -2386,6 +2386,81 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         onPaid={() => { qc.invalidateQueries({ queryKey: ["credits"] }); }}
       />
 
+      <Dialog open={cancelDialogOpen} onOpenChange={(o) => { if (!cancelling) setCancelDialogOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" /> Cancelar pedido
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Esta acción marcará el pedido{pendingSale ? ` #${pendingSale.ticket_number}` : ""} como
+              cancelado y liberará la mesa si corresponde. Queda registrada para auditoría.
+            </p>
+            <div>
+              <Label className="text-xs font-semibold">
+                Motivo de la cancelación <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                autoFocus
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ej.: El cliente cambió de opinión, error en la toma del pedido…"
+                className="mt-1 min-h-[90px]"
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelDialogOpen(false)}
+              disabled={cancelling}
+            >
+              No cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelling || cancelReason.trim().length < 3}
+              onClick={async () => {
+                if (!pendingSaleId) return;
+                setCancelling(true);
+                try {
+                  // Los tipos generados aún no incluyen la nueva RPC.
+                  const rpc = supabase.rpc as unknown as (
+                    name: string,
+                    args: Record<string, unknown>,
+                  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+                  const { error } = await rpc("cancel_sale", {
+                    _sale_id: pendingSaleId,
+                    _reason: cancelReason.trim(),
+                  });
+                  if (error) throw new Error(error.message);
+                  toast.success("Pedido cancelado");
+                  setCancelDialogOpen(false);
+                  setCancelReason("");
+                  setPendingSaleId(null);
+                  setCart([]);
+                  qc.invalidateQueries({ queryKey: ["pending-sale"] });
+                  qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+                  qc.invalidateQueries({ queryKey: ["sales"] });
+                  qc.invalidateQueries({ queryKey: ["kds-pending"] });
+                  navigate({ to: "/mesas" });
+                } catch (e) {
+                  const msg = e instanceof Error ? e.message : "No se pudo cancelar";
+                  toast.error(msg);
+                } finally {
+                  setCancelling(false);
+                }
+              }}
+            >
+              {cancelling ? "Cancelando…" : "Sí, cancelar pedido"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }
