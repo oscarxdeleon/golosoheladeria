@@ -34,15 +34,17 @@ interface Modifier {
   price: number;
   active: boolean;
   image_url?: string | null;
+  disabled_branch_ids?: string[] | null;
 }
 
 interface Props {
   product: { id: string; name: string; price: number; modifier_group_ids: string[] } | null;
+  branchId?: string | null;
   onClose: () => void;
   onConfirm: (mods: SelectedModifier[], unitExtra: number, note?: string) => void;
 }
 
-export function ModifiersModal({ product, onClose, onConfirm }: Props) {
+export function ModifiersModal({ product, branchId, onClose, onConfirm }: Props) {
   const open = !!product;
   const groupIds = product?.modifier_group_ids ?? [];
 
@@ -57,19 +59,23 @@ export function ModifiersModal({ product, onClose, onConfirm }: Props) {
       return (data ?? []) as ModifierGroup[];
     },
   });
-  const { data: mods = [] } = useQuery<Modifier[]>({
+  const { data: modsRaw = [] } = useQuery<Modifier[]>({
     queryKey: ["mods-for", groupIds.sort().join(",")],
     enabled: open && groupIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase
         .from("modifiers")
-        .select("id,group_id,name,price,active,image_url")
+        .select("id,group_id,name,price,active,image_url,disabled_branch_ids")
         .in("group_id", groupIds)
         .eq("active", true)
         .order("name");
       return (data ?? []) as Modifier[];
     },
   });
+  const mods = useMemo(
+    () => modsRaw.filter((m) => !branchId || !(m.disabled_branch_ids ?? []).includes(branchId)),
+    [modsRaw, branchId],
+  );
 
   // qty per modifier id (supports repeated selection for multi groups)
   const [picked, setPicked] = useState<Record<string, number>>({});
