@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { supabase } from "@/integrations/supabase/client";
-import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { OnlineOrdersNotifier } from "@/components/online-orders-notifier";
@@ -35,16 +35,7 @@ function AuthedLayout() {
           <AppSidebar />
           <div className="flex min-w-0 flex-1 flex-col overflow-x-hidden">
             <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background/80 px-3 sm:px-4 backdrop-blur">
-              <SidebarTrigger
-                className="h-11 w-11 rounded-full bg-transparent hover:bg-primary/10 [&_svg]:hidden"
-                aria-label="Abrir menú"
-              >
-                <img
-                  src={mascotTriggerAsset}
-                  alt="Menú Goloso"
-                  className="h-10 w-10 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.25)]"
-                />
-              </SidebarTrigger>
+              <MascotSidebarTrigger src={mascotTriggerAsset} />
               <div className="ml-1 min-w-0 flex-1 overflow-hidden">
                 <BranchSelector />
               </div>
@@ -68,5 +59,23 @@ function AuthedLayout() {
         </div>
       </SidebarProvider>
     </BranchProvider>
+  );
+}
+
+function MascotSidebarTrigger({ src }: { src: string }) {
+  const { toggleSidebar } = useSidebar();
+  return (
+    <button
+      type="button"
+      onClick={toggleSidebar}
+      aria-label="Abrir menú"
+      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition hover:bg-primary/10 active:scale-95"
+    >
+      <img
+        src={src}
+        alt="Menú Goloso"
+        className="h-11 w-11 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.25)]"
+      />
+    </button>
   );
 }
