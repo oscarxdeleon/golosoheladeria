@@ -425,12 +425,14 @@ async function fetchComandaPrinter(): Promise<PrinterCfg> {
 export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   const { ip, port } = await fetchComandaPrinter();
   const b = o.branding ?? DEFAULT_BRANDING;
+  // En comandas de mesa NO se imprime el nombre de la sede (encabezado limpio).
+  const isMesa = String(o.order_type ?? "").toLowerCase() === "mesa";
   const payload: PrintPayload = {
     type: "comanda", ticket: o.ticket, header: o.header,
     items: o.items, customer: o.customer, notes: o.notes,
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
     order_type: o.order_type,
-    business_name: b.business_name,
+    business_name: isMesa ? undefined : b.business_name,
     is_addition: o.is_addition,
     printer_ip: ip, printer_port: port,
   };
