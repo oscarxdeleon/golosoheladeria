@@ -244,38 +244,54 @@ function HubView({
 
 function CardsGrid({ tabs, onSelect }: { tabs: TabDef[]; onSelect: (v: string) => void }) {
   return (
-    <div className="overflow-hidden rounded-2xl border border-border/70 bg-card shadow-sm">
-      <ul className="divide-y divide-border/60">
-        {tabs.map((t) => (
-          <SettingRow key={t.value} tab={t} onClick={() => onSelect(t.value)} />
-        ))}
-      </ul>
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
+      {tabs.map((t) => (
+        <SettingCard key={t.value} tab={t} onClick={() => onSelect(t.value)} />
+      ))}
     </div>
   );
 }
 
-function SettingRow({ tab, onClick }: { tab: TabDef; onClick: () => void }) {
+function SettingCard({ tab, onClick }: { tab: TabDef; onClick: () => void }) {
   const Icon = tab.icon;
   return (
-    <li>
-      <button
-        onClick={onClick}
-        className="group relative flex w-full items-center gap-4 px-5 py-5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:bg-muted/50"
-      >
-        <div className="min-w-0 flex-1">
-          <h3 className="font-display text-xl sm:text-2xl font-black tracking-tight leading-tight uppercase text-foreground">
-            {tab.label}
-          </h3>
-          <p className="mt-0.5 text-xs sm:text-sm text-muted-foreground line-clamp-1">
-            {tab.hint}
-          </p>
-        </div>
-        <span className={`grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${tab.accent} text-white shadow-md ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3`}>
-          <Icon className="h-5 w-5" />
+    <button
+      onClick={onClick}
+      className="group relative overflow-hidden rounded-2xl border border-border/60 bg-card p-5 text-left shadow-sm ring-1 ring-transparent transition-all duration-300 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 hover:ring-primary/25 hover:border-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 active:translate-y-0 active:shadow-md"
+    >
+      {/* Halo decorativo — se enciende en hover */}
+      <span
+        aria-hidden
+        className={`pointer-events-none absolute -right-14 -top-14 h-40 w-40 rounded-full bg-gradient-to-br ${tab.accent} opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-30`}
+      />
+      <span
+        aria-hidden
+        className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-primary/40 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
+      />
+
+      <div className="relative flex items-start justify-between gap-3">
+        <span
+          className={`grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-gradient-to-br ${tab.accent} text-white shadow-md ring-1 ring-white/20 transition-transform duration-300 group-hover:scale-110 group-hover:-rotate-3`}
+        >
+          <Icon className="h-6 w-6" />
         </span>
         <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground/50 transition-all duration-300 group-hover:translate-x-1 group-hover:text-primary" />
-      </button>
-    </li>
+      </div>
+
+      <div className="relative mt-4 min-w-0">
+        <h3 className="font-display text-lg sm:text-xl font-black tracking-tight leading-tight text-foreground group-hover:text-primary transition-colors">
+          {tab.label}
+        </h3>
+        <p className="mt-1 text-xs sm:text-sm text-muted-foreground leading-relaxed line-clamp-2">
+          {tab.hint}
+        </p>
+      </div>
+
+      <div className="relative mt-4 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.18em] text-muted-foreground/70 transition-colors group-hover:text-primary">
+        <span className={`h-1.5 w-1.5 rounded-full bg-gradient-to-br ${tab.accent}`} />
+        Abrir sección
+      </div>
+    </button>
   );
 }
 

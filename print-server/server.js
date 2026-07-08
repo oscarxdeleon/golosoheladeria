@@ -521,6 +521,15 @@ function buildComandaRaw(p) {
 
   out += ALIGN_L + DASH_LINE;
 
+  // Banner "ADICIÓN AL PEDIDO" — se imprime SOLO cuando el cliente pide
+  // productos adicionales sobre un pedido de mesa ya servido, para evitar
+  // que cocina reprepare los ítems iniciales.
+  if (p.is_addition) {
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + "** ADICION AL PEDIDO **\n" + SIZE_NORMAL + BOLD_OFF;
+    out += ALIGN_C + "(solo productos adicionales)\n";
+    out += ALIGN_L + DASH_LINE;
+  }
+
   if (p.customer || p.address || p.phone) {
     out += BOLD_ON;
     if (p.customer) out += `Cliente: ${String(p.customer).toUpperCase()}\n`;

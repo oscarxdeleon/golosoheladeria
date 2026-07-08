@@ -7,11 +7,12 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users, XCircle } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, sendToLocalPrinter, kickCashDrawer, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
@@ -125,6 +126,9 @@ export function comandaHTML(o: {
   user_name: string; created_at: string;
   order_type?: string;
   branding?: Branding;
+  /** Cuando true, imprime un banner "ADICIÓN AL PEDIDO" (productos añadidos
+   *  a un pedido de mesa ya servido). */
+  is_addition?: boolean;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
   const rows = o.items
@@ -426,6 +430,7 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
     order_type: o.order_type,
     business_name: b.business_name,
+    is_addition: o.is_addition,
     printer_ip: ip, printer_port: port,
   };
   const ok = await sendToLocalPrinter(payload);
@@ -561,6 +566,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
   const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [cancelReason, setCancelReason] = useState("");
+  const [cancelling, setCancelling] = useState(false);
+  const canCancelSales = primaryRole === "cajero" || isAdmin;
   const [successDialog, setSuccessDialog] = useState<null | {
     ticket: number;
     method: string;
@@ -1249,6 +1258,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
 
+      // Cuando NO es el primer guardado, esta comanda contiene solo los
+      // productos adicionales que el cliente pidió después de recibir su
+      // pedido inicial. Marcamos `is_addition` para que el servidor imprima
+      // un banner "ADICIÓN AL PEDIDO" y evite confusiones en cocina.
+      const isAddition = !isFirstSave && printItems.length > 0;
       const printSnapshot = {
         ticket: sale.ticket_number,
         header,
@@ -1261,6 +1275,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         created_at: sale.created_at,
         order_type: orderType,
         branding,
+        is_addition: isAddition,
       };
 
       // Actualizar baseline: lo que hay en el carrito ahora ya se considera impreso.
@@ -1562,6 +1577,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             )}
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
+
+          {pendingSaleId && canCancelSales && !meseroMode && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setCancelReason(""); setCancelDialogOpen(true); }}
+              className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
+            >
+              <XCircle className="h-4 w-4 mr-1.5" /> Cancelar pedido
+            </Button>
+          )}
+
 
           {typeof document !== "undefined" && createPortal(
             <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
@@ -2371,6 +2398,81 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         cashSessionId={effectiveSessionId ?? null}
         onPaid={() => { qc.invalidateQueries({ queryKey: ["credits"] }); }}
       />
+
+      <Dialog open={cancelDialogOpen} onOpenChange={(o) => { if (!cancelling) setCancelDialogOpen(o); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <XCircle className="h-5 w-5" /> Cancelar pedido
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Esta acción marcará el pedido{pendingSale ? ` #${pendingSale.ticket_number}` : ""} como
+              cancelado y liberará la mesa si corresponde. Queda registrada para auditoría.
+            </p>
+            <div>
+              <Label className="text-xs font-semibold">
+                Motivo de la cancelación <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                autoFocus
+                value={cancelReason}
+                onChange={(e) => setCancelReason(e.target.value)}
+                placeholder="Ej.: El cliente cambió de opinión, error en la toma del pedido…"
+                className="mt-1 min-h-[90px]"
+                maxLength={500}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setCancelDialogOpen(false)}
+              disabled={cancelling}
+            >
+              No cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              disabled={cancelling || cancelReason.trim().length < 3}
+              onClick={async () => {
+                if (!pendingSaleId) return;
+                setCancelling(true);
+                try {
+                  // Los tipos generados aún no incluyen la nueva RPC.
+                  const rpc = supabase.rpc as unknown as (
+                    name: string,
+                    args: Record<string, unknown>,
+                  ) => Promise<{ data: unknown; error: { message: string } | null }>;
+                  const { error } = await rpc("cancel_sale", {
+                    _sale_id: pendingSaleId,
+                    _reason: cancelReason.trim(),
+                  });
+                  if (error) throw new Error(error.message);
+                  toast.success("Pedido cancelado");
+                  setCancelDialogOpen(false);
+                  setCancelReason("");
+                  setPendingSaleId(null);
+                  setCart([]);
+                  qc.invalidateQueries({ queryKey: ["pending-sale"] });
+                  qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+                  qc.invalidateQueries({ queryKey: ["sales"] });
+                  qc.invalidateQueries({ queryKey: ["kds-pending"] });
+                  navigate({ to: "/mesas" });
+                } catch (e) {
+                  const msg = e instanceof Error ? e.message : "No se pudo cancelar";
+                  toast.error(msg);
+                } finally {
+                  setCancelling(false);
+                }
+              }}
+            >
+              {cancelling ? "Cancelando…" : "Sí, cancelar pedido"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
     </div>
   );
