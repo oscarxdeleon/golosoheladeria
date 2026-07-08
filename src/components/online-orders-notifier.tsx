@@ -417,10 +417,18 @@ export function OnlineOrdersNotifier() {
     });
 
     if (options.fromRealtime && row.source === "kiosk") void autoPrintKioskOrder(row.id);
-    // Un único beep por cada pedido nuevo detectado (ya está deduplicado por seen/acknowledged).
-    beep();
     invalidateOrderViews();
-  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, resolveTableLabel, beep]);
+  }, [acknowledge, activeBranchId, canReceiveAlerts, invalidateOrderViews, resolveTableLabel]);
+
+  // La alerta sonora se reproduce en bucle continuo mientras exista al menos
+  // un pedido pendiente de confirmación. Se detiene automáticamente cuando el
+  // cajero confirma o silencia todos los pedidos.
+  useEffect(() => {
+    if (!canReceiveAlerts) { stopAlertLoop(); return; }
+    if (pending.length > 0) startAlertLoop();
+    else stopAlertLoop();
+  }, [pending.length, canReceiveAlerts, startAlertLoop, stopAlertLoop]);
+
 
   const loadRecentPending = useCallback(async () => {
     if (!activeBranchId || !canReceiveAlerts) return;
