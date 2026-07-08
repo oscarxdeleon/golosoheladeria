@@ -102,6 +102,37 @@ const admin = [
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      try { await queryClient.cancelQueries(); } catch {}
+      try { queryClient.clear(); } catch {}
+      try {
+        await Promise.race([
+          supabase.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 3000)),
+        ]);
+      } catch (e) {
+        console.warn("signOut error", e);
+      }
+      // Limpieza defensiva por si el token quedó en storage
+      try {
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith("sb-") && k.endsWith("-auth-token")) localStorage.removeItem(k);
+        });
+      } catch {}
+      try { await router.navigate({ to: "/auth", replace: true }); } catch {}
+      window.location.href = "/auth";
+    } catch (e: any) {
+      toast.error("No se pudo cerrar sesión", { description: e?.message });
+      setSigningOut(false);
+    }
+  };
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // Auto-cerrar el sheet móvil al navegar para que un solo clic abra el módulo.
