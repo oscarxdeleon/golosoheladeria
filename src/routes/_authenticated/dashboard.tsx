@@ -198,12 +198,15 @@ function DashboardPage() {
 
   return (
     <div className="space-y-5 max-w-5xl mx-auto pb-6">
-      {/* Hero — banner bienvenida (compacto y elegante) */}
-      <div className="relative mx-auto w-full max-w-3xl overflow-hidden rounded-2xl sm:rounded-3xl shadow-lg">
+      {/* Hero — banner de bienvenida. En móvil/tablet mantenemos el tamaño
+          actual; en PC (lg+) el banner ocupa todo el ancho disponible del
+          dashboard y crece en altura para dar impacto visual sin deformar
+          la imagen (object-contain conserva proporciones). */}
+      <div className="relative mx-auto w-full max-w-3xl lg:max-w-none overflow-hidden rounded-2xl sm:rounded-3xl shadow-lg lg:shadow-2xl">
         <img
           src={/parque/i.test(activeBranch?.name ?? "") ? welcomeBannerParque : welcomeBanner}
           alt={`Bienvenido ${activeBranch?.name ?? "Goloso"}`}
-          className="block h-auto w-full object-contain sm:max-h-44"
+          className="block h-auto w-full object-contain sm:max-h-44 lg:max-h-none lg:w-full"
         />
       </div>
 
