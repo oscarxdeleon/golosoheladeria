@@ -203,9 +203,10 @@ function DashboardPage() {
         <img
           src={/parque/i.test(activeBranch?.name ?? "") ? welcomeBannerParque : welcomeBanner}
           alt={`Bienvenido ${activeBranch?.name ?? "Goloso"}`}
-          className="mx-auto block h-auto w-full max-h-28 sm:max-h-36 md:max-h-44 object-contain"
+          className="block h-auto w-full object-contain sm:max-h-44"
         />
       </div>
+
 
 
 
