@@ -408,6 +408,12 @@ export function OnlineOrdersNotifier() {
       setPending((arr) => arr.filter((p) => p.id !== row.id));
       return;
     }
+    if (row.notify_ack_at) {
+      acknowledge([row.id]);
+      setPending((arr) => arr.filter((p) => p.id !== row.id));
+      return;
+    }
+
     // ---- DEDUPE SÍNCRONA: marcar como visto ANTES de cualquier await ----
     if (seen.current.has(row.id) || acknowledged.current.has(row.id)) return;
     seen.current.add(row.id);
