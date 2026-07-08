@@ -4,6 +4,9 @@
 // Configuración por máquina (se guarda en el navegador del POS):
 //   localStorage.setItem("LOCAL_PRINT_URL", "http://localhost:3001/print")
 
+import type { CommandFormat, CommandFormatsMap } from "@/lib/command-format";
+import { DEFAULT_FORMATS, normalizeFormat } from "@/lib/command-format";
+
 export type PrintPayload = {
   type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
   /** Cuando true, se imprime como "ADICIÓN AL PEDIDO" (solo comandas). */
@@ -42,6 +45,9 @@ export type PrintPayload = {
   printer_port?: number;
   cashierMessage?: string;
   open_drawer?: boolean;
+  /** Formato de comanda activo (inyectado automáticamente por el cliente
+   *  al imprimir comandas). El Print Server lo aplica al renderizar. */
+  command_format?: CommandFormat;
 };
 
 
