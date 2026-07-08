@@ -499,6 +499,9 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
     type: "precuenta", header: o.header, items: o.items,
     subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
     customer: o.customer, user_name: o.user_name,
+    ticket: o.ticket ?? undefined,
+    ticket_number: o.ticket ?? undefined,
+    created_at: o.created_at ?? undefined,
   };
   printSilent(payload, precuentaHTML(o), { silent: true });
 }
