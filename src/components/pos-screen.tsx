@@ -917,6 +917,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
+            tip_amount: effectiveTip,
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,total,payment_method,created_at")
