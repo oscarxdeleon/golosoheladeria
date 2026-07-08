@@ -147,13 +147,14 @@ function HistorialPage() {
         name: i.product_name,
         qty: Number(i.qty),
         unit_price: Number(i.unit_price),
+        modifiers: normalizeModifiers((i as { modifiers?: unknown }).modifiers),
       }));
       const header = TYPE_LABEL[sale.order_type] ?? sale.order_type ?? "Pedido";
       if (kind === "comanda") {
         const args = {
           ticket: sale.ticket_number,
           header,
-          items: its.map((i) => ({ name: i.name, qty: i.qty })),
+          items: its.map((i) => ({ name: i.name, qty: i.qty, modifiers: i.modifiers })),
           customer: sale.customer_name ?? "",
           notes: sale.notes ?? "",
           address: sale.delivery_address ?? "",
