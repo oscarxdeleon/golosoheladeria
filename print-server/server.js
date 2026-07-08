@@ -550,12 +550,24 @@ function buildComandaRaw(p) {
     out += SIZE_NORMAL + BOLD_OFF;
 
     if (Array.isArray(i.modifiers) && i.modifiers.length) {
-      const parts = i.modifiers
-        .map((m) => String(m == null ? "" : m).trim())
-        .filter(Boolean);
+      // Deduplicamos (case-insensitive) por si el cliente enviara repeticiones
+      // y limpiamos cualquier prefijo "+" o "*" preexistente.
+      const seen = new Set();
+      const parts = [];
+      for (const raw of i.modifiers) {
+        const clean = String(raw == null ? "" : raw)
+          .replace(/^\s*[+*]\s*/, "")
+          .trim();
+        if (!clean) continue;
+        const key = clean.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        parts.push(clean);
+      }
       if (parts.length) {
-        // Formato "+ Mod1  + Mod2  + Mod3", con salto solo si excede el ancho.
-        const joined = "+ " + parts.join("  + ");
+        // Formato: "+ Mod1 + Mod2 + Mod3"; se envuelve automáticamente si
+        // excede el ancho, sin repetir modificadores.
+        const joined = "+ " + parts.join(" + ");
         const modLines = wrapText(joined, modCols);
         out += FONT_B;
         for (const line of modLines) out += MOD_INDENT + line + "\n";
