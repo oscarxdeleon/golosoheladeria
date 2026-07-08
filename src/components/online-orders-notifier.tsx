@@ -317,7 +317,7 @@ export function OnlineOrdersNotifier() {
   const seen = useRef<Set<string>>(new Set());
   const acknowledged = useRef<Set<string>>(new Set());
   const [pending, setPending] = useState<PendingAlert[]>([]);
-  const { beep } = useOrderAlertBeep();
+  const { start: startAlertLoop, stop: stopAlertLoop } = useOrderAlertLoop();
 
   useEffect(() => {
     acknowledged.current = readAcknowledgedIds();
