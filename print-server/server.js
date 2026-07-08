@@ -511,7 +511,7 @@ const ORDER_TYPE_LABELS = {
   mesa: "PARA MESA",
   llevar: "PARA LLEVAR",
   domicilio: "A DOMICILIO",
-  kiosko: "DESDE QUIOSCO",
+  kiosko: "AUTOPEDIDO",
   online: "EN LINEA",
 };
 function fmtOrderType(type, mode) {
@@ -519,6 +519,8 @@ function fmtOrderType(type, mode) {
   const key = String(type || "").toLowerCase();
   const base = ORDER_TYPE_LABELS[key] || (key ? key.toUpperCase() : "");
   if (!base) return "";
+  // Autopedido ya es autoexplicativo, no anteponer "PEDIDO" ni ">>".
+  if (key === "kiosko") return base;
   if (mode === "arrow") return `>> ${base}`;
   return `PEDIDO ${base}`;
 }
@@ -701,7 +703,7 @@ function buildComandaLegacy(p) {
     mesa: "PEDIDO PARA MESA",
     llevar: "PEDIDO PARA LLEVAR",
     domicilio: "PEDIDO A DOMICILIO",
-    kiosko: "PEDIDO DESDE QUIOSCO",
+    kiosko: "AUTOPEDIDO",
     online: "PEDIDO EN LINEA",
   };
   const otKey = String(p.order_type || "").toLowerCase();
