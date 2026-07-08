@@ -424,6 +424,7 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
     type: "comanda", ticket: o.ticket, header: o.header,
     items: o.items, customer: o.customer, notes: o.notes,
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
+    order_type: o.order_type,
     business_name: b.business_name,
     printer_ip: ip, printer_port: port,
   };
@@ -433,6 +434,7 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
   }
   return ok;
 }
+
 
 export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
   const cajaCfg = await fetchCajaPrinter();
