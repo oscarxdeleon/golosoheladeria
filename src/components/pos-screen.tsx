@@ -123,6 +123,7 @@ export function comandaHTML(o: {
   ticket: number; header: string; items: { name: string; qty: number }[];
   customer: string; notes: string; address: string; phone: string;
   user_name: string; created_at: string;
+  order_type?: string;
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
