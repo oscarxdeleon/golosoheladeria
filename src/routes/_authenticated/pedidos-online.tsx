@@ -45,7 +45,7 @@ interface SaleRow {
   created_at: string;
   branch_id: string | null;
 }
-interface ItemRow { id: string; sale_id: string; product_name: string; qty: number; unit_price: number; }
+interface ItemRow { id: string; sale_id: string; product_name: string; qty: number; unit_price: number; modifiers?: unknown }
 
 function waLink(phone: string, msg: string) {
   const clean = phone.replace(/[^\d]/g, "");
