@@ -15,6 +15,7 @@ import { Plus, Trash2, Pencil, Copy, ImageIcon } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ImageDropzone } from "@/components/image-dropzone";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/menu/modificadores")({
   head: () => ({ meta: [{ title: "Modificadores · Goloso POS" }] }),
@@ -22,11 +23,14 @@ export const Route = createFileRoute("/_authenticated/menu/modificadores")({
 });
 
 interface Group { id: string; name: string; min_select: number; max_select: number; required: boolean; }
-interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; image_url?: string | null; }
+interface Mod { id: string; group_id: string; name: string; price: number; active: boolean; image_url?: string | null; disabled_branch_ids?: string[] | null; }
 
 function ModPage() {
   const qc = useQueryClient();
   const { isAdmin } = useAuth();
+  const { branches, activeBranchId } = useBranch();
+  const [selBranchId, setSelBranchId] = useState<string | null>(null);
+  const branchId = selBranchId ?? activeBranchId;
   const [groupEdit, setGroupEdit] = useState<Partial<Group> | null>(null);
   const [modEdit, setModEdit] = useState<Partial<Mod> | null>(null);
   const [dupSource, setDupSource] = useState<Group | null>(null);
