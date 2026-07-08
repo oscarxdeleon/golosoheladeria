@@ -93,6 +93,7 @@ function ProductosPage() {
   const [dupSaving, setDupSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   // Al crear nuevo producto: opción para replicarlo como copias INDEPENDIENTES en las sucursales.
   const [createInAllBranches, setCreateInAllBranches] = useState(true);
   const parseMenu = useServerFn(parseMenuPdfText);
@@ -798,6 +799,50 @@ function ProductosPage() {
           </Select>
         </div>
       )}
+      <div className="space-y-2">
+        <Label className="text-sm text-muted-foreground">Filtrar por categoría</Label>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant={categoryFilter === "all" ? "default" : "outline"}
+            onClick={() => setCategoryFilter("all")}
+            className="rounded-full"
+          >
+            Todos
+            <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">{products.length}</Badge>
+          </Button>
+          {cats.map((c) => {
+            const count = products.filter((p) => p.category_id === c.id).length;
+            const active = categoryFilter === c.id;
+            return (
+              <Button
+                key={c.id}
+                type="button"
+                size="sm"
+                variant={active ? "default" : "outline"}
+                onClick={() => setCategoryFilter(c.id)}
+                className="rounded-full"
+              >
+                {c.name}
+                <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">{count}</Badge>
+              </Button>
+            );
+          })}
+          {products.some((p) => !p.category_id) && (
+            <Button
+              type="button"
+              size="sm"
+              variant={categoryFilter === "__none__" ? "default" : "outline"}
+              onClick={() => setCategoryFilter("__none__")}
+              className="rounded-full"
+            >
+              Sin categoría
+              <Badge variant="secondary" className="ml-2 px-1.5 py-0 text-[10px]">{products.filter((p) => !p.category_id).length}</Badge>
+            </Button>
+          )}
+        </div>
+      </div>
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -809,6 +854,11 @@ function ProductosPage() {
                   const ids = p.available_branch_ids;
                   if (!ids || ids.length === 0) return true; // sin restricción = visible en todas
                   return ids.includes(branchFilter);
+                })
+                .filter((p) => {
+                  if (categoryFilter === "all") return true;
+                  if (categoryFilter === "__none__") return !p.category_id;
+                  return p.category_id === categoryFilter;
                 })
                 .map((p) => (
                 <TableRow key={p.id}>
