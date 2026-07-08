@@ -1063,6 +1063,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         subtotal,
         tax,
         deliveryFee,
+        tip: effectiveTip,
         total: Number(sale.total),
         payment_method: sale.payment_method,
         customer: snapshotCustomer,
