@@ -146,6 +146,7 @@ function AjustesPage() {
           {tab === "domi"        && <SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary>}
           {tab === "fidel"       && <SectionErrorBoundary label="Fidelización"><FidelizacionTab /></SectionErrorBoundary>}
           {tab === "roles"       && <SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary>}
+          {tab === "extras"      && <SectionErrorBoundary label="Configuraciones adicionales"><ExtrasTab /></SectionErrorBoundary>}
         </SectionView>
       ) : (
         <HubView query={query} setQuery={setQuery} filtered={filtered} allTabs={visibleTabs} onSelect={setTab} />
