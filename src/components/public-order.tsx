@@ -13,7 +13,7 @@ import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Sh
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
-import { sendToLocalPrinter } from "@/lib/print-client";
+import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
