@@ -597,6 +597,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     setNeighborhood(initialNeighborhood ?? "");
     setNotes("");
     setPendingSaleId(null);
+    setTip(0);
+    setTipInput("");
     printedQtyRef.current = {};
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType, tableId, initialCustomer, initialPhone, initialAddress, initialNeighborhood]);
