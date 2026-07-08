@@ -191,12 +191,17 @@ function OnlineOrdersPage() {
     }
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
     // 1) Comanda de cocina
+    const comandaItems = its.map((i) => ({
+      name: i.product_name,
+      qty: i.qty,
+      modifiers: normalizeModifiers(i.modifiers),
+    }));
     const comandaPayload: PrintPayload = {
       type: "comanda",
       ticket: o.ticket_number,
       header,
       order_type: o.order_type ?? "online",
-      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      items: comandaItems,
       customer: o.customer_name ?? "",
       notes: o.notes ?? "",
       address: o.delivery_address ?? "",
@@ -206,7 +211,7 @@ function OnlineOrdersPage() {
     };
     void printSilent(comandaPayload, comandaHTML({
       ticket: o.ticket_number, header,
-      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      items: comandaItems,
       customer: o.customer_name ?? "", notes: o.notes ?? "",
       address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
       created_at: o.created_at,
