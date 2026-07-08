@@ -556,8 +556,9 @@ function buildComandaFormatted(p, fmt) {
 
   let out = INIT + CODEPAGE + INTL_CHARSET + fontCmd;
 
-  // Encabezado (sede)
-  if (p.business_name) {
+  // Encabezado (sede) - se omite en comandas de mesa para un encabezado más limpio.
+  const otKeyEarly = String(p.order_type || "").toLowerCase();
+  if (p.business_name && otKeyEarly !== "mesa") {
     const business = String(p.business_name).toUpperCase().trim();
     out += bigLine(`** ${business} **`, f.titleSize, f.bold.title, f.align.header);
   }
