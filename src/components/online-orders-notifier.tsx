@@ -457,13 +457,15 @@ export function OnlineOrdersNotifier() {
     const since = new Date(Date.now() - BACKSTOP_WINDOW_MS).toISOString();
     const { data } = await supabase
       .from("sales")
-      .select("id,ticket_number,customer_name,user_name,total,subtotal,delivery_fee,notes,source,status,branch_id,table_id,order_type,created_at,restaurant_tables(number,label)")
+      .select("id,ticket_number,customer_name,user_name,total,subtotal,delivery_fee,notes,source,status,branch_id,table_id,order_type,created_at,notify_ack_at,restaurant_tables(number,label)")
       .eq("branch_id", activeBranchId)
       .eq("status", "pending")
+      .is("notify_ack_at", null)
       .in("source", [...PUBLIC_ORDER_SOURCES])
       .gte("created_at", since)
       .order("created_at", { ascending: true })
       .limit(50);
+
     (data ?? []).forEach((row) => {
       void addAlert(row as unknown as IncomingSale, { fromRealtime: false });
     });
