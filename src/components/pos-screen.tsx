@@ -1803,7 +1803,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 </div>
               </div>
 
+              {kioskSale?.payment_method &&
+                !["pendiente", "mixto", ""].includes(String(kioskSale.payment_method).toLowerCase()) && (
+                  <div className="mb-2.5 rounded-xl border border-amber-300/70 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs sm:text-sm text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 shrink-0" />
+                    <span>
+                      El cliente eligió pagar con{" "}
+                      <b className="uppercase">{kioskSale.payment_method}</b>. Confírmalo o
+                      elige otro método si desea cambiar.
+                    </span>
+                  </div>
+                )}
+
               <div className="grid grid-cols-2 gap-2.5">
+
                 {methods.map((m: { id: string; name: string }) => {
                   const lower = m.name.toLowerCase();
                   const isCash = lower.includes("efectivo");
