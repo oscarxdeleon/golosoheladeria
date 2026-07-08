@@ -398,9 +398,11 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
       phone: sale.customer_phone ?? "",
       user_name: sale.user_name ?? "",
       created_at: sale.created_at,
+      order_type: sale.order_type ?? undefined,
       branding,
     };
   }
+
 
   async function handleReprintTicket() {
     const args = buildTicketArgs();
