@@ -301,9 +301,47 @@ async function withDefaultPrinterTarget(payload: PrintPayload): Promise<PrintPay
   return target?.printer_ip ? { ...payload, ...target } : payload;
 }
 
+// ---------- Formato de comanda (Ajustes → Impresoras → Comandas) ----------
+let _commandFormatPromise: Promise<CommandFormat | null> | null = null;
+
+async function loadActiveCommandFormat(): Promise<CommandFormat | null> {
+  try {
+    const { supabase } = await import("@/integrations/supabase/client");
+    const { data } = await supabase
+      .from("settings")
+      .select("command_formats, command_format_active")
+      .limit(1)
+      .maybeSingle();
+    const row = data as { command_formats?: CommandFormatsMap | null; command_format_active?: string | null } | null;
+    const key = row?.command_format_active || "clasico";
+    const map = (row?.command_formats ?? DEFAULT_FORMATS) as CommandFormatsMap;
+    const raw = map[key] ?? DEFAULT_FORMATS[key] ?? DEFAULT_FORMATS.clasico;
+    return normalizeFormat(raw);
+  } catch {
+    return normalizeFormat(DEFAULT_FORMATS.clasico);
+  }
+}
+
+function getActiveCommandFormat(): Promise<CommandFormat | null> {
+  if (!_commandFormatPromise) _commandFormatPromise = loadActiveCommandFormat();
+  return _commandFormatPromise;
+}
+
+/** Invalida el cache del formato activo. Llamado tras guardar en Ajustes. */
+export function refreshCommandFormatCache(): void {
+  _commandFormatPromise = null;
+}
+
+async function withActiveCommandFormat(payload: PrintPayload): Promise<PrintPayload> {
+  if (payload.type !== "comanda" || payload.command_format) return payload;
+  const fmt = await getActiveCommandFormat();
+  return fmt ? { ...payload, command_format: fmt } : payload;
+}
+
 // Dispara bootstrap en segundo plano lo antes posible.
 if (typeof window !== "undefined") {
   void bootstrapLocalPrintUrl();
+  void getActiveCommandFormat();
 }
 
 /**
