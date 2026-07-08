@@ -53,10 +53,12 @@ function buildBeepBlobUrl(): string {
   return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
 }
 
-function useOrderAlertBeep() {
+function useOrderAlertLoop() {
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const ctxRef = useRef<AudioContext | null>(null);
   const urlRef = useRef<string | null>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const runningRef = useRef(false);
   const unlockedRef = useRef(false);
 
   const ensureAudio = useCallback(() => {
@@ -83,8 +85,6 @@ function useOrderAlertBeep() {
     return ctxRef.current;
   }, []);
 
-  // Reproduce un beep usando WebAudio como fallback si el elemento <audio>
-  // está bloqueado por política de autoplay.
   const playOscBeep = useCallback(() => {
     const ctx = ensureAudioContext();
     if (!ctx) return false;
@@ -112,8 +112,7 @@ function useOrderAlertBeep() {
     return true;
   }, [ensureAudioContext]);
 
-  // Reproduce UN beep (una sola pasada). Se llama por cada pedido nuevo.
-  const beep = useCallback(() => {
+  const playOnce = useCallback(() => {
     const a = ensureAudio();
     if (a) {
       try { a.pause(); a.currentTime = 0; } catch { /* noop */ }
@@ -125,6 +124,23 @@ function useOrderAlertBeep() {
     }
     playOscBeep();
   }, [ensureAudio, playOscBeep]);
+
+  const start = useCallback(() => {
+    if (runningRef.current) return;
+    runningRef.current = true;
+    playOnce();
+    intervalRef.current = setInterval(() => { playOnce(); }, 1500);
+  }, [playOnce]);
+
+  const stop = useCallback(() => {
+    runningRef.current = false;
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    const a = audioRef.current;
+    if (a) { try { a.pause(); a.currentTime = 0; } catch { /* noop */ } }
+  }, []);
 
   // Desbloqueo silencioso en el primer gesto del usuario para que los beeps
   // posteriores no queden bloqueados por el navegador.
@@ -152,6 +168,7 @@ function useOrderAlertBeep() {
   }, [ensureAudio, ensureAudioContext]);
 
   useEffect(() => () => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
     const a = audioRef.current;
     if (a) { try { a.pause(); } catch { /* noop */ } }
     const ctx = ctxRef.current;
@@ -162,8 +179,9 @@ function useOrderAlertBeep() {
     urlRef.current = null;
   }, []);
 
-  return { beep };
+  return { start, stop };
 }
+
 
 type IncomingSale = {
   id: string;
