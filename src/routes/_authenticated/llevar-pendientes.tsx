@@ -271,7 +271,8 @@ function LlevarPendientesPage() {
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
               {filtered.map((o) => {
                 const mins = minutesSince(o.created_at);
-                const late = ["pending", "confirmed", "ready"].includes(o.status) && mins >= 20;
+                const isPending = ["pending", "confirmed", "ready"].includes(o.status);
+                const late = isPending && mins >= 20;
                 return (
                   <div
                     key={o.id}
@@ -279,44 +280,45 @@ function LlevarPendientesPage() {
                       late ? "border-red-400 bg-red-50/40 dark:bg-red-950/10" : ""
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div className="font-display text-3xl leading-none text-amber-600 w-14 shrink-0 text-center">
+                    {/* Encabezado: # pedido grande + estado a la derecha */}
+                    <div className="flex items-center justify-between gap-2 border-b pb-2 mb-2">
+                      <div className="font-display text-4xl leading-none text-amber-600">
                         #{o.ticket_number}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex flex-wrap items-center gap-2">
-                          {statusBadge(o.status)}
-                          {late && (
-                            <Badge className="bg-red-600 text-white gap-1">
-                              <AlertTriangle className="h-3 w-3" /> {mins} min
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="mt-1 text-sm font-medium truncate">
-                          {o.customer_name || "Sin nombre"}
-                          {o.customer_phone ? ` · ${o.customer_phone}` : ""}
-                        </div>
-                        <div className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {new Date(o.created_at).toLocaleString("es-CO")} · {timeAgo(o.created_at)}
-                        </div>
-                        <div className="text-xs text-muted-foreground truncate">
-                          {o.sale_items.map((i) => `${i.qty}× ${i.product_name}`).join(" · ") || "Sin ítems"}
-                        </div>
-                        <div className="mt-1 flex flex-wrap items-center gap-2">
-                          <div className="font-display text-xl text-primary">{formatMoney(o.total)}</div>
-                          {o.payment_method && (
-                            <Badge variant="outline" className="text-xs">{o.payment_method}</Badge>
-                          )}
-                        </div>
+                      <div className="flex flex-col items-end gap-1">
+                        {statusBadge(o.status)}
+                        {late && (
+                          <Badge className="bg-red-600 text-white gap-1 text-[10px] px-1.5 py-0">
+                            <AlertTriangle className="h-3 w-3" /> {mins} min
+                          </Badge>
+                        )}
                       </div>
+                    </div>
+
+                    <div className="text-sm font-medium truncate">
+                      {o.customer_name || "Sin nombre"}
+                      {o.customer_phone ? ` · ${o.customer_phone}` : ""}
+                    </div>
+                    <div className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                      <Clock className="h-3 w-3" />
+                      {new Date(o.created_at).toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" })} · {timeAgo(o.created_at)}
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate mt-1">
+                      {o.sale_items.map((i) => `${i.qty}× ${i.product_name}`).join(" · ") || "Sin ítems"}
+                    </div>
+
+                    <div className="mt-2 flex flex-wrap items-center gap-2">
+                      <div className="font-display text-xl text-primary">{formatMoney(o.total)}</div>
+                      {!isPending && o.payment_method && (
+                        <Badge variant="outline" className="text-xs">{o.payment_method}</Badge>
+                      )}
                     </div>
 
                     <div className="mt-3 grid grid-cols-3 gap-2">
                       <Button size="sm" variant="outline" onClick={() => setDetail(o)}>
                         <Eye className="h-4 w-4 mr-1" /> Ver
                       </Button>
-                      {["pending", "confirmed", "ready"].includes(o.status) ? (
+                      {isPending ? (
                         <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => cobrar(o)}>
                           <Banknote className="h-4 w-4 mr-1" /> Cobrar
                         </Button>
@@ -325,7 +327,7 @@ function LlevarPendientesPage() {
                           <Banknote className="h-4 w-4 mr-1" /> Cobrado
                         </Button>
                       )}
-                      {canCancel && o.status !== "cancelled" && ["pending", "confirmed", "ready"].includes(o.status) ? (
+                      {canCancel && isPending ? (
                         <Button size="sm" variant="destructive" onClick={() => { setCancelling(o); setCancelReason(""); }}>
                           <X className="h-4 w-4 mr-1" /> Cancelar
                         </Button>
