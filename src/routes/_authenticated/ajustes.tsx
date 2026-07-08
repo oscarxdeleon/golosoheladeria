@@ -834,6 +834,17 @@ function ImpresorasTab({ disabled }: { disabled: boolean }) {
           <p className="text-xs text-muted-foreground">
             Alternativa sin servidor: abre Chrome con <code className="bg-background px-1 rounded">--kiosk-printing</code> y configura la térmica como impresora predeterminada del sistema.
           </p>
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
+            <div className="text-xs text-muted-foreground flex-1 min-w-[200px]">
+              Descarga la última versión del <b>Print Server</b> (incluye instaladores para Windows y Linux, y auto-inicio con el sistema).
+            </div>
+            <Button asChild variant="default">
+              <a href={`/downloads/print-server.zip?v=${Date.now()}`} download="print-server.zip">
+                <Download className="h-4 w-4" />
+                Descargar Print Server
+              </a>
+            </Button>
+          </div>
         </div>
         <CashierIpPrinterCard />
         <Table>
