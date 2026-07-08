@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
   printComanda, printTicketFinal, type Branding,
 } from "@/components/pos-screen";
+import { normalizeModifiers } from "@/lib/print-client";
 
 export const Route = createFileRoute("/_authenticated/historial")({
   head: () => ({ meta: [{ title: "Historial de pedidos · Goloso POS" }] }),
