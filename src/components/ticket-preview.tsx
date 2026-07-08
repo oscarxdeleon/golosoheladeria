@@ -67,7 +67,7 @@ export function TicketPreview({
   const total = Number(sale.total) || subtotal;
   const received = sale.cash_received ?? total;
   const change = Math.max(0, received - total);
-  const ticketNo = `TV-${String(sale.ticket_number).padStart(6, "0")}`;
+  const ticketNo = String(sale.ticket_number).trim().replace(/^#+\s*/, "");
 
   return (
     <div
@@ -104,7 +104,7 @@ export function TicketPreview({
         className="text-center font-black text-[16px] uppercase tracking-wide"
         style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
       >
-        TICKET DE VENTA <span className="font-black normal-case">No. {ticketNo}</span>
+        TICKET DE VENTA <span className="font-black normal-case">#{ticketNo}</span>
       </div>
 
       <Dashed />

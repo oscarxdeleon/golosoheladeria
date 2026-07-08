@@ -330,14 +330,14 @@ async function buildPersonalizedTicketRaw(p) {
   // ==== TITULO Y NUMERO ====
   // Título distinto para precuenta vs ticket de venta.
   const isPrecuenta = p.type === "precuenta";
-  const baseTitle = isPrecuenta ? "PRECUENTA" : (cfg.title_text || "TICKET DE VENTA");
-  const rawNum = p.ticket ?? p.ticket_number;
+  const baseTitle = isPrecuenta ? "PRECUENTA" : (String(cfg.title_text || "").trim() || "TICKET DE VENTA");
+  const rawNum = p.ticket ?? p.ticket_number ?? p.ticketNumber ?? p.ticket_no;
   const strNum = rawNum == null ? "" : String(rawNum).trim();
   const hasNum = strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined";
   // El número siempre acompaña al título del ticket de venta para asegurar
   // trazabilidad; en precuenta se conserva el comportamiento anterior.
   const titleLine = !isPrecuenta && hasNum
-    ? `${baseTitle} #${strNum}`
+    ? `${baseTitle} #${strNum.replace(/^#+\s*/, "")}`
     : baseTitle;
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + titleLine + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (isPrecuenta && cfg.show_ticket_number && hasNum) {
