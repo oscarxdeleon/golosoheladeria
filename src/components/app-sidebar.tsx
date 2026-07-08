@@ -270,16 +270,21 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <Button
-          variant="ghost"
-          size="sm"
-          className="justify-start"
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.href = "/auth";
-          }}
+          type="button"
+          disabled={signingOut}
+          onClick={handleSignOut}
+          aria-label="Cerrar sesión"
+          className={`group relative w-full overflow-hidden rounded-xl border border-red-500/40 bg-gradient-to-br from-rose-500 via-red-500 to-orange-500 text-white shadow-[0_8px_24px_-8px_rgba(239,68,68,0.6)] transition hover:brightness-110 hover:shadow-[0_10px_28px_-6px_rgba(239,68,68,0.75)] active:scale-[0.98] disabled:opacity-70 ${collapsed ? "h-11 justify-center px-0" : "h-11 justify-start px-3"}`}
         >
-          <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="ml-2">Cerrar sesión</span>}
+          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(120px_60px_at_20%_0%,rgba(255,255,255,0.35),transparent_70%)]" />
+          <span className="relative grid h-7 w-7 place-items-center rounded-full bg-white/20 ring-1 ring-white/40 shadow-inner">
+            {signingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+          </span>
+          {!collapsed && (
+            <span className="relative ml-2 font-display text-[14px] font-extrabold uppercase tracking-wider drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">
+              {signingOut ? "Cerrando…" : "Cerrar sesión"}
+            </span>
+          )}
         </Button>
       </SidebarFooter>
     </Sidebar>
