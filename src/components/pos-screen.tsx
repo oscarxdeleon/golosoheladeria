@@ -1578,6 +1578,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <span className="ml-auto text-sm text-muted-foreground">{cart.length} items</span>
           </div>
 
+          {pendingSaleId && canCancelSales && !meseroMode && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => { setCancelReason(""); setCancelDialogOpen(true); }}
+              className="w-full border-destructive/40 text-destructive hover:bg-destructive/10 hover:text-destructive font-semibold"
+            >
+              <XCircle className="h-4 w-4 mr-1.5" /> Cancelar pedido
+            </Button>
+          )}
+
+
           {typeof document !== "undefined" && createPortal(
             <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
               <div className="mx-auto max-w-7xl">
