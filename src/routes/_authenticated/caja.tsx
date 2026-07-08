@@ -404,7 +404,7 @@ function CajaPage() {
       {/* Cerrar caja a ciegas — diseño Goloso */}
       <Dialog open={closeDialog} onOpenChange={(o) => { setCloseDialog(o); if (o) setCloseError(null); }}>
         <DialogContent
-          className="p-0 overflow-hidden max-w-[720px] w-[calc(100%-1.5rem)] max-h-[92vh] overflow-y-auto border-0 bg-transparent shadow-none"
+          className="p-0 overflow-hidden max-w-[720px] lg:max-w-[1180px] w-[calc(100%-1.5rem)] max-h-[92vh] overflow-y-auto border-0 bg-transparent shadow-none"
         >
           <div
             className="relative rounded-2xl overflow-hidden text-white"
@@ -423,25 +423,11 @@ function CajaPage() {
               <img
                 src={heroImage}
                 alt="Cierre de caja"
-                className="w-full h-auto select-none pointer-events-none drop-shadow-[0_6px_10px_rgba(0,0,0,0.15)]"
+                className="w-full h-auto max-h-[180px] lg:max-h-[220px] object-contain select-none pointer-events-none drop-shadow-[0_6px_10px_rgba(0,0,0,0.15)]"
               />
             </div>
 
-
             <div className="px-4 pb-5 space-y-3">
-              {/* HORA ACTUAL */}
-              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex items-center gap-2">
-                    <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-lime-300 to-lime-500 text-white shadow-inner">
-                      <Clock className="h-5 w-5" />
-                    </div>
-                    <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Hora actual</span>
-                  </div>
-                  <span className="text-[#E11D74] font-bold text-sm">{nowLabel}</span>
-                </div>
-              </section>
-
               {closeError && (
                 <div className="flex gap-2 rounded-xl border-2 border-red-300 bg-red-50 p-3 text-sm text-red-700">
                   <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><div>{closeError}</div>
@@ -453,94 +439,115 @@ function CajaPage() {
                 </div>
               )}
 
-              {/* EFECTIVO CONTADO (auto) */}
-              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-teal-400 to-teal-600 text-white">
-                    <Wallet className="h-5 w-5" />
+              {/* Fila superior: HORA + EFECTIVO */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-b from-lime-300 to-lime-500 text-white shadow-inner">
+                        <Clock className="h-5 w-5" />
+                      </div>
+                      <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Hora actual</span>
+                    </div>
+                    <span className="text-[#E11D74] font-bold text-sm">{nowLabel}</span>
                   </div>
-                  <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Efectivo contado</span>
-                </div>
-                <div className="rounded-xl border-2 border-[#B8E4F5] px-4 py-2.5 flex items-center gap-2">
-                  <span className="text-[#0A7BC4] font-black text-2xl">$</span>
-                  <span className="text-[#0A4E7A] font-black text-2xl tabular-nums">
-                    {formatThousands(String(cashFromDenoms))}
-                  </span>
-                </div>
-              </section>
+                </section>
 
-              {/* MONEDAS */}
-              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-yellow-300 to-amber-500 text-white shadow-inner">
-                    <Coins className="h-5 w-5" />
+                <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                  <div className="flex items-center gap-3">
+                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-b from-teal-400 to-teal-600 text-white">
+                      <Wallet className="h-5 w-5" />
+                    </div>
+                    <span className="font-extrabold text-[#0A4E7A] uppercase text-sm whitespace-nowrap">Efectivo contado</span>
+                    <div className="ml-auto rounded-xl border-2 border-[#B8E4F5] px-3 py-1.5 flex items-center gap-1 min-w-[140px] justify-end">
+                      <span className="text-[#0A7BC4] font-black text-xl">$</span>
+                      <span className="text-[#0A4E7A] font-black text-xl tabular-nums">
+                        {formatThousands(String(cashFromDenoms))}
+                      </span>
+                    </div>
                   </div>
-                  <span className="font-extrabold text-[#2C7A2C] uppercase text-sm">Monedas</span>
+                </section>
+              </div>
+
+              {/* Dos columnas en desktop: Monedas + Medios | Billetes + Notas */}
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
+                <div className="space-y-3">
+                  {/* MONEDAS */}
+                  <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-b from-yellow-300 to-amber-500 text-white shadow-inner">
+                        <Coins className="h-5 w-5" />
+                      </div>
+                      <span className="font-extrabold text-[#2C7A2C] uppercase text-sm">Monedas</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 justify-items-stretch">
+                      {COIN_DENOMS.map((d) => (
+                        <DenomField
+                          key={d}
+                          label={`$${d.toLocaleString("es-CO")}`}
+                          variant="coin"
+                          value={coinQty[d] ?? ""}
+                          onChange={(v) => setCoinQty((p) => ({ ...p, [d]: onlyDigits(v) }))}
+                        />
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* MEDIOS DE PAGO */}
+                  <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-b from-pink-400 to-pink-600 text-white">
+                        <Calculator className="h-5 w-5" />
+                      </div>
+                      <span className="font-extrabold text-[#C41A6B] uppercase text-sm">Detalle por medio de pago (opcional)</span>
+                    </div>
+                    <div className="space-y-2">
+                      <PaymentRow icon={<Smartphone className="h-4 w-4 text-[#C41A6B]" />} label="NEQUI" value={nequiCounted} onChange={handleAmount(setNequiCounted)} />
+                      <div className="border-t border-dashed border-pink-200" />
+                      <PaymentRow icon={<Building2 className="h-4 w-4 text-[#C41A6B]" />} label="BCOLOMBIA" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
+                    </div>
+                  </section>
                 </div>
-                <div className="grid grid-cols-3 gap-3 justify-items-stretch">
-                  {COIN_DENOMS.map((d) => (
-                    <DenomField
-                      key={d}
-                      label={`$${d.toLocaleString("es-CO")}`}
-                      variant="coin"
-                      value={coinQty[d] ?? ""}
-                      onChange={(v) => setCoinQty((p) => ({ ...p, [d]: onlyDigits(v) }))}
+
+                <div className="space-y-3">
+                  {/* BILLETES */}
+                  <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center gap-2 mb-3">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-inner">
+                        <Banknote className="h-5 w-5" />
+                      </div>
+                      <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Billetes</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-3 justify-items-stretch">
+                      {BILL_DENOMS.map((d) => (
+                        <DenomField
+                          key={d}
+                          label={`$${d.toLocaleString("es-CO")}`}
+                          variant="bill"
+                          value={billQty[d] ?? ""}
+                          onChange={(v) => setBillQty((p) => ({ ...p, [d]: onlyDigits(v) }))}
+                        />
+                      ))}
+                    </div>
+                  </section>
+
+                  {/* NOTAS */}
+                  <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-gradient-to-b from-lime-300 to-lime-500 text-white">
+                        <NotebookPen className="h-5 w-5" />
+                      </div>
+                      <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Notas (opcional)</span>
+                    </div>
+                    <Textarea
+                      value={closingNotes}
+                      onChange={(e) => setClosingNotes(e.target.value)}
+                      placeholder="Notas del cierre…"
+                      className="border-2 border-[#E5F1F8] rounded-xl text-[#0A4E7A] placeholder:text-slate-400"
                     />
-                  ))}
+                  </section>
                 </div>
-              </section>
-
-              {/* BILLETES */}
-              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-inner">
-                    <Banknote className="h-5 w-5" />
-                  </div>
-                  <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Billetes</span>
-                </div>
-                <div className="grid grid-cols-3 gap-3 justify-items-stretch">
-                  {BILL_DENOMS.map((d) => (
-                    <DenomField
-                      key={d}
-                      label={`$${d.toLocaleString("es-CO")}`}
-                      variant="bill"
-                      value={billQty[d] ?? ""}
-                      onChange={(v) => setBillQty((p) => ({ ...p, [d]: onlyDigits(v) }))}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              {/* MEDIOS DE PAGO */}
-              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-pink-400 to-pink-600 text-white">
-                    <Calculator className="h-5 w-5" />
-                  </div>
-                  <span className="font-extrabold text-[#C41A6B] uppercase text-sm">Detalle por medio de pago (opcional)</span>
-                </div>
-                <div className="space-y-2">
-                  <PaymentRow icon={<Smartphone className="h-4 w-4 text-[#C41A6B]" />} label="NEQUI" value={nequiCounted} onChange={handleAmount(setNequiCounted)} />
-                  <div className="border-t border-dashed border-pink-200" />
-                  <PaymentRow icon={<Building2 className="h-4 w-4 text-[#C41A6B]" />} label="BCOLOMBIA" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
-                </div>
-              </section>
-
-              {/* NOTAS */}
-              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-lime-300 to-lime-500 text-white">
-                    <NotebookPen className="h-5 w-5" />
-                  </div>
-                  <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Notas (opcional)</span>
-                </div>
-                <Textarea
-                  value={closingNotes}
-                  onChange={(e) => setClosingNotes(e.target.value)}
-                  placeholder="Notas del cierre…"
-                  className="border-2 border-[#E5F1F8] rounded-xl text-[#0A4E7A] placeholder:text-slate-400"
-                />
-              </section>
+              </div>
 
               {/* TOTAL + ACCIONES */}
               <section className="rounded-2xl bg-white/95 p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
@@ -562,6 +569,7 @@ function CajaPage() {
               </section>
             </div>
           </div>
+
         </DialogContent>
       </Dialog>
 
