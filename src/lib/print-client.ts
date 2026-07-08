@@ -6,6 +6,8 @@
 
 export type PrintPayload = {
   type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
+  /** Cuando true, se imprime como "ADICIÓN AL PEDIDO" (solo comandas). */
+  is_addition?: boolean;
   ticket?: number | null;
   ticket_number?: number | null;
   header: string;
