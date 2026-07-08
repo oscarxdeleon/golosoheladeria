@@ -1,5 +1,7 @@
-import { useEffect } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import logoUrl from "@/assets/logo-goloso.png";
 import { usePermissions } from "@/hooks/use-permissions";
@@ -20,6 +22,8 @@ import {
   Layers,
   Receipt,
   LogOut,
+  Power,
+  Loader2,
   Banknote,
   ShoppingBag,
   BellRing,
@@ -98,6 +102,37 @@ const admin = [
 
 export function AppSidebar() {
   const { state, isMobile, setOpenMobile } = useSidebar();
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const [signingOut, setSigningOut] = useState(false);
+
+  const handleSignOut = async () => {
+    if (signingOut) return;
+    setSigningOut(true);
+    try {
+      try { await queryClient.cancelQueries(); } catch {}
+      try { queryClient.clear(); } catch {}
+      try {
+        await Promise.race([
+          supabase.auth.signOut(),
+          new Promise((resolve) => setTimeout(resolve, 3000)),
+        ]);
+      } catch (e) {
+        console.warn("signOut error", e);
+      }
+      // Limpieza defensiva por si el token quedó en storage
+      try {
+        Object.keys(localStorage).forEach((k) => {
+          if (k.startsWith("sb-") && k.endsWith("-auth-token")) localStorage.removeItem(k);
+        });
+      } catch {}
+      try { await router.navigate({ to: "/auth", replace: true }); } catch {}
+      window.location.href = "/auth";
+    } catch (e: any) {
+      toast.error("No se pudo cerrar sesión", { description: e?.message });
+      setSigningOut(false);
+    }
+  };
   const collapsed = state === "collapsed";
   const pathname = useRouterState({ select: (s) => s.location.pathname });
   // Auto-cerrar el sheet móvil al navegar para que un solo clic abra el módulo.
@@ -235,16 +270,21 @@ export function AppSidebar() {
 
       <SidebarFooter>
         <Button
-          variant="ghost"
-          size="sm"
-          className="justify-start"
-          onClick={async () => {
-            await supabase.auth.signOut();
-            window.location.href = "/auth";
-          }}
+          type="button"
+          disabled={signingOut}
+          onClick={handleSignOut}
+          aria-label="Cerrar sesión"
+          className={`group relative w-full overflow-hidden rounded-xl border border-red-500/40 bg-gradient-to-br from-rose-500 via-red-500 to-orange-500 text-white shadow-[0_8px_24px_-8px_rgba(239,68,68,0.6)] transition hover:brightness-110 hover:shadow-[0_10px_28px_-6px_rgba(239,68,68,0.75)] active:scale-[0.98] disabled:opacity-70 ${collapsed ? "h-11 justify-center px-0" : "h-11 justify-start px-3"}`}
         >
-          <LogOut className="h-4 w-4" />
-          {!collapsed && <span className="ml-2">Cerrar sesión</span>}
+          <span className="pointer-events-none absolute inset-0 bg-[radial-gradient(120px_60px_at_20%_0%,rgba(255,255,255,0.35),transparent_70%)]" />
+          <span className="relative grid h-7 w-7 place-items-center rounded-full bg-white/20 ring-1 ring-white/40 shadow-inner">
+            {signingOut ? <Loader2 className="h-4 w-4 animate-spin" /> : <Power className="h-4 w-4" />}
+          </span>
+          {!collapsed && (
+            <span className="relative ml-2 font-display text-[14px] font-extrabold uppercase tracking-wider drop-shadow-[0_1px_0_rgba(0,0,0,0.25)]">
+              {signingOut ? "Cerrando…" : "Cerrar sesión"}
+            </span>
+          )}
         </Button>
       </SidebarFooter>
     </Sidebar>
