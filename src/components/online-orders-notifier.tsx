@@ -349,16 +349,20 @@ export function OnlineOrdersNotifier() {
   }, [activeBranchId]);
 
   function dismissAll() {
-    acknowledge(pending.map((p) => p.id));
+    const ids = pending.map((p) => p.id);
+    acknowledge(ids);
     setPending([]);
+    void ackOrdersInDb(ids);
   }
 
   function confirmAndNavigate(kind: OrderKind) {
     if (kind === "mesa") {
       pending.filter((p) => p.kind === "mesa").forEach((p) => { void printTableOrderComanda(p.id); });
     }
-    acknowledge(pending.map((p) => p.id));
+    const ids = pending.map((p) => p.id);
+    acknowledge(ids);
     setPending([]);
+    void ackOrdersInDb(ids);
     navigate({
       to:
         kind === "kiosko" ? "/kiosko"
@@ -366,6 +370,7 @@ export function OnlineOrdersNotifier() {
             : "/pedidos-online",
     });
   }
+
 
   const invalidateOrderViews = useCallback(() => {
     qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
