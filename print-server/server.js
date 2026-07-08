@@ -70,8 +70,8 @@ const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
 // ESC R n => juego de caracteres internacional. 0 = USA (ASCII puro): el
 // carácter '#' (0x23) se imprime correctamente. Con 7 = España, la impresora
 // remapea '#' a 'Ñ' y aparece un símbolo raro en el ticket.
-// ¿, ¡, ñ, Ñ se rendericen correctamente aunque la impresora ignore ESC t.
-const INTL_CHARSET = ESC + "R" + "\x07";
+// Los acentos y ñ vienen de CP858/CP850 vía ESC t (CODEPAGE).
+const INTL_CHARSET = ESC + "R" + "\x00";
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
