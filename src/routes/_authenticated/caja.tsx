@@ -179,7 +179,7 @@ function CajaPage() {
     if (occupiedTables.length > 0) {
       return toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar.`);
     }
-    const cc = Number(cashCounted), nc = Number(nequiCounted), bc = Number(bancoCounted);
+    const cc = parseAmount(cashCounted), nc = parseAmount(nequiCounted), bc = parseAmount(bancoCounted);
     if (![cc, nc, bc].every((v) => Number.isFinite(v) && v >= 0)) {
       return toast.error("Completa los tres valores (Efectivo, Nequi, Bancolombia)");
     }
