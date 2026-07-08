@@ -412,32 +412,21 @@ function CajaPage() {
               background: "radial-gradient(circle at 50% 0%, #4EC5F1 0%, #1FA8E8 40%, #0A7BC4 100%)",
             }}
           >
-            {/* HEADER con mascota */}
-            <div className="relative px-5 pt-5 pb-3">
-              <DialogHeader className="text-left space-y-0">
-                <DialogTitle asChild>
-                  <h2
-                    className="font-black leading-[0.9] tracking-tight text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.25)]"
-                    style={{
-                      fontSize: "clamp(2rem, 6.5vw, 3.5rem)",
-                      WebkitTextStroke: "2px #B7ED3D",
-                      textShadow: "0 3px 0 rgba(0,0,0,0.2)",
-                    }}
-                  >
-                    CIERRE<br />DE CAJA
-                  </h2>
-                </DialogTitle>
-                <DialogDescription className="sr-only">
+            {/* HEADER con personaje + título integrado */}
+            <div className="relative px-4 pt-4 pb-2">
+              <DialogHeader className="sr-only">
+                <DialogTitle>Cierre de caja</DialogTitle>
+                <DialogDescription>
                   Cuenta físicamente cada denominación. El sistema no muestra los totales esperados.
                 </DialogDescription>
               </DialogHeader>
               <img
-                src={mascotImage}
-                alt=""
-                aria-hidden
-                className="pointer-events-none absolute top-1 right-1 w-[42%] max-w-[240px] select-none"
+                src={heroImage}
+                alt="Cierre de caja"
+                className="w-full h-auto select-none pointer-events-none drop-shadow-[0_6px_10px_rgba(0,0,0,0.15)]"
               />
             </div>
+
 
             <div className="px-4 pb-5 space-y-3">
               {/* HORA ACTUAL */}
