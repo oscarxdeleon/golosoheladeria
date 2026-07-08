@@ -725,7 +725,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .select("id,ticket_number,customer_name,notes,created_at,payment_method,sale_items(product_id,product_name,qty,unit_price)")
         .eq("id", kioskSaleId!)
         .maybeSingle();
       return data as null | {
@@ -734,6 +734,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         customer_name: string | null;
         notes: string | null;
         created_at: string;
+        payment_method: string | null;
         sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
       };
     },
