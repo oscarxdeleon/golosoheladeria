@@ -237,7 +237,7 @@ body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:15px;padding:4mm;
 export function ticketHTML(o: {
   ticket: number; header: string;
   items: { name: string; qty: number; unit_price: number }[];
-  subtotal: number; tax: number; deliveryFee: number; total: number;
+  subtotal: number; tax: number; deliveryFee: number; tip?: number; total: number;
   payment_method: string; customer: string; user_name: string; created_at: string;
   address?: string; phone?: string; cash_received?: number;
   notes?: string;
