@@ -757,7 +757,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const visibleCatIds = new Set(cats.map((c) => c.id));
+    const seenIds = new Set<string>();
     const base = products.filter((p) => {
+      // Filtrar por sede activa: si el producto tiene sedes asignadas, debe incluir la activa.
+      const bids = p.available_branch_ids;
+      if (activeBranchId && bids && bids.length > 0 && !bids.includes(activeBranchId)) return false;
+      // Dedupe defensivo por id (evita cualquier duplicado accidental)
+      if (seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
       // Si la categoría del producto está oculta en POS, descártalo
       if (p.category_id && !visibleCatIds.has(p.category_id)) return false;
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
@@ -771,7 +778,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       if (fa !== fb) return fa - fb;
       return a.name.localeCompare(b.name, "es");
     });
-  }, [products, cats, activeCat, search]);
+  }, [products, cats, activeCat, search, activeBranchId]);
 
 
   const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
