@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
 
 interface Input {
   sessionId: string;
@@ -11,16 +12,28 @@ function fmt(v: number | null | undefined) {
 }
 
 export const sendCashReport = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
   .inputValidator((d: Input) => d)
-  .handler(async ({ data, context }) => {
-    const { supabase } = context;
+  .handler(async ({ data }) => {
+    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    const SUPABASE_KEY =
+      process.env.SUPABASE_SERVICE_ROLE_KEY ||
+      process.env.SUPABASE_PUBLISHABLE_KEY ||
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+    if (!SUPABASE_URL || !SUPABASE_KEY) {
+      return { skipped: true, reason: "Backend no configurado en este entorno" };
+    }
+
+    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
+      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
+    });
+
     const { data: session, error } = await supabase
       .from("cash_sessions")
       .select("*")
       .eq("id", data.sessionId)
-      .single();
-    if (error || !session) throw new Error("Sesión no encontrada");
+      .maybeSingle();
+    if (error || !session) return { skipped: true, reason: "Sesión no encontrada" };
 
     let branchName = "—";
     let reportEmail: string | null = null;

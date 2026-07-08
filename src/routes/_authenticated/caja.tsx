@@ -67,6 +67,15 @@ function CajaPage() {
   const [cashCounted, setCashCounted] = useState("");
   const [nequiCounted, setNequiCounted] = useState("");
   const [bancoCounted, setBancoCounted] = useState("");
+
+  const formatThousands = (v: string) => {
+    const digits = v.replace(/\D/g, "");
+    if (!digits) return "";
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+  const parseAmount = (v: string) => Number(v.replace(/\D/g, "") || 0);
+  const handleAmount = (setter: (s: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setter(formatThousands(e.target.value));
   const [closingNotes, setClosingNotes] = useState("");
   const [closeError, setCloseError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -125,14 +134,14 @@ function CajaPage() {
   });
 
   const totalCounted = useMemo(
-    () => Number(cashCounted || 0) + Number(nequiCounted || 0) + Number(bancoCounted || 0),
+    () => parseAmount(cashCounted) + parseAmount(nequiCounted) + parseAmount(bancoCounted),
     [cashCounted, nequiCounted, bancoCounted],
   );
 
   async function openSession() {
     if (!user) return toast.error("Esperando sesión de usuario…");
     if (!activeBranchId) return toast.error("Selecciona una sede antes de abrir caja");
-    const amount = Number(openingAmount);
+    const amount = parseAmount(openingAmount);
     if (!Number.isFinite(amount) || amount < 0) return toast.error("Monto inicial inválido");
     setSaving(true);
     try {
@@ -170,7 +179,7 @@ function CajaPage() {
     if (occupiedTables.length > 0) {
       return toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar.`);
     }
-    const cc = Number(cashCounted), nc = Number(nequiCounted), bc = Number(bancoCounted);
+    const cc = parseAmount(cashCounted), nc = parseAmount(nequiCounted), bc = parseAmount(bancoCounted);
     if (![cc, nc, bc].every((v) => Number.isFinite(v) && v >= 0)) {
       return toast.error("Completa los tres valores (Efectivo, Nequi, Bancolombia)");
     }
@@ -346,7 +355,7 @@ function CajaPage() {
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium">Monto inicial en efectivo</label>
-              <Input type="number" inputMode="decimal" placeholder="0" value={openingAmount} onChange={(e) => setOpeningAmount(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="0" value={openingAmount} onChange={handleAmount(setOpeningAmount)} />
             </div>
             <div>
               <label className="text-sm font-medium">Notas (opcional)</label>
@@ -382,15 +391,15 @@ function CajaPage() {
             )}
             <div>
               <label className="text-sm font-medium flex items-center gap-2"><Banknote className="h-4 w-4" />Efectivo disponible</label>
-              <Input type="number" inputMode="decimal" placeholder="Cuenta el efectivo físico en caja" value={cashCounted} onChange={(e) => setCashCounted(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="Cuenta el efectivo físico en caja" value={cashCounted} onChange={handleAmount(setCashCounted)} />
             </div>
             <div>
               <label className="text-sm font-medium flex items-center gap-2"><Smartphone className="h-4 w-4" />Total Nequi</label>
-              <Input type="number" inputMode="decimal" placeholder="Valor según comprobantes Nequi" value={nequiCounted} onChange={(e) => setNequiCounted(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="Valor según comprobantes Nequi" value={nequiCounted} onChange={handleAmount(setNequiCounted)} />
             </div>
             <div>
               <label className="text-sm font-medium flex items-center gap-2"><Building2 className="h-4 w-4" />Total Bancolombia</label>
-              <Input type="number" inputMode="decimal" placeholder="Valor según comprobantes Bancolombia" value={bancoCounted} onChange={(e) => setBancoCounted(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="Valor según comprobantes Bancolombia" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
             </div>
             <div className="rounded-md bg-muted/50 p-3 text-sm">
               <div className="flex justify-between"><span className="text-muted-foreground">Total reportado</span><b>{formatMoney(totalCounted)}</b></div>
