@@ -884,12 +884,12 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
           </p>
           <div className="flex flex-wrap items-center gap-2 pt-2 border-t">
             <div className="text-xs text-muted-foreground flex-1 min-w-[200px]">
-              Descarga la última versión del <b>Print Server</b> (incluye instaladores para Windows y Linux, y auto-inicio con el sistema).
+              Descarga la última versión del <b>Print Server</b> (v{PRINT_SERVER_VERSION}) — incluye instaladores para Windows y Linux, y auto-inicio con el sistema.
             </div>
             <Button asChild variant="default">
-              <a href={`/downloads/print-server.zip?v=${Date.now()}`} download="print-server.zip">
+              <a href={`/downloads/print-server.zip?v=${PRINT_SERVER_VERSION}`} download={`print-server-v${PRINT_SERVER_VERSION}.zip`}>
                 <Download className="h-4 w-4" />
-                Descargar Print Server
+                Descargar Print Server v{PRINT_SERVER_VERSION}
               </a>
             </Button>
           </div>
