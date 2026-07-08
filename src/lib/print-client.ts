@@ -6,12 +6,12 @@
 
 export type PrintPayload = {
   type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
-  ticket?: number;
-  ticket_number?: number;
+  ticket?: number | null;
+  ticket_number?: number | null;
   header: string;
   /** Origen del pedido — se imprime como "PEDIDO PARA MESA / EN LÍNEA / DESDE QUIOSCO / PARA LLEVAR". */
   order_type?: "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
-  items: { name: string; qty: number; unit_price?: number }[];
+  items: { name: string; qty: number; unit_price?: number; modifiers?: string[] }[];
   subtotal?: number;
   tax?: number;
   deliveryFee?: number;
