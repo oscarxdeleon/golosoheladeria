@@ -391,11 +391,11 @@ function CajaPage() {
             )}
             <div>
               <label className="text-sm font-medium flex items-center gap-2"><Banknote className="h-4 w-4" />Efectivo disponible</label>
-              <Input type="number" inputMode="decimal" placeholder="Cuenta el efectivo físico en caja" value={cashCounted} onChange={(e) => setCashCounted(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="Cuenta el efectivo físico en caja" value={cashCounted} onChange={handleAmount(setCashCounted)} />
             </div>
             <div>
               <label className="text-sm font-medium flex items-center gap-2"><Smartphone className="h-4 w-4" />Total Nequi</label>
-              <Input type="number" inputMode="decimal" placeholder="Valor según comprobantes Nequi" value={nequiCounted} onChange={(e) => setNequiCounted(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="Valor según comprobantes Nequi" value={nequiCounted} onChange={handleAmount(setNequiCounted)} />
             </div>
             <div>
               <label className="text-sm font-medium flex items-center gap-2"><Building2 className="h-4 w-4" />Total Bancolombia</label>
