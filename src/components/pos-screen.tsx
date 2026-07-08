@@ -1034,6 +1034,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       setPendingSaleId(null);
       setCashDialogOpen(false);
       setCashReceived("");
+      setTip(0);
+      setTipInput("");
 
       qc.invalidateQueries({ queryKey: ["dashboard-today"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
