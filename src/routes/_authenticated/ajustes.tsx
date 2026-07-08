@@ -678,6 +678,35 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
 
 interface Printer { id: string; name: string; ip: string | null; port: number; platform: string; area: string; active: boolean; open_drawer_on_print?: boolean; }
 function ImpresorasTab({ disabled }: { disabled: boolean }) {
+  const [subtab, setSubtab] = useState<"impresoras" | "comandas">("impresoras");
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 border-b">
+        <button
+          type="button"
+          onClick={() => setSubtab("impresoras")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            subtab === "impresoras" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Impresoras
+        </button>
+        <button
+          type="button"
+          onClick={() => setSubtab("comandas")}
+          className={`px-4 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            subtab === "comandas" ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          Comandas
+        </button>
+      </div>
+      {subtab === "comandas" ? <ComandasFormatTab /> : <ImpresorasTabInner disabled={disabled} />}
+    </div>
+  );
+}
+
+function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
   const [edit, setEdit] = useState<Partial<Printer> | null>(null);
   const { data = [] } = useQuery<Printer[]>({
