@@ -1250,6 +1250,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         phone: orderType === "domicilio" ? phone : "",
         user_name: profile?.full_name ?? user.email ?? "",
         created_at: sale.created_at,
+        order_type: orderType,
         branding,
       };
 
