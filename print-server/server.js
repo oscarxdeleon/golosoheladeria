@@ -703,7 +703,7 @@ function buildComandaLegacy(p) {
     mesa: "PEDIDO PARA MESA",
     llevar: "PEDIDO PARA LLEVAR",
     domicilio: "PEDIDO A DOMICILIO",
-    kiosko: "PEDIDO DESDE QUIOSCO",
+    kiosko: "AUTOPEDIDO",
     online: "PEDIDO EN LINEA",
   };
   const otKey = String(p.order_type || "").toLowerCase();
