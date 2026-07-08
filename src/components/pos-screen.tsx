@@ -2256,6 +2256,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <DialogDescription>
               {cart.reduce((a, l) => a + l.qty, 0)} productos · Subtotal {formatMoney(subtotal)}
               {deliveryFee > 0 ? ` · Domicilio ${formatMoney(deliveryFee)}` : ""}
+              {effectiveTip > 0 ? ` · Propina ${formatMoney(effectiveTip)}` : ""}
             </DialogDescription>
           </DialogHeader>
           {!effectiveSessionId && (
