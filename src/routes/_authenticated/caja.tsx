@@ -141,9 +141,30 @@ function CajaPage() {
     refetchInterval: 10000,
   });
 
+  const cashFromDenoms = useMemo(() => {
+    const coins = COIN_DENOMS.reduce((acc, d) => acc + d * (parseInt(onlyDigits(coinQty[d] ?? "0"), 10) || 0), 0);
+    const bills = BILL_DENOMS.reduce((acc, d) => acc + d * (parseInt(onlyDigits(billQty[d] ?? "0"), 10) || 0), 0);
+    return coins + bills;
+  }, [coinQty, billQty]);
+
+  // Keep cashCounted synced with denomination totals (drives existing logic)
+  useEffect(() => {
+    setCashCounted(cashFromDenoms > 0 ? formatThousands(String(cashFromDenoms)) : "");
+  }, [cashFromDenoms]);
+
+  // Live clock while the close dialog is open
+  useEffect(() => {
+    if (!closeDialog) return;
+    const t = setInterval(() => {
+      setNowLabel(new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }));
+    }, 30_000);
+    setNowLabel(new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }));
+    return () => clearInterval(t);
+  }, [closeDialog]);
+
   const totalCounted = useMemo(
-    () => parseAmount(cashCounted) + parseAmount(nequiCounted) + parseAmount(bancoCounted),
-    [cashCounted, nequiCounted, bancoCounted],
+    () => cashFromDenoms + parseAmount(nequiCounted) + parseAmount(bancoCounted),
+    [cashFromDenoms, nequiCounted, bancoCounted],
   );
 
   async function openSession() {
