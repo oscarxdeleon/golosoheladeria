@@ -201,7 +201,7 @@ function DashboardPage() {
       {/* Hero — banner bienvenida (idéntico a diseño de referencia) */}
       <div className="relative w-full overflow-hidden rounded-2xl sm:rounded-3xl shadow-xl">
         <img
-          src={/parque/i.test(activeBranch?.name ?? "") ? welcomeBannerParque.url : welcomeBanner.url}
+          src={/parque/i.test(activeBranch?.name ?? "") ? welcomeBannerParque : welcomeBanner}
           alt={`Bienvenido ${activeBranch?.name ?? "Goloso"}`}
           className="block w-full h-auto"
         />
