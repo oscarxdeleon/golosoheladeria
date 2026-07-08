@@ -667,7 +667,8 @@ function buildComandaLegacy(p) {
 
   out += ALIGN_C;
 
-  if (p.business_name) {
+  const otKeyEarlyL = String(p.order_type || "").toLowerCase();
+  if (p.business_name && otKeyEarlyL !== "mesa") {
     const business = String(p.business_name).toUpperCase().trim();
     const maxCols = Math.max(1, Math.floor(WIDTH / 2));
     out += BOLD_ON + SIZE_DOUBLE;
