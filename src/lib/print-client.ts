@@ -6,12 +6,12 @@
 
 export type PrintPayload = {
   type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
-  ticket?: number;
-  ticket_number?: number;
+  ticket?: number | null;
+  ticket_number?: number | null;
   header: string;
   /** Origen del pedido — se imprime como "PEDIDO PARA MESA / EN LÍNEA / DESDE QUIOSCO / PARA LLEVAR". */
   order_type?: "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
-  items: { name: string; qty: number; unit_price?: number }[];
+  items: { name: string; qty: number; unit_price?: number; modifiers?: string[] }[];
   subtotal?: number;
   tax?: number;
   deliveryFee?: number;
@@ -81,9 +81,38 @@ function sanitizePayloadForPrinter(p: PrintPayload): PrintPayload {
     if (typeof v === "string") (out as Record<string, unknown>)[k] = sanitizeForPrinter(v);
   }
   if (Array.isArray(out.items)) {
-    out.items = out.items.map((i) => ({ ...i, name: sanitizeForPrinter(i.name) }));
+    out.items = out.items.map((i) => ({
+      ...i,
+      name: sanitizeForPrinter(i.name),
+      modifiers: Array.isArray(i.modifiers)
+        ? i.modifiers.map((m) => sanitizeForPrinter(m)).filter((m) => m.length > 0)
+        : undefined,
+    }));
   }
   return out;
+}
+
+/**
+ * Convierte un modificador (string u objeto de carrito con name/qty) al texto
+ * que se imprime en la comanda. Devuelve `""` si no hay nada legible.
+ */
+export function formatModifierLabel(m: unknown): string {
+  if (m == null) return "";
+  if (typeof m === "string") return m.trim();
+  if (typeof m === "object") {
+    const o = m as { name?: unknown; qty?: unknown };
+    const name = String(o.name ?? "").trim();
+    if (!name) return "";
+    const qty = Number(o.qty ?? 1);
+    return Number.isFinite(qty) && qty > 1 ? `${qty}x ${name}` : name;
+  }
+  return String(m).trim();
+}
+
+/** Normaliza cualquier arreglo de modificadores (JSON o string[]) a string[]. */
+export function normalizeModifiers(mods: unknown): string[] {
+  if (!Array.isArray(mods)) return [];
+  return mods.map((m) => formatModifierLabel(m)).filter((s) => s.length > 0);
 }
 
 async function imageToEscPosRasterBase64(url: string, maxWidthPx = 384): Promise<string | null> {

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, type PrintPayload } from "@/lib/print-client";
+import { printSilent, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
@@ -45,7 +45,7 @@ interface SaleRow {
   created_at: string;
   branch_id: string | null;
 }
-interface ItemRow { id: string; sale_id: string; product_name: string; qty: number; unit_price: number; }
+interface ItemRow { id: string; sale_id: string; product_name: string; qty: number; unit_price: number; modifiers?: unknown }
 
 function waLink(phone: string, msg: string) {
   const clean = phone.replace(/[^\d]/g, "");
@@ -191,12 +191,17 @@ function OnlineOrdersPage() {
     }
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
     // 1) Comanda de cocina
+    const comandaItems = its.map((i) => ({
+      name: i.product_name,
+      qty: i.qty,
+      modifiers: normalizeModifiers(i.modifiers),
+    }));
     const comandaPayload: PrintPayload = {
       type: "comanda",
       ticket: o.ticket_number,
       header,
       order_type: o.order_type ?? "online",
-      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      items: comandaItems,
       customer: o.customer_name ?? "",
       notes: o.notes ?? "",
       address: o.delivery_address ?? "",
@@ -206,7 +211,7 @@ function OnlineOrdersPage() {
     };
     void printSilent(comandaPayload, comandaHTML({
       ticket: o.ticket_number, header,
-      items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
+      items: comandaItems,
       customer: o.customer_name ?? "", notes: o.notes ?? "",
       address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
       created_at: o.created_at,

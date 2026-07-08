@@ -14,7 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, sendToLocalPrinter, kickCashDrawer, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, kickCashDrawer, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
@@ -120,7 +120,7 @@ function brandHeaderHTML(b: Branding) {
 }
 
 export function comandaHTML(o: {
-  ticket: number; header: string; items: { name: string; qty: number }[];
+  ticket: number; header: string; items: { name: string; qty: number; modifiers?: string[] }[];
   customer: string; notes: string; address: string; phone: string;
   user_name: string; created_at: string;
   order_type?: string;
@@ -499,6 +499,9 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
     type: "precuenta", header: o.header, items: o.items,
     subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
     customer: o.customer, user_name: o.user_name,
+    ticket: o.ticket ?? undefined,
+    ticket_number: o.ticket ?? undefined,
+    created_at: o.created_at ?? undefined,
   };
   printSilent(payload, precuentaHTML(o), { silent: true });
 }
@@ -1237,11 +1240,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       const printItems =
         deltaLines.length > 0
           ? deltaLines.map(({ line, newQty }) => ({
-              // El servidor de impresión ya renderiza los modificadores debajo
-              // del producto en su propia línea. NO los volvemos a concatenar
-              // entre paréntesis para evitar la duplicación en la comanda.
               name: line.name,
               qty: newQty,
+              modifiers: normalizeModifiers(line.modifiers),
             }))
           : []; // sin ítems nuevos → no imprimimos comanda para no duplicar
 
@@ -1742,16 +1743,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               onClick={async () => {
                 const ticketNo = pendingSale?.ticket_number ?? kioskSale?.ticket_number ?? 0;
                 const items = cart.map((l) => ({
-                  name:
-                    l.name +
-                    (l.modifiers && l.modifiers.length
-                      ? " (" +
-                        l.modifiers
-                          .map((m) => (m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name))
-                          .join(", ") +
-                        ")"
-                      : ""),
+                  name: l.name,
                   qty: l.qty,
+                  modifiers: normalizeModifiers(l.modifiers),
                 }));
                 const snap = {
                   ticket: ticketNo,

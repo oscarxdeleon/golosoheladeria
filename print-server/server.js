@@ -521,27 +521,40 @@ function buildComandaRaw(p) {
     out += BOLD_OFF + DASH_LINE;
   }
 
-  // ITEMS — producto y modificadores en doble alto + negrita, separados por
-  // una línea de guiones entre cada producto (como en la referencia).
+  // ITEMS — producto en doble alto + negrita (Font A). Los modificadores se
+  // imprimen justo debajo del producto en Font B (tipografía condensada, sin
+  // negrita) para diferenciarlos claramente y aprovechar mejor el ancho del
+  // papel: se agrupan en un solo renglón separados por " + " y solo se
+  // dividen en varias líneas cuando exceden el ancho imprimible.
   const items = p.items || [];
   const productCols = Math.max(1, WIDTH);
-  const modCols = Math.max(1, WIDTH - 6);
+  // Font B es más angosta que Font A (~9 vs 12 dots). Con 42 columnas Font A
+  // caben ~56 columnas Font B; dejamos margen (indent + guarda) y usamos
+  // floor(WIDTH * 4/3) como aproximación segura para todas las anchuras.
+  const MOD_INDENT = "   ";
+  const modCols = Math.max(10, Math.floor(WIDTH * 4 / 3) - MOD_INDENT.length);
   items.forEach((i) => {
     const qty = Number(i.qty || 0);
     const productText = `${qty}x ${String(i.name || "").toUpperCase().trim()}`;
     const lines = wrapText(productText, productCols);
-    out += BOLD_ON + SIZE_DOUBLE_H;
+    out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
     out += lines[0] + "\n";
     for (const cont of lines.slice(1)) out += "   " + cont + "\n";
+    out += SIZE_NORMAL + BOLD_OFF;
 
     if (Array.isArray(i.modifiers) && i.modifiers.length) {
-      for (const mod of i.modifiers) {
-        const modLines = wrapText(String(mod).toUpperCase().trim(), modCols);
-        out += "    + " + modLines[0] + "\n";
-        for (const cont of modLines.slice(1)) out += "      " + cont + "\n";
+      const parts = i.modifiers
+        .map((m) => String(m == null ? "" : m).trim())
+        .filter(Boolean);
+      if (parts.length) {
+        // Formato "+ Mod1  + Mod2  + Mod3", con salto solo si excede el ancho.
+        const joined = "+ " + parts.join("  + ");
+        const modLines = wrapText(joined, modCols);
+        out += FONT_B;
+        for (const line of modLines) out += MOD_INDENT + line + "\n";
+        out += FONT_A;
       }
     }
-    out += SIZE_NORMAL + BOLD_OFF;
     out += DASH_LINE;
   });
 

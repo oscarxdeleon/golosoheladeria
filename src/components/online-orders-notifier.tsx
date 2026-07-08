@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { sendToLocalPrinter } from "@/lib/print-client";
+import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -215,10 +215,15 @@ async function ackOrdersInDb(ids: string[]) {
 async function autoPrintKioskOrder(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
     supabase.from("sales").select("ticket_number, subtotal, total, delivery_fee, customer_name, notes, created_at").eq("id", saleId).maybeSingle(),
-    supabase.from("sale_items").select("product_name, qty, unit_price").eq("sale_id", saleId),
+    supabase.from("sale_items").select("product_name, qty, unit_price, modifiers").eq("sale_id", saleId),
   ]);
   if (!sale || !items?.length) return;
-  const printItems = items.map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) }));
+  const printItems = items.map((i) => ({
+    name: i.product_name,
+    qty: Number(i.qty),
+    unit_price: Number(i.unit_price),
+    modifiers: normalizeModifiers((i as { modifiers?: unknown }).modifiers),
+  }));
 
   void sendToLocalPrinter({
     type: "comanda",
@@ -238,7 +243,7 @@ async function autoPrintKioskOrder(saleId: string) {
 async function printTableOrderComanda(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
     supabase.from("sales").select("ticket_number, customer_name, notes, created_at, table_id").eq("id", saleId).maybeSingle(),
-    supabase.from("sale_items").select("product_name, qty, unit_price").eq("sale_id", saleId),
+    supabase.from("sale_items").select("product_name, qty, unit_price, modifiers").eq("sale_id", saleId),
   ]);
   if (!sale || !items?.length) return;
   let tableLabel = "";
@@ -246,7 +251,12 @@ async function printTableOrderComanda(saleId: string) {
     const { data: t } = await supabase.from("restaurant_tables").select("number,label").eq("id", sale.table_id).maybeSingle();
     if (t) tableLabel = t.label ?? `Mesa ${t.number}`;
   }
-  const printItems = items.map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) }));
+  const printItems = items.map((i) => ({
+    name: i.product_name,
+    qty: Number(i.qty),
+    unit_price: Number(i.unit_price),
+    modifiers: normalizeModifiers((i as { modifiers?: unknown }).modifiers),
+  }));
   void sendToLocalPrinter({
     type: "comanda",
     ticket: sale.ticket_number,
