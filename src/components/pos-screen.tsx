@@ -429,6 +429,7 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
     address: o.address, phone: o.phone, user_name: o.user_name, created_at: o.created_at,
     order_type: o.order_type,
     business_name: b.business_name,
+    is_addition: o.is_addition,
     printer_ip: ip, printer_port: port,
   };
   const ok = await sendToLocalPrinter(payload);
