@@ -370,9 +370,15 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   );
 
   const TIMEOUT_MS = 12000;
-  // Normalizamos comillas/controles, conservando tildes para que el servidor
-  // local las codifique en CP850 antes de enviarlas a la impresora.
-  const body = JSON.stringify(sanitizePayloadForPrinter(await withClientRasterLogo(await withDefaultPrinterTarget(payload))));
+  const body = JSON.stringify(
+    sanitizePayloadForPrinter(
+      await withClientRasterLogo(
+        await withActiveCommandFormat(
+          await withDefaultPrinterTarget(payload),
+        ),
+      ),
+    ),
+  );
 
 
   for (const url of candidates) {
