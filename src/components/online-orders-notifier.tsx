@@ -221,7 +221,8 @@ async function printTableOrderComanda(saleId: string) {
   void sendToLocalPrinter({
     type: "comanda",
     ticket: sale.ticket_number,
-    header: `PEDIDO MESA${tableLabel ? " · " + tableLabel.toUpperCase() : ""}`,
+    header: tableLabel ? tableLabel.toUpperCase().replace(/^MESA\s*#?\s*/i, "MESA # ") : "MESA",
+    order_type: "mesa",
     items: printItems,
     customer: sale.customer_name ?? tableLabel ?? undefined,
     notes: sale.notes ?? undefined,
