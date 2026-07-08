@@ -628,3 +628,74 @@ function CajaPage() {
     </div>
   );
 }
+
+function DenomField({
+  label,
+  value,
+  onChange,
+  variant,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  variant: "coin" | "bill";
+}) {
+  const pill =
+    variant === "coin"
+      ? "bg-gradient-to-b from-emerald-500 to-emerald-700 text-white ring-2 ring-lime-300"
+      : "bg-gradient-to-b from-sky-700 to-sky-900 text-white ring-2 ring-sky-300";
+  const badge =
+    variant === "coin"
+      ? "bg-gradient-to-b from-yellow-300 to-amber-500 text-white shadow-inner ring-2 ring-amber-600/50"
+      : "bg-gradient-to-b from-emerald-300 to-emerald-500 text-white shadow-inner ring-2 ring-emerald-700/50";
+  return (
+    <div className="rounded-xl border-2 border-[#B8E4F5] bg-white p-2">
+      <div className={`inline-flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full ${pill} shadow-md -mt-5 mb-1`}>
+        <span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-black ${badge}`}>
+          {variant === "coin" ? "$" : "$"}
+        </span>
+        <span className="font-black text-xs whitespace-nowrap">{label}</span>
+      </div>
+      <input
+        type="text"
+        inputMode="numeric"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0"
+        className="w-full text-center rounded-lg border border-slate-200 bg-white text-[#0A4E7A] font-bold py-1.5 text-lg outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
+      />
+    </div>
+  );
+}
+
+function PaymentRow({
+  icon,
+  label,
+  value,
+  onChange,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: string;
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <div className="grid grid-cols-[minmax(0,1fr)_minmax(120px,180px)] items-center gap-3">
+      <div className="flex items-center gap-2 min-w-0">
+        {icon}
+        <span className="font-extrabold text-[#0A4E7A] text-sm truncate">{label}</span>
+      </div>
+      <div className="flex items-center gap-1 rounded-lg border-2 border-pink-200 px-2 py-1">
+        <span className="text-[#C41A6B] font-black">$</span>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={value}
+          onChange={onChange}
+          placeholder="0"
+          className="w-full text-right bg-transparent outline-none text-[#0A4E7A] font-bold tabular-nums"
+        />
+      </div>
+    </div>
+  );
+}
