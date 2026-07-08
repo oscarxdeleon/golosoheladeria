@@ -725,7 +725,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,notes,created_at,sale_items(product_id,product_name,qty,unit_price)")
+        .select("id,ticket_number,customer_name,notes,created_at,payment_method,sale_items(product_id,product_name,qty,unit_price)")
         .eq("id", kioskSaleId!)
         .maybeSingle();
       return data as null | {
@@ -734,6 +734,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         customer_name: string | null;
         notes: string | null;
         created_at: string;
+        payment_method: string | null;
         sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
       };
     },
@@ -1802,7 +1803,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 </div>
               </div>
 
+              {kioskSale?.payment_method &&
+                !["pendiente", "mixto", ""].includes(String(kioskSale.payment_method).toLowerCase()) && (
+                  <div className="mb-2.5 rounded-xl border border-amber-300/70 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs sm:text-sm text-amber-900 dark:text-amber-200 flex items-center gap-2">
+                    <Smartphone className="h-4 w-4 shrink-0" />
+                    <span>
+                      El cliente eligió pagar con{" "}
+                      <b className="uppercase">{kioskSale.payment_method}</b>. Confírmalo o
+                      elige otro método si desea cambiar.
+                    </span>
+                  </div>
+                )}
+
               <div className="grid grid-cols-2 gap-2.5">
+
                 {methods.map((m: { id: string; name: string }) => {
                   const lower = m.name.toLowerCase();
                   const isCash = lower.includes("efectivo");
@@ -1868,7 +1882,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                           toast.error("No se pudo iniciar el cobro. Recarga la mesa e intenta de nuevo.");
                         }
                       }}
-                      className="group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                      className={`group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 ${
+                        kioskSale?.payment_method &&
+                        kioskSale.payment_method.toLowerCase() === lower
+                          ? "ring-4 ring-amber-400 ring-offset-2 ring-offset-background scale-[1.03] motion-safe:animate-pulse"
+                          : ""
+                      }`}
                     >
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25">
                         <Icon className="h-3.5 w-3.5" strokeWidth={2.75} />

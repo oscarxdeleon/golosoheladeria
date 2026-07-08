@@ -963,13 +963,17 @@ export function PublicOrder({
                 );
               }
 
-              const showBranch = br && br.toLowerCase() !== biz.toLowerCase();
-              const headerTitle = source === "online_menu" ? (br || biz) : biz;
+              // Para Quiosco y Menú en línea mostramos únicamente el nombre
+              // de la sede (o el nombre del negocio si no hay sede), sin
+              // concatenar "Negocio · Sede" — evita duplicar "Goloso".
+              const usesBranchOnly = source === "kiosk" || source === "online_menu";
+              const showBranch = !usesBranchOnly && br && br.toLowerCase() !== biz.toLowerCase();
+              const headerTitle = usesBranchOnly ? (br || biz) : biz;
               return (
                 <>
                   <div className="font-display text-lg text-primary">
                     {headerTitle}
-                    {source !== "online_menu" && showBranch ? <span className="text-primary"> · {br}</span> : null}
+                    {showBranch ? <span className="text-primary"> · {br}</span> : null}
                   </div>
                   <div className="text-xs text-muted-foreground">
                     {source === "kiosk" && `Auto-pedido · ${kioskService === "llevar" ? "Para llevar" : kioskService === "comer_aqui" ? "Comer aquí" : "Autopedido"}`}

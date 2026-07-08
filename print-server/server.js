@@ -332,10 +332,11 @@ async function buildPersonalizedTicketRaw(p) {
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + title + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (cfg.show_ticket_number) {
     const rawNum = p.ticket ?? p.ticket_number;
-    if (rawNum != null && String(rawNum).trim() !== "" && String(rawNum) !== "0") {
-      // Usamos "#NNNN" (sin ceros a la izquierda) para reflejar el consecutivo
-      // real generado por el sistema, evitando la apariencia de "000000".
-      out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${String(rawNum).trim()}\n` + SIZE_NORMAL + BOLD_OFF;
+    const strNum = rawNum == null ? "" : String(rawNum).trim();
+    // Solo omitimos el número cuando NO viene ninguno; para consecutivos válidos
+    // imprimimos "#N" respetando el número real (nunca lo rellenamos con ceros).
+    if (strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined") {
+      out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${strNum}\n` + SIZE_NORMAL + BOLD_OFF;
     }
   }
   out += ALIGN_L + DASH_LINE;
@@ -550,12 +551,24 @@ function buildComandaRaw(p) {
     out += SIZE_NORMAL + BOLD_OFF;
 
     if (Array.isArray(i.modifiers) && i.modifiers.length) {
-      const parts = i.modifiers
-        .map((m) => String(m == null ? "" : m).trim())
-        .filter(Boolean);
+      // Deduplicamos (case-insensitive) por si el cliente enviara repeticiones
+      // y limpiamos cualquier prefijo "+" o "*" preexistente.
+      const seen = new Set();
+      const parts = [];
+      for (const raw of i.modifiers) {
+        const clean = String(raw == null ? "" : raw)
+          .replace(/^\s*[+*]\s*/, "")
+          .trim();
+        if (!clean) continue;
+        const key = clean.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        parts.push(clean);
+      }
       if (parts.length) {
-        // Formato "+ Mod1  + Mod2  + Mod3", con salto solo si excede el ancho.
-        const joined = "+ " + parts.join("  + ");
+        // Formato: "+ Mod1 + Mod2 + Mod3"; se envuelve automáticamente si
+        // excede el ancho, sin repetir modificadores.
+        const joined = "+ " + parts.join(" + ");
         const modLines = wrapText(joined, modCols);
         out += FONT_B;
         for (const line of modLines) out += MOD_INDENT + line + "\n";
