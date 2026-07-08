@@ -332,10 +332,11 @@ async function buildPersonalizedTicketRaw(p) {
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + title + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (cfg.show_ticket_number) {
     const rawNum = p.ticket ?? p.ticket_number;
-    if (rawNum != null && String(rawNum).trim() !== "" && String(rawNum) !== "0") {
-      // Usamos "#NNNN" (sin ceros a la izquierda) para reflejar el consecutivo
-      // real generado por el sistema, evitando la apariencia de "000000".
-      out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${String(rawNum).trim()}\n` + SIZE_NORMAL + BOLD_OFF;
+    const strNum = rawNum == null ? "" : String(rawNum).trim();
+    // Solo omitimos el número cuando NO viene ninguno; para consecutivos válidos
+    // imprimimos "#N" respetando el número real (nunca lo rellenamos con ceros).
+    if (strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined") {
+      out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${strNum}\n` + SIZE_NORMAL + BOLD_OFF;
     }
   }
   out += ALIGN_L + DASH_LINE;
