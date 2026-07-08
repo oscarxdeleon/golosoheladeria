@@ -159,10 +159,48 @@ function ProductosPage() {
     };
     if (isLinkedChild) payload.is_linked = false;
 
-    const { error } = editing.id
-      ? await supabase.from("products").update(payload as never).eq("id", editing.id)
-      : await supabase.from("products").insert(payload as never);
-    if (error) return toast.error(error.message);
+    let error: { message: string } | null = null;
+    if (editing.id) {
+      const res = await supabase.from("products").update(payload as never).eq("id", editing.id);
+      error = res.error;
+    } else {
+      // Nuevo producto. Si el usuario eligió sedes y activó "crear en todas las sedes como copias independientes",
+      // creamos una fila POR SEDE (cada una totalmente editable, sin sincronización automática).
+      const selectedBranchIds: string[] = Array.isArray(payload.available_branch_ids)
+        ? (payload.available_branch_ids as string[])
+        : [];
+      const mainBranch = branches.find((b) => b.is_main);
+      const shouldSplit =
+        createInAllBranches && branches.length > 1 && selectedBranchIds.length > 1;
+      if (shouldSplit && mainBranch) {
+        // Primero: fila "padre" en la sede principal (si está seleccionada), si no, en la primera seleccionada.
+        const primaryId = selectedBranchIds.includes(mainBranch.id) ? mainBranch.id : selectedBranchIds[0];
+        const primaryPayload = { ...payload, available_branch_ids: [primaryId] };
+        const insertParent = await supabase
+          .from("products")
+          .insert(primaryPayload as never)
+          .select("id")
+          .single();
+        if (insertParent.error) { error = insertParent.error; }
+        else {
+          const parentId = (insertParent.data as { id: string }).id;
+          const others = selectedBranchIds.filter((id) => id !== primaryId);
+          if (others.length > 0) {
+            const copies = others.map((bid) => ({
+              ...payload,
+              available_branch_ids: [bid],
+              source_product_id: parentId,
+              is_linked: false, // independiente desde el inicio: cada sede administra su propia copia
+            }));
+            const insertCopies = await supabase.from("products").insert(copies as never);
+            if (insertCopies.error) error = insertCopies.error;
+          }
+        }
+      } else {
+        const res = await supabase.from("products").insert(payload as never);
+        error = res.error;
+      }
+    }
     // Cierra el modal ANTES de invalidar queries / mostrar toast para evitar
     // que Radix Dialog deje el <body> con pointer-events/overflow bloqueados
     // (produciría una pantalla en blanco al volver al listado en móvil).
