@@ -784,12 +784,33 @@ function ProductosPage() {
         )}
 
       </div>
+      {branches.length > 1 && (
+        <div className="flex items-center gap-2">
+          <Label className="text-sm text-muted-foreground">Ver productos de:</Label>
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-56 h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las sedes</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " (Principal)" : ""}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader><TableRow><TableHead className="w-16">Foto</TableHead><TableHead>Nombre</TableHead><TableHead>Categoría</TableHead><TableHead className="text-right">Precio</TableHead><TableHead>Estado</TableHead><TableHead></TableHead></TableRow></TableHeader>
             <TableBody>
-              {products.map((p) => (
+              {products
+                .filter((p) => {
+                  if (branchFilter === "all") return true;
+                  const ids = p.available_branch_ids;
+                  if (!ids || ids.length === 0) return true; // sin restricción = visible en todas
+                  return ids.includes(branchFilter);
+                })
+                .map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
                     <button
