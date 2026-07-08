@@ -1016,16 +1016,36 @@ export function PublicOrder({
 
         </div>
 
-        <div className="max-w-5xl mx-auto px-4 pb-3 overflow-x-auto">
-          <Tabs value={activeCat} onValueChange={setActiveCat}>
-            <TabsList>
-              <TabsTrigger value="all">Todos</TabsTrigger>
-              {cats.map((c) => (
-                <TabsTrigger key={c.id} value={c.id}>{c.name}</TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+        <div className="max-w-5xl mx-auto px-3 sm:px-4 pb-3">
+          <div
+            className="flex gap-2 sm:gap-2.5 overflow-x-auto scroll-smooth snap-x snap-mandatory pb-1 -mx-1 px-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            role="tablist"
+            aria-label="Categorías"
+          >
+            {[{ id: "all", name: "Todos" }, ...cats].map((c) => {
+              const isActive = activeCat === c.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="tab"
+                  aria-selected={isActive}
+                  onClick={() => setActiveCat(c.id)}
+                  className={
+                    "snap-start shrink-0 whitespace-nowrap rounded-full px-4 sm:px-5 py-2 sm:py-2.5 text-sm sm:text-base font-bold tracking-wide " +
+                    "transition-all duration-200 ease-out active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/60 " +
+                    (isActive
+                      ? "bg-gradient-primary text-primary-foreground shadow-[0_8px_20px_-8px_color-mix(in_oklab,var(--color-primary)_55%,transparent)] ring-1 ring-primary/40 scale-[1.03]"
+                      : "bg-card/80 text-foreground/80 border border-border hover:border-primary/50 hover:text-primary hover:bg-primary/5 hover:-translate-y-0.5")
+                  }
+                >
+                  {c.name}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
       </header>
 
 
