@@ -488,7 +488,7 @@ function CajaPage() {
                   </div>
                   <span className="font-extrabold text-[#2C7A2C] uppercase text-sm">Monedas</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div className="grid grid-cols-3 gap-3 justify-items-stretch">
                   {COIN_DENOMS.map((d) => (
                     <DenomField
                       key={d}
@@ -509,7 +509,7 @@ function CajaPage() {
                   </div>
                   <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Billetes</span>
                 </div>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                <div className="grid grid-cols-3 gap-3 justify-items-stretch">
                   {BILL_DENOMS.map((d) => (
                     <DenomField
                       key={d}
