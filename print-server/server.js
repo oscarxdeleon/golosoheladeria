@@ -516,9 +516,26 @@ const ORDER_TYPE_LABELS = {
   kiosko: "AUTOPEDIDO",
   online: "EN LINEA",
 };
+function normalizeOrderTypeKey(type) {
+  const key = String(type || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!key) return "";
+  if (key.includes("autopedido") || key.includes("quiosco") || key.includes("kiosko") || key === "kiosk") return "kiosko";
+  if (key.includes("domicilio") || key.includes("delivery")) return "domicilio";
+  if (key.includes("llevar")) return "llevar";
+  if (key.includes("mesa")) return "mesa";
+  if (key.includes("linea") || key.includes("online")) return "online";
+  return key;
+}
 function fmtOrderType(type, mode) {
   if (mode === "hidden") return "";
-  const key = String(type || "").toLowerCase();
+  const key = normalizeOrderTypeKey(type);
   const base = ORDER_TYPE_LABELS[key] || (key ? key.toUpperCase() : "");
   if (!base) return "";
   // Autopedido ya es autoexplicativo, no anteponer "PEDIDO" ni ">>".
@@ -561,7 +578,7 @@ function buildComandaFormatted(p, fmt) {
   let out = INIT + CODEPAGE + INTL_CHARSET + fontCmd;
 
   // Encabezado (sede) - se omite en comandas de mesa para un encabezado más limpio.
-  const otKeyEarly = String(p.order_type || "").toLowerCase();
+  const otKeyEarly = normalizeOrderTypeKey(p.order_type);
   if (p.business_name && otKeyEarly !== "mesa") {
     const business = String(p.business_name).toUpperCase().trim();
     out += bigLine(`** ${business} **`, f.titleSize, f.bold.title, f.align.header);
@@ -582,7 +599,7 @@ function buildComandaFormatted(p, fmt) {
   out += (f.bold.title ? BOLD_ON : "") + line(`${hora}    ${fecha}`, f.align.header) + (f.bold.title ? BOLD_OFF : "");
 
   // Tipo de pedido
-  const otKey = String(p.order_type || "").toLowerCase();
+  const otKey = normalizeOrderTypeKey(p.order_type);
   const otTxt = fmtOrderType(otKey, f.orderTypeFormat);
   if (otTxt) {
     out += bigLine(otTxt, Math.min(f.titleSize, 2), f.bold.title, f.align.orderType);
@@ -671,7 +688,7 @@ function buildComandaLegacy(p) {
 
   out += ALIGN_C;
 
-  const otKeyEarlyL = String(p.order_type || "").toLowerCase();
+  const otKeyEarlyL = normalizeOrderTypeKey(p.order_type);
   if (p.business_name && otKeyEarlyL !== "mesa") {
     const business = String(p.business_name).toUpperCase().trim();
     const maxCols = Math.max(1, Math.floor(WIDTH / 2));
@@ -708,7 +725,7 @@ function buildComandaLegacy(p) {
     kiosko: "AUTOPEDIDO",
     online: "PEDIDO EN LINEA",
   };
-  const otKey = String(p.order_type || "").toLowerCase();
+  const otKey = normalizeOrderTypeKey(p.order_type);
   const otLabel = orderTypeLabels[otKey] || (otKey ? `PEDIDO ${otKey.toUpperCase()}` : "");
   if (otLabel) {
     out += BOLD_ON + SIZE_DOUBLE_H + otLabel + "\n" + SIZE_NORMAL + BOLD_OFF;

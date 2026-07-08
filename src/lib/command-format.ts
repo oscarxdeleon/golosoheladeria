@@ -129,9 +129,27 @@ const ORDER_TYPE_LABELS: Record<string, string> = {
   online: "EN LINEA",
 };
 
+function normalizeOrderTypeKey(type: string | null | undefined): string {
+  const key = String(type || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  if (!key) return "";
+  if (key.includes("autopedido") || key.includes("quiosco") || key.includes("kiosko") || key === "kiosk") return "kiosko";
+  if (key.includes("domicilio") || key.includes("delivery")) return "domicilio";
+  if (key.includes("llevar")) return "llevar";
+  if (key.includes("mesa")) return "mesa";
+  if (key.includes("linea") || key.includes("online")) return "online";
+  return key;
+}
+
 export function formatOrderType(type: string | null | undefined, fmt: CommandFormat["orderTypeFormat"]): string {
   if (fmt === "hidden") return "";
-  const key = String(type || "").toLowerCase();
+  const key = normalizeOrderTypeKey(type);
   const base = ORDER_TYPE_LABELS[key] || (key ? key.toUpperCase() : "");
   if (!base) return "";
   if (key === "kiosko") return base;
