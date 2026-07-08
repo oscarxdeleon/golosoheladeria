@@ -93,6 +93,7 @@ function ProductosPage() {
   const [dupSaving, setDupSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
   const [branchFilter, setBranchFilter] = useState<string>("all");
+  const [categoryFilter, setCategoryFilter] = useState<string>("all");
   // Al crear nuevo producto: opción para replicarlo como copias INDEPENDIENTES en las sucursales.
   const [createInAllBranches, setCreateInAllBranches] = useState(true);
   const parseMenu = useServerFn(parseMenuPdfText);
