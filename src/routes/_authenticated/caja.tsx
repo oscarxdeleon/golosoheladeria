@@ -355,7 +355,7 @@ function CajaPage() {
           <div className="space-y-3">
             <div>
               <label className="text-sm font-medium">Monto inicial en efectivo</label>
-              <Input type="number" inputMode="decimal" placeholder="0" value={openingAmount} onChange={(e) => setOpeningAmount(e.target.value)} />
+              <Input type="text" inputMode="numeric" placeholder="0" value={openingAmount} onChange={handleAmount(setOpeningAmount)} />
             </div>
             <div>
               <label className="text-sm font-medium">Notas (opcional)</label>
