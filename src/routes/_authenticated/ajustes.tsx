@@ -1051,7 +1051,65 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
   );
 }
 
-interface Branch {
+function ExtrasTab() {
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["settings", "extras"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("id,enable_tips").eq("id", 1).maybeSingle();
+      return data as { id: number; enable_tips: boolean | null } | null;
+    },
+  });
+  const [enableTips, setEnableTips] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { if (data) setEnableTips(!!data.enable_tips); }, [data]);
+
+  async function toggle(v: boolean) {
+    setEnableTips(v);
+    setSaving(true);
+    const { error } = await supabase
+      .from("settings")
+      .update({ enable_tips: v } as never)
+      .eq("id", 1);
+    setSaving(false);
+    if (error) {
+      setEnableTips(!v);
+      toast.error(error.message);
+      return;
+    }
+    toast.success(v ? "Propina activada" : "Propina desactivada");
+    qc.invalidateQueries({ queryKey: ["settings"] });
+    qc.invalidateQueries({ queryKey: ["settings", "extras"] });
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-amber-500" /> Propina
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-card p-4">
+            <div className="min-w-0">
+              <Label className="text-base font-semibold">Activar propina</Label>
+              <p className="text-sm text-muted-foreground">
+                Muestra un botón <b>Propina</b> en el cobro del POS para agregar un valor adicional al total.
+                Si está desactivado el botón no aparece y el cobro no cambia.
+              </p>
+            </div>
+            <Switch checked={enableTips} disabled={saving} onCheckedChange={toggle} />
+          </div>
+          <div className="rounded-md border border-amber-300/50 bg-amber-50/50 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-200">
+            La propina queda registrada por separado en cada venta (ticket, historial y cierre de caja).
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
   id: string; name: string; slug?: string | null; address: string | null; phone: string | null; city: string | null;
   is_main: boolean; inherits_main_catalog: boolean;
   neighborhood?: string | null; nit?: string | null;
