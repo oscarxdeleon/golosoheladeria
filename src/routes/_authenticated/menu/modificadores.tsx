@@ -176,6 +176,23 @@ function ModPage() {
         )}
       </div>
 
+      {isAdmin && branches.length > 0 && (
+        <Card>
+          <CardContent className="flex flex-wrap items-center gap-3 py-3">
+            <Label className="text-sm">Disponibilidad por sede:</Label>
+            <Select value={branchId ?? ""} onValueChange={(v) => setSelBranchId(v)}>
+              <SelectTrigger className="w-64"><SelectValue placeholder="Seleccionar sede…" /></SelectTrigger>
+              <SelectContent>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Usa el interruptor de cada modificador para activarlo o desactivarlo en la sede seleccionada.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {groups.length === 0 ? (
         <Card><CardContent className="py-8 text-center text-muted-foreground">Aún no hay grupos.</CardContent></Card>
       ) : (
