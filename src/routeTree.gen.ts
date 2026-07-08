@@ -28,6 +28,7 @@ import { Route as AuthenticatedPedidosOnlineRouteImport } from './routes/_authen
 import { Route as AuthenticatedOpinionesRouteImport } from './routes/_authenticated/opiniones'
 import { Route as AuthenticatedMesasAdminRouteImport } from './routes/_authenticated/mesas-admin'
 import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
+import { Route as AuthenticatedLlevarPendientesRouteImport } from './routes/_authenticated/llevar-pendientes'
 import { Route as AuthenticatedLlevarRouteImport } from './routes/_authenticated/llevar'
 import { Route as AuthenticatedKioskoRouteImport } from './routes/_authenticated/kiosko'
 import { Route as AuthenticatedKdsRouteImport } from './routes/_authenticated/kds'
@@ -156,6 +157,12 @@ const AuthenticatedMesasRoute = AuthenticatedMesasRouteImport.update({
   path: '/mesas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedLlevarPendientesRoute =
+  AuthenticatedLlevarPendientesRouteImport.update({
+    id: '/llevar-pendientes',
+    path: '/llevar-pendientes',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
 const AuthenticatedLlevarRoute = AuthenticatedLlevarRouteImport.update({
   id: '/llevar',
   path: '/llevar',
@@ -341,6 +348,7 @@ export interface FileRoutesByFullPath {
   '/kds': typeof AuthenticatedKdsRoute
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
+  '/llevar-pendientes': typeof AuthenticatedLlevarPendientesRoute
   '/mesas': typeof AuthenticatedMesasRoute
   '/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/opiniones': typeof AuthenticatedOpinionesRoute
@@ -391,6 +399,7 @@ export interface FileRoutesByTo {
   '/kds': typeof AuthenticatedKdsRoute
   '/kiosko': typeof AuthenticatedKioskoRoute
   '/llevar': typeof AuthenticatedLlevarRoute
+  '/llevar-pendientes': typeof AuthenticatedLlevarPendientesRoute
   '/mesas': typeof AuthenticatedMesasRoute
   '/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/opiniones': typeof AuthenticatedOpinionesRoute
@@ -442,6 +451,7 @@ export interface FileRoutesById {
   '/_authenticated/kds': typeof AuthenticatedKdsRoute
   '/_authenticated/kiosko': typeof AuthenticatedKioskoRoute
   '/_authenticated/llevar': typeof AuthenticatedLlevarRoute
+  '/_authenticated/llevar-pendientes': typeof AuthenticatedLlevarPendientesRoute
   '/_authenticated/mesas': typeof AuthenticatedMesasRoute
   '/_authenticated/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/_authenticated/opiniones': typeof AuthenticatedOpinionesRoute
@@ -494,6 +504,7 @@ export interface FileRouteTypes {
     | '/kds'
     | '/kiosko'
     | '/llevar'
+    | '/llevar-pendientes'
     | '/mesas'
     | '/mesas-admin'
     | '/opiniones'
@@ -544,6 +555,7 @@ export interface FileRouteTypes {
     | '/kds'
     | '/kiosko'
     | '/llevar'
+    | '/llevar-pendientes'
     | '/mesas'
     | '/mesas-admin'
     | '/opiniones'
@@ -594,6 +606,7 @@ export interface FileRouteTypes {
     | '/_authenticated/kds'
     | '/_authenticated/kiosko'
     | '/_authenticated/llevar'
+    | '/_authenticated/llevar-pendientes'
     | '/_authenticated/mesas'
     | '/_authenticated/mesas-admin'
     | '/_authenticated/opiniones'
@@ -765,6 +778,13 @@ declare module '@tanstack/react-router' {
       path: '/mesas'
       fullPath: '/mesas'
       preLoaderRoute: typeof AuthenticatedMesasRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/llevar-pendientes': {
+      id: '/_authenticated/llevar-pendientes'
+      path: '/llevar-pendientes'
+      fullPath: '/llevar-pendientes'
+      preLoaderRoute: typeof AuthenticatedLlevarPendientesRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/llevar': {
@@ -1000,6 +1020,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedKdsRoute: typeof AuthenticatedKdsRoute
   AuthenticatedKioskoRoute: typeof AuthenticatedKioskoRoute
   AuthenticatedLlevarRoute: typeof AuthenticatedLlevarRoute
+  AuthenticatedLlevarPendientesRoute: typeof AuthenticatedLlevarPendientesRoute
   AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
   AuthenticatedMesasAdminRoute: typeof AuthenticatedMesasAdminRoute
   AuthenticatedOpinionesRoute: typeof AuthenticatedOpinionesRoute
@@ -1036,6 +1057,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedKdsRoute: AuthenticatedKdsRoute,
   AuthenticatedKioskoRoute: AuthenticatedKioskoRoute,
   AuthenticatedLlevarRoute: AuthenticatedLlevarRoute,
+  AuthenticatedLlevarPendientesRoute: AuthenticatedLlevarPendientesRoute,
   AuthenticatedMesasRoute: AuthenticatedMesasRoute,
   AuthenticatedMesasAdminRoute: AuthenticatedMesasAdminRoute,
   AuthenticatedOpinionesRoute: AuthenticatedOpinionesRoute,

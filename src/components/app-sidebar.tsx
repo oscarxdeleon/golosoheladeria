@@ -34,6 +34,7 @@ import {
   ChefHat,
   Truck,
   Wallet,
+  Clock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -65,6 +66,7 @@ const orden = [
   { to: "/kds", label: "KDS", icon: ChefHat, key: "kds" },
   { to: "/mesas", label: "Mesas", icon: Utensils, key: "mesas" },
   { to: "/llevar", label: "Para llevar", icon: ShoppingBag, key: "llevar" },
+  { to: "/llevar-pendientes", label: "Pedidos p/ llevar pendientes", icon: Clock, key: "llevar-pendientes" },
   { to: "/domicilio", label: "A domicilio", icon: Bike, key: "domicilio" },
   { to: "/kiosko", label: "Autopedido", icon: Monitor, key: "kiosko" },
   { to: "/pedidos-online", label: "Pedidos en línea", icon: BellRing, key: "pedidos-online" },
