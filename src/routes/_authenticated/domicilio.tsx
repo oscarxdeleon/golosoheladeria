@@ -11,8 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, UserPlus, ArrowLeft, Bike, Phone, MapPin, User } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
-import domicilioMotoAsset from "@/assets/delivery-goloso.png.asset.json";
-const domicilioMotoImg = domicilioMotoAsset.url;
+import domicilioMotoImg from "@/assets/delivery-goloso.png";
 
 export const Route = createFileRoute("/_authenticated/domicilio")({
   head: () => ({ meta: [{ title: "A domicilio · Goloso POS" }] }),
