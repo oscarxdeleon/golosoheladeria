@@ -69,14 +69,21 @@ function CajaPage() {
   const [nequiCounted, setNequiCounted] = useState("");
   const [bancoCounted, setBancoCounted] = useState("");
 
+  const COIN_DENOMS = [50, 100, 200, 500, 1000] as const;
+  const BILL_DENOMS = [1000, 2000, 5000, 10000, 20000, 50000, 100000] as const;
+  const [coinQty, setCoinQty] = useState<Record<number, string>>({});
+  const [billQty, setBillQty] = useState<Record<number, string>>({});
+  const [nowLabel, setNowLabel] = useState<string>(() => new Date().toLocaleString("es-CO", { dateStyle: "short", timeStyle: "short" }));
+
   const formatThousands = (v: string) => {
     const digits = v.replace(/\D/g, "");
     if (!digits) return "";
     return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
   };
-  const parseAmount = (v: string) => Number(v.replace(/\D/g, "") || 0);
+  const parseAmount = (v: string) => Number((v ?? "").toString().replace(/\D/g, "") || 0);
   const handleAmount = (setter: (s: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
     setter(formatThousands(e.target.value));
+  const onlyDigits = (v: string) => v.replace(/\D/g, "");
   const [closingNotes, setClosingNotes] = useState("");
   const [closeError, setCloseError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
