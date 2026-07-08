@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertTriangle, Banknote, LockOpen, LockKeyhole, History, Eye, Smartphone, Building2, Lock, Clock, Wallet, Coins, Calculator, NotebookPen } from "lucide-react";
-import mascotAsset from "@/assets/cierre-caja-mascot.png.asset.json";
+import mascotImage from "@/assets/cierre-caja-mascot.png";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
