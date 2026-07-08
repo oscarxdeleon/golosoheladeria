@@ -2166,6 +2166,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               }
             : null
         }
+        branchId={activeBranchId}
         onClose={() => setModalProduct(null)}
         onConfirm={(mods, unitExtra, note) => {
           if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra, note);
