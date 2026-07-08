@@ -1314,6 +1314,11 @@ export type Database = {
       sales: {
         Row: {
           branch_id: string | null
+          cancellation_previous_status: string | null
+          cancellation_reason: string | null
+          cancelled_at: string | null
+          cancelled_by: string | null
+          cancelled_by_name: string | null
           cash_session_id: string | null
           courier_id: string | null
           created_at: string
@@ -1346,6 +1351,11 @@ export type Database = {
         }
         Insert: {
           branch_id?: string | null
+          cancellation_previous_status?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_by_name?: string | null
           cash_session_id?: string | null
           courier_id?: string | null
           created_at?: string
@@ -1378,6 +1388,11 @@ export type Database = {
         }
         Update: {
           branch_id?: string | null
+          cancellation_previous_status?: string | null
+          cancellation_reason?: string | null
+          cancelled_at?: string | null
+          cancelled_by?: string | null
+          cancelled_by_name?: string | null
           cash_session_id?: string | null
           courier_id?: string | null
           created_at?: string
@@ -1851,6 +1866,10 @@ export type Database = {
     }
     Functions: {
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
+      cancel_sale: {
+        Args: { _reason: string; _sale_id: string }
+        Returns: Json
+      }
       clone_main_products_to_branch: {
         Args: { _branch_id: string }
         Returns: Json
