@@ -201,6 +201,7 @@ function ProductosPage() {
         error = res.error;
       }
     }
+    if (error) return toast.error(error.message);
     // Cierra el modal ANTES de invalidar queries / mostrar toast para evitar
     // que Radix Dialog deje el <body> con pointer-events/overflow bloqueados
     // (produciría una pantalla en blanco al volver al listado en móvil).
