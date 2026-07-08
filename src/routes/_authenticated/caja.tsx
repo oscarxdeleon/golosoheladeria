@@ -432,7 +432,7 @@ function CajaPage() {
                 </DialogDescription>
               </DialogHeader>
               <img
-                src={mascotAsset.url}
+                src={mascotImage}
                 alt=""
                 aria-hidden
                 className="pointer-events-none absolute top-1 right-1 w-[42%] max-w-[240px] select-none"
