@@ -34,6 +34,7 @@ import {
   ChefHat,
   Truck,
   Wallet,
+  Clock,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
