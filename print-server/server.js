@@ -388,6 +388,9 @@ async function buildPersonalizedTicketRaw(p) {
   if (cfg.show_subtotal && p.subtotal != null) out += row("Subtotal:", money(p.subtotal));
   if (cfg.show_tax && Number(p.tax) > 0) out += row("Impuesto:", money(p.tax));
   if (cfg.show_delivery_fee && Number(p.deliveryFee) > 0) out += row("Domicilio:", money(p.deliveryFee));
+  if (Number(p.tip) > 0) out += row("Propina:", money(p.tip));
+
+
 
   out += ALIGN_L + EQ_LINE;
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE + "TOTAL\n" + SIZE_NORMAL + BOLD_OFF;
