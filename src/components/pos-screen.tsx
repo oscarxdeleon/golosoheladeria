@@ -2392,11 +2392,120 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               </div>
             )}
 
-
+            {tipsEnabled && (
+              <div className="mt-1 rounded-xl border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-semibold">Propina</span>
+                    {effectiveTip > 0 && (
+                      <span className="text-sm font-bold tabular-nums">{formatMoney(effectiveTip)}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {effectiveTip > 0 && (
+                      <Button size="sm" variant="ghost" onClick={() => { setTip(0); setTipInput(""); }}>
+                        Quitar
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500 text-amber-700 hover:bg-amber-100 dark:text-amber-300"
+                      onClick={() => {
+                        setTipInput(effectiveTip > 0 ? String(effectiveTip) : "");
+                        setTipDialogOpen(true);
+                      }}
+                    >
+                      {effectiveTip > 0 ? "Modificar" : "Agregar propina"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "5%", pct: 0.05 },
+                    { label: "10%", pct: 0.10 },
+                    { label: "15%", pct: 0.15 },
+                  ].map((q) => {
+                    const base = subtotal + tax + deliveryFee;
+                    const value = Math.round(base * q.pct);
+                    return (
+                      <Button
+                        key={q.label}
+                        size="sm"
+                        variant="outline"
+                        className="border-amber-400/60"
+                        onClick={() => { setTip(value); setTipInput(String(value)); }}
+                      >
+                        {q.label} · {formatMoney(value)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialogo para ingresar propina */}
+      <Dialog open={tipDialogOpen} onOpenChange={(o) => setTipDialogOpen(o)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" /> Propina
+            </DialogTitle>
+            <DialogDescription>
+              Ingresa el valor de la propina. Se sumará al total a pagar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted-foreground">$</span>
+              <Input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                className="h-16 rounded-xl border-2 pl-10 text-center font-display text-4xl font-black tabular-nums"
+                value={tipInput === "" ? "" : Number(tipInput).toLocaleString("es-CO")}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setTipInput(digits);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setTip(Number(tipInput || 0));
+                    setTipDialogOpen(false);
+                  }
+                }}
+              />
+            </div>
+            <div className="rounded-md bg-muted/60 p-3 text-sm space-y-1 tabular-nums">
+              <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal + tax + deliveryFee)}</span></div>
+              <div className="flex justify-between text-amber-700 dark:text-amber-300 font-semibold">
+                <span>Propina</span><span>{formatMoney(Number(tipInput || 0))}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1 font-bold">
+                <span>Total</span><span>{formatMoney(subtotal + tax + deliveryFee + Number(tipInput || 0))}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTipDialogOpen(false); }}>Cancelar</Button>
+            {effectiveTip > 0 && (
+              <Button variant="ghost" onClick={() => { setTip(0); setTipInput(""); setTipDialogOpen(false); }}>
+                Eliminar
+              </Button>
+            )}
+            <Button onClick={() => { setTip(Number(tipInput || 0)); setTipDialogOpen(false); }}>
+              Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <CreditSaleDialog
         open={creditDialogOpen}
