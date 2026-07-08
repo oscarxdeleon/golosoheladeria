@@ -505,7 +505,7 @@ function fmtTable(header, mode) {
   if (!s) return "";
   if (mode === "Mesa: N") return `Mesa: ${s}`;
   if (mode === "MN") return `M${s}`;
-  return `MESA ${s}`;
+  return `MESA #${s}`;
 }
 const ORDER_TYPE_LABELS = {
   mesa: "PARA MESA",
