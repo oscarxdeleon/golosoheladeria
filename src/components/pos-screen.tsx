@@ -802,7 +802,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const taxRate = Number(settings?.tax_rate ?? 0);
   const tax = Math.round((subtotal * taxRate) / 100);
-  const total = subtotal + tax + deliveryFee;
+  const effectiveTip = tipsEnabled ? Math.max(0, Math.round(tip)) : 0;
+  const total = subtotal + tax + deliveryFee + effectiveTip;
 
 
   function add(p: Product) {
