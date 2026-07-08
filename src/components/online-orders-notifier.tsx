@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import { sendToLocalPrinter } from "@/lib/print-client";
+import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
