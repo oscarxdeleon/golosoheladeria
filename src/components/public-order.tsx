@@ -554,6 +554,7 @@ export function PublicOrder({
           ticket: result.ticket_number,
           ticket_number: result.ticket_number,
           header,
+          order_type: source === "kiosk" ? "kiosko" : isDelivery ? "domicilio" : "online",
           items: printItems,
           customer: customerName || undefined,
           notes: payload.notes ?? undefined,

@@ -480,18 +480,35 @@ function buildComandaRaw(p) {
   const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
   out += BOLD_ON + `${hora}    ${fecha}` + "\n" + BOLD_OFF;
 
-  // MESA # N (o destino) — doble alto + ancho, negrita
-  if (p.header) {
+  // Tipo de pedido — SIEMPRE se imprime antes del header/mesa
+  const orderTypeLabels = {
+    mesa: "PEDIDO PARA MESA",
+    llevar: "PEDIDO PARA LLEVAR",
+    domicilio: "PEDIDO A DOMICILIO",
+    kiosko: "PEDIDO DESDE QUIOSCO",
+    online: "PEDIDO EN LINEA",
+  };
+  const otKey = String(p.order_type || "").toLowerCase();
+  const otLabel = orderTypeLabels[otKey] || (otKey ? `PEDIDO ${otKey.toUpperCase()}` : "");
+  if (otLabel) {
+    out += BOLD_ON + SIZE_DOUBLE_H + otLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
+  }
+
+  // MESA # N (o destino) — doble alto + ancho, negrita (solo para pedidos de mesa)
+  if (p.header && otKey === "mesa") {
     const headerText = String(p.header)
       .toUpperCase()
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
+      .replace(/^PEDIDO\s+MESA[\s·:-]*/i, "")
       .replace(/^MESA\s*#?\s*/i, "MESA # ")
       .trim();
-    const maxCols = Math.max(1, Math.floor(WIDTH / 2));
-    out += BOLD_ON + SIZE_DOUBLE;
-    for (const line of wrapText(headerText, maxCols)) out += line + "\n";
-    out += SIZE_NORMAL + BOLD_OFF;
+    if (headerText) {
+      const maxCols = Math.max(1, Math.floor(WIDTH / 2));
+      out += BOLD_ON + SIZE_DOUBLE;
+      for (const line of wrapText(headerText, maxCols)) out += line + "\n";
+      out += SIZE_NORMAL + BOLD_OFF;
+    }
   }
 
   out += ALIGN_L + DASH_LINE;

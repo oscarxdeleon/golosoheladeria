@@ -195,6 +195,7 @@ function OnlineOrdersPage() {
       type: "comanda",
       ticket: o.ticket_number,
       header,
+      order_type: o.order_type ?? "online",
       items: its.map((i) => ({ name: i.product_name, qty: i.qty })),
       customer: o.customer_name ?? "",
       notes: o.notes ?? "",
