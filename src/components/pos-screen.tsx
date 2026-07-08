@@ -296,6 +296,7 @@ export function ticketHTML(o: {
     ${cfg.show_subtotal ? `<div class="sub-row first"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>` : ""}
     ${cfg.show_tax && o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
     ${cfg.show_delivery_fee && o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    ${Number(o.tip) > 0 ? `<div class="sub-row"><span class="lbl">Propina:</span><span>${money(Number(o.tip))}</span></div>` : ""}
     <div class="total-row"><span class="lbl">TOTAL:</span><span class="val">${money(o.total)}</span></div>
     ${o.notes ? `<div style="margin-top:6px;padding:8px;border:1.5px dashed #000;font-size:13px;line-height:1.35"><div style="font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">NOTAS DEL PEDIDO:</div><div style="white-space:pre-line;font-weight:700">${o.notes}</div></div>` : ""}
     ${cfg.show_cash_received ? `<div class="cash">
