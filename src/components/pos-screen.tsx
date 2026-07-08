@@ -21,7 +21,7 @@ import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
-import { Split, Smartphone, Building2 } from "lucide-react";
+import { Split, Smartphone, Building2, Sparkles } from "lucide-react";
 import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/components/credit-dialogs";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
@@ -237,7 +237,7 @@ body{font-family:'Helvetica Neue','Arial',sans-serif;font-size:15px;padding:4mm;
 export function ticketHTML(o: {
   ticket: number; header: string;
   items: { name: string; qty: number; unit_price: number }[];
-  subtotal: number; tax: number; deliveryFee: number; total: number;
+  subtotal: number; tax: number; deliveryFee: number; tip?: number; total: number;
   payment_method: string; customer: string; user_name: string; created_at: string;
   address?: string; phone?: string; cash_received?: number;
   notes?: string;
@@ -296,6 +296,7 @@ export function ticketHTML(o: {
     ${cfg.show_subtotal ? `<div class="sub-row first"><span class="lbl">Subtotal:</span><span>${money(o.subtotal)}</span></div>` : ""}
     ${cfg.show_tax && o.tax > 0 ? `<div class="sub-row"><span class="lbl">Impuesto:</span><span>${money(o.tax)}</span></div>` : ""}
     ${cfg.show_delivery_fee && o.deliveryFee > 0 ? `<div class="sub-row"><span class="lbl">Domicilio:</span><span>${money(o.deliveryFee)}</span></div>` : ""}
+    ${Number(o.tip) > 0 ? `<div class="sub-row"><span class="lbl">Propina:</span><span>${money(Number(o.tip))}</span></div>` : ""}
     <div class="total-row"><span class="lbl">TOTAL:</span><span class="val">${money(o.total)}</span></div>
     ${o.notes ? `<div style="margin-top:6px;padding:8px;border:1.5px dashed #000;font-size:13px;line-height:1.35"><div style="font-weight:900;text-transform:uppercase;letter-spacing:.5px;margin-bottom:4px">NOTAS DEL PEDIDO:</div><div style="white-space:pre-line;font-weight:700">${o.notes}</div></div>` : ""}
     ${cfg.show_cash_received ? `<div class="cash">
@@ -459,6 +460,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     subtotal: o.subtotal,
     tax: o.tax,
     deliveryFee: o.deliveryFee,
+    tip: o.tip,
     total: o.total,
     payment_method: o.payment_method,
     customer: o.customer,
@@ -563,6 +565,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState("");
   const [payDialogOpen, setPayDialogOpen] = useState(false);
+  const [tip, setTip] = useState<number>(0);
+  const [tipDialogOpen, setTipDialogOpen] = useState(false);
+  const [tipInput, setTipInput] = useState<string>("");
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
   const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
@@ -592,6 +597,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     setNeighborhood(initialNeighborhood ?? "");
     setNotes("");
     setPendingSaleId(null);
+    setTip(0);
+    setTipInput("");
     printedQtyRef.current = {};
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType, tableId, initialCustomer, initialPhone, initialAddress, initialNeighborhood]);
@@ -643,10 +650,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const { data: settings } = useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate,business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config").maybeSingle();
-      return data as (Branding & { delivery_fee: number; tax_rate: number; ticket_config?: Partial<TicketConfig> | null }) | null;
+      const { data } = await supabase.from("settings").select("delivery_fee,tax_rate,business_name,nit,address,phone,logo_url,ticket_header,ticket_footer,ticket_config,enable_tips").maybeSingle();
+      return data as (Branding & { delivery_fee: number; tax_rate: number; enable_tips?: boolean | null; ticket_config?: Partial<TicketConfig> | null }) | null;
     },
   });
+  const tipsEnabled = !!settings?.enable_tips;
   const branding: Branding = {
     business_name: activeBranch?.name || settings?.business_name || "Heladería Goloso",
     nit: activeBranch?.nit ?? settings?.nit ?? null,
@@ -798,7 +806,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const taxRate = Number(settings?.tax_rate ?? 0);
   const tax = Math.round((subtotal * taxRate) / 100);
-  const total = subtotal + tax + deliveryFee;
+  const effectiveTip = tipsEnabled ? Math.max(0, Math.round(tip)) : 0;
+  const total = subtotal + tax + deliveryFee + effectiveTip;
 
 
   function add(p: Product) {
@@ -910,6 +919,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
+            tip_amount: effectiveTip,
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,total,payment_method,created_at")
@@ -942,6 +952,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_phone: orderType === "domicilio" ? phone : null,
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
+            tip_amount: effectiveTip,
           })
           .select("id,ticket_number,total,payment_method,created_at")
           .maybeSingle();
@@ -1025,6 +1036,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       setPendingSaleId(null);
       setCashDialogOpen(false);
       setCashReceived("");
+      setTip(0);
+      setTipInput("");
 
       qc.invalidateQueries({ queryKey: ["dashboard-today"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
@@ -1052,6 +1065,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         subtotal,
         tax,
         deliveryFee,
+        tip: effectiveTip,
         total: Number(sale.total),
         payment_method: sale.payment_method,
         customer: snapshotCustomer,
@@ -2242,6 +2256,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <DialogDescription>
               {cart.reduce((a, l) => a + l.qty, 0)} productos · Subtotal {formatMoney(subtotal)}
               {deliveryFee > 0 ? ` · Domicilio ${formatMoney(deliveryFee)}` : ""}
+              {effectiveTip > 0 ? ` · Propina ${formatMoney(effectiveTip)}` : ""}
             </DialogDescription>
           </DialogHeader>
           {!effectiveSessionId && (
@@ -2377,11 +2392,120 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               </div>
             )}
 
-
+            {tipsEnabled && (
+              <div className="mt-1 rounded-xl border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-4 w-4 text-amber-500" />
+                    <span className="text-sm font-semibold">Propina</span>
+                    {effectiveTip > 0 && (
+                      <span className="text-sm font-bold tabular-nums">{formatMoney(effectiveTip)}</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    {effectiveTip > 0 && (
+                      <Button size="sm" variant="ghost" onClick={() => { setTip(0); setTipInput(""); }}>
+                        Quitar
+                      </Button>
+                    )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="border-amber-500 text-amber-700 hover:bg-amber-100 dark:text-amber-300"
+                      onClick={() => {
+                        setTipInput(effectiveTip > 0 ? String(effectiveTip) : "");
+                        setTipDialogOpen(true);
+                      }}
+                    >
+                      {effectiveTip > 0 ? "Modificar" : "Agregar propina"}
+                    </Button>
+                  </div>
+                </div>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { label: "5%", pct: 0.05 },
+                    { label: "10%", pct: 0.10 },
+                    { label: "15%", pct: 0.15 },
+                  ].map((q) => {
+                    const base = subtotal + tax + deliveryFee;
+                    const value = Math.round(base * q.pct);
+                    return (
+                      <Button
+                        key={q.label}
+                        size="sm"
+                        variant="outline"
+                        className="border-amber-400/60"
+                        onClick={() => { setTip(value); setTipInput(String(value)); }}
+                      >
+                        {q.label} · {formatMoney(value)}
+                      </Button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Dialogo para ingresar propina */}
+      <Dialog open={tipDialogOpen} onOpenChange={(o) => setTipDialogOpen(o)}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-amber-500" /> Propina
+            </DialogTitle>
+            <DialogDescription>
+              Ingresa el valor de la propina. Se sumará al total a pagar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="relative">
+              <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted-foreground">$</span>
+              <Input
+                autoFocus
+                type="text"
+                inputMode="numeric"
+                placeholder="0"
+                className="h-16 rounded-xl border-2 pl-10 text-center font-display text-4xl font-black tabular-nums"
+                value={tipInput === "" ? "" : Number(tipInput).toLocaleString("es-CO")}
+                onChange={(e) => {
+                  const digits = e.target.value.replace(/\D/g, "");
+                  setTipInput(digits);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    setTip(Number(tipInput || 0));
+                    setTipDialogOpen(false);
+                  }
+                }}
+              />
+            </div>
+            <div className="rounded-md bg-muted/60 p-3 text-sm space-y-1 tabular-nums">
+              <div className="flex justify-between"><span>Subtotal</span><span>{formatMoney(subtotal + tax + deliveryFee)}</span></div>
+              <div className="flex justify-between text-amber-700 dark:text-amber-300 font-semibold">
+                <span>Propina</span><span>{formatMoney(Number(tipInput || 0))}</span>
+              </div>
+              <div className="flex justify-between border-t pt-1 font-bold">
+                <span>Total</span><span>{formatMoney(subtotal + tax + deliveryFee + Number(tipInput || 0))}</span>
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setTipDialogOpen(false); }}>Cancelar</Button>
+            {effectiveTip > 0 && (
+              <Button variant="ghost" onClick={() => { setTip(0); setTipInput(""); setTipDialogOpen(false); }}>
+                Eliminar
+              </Button>
+            )}
+            <Button onClick={() => { setTip(Number(tipInput || 0)); setTipDialogOpen(false); }}>
+              Aplicar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
 
       <CreditSaleDialog
         open={creditDialogOpen}

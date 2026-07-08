@@ -20,6 +20,7 @@ export type PrintPayload = {
   subtotal?: number;
   tax?: number;
   deliveryFee?: number;
+  tip?: number;
   total?: number;
   payment_method?: string;
   customer?: string;

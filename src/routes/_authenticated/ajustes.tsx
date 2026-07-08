@@ -109,6 +109,7 @@ const TABS: TabDef[] = [
   { value: "kiosko-link", label: "Autopedido",        icon: QrCode,       hint: "Enlace y QR para el kiosco de autoservicio",          group: "operaciones", accent: "from-violet-500 to-indigo-600" },
   { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Pantalla de cocina para ver comandas en vivo",        group: "operaciones", accent: "from-orange-500 to-red-600" },
   { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
+  { value: "extras",      label: "Configuraciones adicionales", icon: Sparkles, hint: "Opciones extra del POS (propina y otros)",     group: "ventas",      accent: "from-yellow-400 to-amber-500" },
 ];
 
 const GROUPS: Array<{ id: TabDef["group"]; label: string; description: string }> = [
@@ -145,6 +146,7 @@ function AjustesPage() {
           {tab === "domi"        && <SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary>}
           {tab === "fidel"       && <SectionErrorBoundary label="Fidelización"><FidelizacionTab /></SectionErrorBoundary>}
           {tab === "roles"       && <SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary>}
+          {tab === "extras"      && <SectionErrorBoundary label="Configuraciones adicionales"><ExtrasTab /></SectionErrorBoundary>}
         </SectionView>
       ) : (
         <HubView query={query} setQuery={setQuery} filtered={filtered} allTabs={visibleTabs} onSelect={setTab} />
@@ -1046,6 +1048,65 @@ function DomicilioTab({ disabled }: { disabled: boolean }) {
         {!disabled && <Button onClick={save}>Guardar</Button>}
       </CardContent>
     </Card>
+  );
+}
+
+function ExtrasTab() {
+  const qc = useQueryClient();
+  const { data } = useQuery({
+    queryKey: ["settings", "extras"],
+    queryFn: async () => {
+      const { data } = await supabase.from("settings").select("id,enable_tips").eq("id", 1).maybeSingle();
+      return data as { id: number; enable_tips: boolean | null } | null;
+    },
+  });
+  const [enableTips, setEnableTips] = useState(false);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => { if (data) setEnableTips(!!data.enable_tips); }, [data]);
+
+  async function toggle(v: boolean) {
+    setEnableTips(v);
+    setSaving(true);
+    const { error } = await supabase
+      .from("settings")
+      .update({ enable_tips: v } as never)
+      .eq("id", 1);
+    setSaving(false);
+    if (error) {
+      setEnableTips(!v);
+      toast.error(error.message);
+      return;
+    }
+    toast.success(v ? "Propina activada" : "Propina desactivada");
+    qc.invalidateQueries({ queryKey: ["settings"] });
+    qc.invalidateQueries({ queryKey: ["settings", "extras"] });
+  }
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-amber-500" /> Propina
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="flex items-center justify-between gap-4 rounded-lg border bg-card p-4">
+            <div className="min-w-0">
+              <Label className="text-base font-semibold">Activar propina</Label>
+              <p className="text-sm text-muted-foreground">
+                Muestra un botón <b>Propina</b> en el cobro del POS para agregar un valor adicional al total.
+                Si está desactivado el botón no aparece y el cobro no cambia.
+              </p>
+            </div>
+            <Switch checked={enableTips} disabled={saving} onCheckedChange={toggle} />
+          </div>
+          <div className="rounded-md border border-amber-300/50 bg-amber-50/50 dark:bg-amber-950/20 p-3 text-xs text-amber-900 dark:text-amber-200">
+            La propina queda registrada por separado en cada venta (ticket, historial y cierre de caja).
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 

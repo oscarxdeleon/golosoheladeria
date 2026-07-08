@@ -46,6 +46,7 @@ export function TicketPreview({
     cash_received?: number;
     delivery_address?: string | null;
     delivery_phone?: string | null;
+    tip?: number | null;
   };
 }) {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
@@ -179,6 +180,13 @@ export function TicketPreview({
         <span className="uppercase tracking-wide font-bold">SUBTOTAL:</span>
         <span>{formatMoney(subtotal)}</span>
       </div>
+
+      {Number(sale.tip ?? 0) > 0 && (
+        <div className="flex justify-end gap-4 text-[13px] pt-1">
+          <span className="uppercase tracking-wide font-bold">PROPINA:</span>
+          <span>{formatMoney(Number(sale.tip))}</span>
+        </div>
+      )}
 
       {/* TOTAL gigante sin fondo */}
       <div className="flex justify-between items-baseline mt-1 mb-2">

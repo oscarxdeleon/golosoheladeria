@@ -101,6 +101,7 @@ function VentasPage() {
               user_name: detail.sale.user_name ?? "",
               created_at: detail.sale.created_at,
               lines: detail.items.map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) })),
+              tip: Number((detail.sale as { tip_amount?: number | null }).tip_amount ?? 0),
             }} />
           )}
           <DialogFooter className="no-print">
