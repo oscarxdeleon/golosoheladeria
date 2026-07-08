@@ -61,3 +61,21 @@ function AuthedLayout() {
     </BranchProvider>
   );
 }
+
+function MascotSidebarTrigger({ src }: { src: string }) {
+  const { toggleSidebar } = useSidebar();
+  return (
+    <button
+      type="button"
+      onClick={toggleSidebar}
+      aria-label="Abrir menú"
+      className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition hover:bg-primary/10 active:scale-95"
+    >
+      <img
+        src={src}
+        alt="Menú Goloso"
+        className="h-11 w-11 object-contain drop-shadow-[0_2px_3px_rgba(0,0,0,0.25)]"
+      />
+    </button>
+  );
+}
