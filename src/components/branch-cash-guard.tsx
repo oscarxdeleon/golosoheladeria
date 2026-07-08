@@ -1,4 +1,5 @@
 import { type ReactNode } from "react";
+import { useNavigate } from "@tanstack/react-router";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Lock, AlertTriangle } from "lucide-react";
@@ -20,6 +21,7 @@ interface Props {
  * registrarse si la Caja Principal de la sede no fue abierta primero.
  */
 export function BranchCashGuard({ children, allowLogout, extraMessage }: Props) {
+  const navigate = useNavigate();
   const { activeBranchId, activeBranch } = useBranch();
   const { isOpen, loading } = useBranchCashSession(activeBranchId);
 
@@ -53,6 +55,13 @@ export function BranchCashGuard({ children, allowLogout, extraMessage }: Props) 
               <p className="mt-2 text-xs text-muted-foreground">{extraMessage}</p>
             ) : null}
           </div>
+          <Button
+            className="w-full"
+            onClick={() => navigate({ to: "/caja" })}
+          >
+            <Lock className="h-4 w-4" />
+            Abrir caja
+          </Button>
           {allowLogout ? (
             <Button
               variant="outline"
