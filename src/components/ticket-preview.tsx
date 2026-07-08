@@ -46,6 +46,7 @@ export function TicketPreview({
     cash_received?: number;
     delivery_address?: string | null;
     delivery_phone?: string | null;
+    tip?: number | null;
   };
 }) {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
