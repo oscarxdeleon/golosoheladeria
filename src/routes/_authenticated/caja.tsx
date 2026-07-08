@@ -67,6 +67,15 @@ function CajaPage() {
   const [cashCounted, setCashCounted] = useState("");
   const [nequiCounted, setNequiCounted] = useState("");
   const [bancoCounted, setBancoCounted] = useState("");
+
+  const formatThousands = (v: string) => {
+    const digits = v.replace(/\D/g, "");
+    if (!digits) return "";
+    return digits.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  };
+  const parseAmount = (v: string) => Number(v.replace(/\D/g, "") || 0);
+  const handleAmount = (setter: (s: string) => void) => (e: React.ChangeEvent<HTMLInputElement>) =>
+    setter(formatThousands(e.target.value));
   const [closingNotes, setClosingNotes] = useState("");
   const [closeError, setCloseError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
