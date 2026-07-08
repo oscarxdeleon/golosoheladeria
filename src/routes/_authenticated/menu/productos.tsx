@@ -92,6 +92,9 @@ function ProductosPage() {
   const [dupCopyModsRecipe, setDupCopyModsRecipe] = useState(true);
   const [dupSaving, setDupSaving] = useState(false);
   const [pdfLoading, setPdfLoading] = useState(false);
+  const [branchFilter, setBranchFilter] = useState<string>("all");
+  // Al crear nuevo producto: opción para replicarlo como copias INDEPENDIENTES en las sucursales.
+  const [createInAllBranches, setCreateInAllBranches] = useState(true);
   const parseMenu = useServerFn(parseMenuPdfText);
 
 
@@ -156,9 +159,48 @@ function ProductosPage() {
     };
     if (isLinkedChild) payload.is_linked = false;
 
-    const { error } = editing.id
-      ? await supabase.from("products").update(payload as never).eq("id", editing.id)
-      : await supabase.from("products").insert(payload as never);
+    let error: { message: string } | null = null;
+    if (editing.id) {
+      const res = await supabase.from("products").update(payload as never).eq("id", editing.id);
+      error = res.error;
+    } else {
+      // Nuevo producto. Si el usuario eligió sedes y activó "crear en todas las sedes como copias independientes",
+      // creamos una fila POR SEDE (cada una totalmente editable, sin sincronización automática).
+      const selectedBranchIds: string[] = Array.isArray(payload.available_branch_ids)
+        ? (payload.available_branch_ids as string[])
+        : [];
+      const mainBranch = branches.find((b) => b.is_main);
+      const shouldSplit =
+        createInAllBranches && branches.length > 1 && selectedBranchIds.length > 1;
+      if (shouldSplit && mainBranch) {
+        // Primero: fila "padre" en la sede principal (si está seleccionada), si no, en la primera seleccionada.
+        const primaryId = selectedBranchIds.includes(mainBranch.id) ? mainBranch.id : selectedBranchIds[0];
+        const primaryPayload = { ...payload, available_branch_ids: [primaryId] };
+        const insertParent = await supabase
+          .from("products")
+          .insert(primaryPayload as never)
+          .select("id")
+          .single();
+        if (insertParent.error) { error = insertParent.error; }
+        else {
+          const parentId = (insertParent.data as { id: string }).id;
+          const others = selectedBranchIds.filter((id) => id !== primaryId);
+          if (others.length > 0) {
+            const copies = others.map((bid) => ({
+              ...payload,
+              available_branch_ids: [bid],
+              source_product_id: parentId,
+              is_linked: false, // independiente desde el inicio: cada sede administra su propia copia
+            }));
+            const insertCopies = await supabase.from("products").insert(copies as never);
+            if (insertCopies.error) error = insertCopies.error;
+          }
+        }
+      } else {
+        const res = await supabase.from("products").insert(payload as never);
+        error = res.error;
+      }
+    }
     if (error) return toast.error(error.message);
     // Cierra el modal ANTES de invalidar queries / mostrar toast para evitar
     // que Radix Dialog deje el <body> con pointer-events/overflow bloqueados
@@ -665,8 +707,20 @@ function ProductosPage() {
                           />
                         ))}
                       </div>
+                      {/* Solo aplica al crear un producto nuevo con varias sedes seleccionadas */}
+                      {!editing?.id && branches.length > 1 && (
+                        <div className="mt-2">
+                          <ToggleRow
+                            label="Crear una copia independiente por sede"
+                            hint="Cada sede podrá editar el producto por separado (precio, imagen, receta…) sin afectar las demás. Desactiva esta opción para mantener un único producto compartido."
+                            checked={createInAllBranches}
+                            onChange={setCreateInAllBranches}
+                          />
+                        </div>
+                      )}
                     </div>
                   )}
+
 
                   {/* Recetas */}
                   <div className="mt-4">
@@ -730,12 +784,33 @@ function ProductosPage() {
         )}
 
       </div>
+      {branches.length > 1 && (
+        <div className="flex items-center gap-2">
+          <Label className="text-sm text-muted-foreground">Ver productos de:</Label>
+          <Select value={branchFilter} onValueChange={setBranchFilter}>
+            <SelectTrigger className="w-56 h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las sedes</SelectItem>
+              {branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " (Principal)" : ""}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       <Card>
         <CardContent className="p-0">
           <Table>
             <TableHeader><TableRow><TableHead className="w-16">Foto</TableHead><TableHead>Nombre</TableHead><TableHead>Categoría</TableHead><TableHead className="text-right">Precio</TableHead><TableHead>Estado</TableHead><TableHead></TableHead></TableRow></TableHeader>
             <TableBody>
-              {products.map((p) => (
+              {products
+                .filter((p) => {
+                  if (branchFilter === "all") return true;
+                  const ids = p.available_branch_ids;
+                  if (!ids || ids.length === 0) return true; // sin restricción = visible en todas
+                  return ids.includes(branchFilter);
+                })
+                .map((p) => (
                 <TableRow key={p.id}>
                   <TableCell>
                     <button

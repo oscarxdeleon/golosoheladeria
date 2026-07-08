@@ -33,7 +33,7 @@ import golosoLogo from "@/assets/logo-goloso.png";
 export type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko";
 
 interface Category { id: string; name: string; sort_order: number; show_in_pos?: boolean; show_in_online_menu?: boolean; }
-interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; modifier_group_ids?: string[] | null; }
+interface Product { id: string; name: string; price: number; category_id: string | null; image_url: string | null; active: boolean; is_favorite?: boolean; modifier_group_ids?: string[] | null; available_branch_ids?: string[] | null; }
 interface SaleModifier { id: string; group_id: string; group_name: string; name: string; price: number; qty: number; }
 interface CartLine { key: string; product_id: string; name: string; unit_price: number; qty: number; modifiers: SaleModifier[]; notes?: string; }
 
@@ -757,7 +757,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     const visibleCatIds = new Set(cats.map((c) => c.id));
+    const seenIds = new Set<string>();
     const base = products.filter((p) => {
+      // Filtrar por sede activa: si el producto tiene sedes asignadas, debe incluir la activa.
+      const bids = p.available_branch_ids;
+      if (activeBranchId && bids && bids.length > 0 && !bids.includes(activeBranchId)) return false;
+      // Dedupe defensivo por id (evita cualquier duplicado accidental)
+      if (seenIds.has(p.id)) return false;
+      seenIds.add(p.id);
       // Si la categoría del producto está oculta en POS, descártalo
       if (p.category_id && !visibleCatIds.has(p.category_id)) return false;
       if (activeCat !== "all" && p.category_id !== activeCat) return false;
@@ -771,7 +778,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       if (fa !== fb) return fa - fb;
       return a.name.localeCompare(b.name, "es");
     });
-  }, [products, cats, activeCat, search]);
+  }, [products, cats, activeCat, search, activeBranchId]);
 
 
   const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
