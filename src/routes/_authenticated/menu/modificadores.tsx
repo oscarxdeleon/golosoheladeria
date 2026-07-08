@@ -217,29 +217,38 @@ function ModPage() {
                 </CardHeader>
                 <CardContent>
                   <ul className="space-y-1">
-                    {myMods.map((m) => (
-                      <li key={m.id} className="flex items-center justify-between rounded bg-muted/50 px-2 py-1.5 text-sm">
-                        <span className="flex items-center gap-2 min-w-0">
-                          {m.image_url ? (
-                            <img src={m.image_url} alt={m.name} className="h-8 w-8 rounded object-cover bg-white border" loading="lazy" />
-                          ) : (
-                            <span className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
-                              <ImageIcon className="h-3.5 w-3.5" />
-                            </span>
-                          )}
-                          <span className="truncate">{m.name}</span>
-                        </span>
-                        <span className="flex items-center gap-2">
-                          <span className="text-muted-foreground">{formatMoney(m.price)}</span>
-                          {isAdmin && (
-                            <>
-                              <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
-                              <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
-                            </>
-                          )}
-                        </span>
-                      </li>
-                    ))}
+                    {myMods.map((m) => {
+                      const availableHere = !branchId || !(m.disabled_branch_ids ?? []).includes(branchId);
+                      return (
+                        <li key={m.id} className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${availableHere ? "bg-muted/50" : "bg-muted/30 opacity-60"}`}>
+                          <span className="flex items-center gap-2 min-w-0">
+                            {m.image_url ? (
+                              <img src={m.image_url} alt={m.name} className={`h-8 w-8 rounded object-cover bg-white border ${availableHere ? "" : "grayscale"}`} loading="lazy" />
+                            ) : (
+                              <span className="h-8 w-8 rounded bg-muted flex items-center justify-center text-muted-foreground">
+                                <ImageIcon className="h-3.5 w-3.5" />
+                              </span>
+                            )}
+                            <span className={`truncate ${availableHere ? "" : "line-through text-muted-foreground"}`}>{m.name}</span>
+                            {!availableHere && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Inactivo</span>}
+                          </span>
+                          <span className="flex items-center gap-2">
+                            <span className="text-muted-foreground">{formatMoney(m.price)}</span>
+                            {isAdmin && (
+                              <>
+                                <Switch
+                                  checked={availableHere}
+                                  onCheckedChange={(v) => toggleAvailability(m, v)}
+                                  title={availableHere ? "Disponible en esta sede" : "Inactivo en esta sede"}
+                                />
+                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
+                              </>
+                            )}
+                          </span>
+                        </li>
+                      );
+                    })}
                     {myMods.length === 0 && <li className="text-xs text-muted-foreground">Sin modificadores</li>}
                   </ul>
                 </CardContent>
