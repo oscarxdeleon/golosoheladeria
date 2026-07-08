@@ -326,10 +326,17 @@ async function buildPersonalizedTicketRaw(p) {
 
 
   // ==== TITULO Y NUMERO ====
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + (cfg.title_text || "TICKET DE VENTA") + "\n" + SIZE_NORMAL + BOLD_OFF;
+  // Título distinto para precuenta vs ticket de venta.
+  const isPrecuenta = p.type === "precuenta";
+  const title = isPrecuenta ? "PRECUENTA" : (cfg.title_text || "TICKET DE VENTA");
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + title + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (cfg.show_ticket_number) {
-    const num = String(p.ticket ?? p.ticket_number ?? 0).padStart(6, "0");
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `No. ${num}\n` + SIZE_NORMAL + BOLD_OFF;
+    const rawNum = p.ticket ?? p.ticket_number;
+    if (rawNum != null && String(rawNum).trim() !== "" && String(rawNum) !== "0") {
+      // Usamos "#NNNN" (sin ceros a la izquierda) para reflejar el consecutivo
+      // real generado por el sistema, evitando la apariencia de "000000".
+      out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${String(rawNum).trim()}\n` + SIZE_NORMAL + BOLD_OFF;
+    }
   }
   out += ALIGN_L + DASH_LINE;
 

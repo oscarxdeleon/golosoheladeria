@@ -1345,6 +1345,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       }
     }
     if (items.length === 0) return toast.error("Carrito vacío");
+    if (!ticketNum) {
+      return toast.error("Guarda primero el pedido para generar el consecutivo de la precuenta");
+    }
     // Recalcular subtotal/tax/total desde los items para evitar desfases
     // con valores almacenados que pudieron quedar desactualizados.
     const sub = items.reduce((s, i) => s + i.unit_price * i.qty, 0);
