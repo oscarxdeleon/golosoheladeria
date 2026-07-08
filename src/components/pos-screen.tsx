@@ -1740,16 +1740,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               onClick={async () => {
                 const ticketNo = pendingSale?.ticket_number ?? kioskSale?.ticket_number ?? 0;
                 const items = cart.map((l) => ({
-                  name:
-                    l.name +
-                    (l.modifiers && l.modifiers.length
-                      ? " (" +
-                        l.modifiers
-                          .map((m) => (m.qty && m.qty > 1 ? `${m.qty}x ${m.name}` : m.name))
-                          .join(", ") +
-                        ")"
-                      : ""),
+                  name: l.name,
                   qty: l.qty,
+                  modifiers: normalizeModifiers(l.modifiers),
                 }));
                 const snap = {
                   ticket: ticketNo,
