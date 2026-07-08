@@ -1305,18 +1305,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         toast.success(`Pedido #${sale.ticket_number} actualizado (sin ítems nuevos para imprimir)`);
       } else {
         toast.success(`Comanda #${sale.ticket_number} enviada a cocina y KDS`);
-        try {
-          const printed = await printComanda(printSnapshot);
-          if (printed) {
-            await supabase.from("sales").update({ printed_at: new Date().toISOString() }).eq("id", sale.id);
-            toast.success(`Impresión #${sale.ticket_number} enviada`);
-          } else {
+        // Impresión en segundo plano: no bloquea el cierre del carrito ni la
+        // navegación. La comanda ya está guardada y visible en el KDS; el
+        // Print Server local recibe el trabajo en paralelo para que el ticket
+        // salga de inmediato sin que el cajero espere el round-trip.
+        void (async () => {
+          try {
+            const printed = await printComanda(printSnapshot);
+            if (printed) {
+              void supabase
+                .from("sales")
+                .update({ printed_at: new Date().toISOString() })
+                .eq("id", sale.id);
+            } else {
+              toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+            }
+          } catch (e) {
+            console.error("[print] comanda", e);
             toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
           }
-        } catch (e) {
-          console.error("[print] comanda", e);
-          toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
-        }
+        })();
       }
 
       // Limpiar estado local y regresar al panel principal
