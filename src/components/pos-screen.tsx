@@ -1882,7 +1882,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                           toast.error("No se pudo iniciar el cobro. Recarga la mesa e intenta de nuevo.");
                         }
                       }}
-                      className="group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+                      className={`group relative flex h-12 items-center justify-center gap-2 overflow-hidden rounded-full px-4 text-sm font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0 ${
+                        kioskSale?.payment_method &&
+                        kioskSale.payment_method.toLowerCase() === lower
+                          ? "ring-4 ring-amber-400 ring-offset-2 ring-offset-background scale-[1.03] motion-safe:animate-pulse"
+                          : ""
+                      }`}
                     >
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/25">
                         <Icon className="h-3.5 w-3.5" strokeWidth={2.75} />
