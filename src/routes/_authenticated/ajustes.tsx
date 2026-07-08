@@ -109,6 +109,7 @@ const TABS: TabDef[] = [
   { value: "kiosko-link", label: "Autopedido",        icon: QrCode,       hint: "Enlace y QR para el kiosco de autoservicio",          group: "operaciones", accent: "from-violet-500 to-indigo-600" },
   { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Pantalla de cocina para ver comandas en vivo",        group: "operaciones", accent: "from-orange-500 to-red-600" },
   { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
+  { value: "extras",      label: "Configuraciones adicionales", icon: Sparkles, hint: "Opciones extra del POS (propina y otros)",     group: "ventas",      accent: "from-yellow-400 to-amber-500" },
 ];
 
 const GROUPS: Array<{ id: TabDef["group"]; label: string; description: string }> = [
