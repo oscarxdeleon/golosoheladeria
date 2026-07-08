@@ -399,55 +399,178 @@ function CajaPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Cerrar caja a ciegas */}
+      {/* Cerrar caja a ciegas — diseño Goloso */}
       <Dialog open={closeDialog} onOpenChange={(o) => { setCloseDialog(o); if (o) setCloseError(null); }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Cierre de caja (Auditoría a ciegas)</DialogTitle>
-            <DialogDescription>
-              Cuenta físicamente cada método de pago y reporta los valores. El sistema NO te mostrará los totales esperados.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3">
-            {closeError && (
-              <div className="flex gap-3 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><div>{closeError}</div>
-              </div>
-            )}
-            {occupiedTables.length > 0 && (
-              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm text-destructive">
-                <strong>No puedes cerrar:</strong> hay {occupiedTables.length} mesa(s) ocupada(s) sin cobrar.
-              </div>
-            )}
-            <div>
-              <label className="text-sm font-medium flex items-center gap-2"><Banknote className="h-4 w-4" />Efectivo disponible</label>
-              <Input type="text" inputMode="numeric" placeholder="Cuenta el efectivo físico en caja" value={cashCounted} onChange={handleAmount(setCashCounted)} />
+        <DialogContent
+          className="p-0 overflow-hidden max-w-[720px] w-[calc(100%-1.5rem)] max-h-[92vh] overflow-y-auto border-0 bg-transparent shadow-none"
+        >
+          <div
+            className="relative rounded-2xl overflow-hidden text-white"
+            style={{
+              background: "radial-gradient(circle at 50% 0%, #4EC5F1 0%, #1FA8E8 40%, #0A7BC4 100%)",
+            }}
+          >
+            {/* HEADER con mascota */}
+            <div className="relative px-5 pt-5 pb-3">
+              <DialogHeader className="text-left space-y-0">
+                <DialogTitle asChild>
+                  <h2
+                    className="font-black leading-[0.9] tracking-tight text-white drop-shadow-[0_4px_0_rgba(0,0,0,0.25)]"
+                    style={{
+                      fontSize: "clamp(2rem, 6.5vw, 3.5rem)",
+                      WebkitTextStroke: "2px #B7ED3D",
+                      textShadow: "0 3px 0 rgba(0,0,0,0.2)",
+                    }}
+                  >
+                    CIERRE<br />DE CAJA
+                  </h2>
+                </DialogTitle>
+                <DialogDescription className="sr-only">
+                  Cuenta físicamente cada denominación. El sistema no muestra los totales esperados.
+                </DialogDescription>
+              </DialogHeader>
+              <img
+                src={mascotAsset.url}
+                alt=""
+                aria-hidden
+                className="pointer-events-none absolute top-1 right-1 w-[42%] max-w-[240px] select-none"
+              />
             </div>
-            <div>
-              <label className="text-sm font-medium flex items-center gap-2"><Smartphone className="h-4 w-4" />Total Nequi</label>
-              <Input type="text" inputMode="numeric" placeholder="Valor según comprobantes Nequi" value={nequiCounted} onChange={handleAmount(setNequiCounted)} />
-            </div>
-            <div>
-              <label className="text-sm font-medium flex items-center gap-2"><Building2 className="h-4 w-4" />Total Bancolombia</label>
-              <Input type="text" inputMode="numeric" placeholder="Valor según comprobantes Bancolombia" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
-            </div>
-            <div className="rounded-md bg-muted/50 p-3 text-sm">
-              <div className="flex justify-between"><span className="text-muted-foreground">Total reportado</span><b>{formatMoney(totalCounted)}</b></div>
-            </div>
-            <div>
-              <label className="text-sm font-medium">Notas de cierre (opcional)</label>
-              <Textarea value={closingNotes} onChange={(e) => setClosingNotes(e.target.value)} />
+
+            <div className="px-4 pb-5 space-y-3">
+              {/* HORA ACTUAL */}
+              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
+                    <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-lime-300 to-lime-500 text-white shadow-inner">
+                      <Clock className="h-5 w-5" />
+                    </div>
+                    <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Hora actual</span>
+                  </div>
+                  <span className="text-[#E11D74] font-bold text-sm">{nowLabel}</span>
+                </div>
+              </section>
+
+              {closeError && (
+                <div className="flex gap-2 rounded-xl border-2 border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" /><div>{closeError}</div>
+                </div>
+              )}
+              {occupiedTables.length > 0 && (
+                <div className="rounded-xl border-2 border-red-300 bg-red-50 p-3 text-sm text-red-700">
+                  <strong>No puedes cerrar:</strong> hay {occupiedTables.length} mesa(s) ocupada(s) sin cobrar.
+                </div>
+              )}
+
+              {/* EFECTIVO CONTADO (auto) */}
+              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-teal-400 to-teal-600 text-white">
+                    <Wallet className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Efectivo contado</span>
+                </div>
+                <div className="rounded-xl border-2 border-[#B8E4F5] px-4 py-2.5 flex items-center gap-2">
+                  <span className="text-[#0A7BC4] font-black text-2xl">$</span>
+                  <span className="text-[#0A4E7A] font-black text-2xl tabular-nums">
+                    {formatThousands(String(cashFromDenoms))}
+                  </span>
+                </div>
+              </section>
+
+              {/* MONEDAS */}
+              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-yellow-300 to-amber-500 text-white shadow-inner">
+                    <Coins className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[#2C7A2C] uppercase text-sm">Monedas</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {COIN_DENOMS.map((d) => (
+                    <DenomField
+                      key={d}
+                      label={`$${d.toLocaleString("es-CO")}`}
+                      variant="coin"
+                      value={coinQty[d] ?? ""}
+                      onChange={(v) => setCoinQty((p) => ({ ...p, [d]: onlyDigits(v) }))}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* BILLETES */}
+              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-emerald-400 to-emerald-600 text-white shadow-inner">
+                    <Banknote className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Billetes</span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {BILL_DENOMS.map((d) => (
+                    <DenomField
+                      key={d}
+                      label={`$${d.toLocaleString("es-CO")}`}
+                      variant="bill"
+                      value={billQty[d] ?? ""}
+                      onChange={(v) => setBillQty((p) => ({ ...p, [d]: onlyDigits(v) }))}
+                    />
+                  ))}
+                </div>
+              </section>
+
+              {/* MEDIOS DE PAGO */}
+              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-pink-400 to-pink-600 text-white">
+                    <Calculator className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[#C41A6B] uppercase text-sm">Detalle por medio de pago (opcional)</span>
+                </div>
+                <div className="space-y-2">
+                  <PaymentRow icon={<Smartphone className="h-4 w-4 text-[#C41A6B]" />} label="NEQUI" value={nequiCounted} onChange={handleAmount(setNequiCounted)} />
+                  <div className="border-t border-dashed border-pink-200" />
+                  <PaymentRow icon={<Building2 className="h-4 w-4 text-[#C41A6B]" />} label="BCOLOMBIA" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
+                </div>
+              </section>
+
+              {/* NOTAS */}
+              <section className="rounded-2xl bg-white p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-b from-lime-300 to-lime-500 text-white">
+                    <NotebookPen className="h-5 w-5" />
+                  </div>
+                  <span className="font-extrabold text-[#0A4E7A] uppercase text-sm">Notas (opcional)</span>
+                </div>
+                <Textarea
+                  value={closingNotes}
+                  onChange={(e) => setClosingNotes(e.target.value)}
+                  placeholder="Notas del cierre…"
+                  className="border-2 border-[#E5F1F8] rounded-xl text-[#0A4E7A] placeholder:text-slate-400"
+                />
+              </section>
+
+              {/* TOTAL + ACCIONES */}
+              <section className="rounded-2xl bg-white/95 p-3 shadow-[0_4px_0_rgba(0,0,0,0.08)]">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-sm text-[#0A4E7A] font-medium">Total reportado</span>
+                  <b className="text-xl text-[#0A4E7A] tabular-nums">{formatMoney(totalCounted)}</b>
+                </div>
+                <div className="flex gap-2 justify-end flex-wrap">
+                  <Button variant="outline" onClick={() => setCloseDialog(false)}>Cancelar</Button>
+                  <Button
+                    onClick={closeSession}
+                    disabled={saving || occupiedTables.length > 0}
+                    className="bg-gradient-to-b from-red-500 to-red-700 hover:from-red-600 hover:to-red-800 text-white font-bold shadow-lg"
+                  >
+                    <LockKeyhole className="h-4 w-4" />
+                    {saving ? "Cerrando…" : "Guardar y Cerrar Caja"}
+                  </Button>
+                </div>
+              </section>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCloseDialog(false)}>Cancelar</Button>
-            <Button
-              onClick={closeSession}
-              disabled={saving || occupiedTables.length > 0 || cashCounted === "" || nequiCounted === "" || bancoCounted === ""}
-            >
-              {saving ? "Cerrando…" : "Guardar y Cerrar Caja"}
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
 
