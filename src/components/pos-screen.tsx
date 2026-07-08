@@ -1249,6 +1249,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
 
+      // Cuando NO es el primer guardado, esta comanda contiene solo los
+      // productos adicionales que el cliente pidió después de recibir su
+      // pedido inicial. Marcamos `is_addition` para que el servidor imprima
+      // un banner "ADICIÓN AL PEDIDO" y evite confusiones en cocina.
+      const isAddition = !isFirstSave && printItems.length > 0;
       const printSnapshot = {
         ticket: sale.ticket_number,
         header,
@@ -1261,6 +1266,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         created_at: sale.created_at,
         order_type: orderType,
         branding,
+        is_addition: isAddition,
       };
 
       // Actualizar baseline: lo que hay en el carrito ahora ya se considera impreso.
