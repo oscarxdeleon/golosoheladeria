@@ -371,11 +371,22 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
   );
 
   const TIMEOUT_MS = 12000;
+  // Regla estricta: las comandas de MESA nunca deben imprimir el nombre de la sede
+  // en el encabezado (aplica también a reimpresiones y adiciones).
+  const stripSedeForMesa = (p: PrintPayload): PrintPayload => {
+    if (p.type !== "comanda") return p;
+    const ot = String(p.order_type ?? "").toLowerCase();
+    if (ot !== "mesa") return p;
+    if (p.business_name === undefined) return p;
+    const { business_name: _omit, ...rest } = p;
+    void _omit;
+    return rest as PrintPayload;
+  };
   const body = JSON.stringify(
     sanitizePayloadForPrinter(
       await withClientRasterLogo(
         await withActiveCommandFormat(
-          await withDefaultPrinterTarget(payload),
+          await withDefaultPrinterTarget(stripSedeForMesa(payload)),
         ),
       ),
     ),
