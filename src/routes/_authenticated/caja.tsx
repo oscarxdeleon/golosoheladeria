@@ -227,13 +227,15 @@ function CajaPage() {
       qc.setQueryData(["branch-cash-session-open", activeBranchId], null);
       toast.success("Caja cerrada correctamente");
 
-      // Enviar reporte por correo en segundo plano
+      // Enviar reporte por correo en segundo plano (silencioso si no está configurado)
       sendReport({ data: { sessionId: closed.id } })
         .then((r: { sent?: boolean; skipped?: boolean; reason?: string }) => {
           if (r?.sent) toast.success("Reporte enviado por correo");
-          else if (r?.skipped) toast.info(`Reporte no enviado: ${r.reason}`);
+          // Los "skipped" son configuración opcional del entorno (Vercel sin
+          // RESEND_API_KEY, sede sin correo). No alarmamos al cajero.
+          else if (r?.skipped) console.info("[cash-report] skipped:", r.reason);
         })
-        .catch((e: Error) => toast.error(`No se envió correo: ${e.message}`));
+        .catch((e: Error) => console.warn("[cash-report] error:", e.message));
 
       setCloseDialog(false);
       setCashCounted(""); setNequiCounted(""); setBancoCounted(""); setClosingNotes("");

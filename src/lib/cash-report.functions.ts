@@ -14,11 +14,18 @@ function fmt(v: number | null | undefined) {
 export const sendCashReport = createServerFn({ method: "POST" })
   .inputValidator((d: Input) => d)
   .handler(async ({ data }) => {
-    const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+    // On Vercel the server runtime only sees env vars explicitly set in the project.
+    // VITE_* values are inlined at build time via import.meta.env, so we use them
+    // as a resilient fallback (they are public keys, same as the browser client).
+    const SUPABASE_URL =
+      process.env.SUPABASE_URL ||
+      process.env.VITE_SUPABASE_URL ||
+      import.meta.env.VITE_SUPABASE_URL;
     const SUPABASE_KEY =
       process.env.SUPABASE_SERVICE_ROLE_KEY ||
       process.env.SUPABASE_PUBLISHABLE_KEY ||
-      process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
+      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
     if (!SUPABASE_URL || !SUPABASE_KEY) {
       return { skipped: true, reason: "Backend no configurado en este entorno" };
