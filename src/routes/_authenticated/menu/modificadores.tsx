@@ -230,22 +230,49 @@ function ModPage() {
       toast.info("No hay cambios pendientes");
       return;
     }
+    if (!isAdmin) {
+      toast.error("Solo un administrador puede guardar estos cambios");
+      return;
+    }
     setSavingBulk(true);
     try {
-      // Group by desired active state for two bulk updates
       const toActivate = entries.filter(([, v]) => v).map(([id]) => id);
       const toDeactivate = entries.filter(([, v]) => !v).map(([id]) => id);
+      let updated = 0;
       if (toActivate.length > 0) {
-        const { error } = await supabase.from("modifiers").update({ active: true }).in("id", toActivate);
+        const { data, error } = await supabase
+          .from("modifiers")
+          .update({ active: true })
+          .in("id", toActivate)
+          .select("id");
         if (error) throw new Error(error.message);
+        updated += data?.length ?? 0;
       }
       if (toDeactivate.length > 0) {
-        const { error } = await supabase.from("modifiers").update({ active: false }).in("id", toDeactivate);
+        const { data, error } = await supabase
+          .from("modifiers")
+          .update({ active: false })
+          .in("id", toDeactivate)
+          .select("id");
         if (error) throw new Error(error.message);
+        updated += data?.length ?? 0;
       }
-      toast.success(`${entries.length} cambio(s) guardado(s) en ${activeBranchName || "esta sede"}`);
+      if (updated === 0) {
+        toast.error(
+          "No se actualizó ningún modificador. Verifica que tengas rol de administrador y que la conexión al servidor esté activa.",
+        );
+        return;
+      }
+      if (updated < entries.length) {
+        toast.warning(
+          `Solo se guardaron ${updated} de ${entries.length} cambios. Los demás fueron bloqueados por permisos.`,
+        );
+      } else {
+        toast.success(`${updated} cambio(s) guardado(s) en ${activeBranchName || "esta sede"}`);
+      }
       setPendingActive({});
-      qc.invalidateQueries({ queryKey: ["mods"] });
+      await qc.invalidateQueries({ queryKey: ["mods"] });
+      await qc.refetchQueries({ queryKey: ["mods"] });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar cambios");
     } finally {
