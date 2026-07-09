@@ -287,7 +287,7 @@ export function ticketHTML(o: {
     ${cfg.show_phone && b.phone ? `<div class="biz-meta">${SVG.phone}<span>${b.phone}</span></div>` : ""}
     ${cfg.show_email && b.email ? `<div class="biz-meta">${SVG.mail}<span>${b.email}</span></div>` : ""}
     <hr class="dashed"/>
-    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"}</div><div class="ticket-no"><span class="num">N.º ${ticketNo}</span></div><hr class="dashed"/>
+    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"}</div><div class="ticket-no"><span class="num">#${ticketNo}</span></div><hr class="dashed"/>
     ${infoRows.length ? `<div class="info">${infoRows.join("")}</div><hr class="dashed"/>` : ""}
     <table class="tbl">
       <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
@@ -459,7 +459,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
 
   // El título del ticket se envía SIN número; el Print Server (>=2.5.8)
-  // imprime el consecutivo en una línea aparte con formato "N.º 1258".
+  // imprime el consecutivo en una línea aparte con formato "#1258".
   const rawTicketNum = o.ticket;
   const ticketNumStr = rawTicketNum == null
     ? ""

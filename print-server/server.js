@@ -72,10 +72,10 @@ const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
 // remapea '#' a 'Ñ' y aparece un símbolo raro en el ticket.
 // Los acentos y ñ vienen de CP858/CP850 vía ESC t (CODEPAGE).
 const INTL_CHARSET = ESC + "R" + "\x00";
-// Hash seguro: algunas impresoras/clones vuelven al set internacional España
-// durante cambios de tamaño/fuente y remapean el byte 0x23 como Ñ/glifo.
-// Reaplicamos ESC R 0 justo antes de cada "#" visible en comandas.
-const SAFE_HASH = INTL_CHARSET + "#";
+// Hash seguro: algunas impresoras/clones vuelven a otra página/charset durante
+// cambios de tamaño/fuente y remapean el byte 0x23 como Ñ/glifo. Reaplicamos
+// página de códigos + ESC R 0 justo antes de cada "#" visible.
+const SAFE_HASH = CODEPAGE + INTL_CHARSET + "#";
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
@@ -363,10 +363,10 @@ async function buildPersonalizedTicketRaw(p) {
   const strNum = rawNum == null ? "" : String(rawNum).trim().replace(/^#+\s*/, "");
   const hasNum = strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined";
   // El título va SOLO (sin número). El consecutivo se imprime en una línea
-  // aparte debajo del título con el formato "N.º 1258" para evitar duplicidad.
+  // aparte debajo del título con "#1258" para evitar glifos como "N.º".
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + baseTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (hasNum) {
-    const numLabel = isPrecuenta ? `#${strNum}` : `N.º ${strNum}`;
+    const numLabel = `${SAFE_HASH}${strNum}`;
     out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + numLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
@@ -933,7 +933,7 @@ const server = http.createServer(async (req, res) => {
       port: PRINTER_PORT,
       width: WIDTH,
       codepageId: CODEPAGE_ID,
-      charset: "ESC/POS + Windows-1252 + Spain international charset",
+      charset: "ESC/POS + Windows-1252 + USA international charset",
     });
   }
 
