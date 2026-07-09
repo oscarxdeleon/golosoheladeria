@@ -208,18 +208,71 @@ function ModPage() {
     qc.invalidateQueries({ queryKey: ["mods"] });
   }
 
-  async function toggleActive(m: Mod, active: boolean) {
-    qc.setQueryData<Mod[]>(["mods"], (old) =>
-      (old ?? []).map((x) => (x.id === m.id ? { ...x, active } : x)),
-    );
-    const { error } = await supabase.from("modifiers").update({ active }).eq("id", m.id);
-    if (error) {
-      toast.error(error.message);
+  const [pendingActive, setPendingActive] = useState<Record<string, boolean>>({});
+  const [savingBulk, setSavingBulk] = useState(false);
+  const pendingCount = Object.keys(pendingActive).length;
+
+  function toggleActive(m: Mod, active: boolean) {
+    setPendingActive((prev) => {
+      const next = { ...prev };
+      if (m.active === active) {
+        delete next[m.id];
+      } else {
+        next[m.id] = active;
+      }
+      return next;
+    });
+  }
+
+  async function saveAllChanges() {
+    const entries = Object.entries(pendingActive);
+    if (entries.length === 0) {
+      toast.info("No hay cambios pendientes");
+      return;
+    }
+    setSavingBulk(true);
+    try {
+      // Group by desired active state for two bulk updates
+      const toActivate = entries.filter(([, v]) => v).map(([id]) => id);
+      const toDeactivate = entries.filter(([, v]) => !v).map(([id]) => id);
+      if (toActivate.length > 0) {
+        const { error } = await supabase.from("modifiers").update({ active: true }).in("id", toActivate);
+        if (error) throw new Error(error.message);
+      }
+      if (toDeactivate.length > 0) {
+        const { error } = await supabase.from("modifiers").update({ active: false }).in("id", toDeactivate);
+        if (error) throw new Error(error.message);
+      }
+      toast.success(`${entries.length} cambio(s) guardado(s) en ${activeBranchName || "esta sede"}`);
+      setPendingActive({});
       qc.invalidateQueries({ queryKey: ["mods"] });
-    } else {
-      toast.success(active ? "Disponible en esta sede" : "Ocultado en esta sede");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar cambios");
+    } finally {
+      setSavingBulk(false);
     }
   }
+
+  function discardChanges() {
+    setPendingActive({});
+    toast.message("Cambios descartados");
+  }
+
+  // Warn before browser unload if there are pending changes
+  if (typeof window !== "undefined") {
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    useMemo(() => {
+      const handler = (e: BeforeUnloadEvent) => {
+        if (pendingCount > 0) {
+          e.preventDefault();
+          e.returnValue = "";
+        }
+      };
+      window.addEventListener("beforeunload", handler);
+      return () => window.removeEventListener("beforeunload", handler);
+    }, [pendingCount]);
+  }
+
 
   return (
     <div className="space-y-4">
