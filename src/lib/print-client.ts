@@ -437,6 +437,7 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
+      if (!(await assertCompatiblePrintServer(url, payload, controller.signal))) continue;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -444,7 +445,6 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
         signal: controller.signal,
         mode: "cors",
       });
-      if (!(await assertCompatiblePrintServer(url, payload, controller.signal))) continue;
       if (res.ok) {
         _lastGoodUrl = url;
         if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
