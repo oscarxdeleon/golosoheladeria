@@ -111,26 +111,24 @@ export function AppSidebar() {
   const handleSignOut = async () => {
     if (signingOut) return;
     setSigningOut(true);
+    // Failsafe: redirect no matter what after 2s
+    const failsafe = setTimeout(() => {
+      try { window.location.replace("/auth"); } catch {}
+    }, 2000);
     try {
-      try { await queryClient.cancelQueries(); } catch {}
-      try { queryClient.clear(); } catch {}
-      try {
-        await Promise.race([
-          supabase.auth.signOut(),
-          new Promise((resolve) => setTimeout(resolve, 3000)),
-        ]);
-      } catch (e) {
-        console.warn("signOut error", e);
-      }
-      // Limpieza defensiva por si el token quedó en storage
+      // Fire-and-forget signOut (local scope avoids hanging on network)
+      try { void supabase.auth.signOut({ scope: "local" }).catch(() => {}); } catch {}
+      // Defensive storage cleanup
       try {
         Object.keys(localStorage).forEach((k) => {
-          if (k.startsWith("sb-") && k.endsWith("-auth-token")) localStorage.removeItem(k);
+          if (k.startsWith("sb-") && k.includes("auth-token")) localStorage.removeItem(k);
         });
       } catch {}
-      try { await router.navigate({ to: "/auth", replace: true }); } catch {}
-      window.location.href = "/auth";
+      try { queryClient.clear(); } catch {}
+      clearTimeout(failsafe);
+      window.location.replace("/auth");
     } catch (e: any) {
+      clearTimeout(failsafe);
       toast.error("No se pudo cerrar sesión", { description: e?.message });
       setSigningOut(false);
     }

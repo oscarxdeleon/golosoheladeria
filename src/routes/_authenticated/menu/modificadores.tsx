@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useBlocker } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -208,18 +208,79 @@ function ModPage() {
     qc.invalidateQueries({ queryKey: ["mods"] });
   }
 
-  async function toggleActive(m: Mod, active: boolean) {
-    qc.setQueryData<Mod[]>(["mods"], (old) =>
-      (old ?? []).map((x) => (x.id === m.id ? { ...x, active } : x)),
-    );
-    const { error } = await supabase.from("modifiers").update({ active }).eq("id", m.id);
-    if (error) {
-      toast.error(error.message);
+  const [pendingActive, setPendingActive] = useState<Record<string, boolean>>({});
+  const [savingBulk, setSavingBulk] = useState(false);
+  const pendingCount = Object.keys(pendingActive).length;
+
+  function toggleActive(m: Mod, active: boolean) {
+    setPendingActive((prev) => {
+      const next = { ...prev };
+      if (m.active === active) {
+        delete next[m.id];
+      } else {
+        next[m.id] = active;
+      }
+      return next;
+    });
+  }
+
+  async function saveAllChanges() {
+    const entries = Object.entries(pendingActive);
+    if (entries.length === 0) {
+      toast.info("No hay cambios pendientes");
+      return;
+    }
+    setSavingBulk(true);
+    try {
+      // Group by desired active state for two bulk updates
+      const toActivate = entries.filter(([, v]) => v).map(([id]) => id);
+      const toDeactivate = entries.filter(([, v]) => !v).map(([id]) => id);
+      if (toActivate.length > 0) {
+        const { error } = await supabase.from("modifiers").update({ active: true }).in("id", toActivate);
+        if (error) throw new Error(error.message);
+      }
+      if (toDeactivate.length > 0) {
+        const { error } = await supabase.from("modifiers").update({ active: false }).in("id", toDeactivate);
+        if (error) throw new Error(error.message);
+      }
+      toast.success(`${entries.length} cambio(s) guardado(s) en ${activeBranchName || "esta sede"}`);
+      setPendingActive({});
       qc.invalidateQueries({ queryKey: ["mods"] });
-    } else {
-      toast.success(active ? "Disponible en esta sede" : "Ocultado en esta sede");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Error al guardar cambios");
+    } finally {
+      setSavingBulk(false);
     }
   }
+
+  function discardChanges() {
+    setPendingActive({});
+    toast.message("Cambios descartados");
+  }
+
+  // Warn before browser unload if there are pending changes
+  useEffect(() => {
+    if (pendingCount === 0) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [pendingCount]);
+
+  // Block in-app navigation when there are pending changes
+  useBlocker({
+    shouldBlockFn: () => {
+      if (pendingCount === 0) return false;
+      return !window.confirm(
+        `Tienes ${pendingCount} cambio(s) sin guardar. ¿Salir sin guardar?`,
+      );
+    },
+    enableBeforeUnload: false,
+  });
+
+
 
   return (
     <div className="space-y-4">
@@ -275,6 +336,28 @@ function ModPage() {
         )}
       </div>
 
+      {isAdmin && (
+        <div className={`sticky top-14 z-20 rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm ${pendingCount > 0 ? "bg-amber-50 border-amber-300" : "bg-card"}`}>
+          <div className="text-sm">
+            {pendingCount > 0 ? (
+              <span className="font-medium text-amber-900">
+                {pendingCount} cambio(s) pendiente(s) en {activeBranchName || "esta sede"}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Sin cambios pendientes</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={discardChanges} disabled={pendingCount === 0 || savingBulk}>
+              Descartar
+            </Button>
+            <Button onClick={saveAllChanges} disabled={pendingCount === 0 || savingBulk}>
+              {savingBulk ? "Guardando…" : "Guardar cambios"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isAdmin && branches.length > 0 && (
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 py-3">
@@ -319,9 +402,10 @@ function ModPage() {
                 <CardContent>
                   <ul className="space-y-1">
                     {myMods.map((m) => {
-                      const availableHere = m.active;
+                      const availableHere = pendingActive[m.id] ?? m.active;
+                      const isPending = pendingActive[m.id] !== undefined;
                       return (
-                        <li key={m.id} className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${availableHere ? "bg-muted/50" : "bg-muted/30 opacity-60"}`}>
+                        <li key={m.id} className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${availableHere ? "bg-muted/50" : "bg-muted/30 opacity-60"} ${isPending ? "ring-1 ring-amber-400" : ""}`}>
                           <span className="flex items-center gap-2 min-w-0">
                             {m.image_url ? (
                               <img src={m.image_url} alt={m.name} className={`h-8 w-8 rounded object-cover bg-white border ${availableHere ? "" : "grayscale"}`} loading="lazy" />
@@ -332,6 +416,7 @@ function ModPage() {
                             )}
                             <span className={`truncate ${availableHere ? "" : "line-through text-muted-foreground"}`}>{m.name}</span>
                             {!availableHere && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Inactivo</span>}
+                            {isPending && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Pendiente</span>}
                           </span>
                           <span className="flex items-center gap-2">
                             <span className="text-muted-foreground">{formatMoney(m.price)}</span>
