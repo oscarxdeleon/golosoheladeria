@@ -743,7 +743,7 @@ function buildComandaLegacy(p) {
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
       .replace(/^PEDIDO\s+MESA[\s·:-]*/i, "")
-      .replace(/^MESA\s*#?\s*/i, "MESA # ")
+      .replace(/^MESA\s*#?\s*/i, "MESA #")
       .trim();
     if (headerText) {
       const maxCols = Math.max(1, Math.floor(WIDTH / 2));
