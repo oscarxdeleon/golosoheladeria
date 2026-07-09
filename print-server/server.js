@@ -502,17 +502,17 @@ function fmtQty(qty, mode) {
   return `${n}x`;
 }
 function fmtOrderNum(num, mode) {
-  const s = String(num ?? "").trim();
+  const s = String(num ?? "").trim().replace(/^#+\s*/, "");
   if (!s) return "";
-  if (mode === "pedido") return `PEDIDO ${s}`;
+  if (mode === "pedido") return `PEDIDO #${s}`;
   if (mode === "ticket") return `TICKET #${s}`;
   return `#${s}`;
 }
 function fmtTable(header, mode) {
   const s = String(header || "").replace(/^mesa\s*#?\s*/i, "").replace(/^pedido\s+mesa[\s·:-]*/i, "").replace(/\**/g, "").trim();
   if (!s) return "";
-  if (mode === "Mesa: N") return `Mesa: ${s}`;
-  if (mode === "MN") return `M${s}`;
+  if (mode === "Mesa: N") return `Mesa: #${s}`;
+  if (mode === "MN") return `M#${s}`;
   return `MESA #${s}`;
 }
 const ORDER_TYPE_LABELS = {
