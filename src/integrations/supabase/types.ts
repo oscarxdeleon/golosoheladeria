@@ -769,34 +769,49 @@ export type Database = {
       }
       modifier_groups: {
         Row: {
+          branch_id: string
           created_at: string
           id: string
           max_select: number
           min_select: number
           name: string
+          origin_group_id: string | null
           required: boolean
         }
         Insert: {
+          branch_id: string
           created_at?: string
           id?: string
           max_select?: number
           min_select?: number
           name: string
+          origin_group_id?: string | null
           required?: boolean
         }
         Update: {
+          branch_id?: string
           created_at?: string
           id?: string
           max_select?: number
           min_select?: number
           name?: string
+          origin_group_id?: string | null
           required?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "modifier_groups_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       modifiers: {
         Row: {
           active: boolean
+          branch_id: string
           disabled_branch_ids: string[]
           group_id: string
           id: string
@@ -806,6 +821,7 @@ export type Database = {
         }
         Insert: {
           active?: boolean
+          branch_id: string
           disabled_branch_ids?: string[]
           group_id: string
           id?: string
@@ -815,6 +831,7 @@ export type Database = {
         }
         Update: {
           active?: boolean
+          branch_id?: string
           disabled_branch_ids?: string[]
           group_id?: string
           id?: string
@@ -823,6 +840,13 @@ export type Database = {
           price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "modifiers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "modifiers_group_id_fkey"
             columns: ["group_id"]
