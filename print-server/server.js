@@ -72,9 +72,8 @@ const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
 // remapea '#' a 'Ñ' y aparece un símbolo raro en el ticket.
 // Los acentos y ñ vienen de CP858/CP850 vía ESC t (CODEPAGE).
 const INTL_CHARSET = ESC + "R" + "\x00";
-// Hash seguro: algunas impresoras/clones vuelven a otra página/charset durante
-// cambios de tamaño/fuente y remapean el byte 0x23 como Ñ/glifo. Reaplicamos
-// página de códigos + ESC R 0 justo antes de cada "#" visible.
+// Hash seguro para texto normal. En encabezados críticos de comanda se usa
+// además raster/imagen para que el # no dependa del mapa de caracteres.
 const SAFE_HASH = CODEPAGE + INTL_CHARSET + "#";
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
@@ -123,6 +122,106 @@ function encodeEscPos(text) {
     else bytes.push(0x3f); // '?' para code points fuera de Latin-1
   }
   return Buffer.from(bytes);
+}
+
+// ---------- Texto raster para encabezados con # ----------
+// Algunas impresoras remapean el byte ASCII 0x23 a un glifo aunque se envíe
+// ESC R 0. Para PEDIDO # y MESA # imprimimos la línea como imagen térmica.
+const RASTER_FONT = {
+  " ": ["00000","00000","00000","00000","00000","00000","00000"],
+  "#": ["01010","11111","01010","01010","11111","01010","01010"],
+  "0": ["01110","10001","10011","10101","11001","10001","01110"],
+  "1": ["00100","01100","00100","00100","00100","00100","01110"],
+  "2": ["01110","10001","00001","00010","00100","01000","11111"],
+  "3": ["11110","00001","00001","01110","00001","00001","11110"],
+  "4": ["00010","00110","01010","10010","11111","00010","00010"],
+  "5": ["11111","10000","11110","00001","00001","10001","01110"],
+  "6": ["00110","01000","10000","11110","10001","10001","01110"],
+  "7": ["11111","00001","00010","00100","01000","01000","01000"],
+  "8": ["01110","10001","10001","01110","10001","10001","01110"],
+  "9": ["01110","10001","10001","01111","00001","00010","01100"],
+  "A": ["01110","10001","10001","11111","10001","10001","10001"],
+  "D": ["11110","10001","10001","10001","10001","10001","11110"],
+  "E": ["11111","10000","10000","11110","10000","10000","11111"],
+  "I": ["11111","00100","00100","00100","00100","00100","11111"],
+  "M": ["10001","11011","10101","10101","10001","10001","10001"],
+  "O": ["01110","10001","10001","10001","10001","10001","01110"],
+  "P": ["11110","10001","10001","11110","10000","10000","10000"],
+  "S": ["01111","10000","10000","01110","00001","00001","11110"],
+  "T": ["11111","00100","00100","00100","00100","00100","00100"],
+};
+
+function rasterTextLine(text, opts = {}) {
+  const raw = String(text ?? "").toUpperCase().replace(/[^A-Z0-9 #]/g, " ").trim();
+  if (!raw) return Buffer.alloc(0);
+  const paperPx = WIDTH >= 42 ? 384 : 288;
+  let scale = Number(opts.scale || 4);
+  const charW = 5;
+  const charH = 7;
+  const spacing = 1;
+  let textPx = raw.length * charW * scale + Math.max(0, raw.length - 1) * spacing * scale;
+  while (textPx > paperPx - 8 && scale > 1) {
+    scale -= 1;
+    textPx = raw.length * charW * scale + Math.max(0, raw.length - 1) * spacing * scale;
+  }
+  const widthPx = Math.max(8, Math.ceil(paperPx / 8) * 8);
+  const heightPx = charH * scale + 8;
+  const bytesPerRow = widthPx / 8;
+  const raster = Buffer.alloc(bytesPerRow * heightPx, 0);
+  const left = Math.max(0, Math.floor((widthPx - textPx) / 2));
+  const top = 4;
+  const setPixel = (x, y) => {
+    if (x < 0 || y < 0 || x >= widthPx || y >= heightPx) return;
+    raster[y * bytesPerRow + (x >> 3)] |= 0x80 >> (x & 7);
+  };
+  let cursor = left;
+  for (const ch of raw) {
+    const glyph = RASTER_FONT[ch] || RASTER_FONT[" "];
+    for (let gy = 0; gy < charH; gy++) {
+      for (let gx = 0; gx < charW; gx++) {
+        if (glyph[gy]?.[gx] !== "1") continue;
+        for (let sy = 0; sy < scale; sy++) {
+          for (let sx = 0; sx < scale; sx++) setPixel(cursor + gx * scale + sx, top + gy * scale + sy);
+        }
+      }
+    }
+    cursor += (charW + spacing) * scale;
+  }
+  const header = Buffer.from([0x1d, 0x76, 0x30, 0x00, bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff, heightPx & 0xff, (heightPx >> 8) & 0xff]);
+  return Buffer.concat([encodeEscPos(ALIGN_L), header, raster, encodeEscPos("\n")]);
+}
+
+function rasterHashHeaderLine(label, num, scale = 4) {
+  const s = String(num ?? "").trim().replace(/^#+\s*/, "");
+  if (!s) return Buffer.alloc(0);
+  return rasterTextLine(`${label} #${s}`, { scale });
+}
+
+const RASTER_START = "\uE000";
+const RASTER_END = "\uE001";
+const rasterHeaderMarker = (text) => `${RASTER_START}${String(text ?? "")}${RASTER_END}`;
+
+function encodeEscPosWithRasterHeaders(text) {
+  const source = String(text ?? "");
+  const chunks = [];
+  let cursor = 0;
+  while (cursor < source.length) {
+    const start = source.indexOf(RASTER_START, cursor);
+    if (start < 0) {
+      chunks.push(encodeEscPos(source.slice(cursor)));
+      break;
+    }
+    if (start > cursor) chunks.push(encodeEscPos(source.slice(cursor, start)));
+    const end = source.indexOf(RASTER_END, start + RASTER_START.length);
+    if (end < 0) {
+      chunks.push(encodeEscPos(source.slice(start)));
+      break;
+    }
+    const rasterText = source.slice(start + RASTER_START.length, end);
+    chunks.push(rasterTextLine(rasterText, { scale: 4 }));
+    cursor = end + RASTER_END.length;
+  }
+  return Buffer.concat(chunks.filter((b) => b && b.length));
 }
 
 function row(left, right, width = WIDTH) {
@@ -366,8 +465,7 @@ async function buildPersonalizedTicketRaw(p) {
   // aparte debajo del título con "#1258" para evitar glifos como "N.º".
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + baseTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (hasNum) {
-    const numLabel = `${SAFE_HASH}${strNum}`;
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + numLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += rasterHeaderMarker(`#${strNum}`);
   }
   out += ALIGN_L + DASH_LINE;
 
@@ -462,7 +560,7 @@ async function buildPersonalizedTicketRaw(p) {
 
 
   out += ALIGN_L + FEED(4) + CUT;
-  const textBuf = encodeEscPos(out);
+  const textBuf = encodeEscPosWithRasterHeaders(out);
   if (logoBuf) {
     // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
     return Buffer.concat([encodeEscPos(INIT + CODEPAGE + INTL_CHARSET), logoBuf, textBuf]);
@@ -527,16 +625,16 @@ function fmtQty(qty, mode) {
 function fmtOrderNum(num, mode) {
   const s = String(num ?? "").trim().replace(/^#+\s*/, "");
   if (!s) return "";
-  if (mode === "pedido") return `PEDIDO ${SAFE_HASH}${s}`;
-  if (mode === "ticket") return `TICKET ${SAFE_HASH}${s}`;
-  return `${SAFE_HASH}${s}`;
+  if (mode === "pedido") return `PEDIDO #${s}`;
+  if (mode === "ticket") return `TICKET #${s}`;
+  return `#${s}`;
 }
 function fmtTable(header, mode) {
   const s = String(header || "").replace(/^mesa\s*#?\s*/i, "").replace(/^pedido\s+mesa[\s·:-]*/i, "").replace(/\**/g, "").trim();
   if (!s) return "";
-  if (mode === "Mesa: N") return `Mesa: ${SAFE_HASH}${s}`;
-  if (mode === "MN") return `M${SAFE_HASH}${s}`;
-  return `MESA ${SAFE_HASH}${s}`;
+  if (mode === "Mesa: N") return `MESA #${s}`;
+  if (mode === "MN") return `M #${s}`;
+  return `MESA #${s}`;
 }
 const ORDER_TYPE_LABELS = {
   mesa: "PARA MESA",
@@ -619,7 +717,7 @@ function buildComandaFormatted(p, fmt) {
   const ticketNum = p.ticket ?? p.ticket_number;
   const orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
   if (orderNumTxt) {
-    out += bigLine(orderNumTxt, f.titleSize, f.bold.title, f.align.header);
+    out += rasterHeaderMarker(orderNumTxt);
   }
 
   // Cajero + fecha (siempre en tamaño normal)
@@ -639,7 +737,7 @@ function buildComandaFormatted(p, fmt) {
   // Mesa
   if (p.header && otKey === "mesa") {
     const tableTxt = fmtTable(p.header, f.tableFormat);
-    if (tableTxt) out += bigLine(tableTxt, f.titleSize, f.bold.title, f.align.header);
+    if (tableTxt) out += rasterHeaderMarker(tableTxt);
   }
 
   out += separator;
@@ -708,7 +806,7 @@ function buildComandaFormatted(p, fmt) {
   }
 
   out += FEED(4) + CUT;
-  return encodeEscPos(out);
+  return encodeEscPosWithRasterHeaders(out);
 }
 
 // ---------- Comanda de cocina (formato legacy fijo) ----------
@@ -740,7 +838,7 @@ function buildComandaLegacy(p) {
 
   const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim().replace(/^#+\s*/, "");
   if (ticketNum) {
-    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO ${SAFE_HASH}${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += rasterHeaderMarker(`PEDIDO #${ticketNum}`);
   }
 
   if (p.user_name) out += String(p.user_name).trim().toUpperCase() + "\n";
@@ -769,13 +867,10 @@ function buildComandaLegacy(p) {
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
       .replace(/^PEDIDO\s+MESA[\s·:-]*/i, "")
-      .replace(/^MESA\s*#?\s*/i, `MESA ${SAFE_HASH}`)
+      .replace(/^MESA\s*#?\s*/i, "MESA #")
       .trim();
     if (headerText) {
-      const maxCols = Math.max(1, Math.floor(WIDTH / 2));
-      out += BOLD_ON + SIZE_DOUBLE;
-      for (const line of wrapText(headerText, maxCols)) out += line + "\n";
-      out += SIZE_NORMAL + BOLD_OFF;
+      out += rasterHeaderMarker(headerText);
     }
   }
 
@@ -836,7 +931,7 @@ function buildComandaLegacy(p) {
   }
 
   out += FEED(4) + CUT;
-  return encodeEscPos(out);
+  return encodeEscPosWithRasterHeaders(out);
 }
 
 function buildComandaRaw(p) {
