@@ -454,20 +454,18 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
   const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
 
-  // Aseguramos que el número consecutivo del ticket se imprima SIEMPRE,
-  // incluso si el Print Server instalado es una versión antigua que solo
-  // renderiza `title_text`. Inyectamos el consecutivo directamente en el
-  // título; el Print Server nuevo (>=2.5.7) deduplica el "#N" repetido.
+  // El título del ticket se envía SIN número; el Print Server (>=2.5.8)
+  // imprime el consecutivo en una línea aparte con formato "N.º 1258".
   const rawTicketNum = o.ticket;
   const ticketNumStr = rawTicketNum == null
     ? ""
     : String(rawTicketNum).trim().replace(/^#+\s*/, "");
   const hasTicketNum = ticketNumStr && ticketNumStr !== "0" && ticketNumStr !== "null" && ticketNumStr !== "undefined";
+  void hasTicketNum;
   const mergedTicketCfg = { ...DEFAULT_TICKET_CONFIG, ...(b.ticket_config ?? {}), show_logo: true };
   const baseTitleText = String(mergedTicketCfg.title_text || "").trim() || "TICKET DE VENTA";
   const cleanBaseTitle = baseTitleText.replace(/\s*(?:#|N\.?\s*º\s*|No\.?\s*)\d+\s*$/i, "").trim() || "TICKET DE VENTA";
-  const titleWithNumber = hasTicketNum ? `${cleanBaseTitle} #${ticketNumStr}` : cleanBaseTitle;
-  mergedTicketCfg.title_text = titleWithNumber;
+  mergedTicketCfg.title_text = cleanBaseTitle;
   mergedTicketCfg.show_ticket_number = true;
 
   const payload: PrintPayload = {
