@@ -80,6 +80,27 @@ function ModPage() {
     [allMods, branchId],
   );
 
+  async function refreshModifierCaches() {
+    await Promise.all([
+      qc.invalidateQueries({ queryKey: ["mod-groups"] }),
+      qc.invalidateQueries({ queryKey: ["modifier-groups-all"] }),
+      qc.invalidateQueries({ queryKey: ["mods"] }),
+      qc.invalidateQueries({ queryKey: ["mods-for"] }),
+      qc.invalidateQueries({ queryKey: ["products"] }),
+      qc.invalidateQueries({ queryKey: ["products-all"] }),
+      qc.invalidateQueries({ queryKey: ["public-products"] }),
+    ]);
+    await Promise.all([
+      qc.refetchQueries({ queryKey: ["mod-groups"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["modifier-groups-all"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["mods"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["mods-for"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["products"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["products-all"], type: "active" }),
+      qc.refetchQueries({ queryKey: ["public-products"], type: "active" }),
+    ]);
+  }
+
   function openDuplicate(g: Group) {
     setDupSource(g);
     setDupName(`${g.name} - Copia`);
@@ -128,8 +149,7 @@ function ModPage() {
       setDupSource(null);
       setDupName("");
       setDupItems([]);
-      qc.invalidateQueries({ queryKey: ["mod-groups"] });
-      qc.invalidateQueries({ queryKey: ["mods"] });
+      await refreshModifierCaches();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al duplicar");
     } finally {
@@ -148,8 +168,15 @@ function ModPage() {
     };
     if (groupEdit.id) {
       // Edit affects only current branch's copy
-      const { error } = await supabase.from("modifier_groups").update(base).eq("id", groupEdit.id);
+      const { data, error } = await supabase
+        .from("modifier_groups")
+        .update(base)
+        .eq("id", groupEdit.id)
+        .eq("branch_id", branchId)
+        .select("id")
+        .maybeSingle();
       if (error) return toast.error(error.message);
+      if (!data) return toast.error("No se guardó el grupo: no pertenece a la sede seleccionada o no tienes permisos.");
     } else {
       const scope = groupEdit._scope ?? "current";
       const targetBranches = scope === "all" ? branches.map((b) => b.id) : [branchId];
@@ -159,14 +186,16 @@ function ModPage() {
       if (error) return toast.error(error.message);
     }
     setGroupEdit(null);
-    qc.invalidateQueries({ queryKey: ["mod-groups"] });
+    toast.success("Grupo guardado");
+    await refreshModifierCaches();
   }
 
   async function removeGroup(id: string) {
     if (!confirm("¿Eliminar grupo y sus modificadores en esta sede?")) return;
-    await supabase.from("modifier_groups").delete().eq("id", id);
-    qc.invalidateQueries({ queryKey: ["mod-groups"] });
-    qc.invalidateQueries({ queryKey: ["mods"] });
+    const { error } = await supabase.from("modifier_groups").delete().eq("id", id).eq("branch_id", branchId);
+    if (error) return toast.error(error.message);
+    toast.success("Grupo eliminado");
+    await refreshModifierCaches();
   }
 
   async function saveMod() {
@@ -179,8 +208,15 @@ function ModPage() {
       image_url: modEdit.image_url ?? null,
     };
     if (modEdit.id) {
-      const { error } = await supabase.from("modifiers").update(base).eq("id", modEdit.id);
+      const { data, error } = await supabase
+        .from("modifiers")
+        .update(base)
+        .eq("id", modEdit.id)
+        .eq("branch_id", branchId)
+        .select("id")
+        .maybeSingle();
       if (error) return toast.error(error.message);
+      if (!data) return toast.error("No se guardó el modificador: no pertenece a la sede seleccionada o no tienes permisos.");
     } else {
       const scope = modEdit._scope ?? "current";
       const currentGroup = allGroups.find((g) => g.id === modEdit.group_id);
@@ -200,12 +236,16 @@ function ModPage() {
       }
     }
     setModEdit(null);
-    qc.invalidateQueries({ queryKey: ["mods"] });
+    toast.success("Modificador guardado");
+    await refreshModifierCaches();
   }
 
   async function removeMod(id: string) {
-    await supabase.from("modifiers").delete().eq("id", id);
-    qc.invalidateQueries({ queryKey: ["mods"] });
+    if (!branchId) return toast.error("Selecciona una sede");
+    const { error } = await supabase.from("modifiers").delete().eq("id", id).eq("branch_id", branchId);
+    if (error) return toast.error(error.message);
+    toast.success("Modificador eliminado");
+    await refreshModifierCaches();
   }
 
   const [pendingActive, setPendingActive] = useState<Record<string, boolean>>({});
@@ -244,6 +284,7 @@ function ModPage() {
           .from("modifiers")
           .update({ active: true })
           .in("id", toActivate)
+          .eq("branch_id", branchId)
           .select("id");
         if (error) throw new Error(error.message);
         updated += data?.length ?? 0;
@@ -253,6 +294,7 @@ function ModPage() {
           .from("modifiers")
           .update({ active: false })
           .in("id", toDeactivate)
+          .eq("branch_id", branchId)
           .select("id");
         if (error) throw new Error(error.message);
         updated += data?.length ?? 0;
@@ -271,8 +313,7 @@ function ModPage() {
         toast.success(`${updated} cambio(s) guardado(s) en ${activeBranchName || "esta sede"}`);
       }
       setPendingActive({});
-      await qc.invalidateQueries({ queryKey: ["mods"] });
-      await qc.refetchQueries({ queryKey: ["mods"] });
+      await refreshModifierCaches();
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Error al guardar cambios");
     } finally {
