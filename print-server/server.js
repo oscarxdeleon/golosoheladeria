@@ -197,6 +197,33 @@ function rasterHashHeaderLine(label, num, scale = 4) {
   return rasterTextLine(`${label} #${s}`, { scale });
 }
 
+const RASTER_START = "\uE000";
+const RASTER_END = "\uE001";
+const rasterHeaderMarker = (text) => `${RASTER_START}${String(text ?? "")}${RASTER_END}`;
+
+function encodeEscPosWithRasterHeaders(text) {
+  const source = String(text ?? "");
+  const chunks = [];
+  let cursor = 0;
+  while (cursor < source.length) {
+    const start = source.indexOf(RASTER_START, cursor);
+    if (start < 0) {
+      chunks.push(encodeEscPos(source.slice(cursor)));
+      break;
+    }
+    if (start > cursor) chunks.push(encodeEscPos(source.slice(cursor, start)));
+    const end = source.indexOf(RASTER_END, start + RASTER_START.length);
+    if (end < 0) {
+      chunks.push(encodeEscPos(source.slice(start)));
+      break;
+    }
+    const rasterText = source.slice(start + RASTER_START.length, end);
+    chunks.push(rasterTextLine(rasterText, { scale: 4 }));
+    cursor = end + RASTER_END.length;
+  }
+  return Buffer.concat(chunks.filter((b) => b && b.length));
+}
+
 function row(left, right, width = WIDTH) {
   const l = String(left ?? "");
   const r = String(right ?? "");
