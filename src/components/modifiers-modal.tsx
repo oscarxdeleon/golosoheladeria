@@ -22,6 +22,7 @@ export interface SelectedModifier {
 
 interface ModifierGroup {
   id: string;
+  branch_id: string;
   name: string;
   min_select: number;
   max_select: number;
@@ -30,6 +31,7 @@ interface ModifierGroup {
 interface Modifier {
   id: string;
   group_id: string;
+  branch_id: string;
   name: string;
   price: number;
   active: boolean;
@@ -46,27 +48,30 @@ interface Props {
 
 export function ModifiersModal({ product, branchId, onClose, onConfirm }: Props) {
   const open = !!product;
-  const groupIds = product?.modifier_group_ids ?? [];
+  const groupIds = useMemo(() => [...(product?.modifier_group_ids ?? [])].sort(), [product?.modifier_group_ids]);
 
   const { data: groups = [] } = useQuery<ModifierGroup[]>({
-    queryKey: ["mod-groups", groupIds.sort().join(",")],
+    queryKey: ["mod-groups", branchId ?? "all", groupIds.join(",")],
     enabled: open && groupIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase
         .from("modifier_groups")
-        .select("id,name,min_select,max_select,required")
-        .in("id", groupIds);
+        .select("id,branch_id,name,min_select,max_select,required")
+        .in("id", groupIds)
+        .match(branchId ? { branch_id: branchId } : {});
       return (data ?? []) as ModifierGroup[];
     },
   });
+  const validGroupIds = useMemo(() => groups.map((g) => g.id), [groups]);
   const { data: modsRaw = [] } = useQuery<Modifier[]>({
-    queryKey: ["mods-for", groupIds.sort().join(",")],
-    enabled: open && groupIds.length > 0,
+    queryKey: ["mods-for", branchId ?? "all", validGroupIds.join(",")],
+    enabled: open && validGroupIds.length > 0,
     queryFn: async () => {
       const { data } = await supabase
         .from("modifiers")
-        .select("id,group_id,name,price,active,image_url,disabled_branch_ids")
-        .in("group_id", groupIds)
+        .select("id,group_id,branch_id,name,price,active,image_url,disabled_branch_ids")
+        .in("group_id", validGroupIds)
+        .match(branchId ? { branch_id: branchId } : {})
         .eq("active", true)
         .order("name");
       return (data ?? []) as Modifier[];
