@@ -72,6 +72,10 @@ const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
 // remapea '#' a 'Ñ' y aparece un símbolo raro en el ticket.
 // Los acentos y ñ vienen de CP858/CP850 vía ESC t (CODEPAGE).
 const INTL_CHARSET = ESC + "R" + "\x00";
+// Hash seguro: algunas impresoras/clones vuelven al set internacional España
+// durante cambios de tamaño/fuente y remapean el byte 0x23 como Ñ/glifo.
+// Reaplicamos ESC R 0 justo antes de cada "#" visible en comandas.
+const SAFE_HASH = INTL_CHARSET + "#";
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
@@ -101,7 +105,7 @@ function forceHashBeforeNumber(text) {
     // dígito. Se normaliza SIEMPRE a "ETIQUETA #<numero>".
     .replace(
       /\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN|ORDER|TABLE|NUM(?:ERO)?)\b[^0-9\n\r]{0,6}(\d)/gi,
-      (_m, lbl, digit) => `${lbl} #${digit}`,
+      (_m, lbl, digit) => `${lbl} ${SAFE_HASH}${digit}`,
     )
     // Colapsa "# #" o "##" a un solo "#"
     .replace(/#\s*#+/g, "#");
@@ -523,16 +527,16 @@ function fmtQty(qty, mode) {
 function fmtOrderNum(num, mode) {
   const s = String(num ?? "").trim().replace(/^#+\s*/, "");
   if (!s) return "";
-  if (mode === "pedido") return `PEDIDO #${s}`;
-  if (mode === "ticket") return `TICKET #${s}`;
-  return `#${s}`;
+  if (mode === "pedido") return `PEDIDO ${SAFE_HASH}${s}`;
+  if (mode === "ticket") return `TICKET ${SAFE_HASH}${s}`;
+  return `${SAFE_HASH}${s}`;
 }
 function fmtTable(header, mode) {
   const s = String(header || "").replace(/^mesa\s*#?\s*/i, "").replace(/^pedido\s+mesa[\s·:-]*/i, "").replace(/\**/g, "").trim();
   if (!s) return "";
-  if (mode === "Mesa: N") return `Mesa: #${s}`;
-  if (mode === "MN") return `M#${s}`;
-  return `MESA #${s}`;
+  if (mode === "Mesa: N") return `Mesa: ${SAFE_HASH}${s}`;
+  if (mode === "MN") return `M${SAFE_HASH}${s}`;
+  return `MESA ${SAFE_HASH}${s}`;
 }
 const ORDER_TYPE_LABELS = {
   mesa: "PARA MESA",
@@ -736,7 +740,7 @@ function buildComandaLegacy(p) {
 
   const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim().replace(/^#+\s*/, "");
   if (ticketNum) {
-    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO #${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO ${SAFE_HASH}${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
   if (p.user_name) out += String(p.user_name).trim().toUpperCase() + "\n";
@@ -765,7 +769,7 @@ function buildComandaLegacy(p) {
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
       .replace(/^PEDIDO\s+MESA[\s·:-]*/i, "")
-      .replace(/^MESA\s*#?\s*/i, "MESA #")
+      .replace(/^MESA\s*#?\s*/i, `MESA ${SAFE_HASH}`)
       .trim();
     if (headerText) {
       const maxCols = Math.max(1, Math.floor(WIDTH / 2));
