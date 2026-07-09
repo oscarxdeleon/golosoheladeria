@@ -385,7 +385,7 @@ async function buildPersonalizedTicketRaw(p) {
   // aparte debajo del título con "#1258" para evitar glifos como "N.º".
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + baseTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (hasNum) {
-    out += rasterHeaderMarker(`#${strNum}`);
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${strNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
 
@@ -480,7 +480,7 @@ async function buildPersonalizedTicketRaw(p) {
 
 
   out += ALIGN_L + FEED(4) + CUT;
-  const textBuf = encodeEscPosWithRasterHeaders(out);
+  const textBuf = encodeEscPos(out);
   if (logoBuf) {
     // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
     return Buffer.concat([encodeEscPos(INIT + CODEPAGE + INTL_CHARSET), logoBuf, textBuf]);
@@ -543,18 +543,15 @@ function fmtQty(qty, mode) {
   return `${n}x`;
 }
 function fmtOrderNum(num, mode) {
-  const s = String(num ?? "").trim().replace(/^#+\s*/, "");
+  const s = normalizeTicketNumber(num);
   if (!s) return "";
   if (mode === "pedido") return `PEDIDO #${s}`;
   if (mode === "ticket") return `TICKET #${s}`;
   return `#${s}`;
 }
 function fmtTable(header, mode) {
-  const s = String(header || "").replace(/^mesa\s*#?\s*/i, "").replace(/^pedido\s+mesa[\s·:-]*/i, "").replace(/\**/g, "").trim();
-  if (!s) return "";
-  if (mode === "Mesa: N") return `MESA #${s}`;
-  if (mode === "MN") return `M #${s}`;
-  return `MESA #${s}`;
+  void mode;
+  return formatMesaHeader(header);
 }
 const ORDER_TYPE_LABELS = {
   mesa: "PARA MESA",
@@ -637,7 +634,7 @@ function buildComandaFormatted(p, fmt) {
   const ticketNum = p.ticket ?? p.ticket_number;
   const orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
   if (orderNumTxt) {
-    out += rasterHeaderMarker(orderNumTxt);
+    out += bigLine(orderNumTxt, f.titleSize, f.bold.title, f.align.header);
   }
 
   // Cajero + fecha (siempre en tamaño normal)
@@ -657,7 +654,7 @@ function buildComandaFormatted(p, fmt) {
   // Mesa
   if (p.header && otKey === "mesa") {
     const tableTxt = fmtTable(p.header, f.tableFormat);
-    if (tableTxt) out += rasterHeaderMarker(tableTxt);
+    if (tableTxt) out += bigLine(tableTxt, f.titleSize, f.bold.title, f.align.header);
   }
 
   out += separator;
@@ -726,7 +723,7 @@ function buildComandaFormatted(p, fmt) {
   }
 
   out += FEED(4) + CUT;
-  return encodeEscPosWithRasterHeaders(out);
+  return encodeEscPos(out);
 }
 
 // ---------- Comanda de cocina (formato legacy fijo) ----------
@@ -756,9 +753,9 @@ function buildComandaLegacy(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim().replace(/^#+\s*/, "");
-  if (ticketNum) {
-    out += rasterHeaderMarker(`PEDIDO #${ticketNum}`);
+  const ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
+  if (ticketHeader) {
+    out += BOLD_ON + SIZE_DOUBLE + ticketHeader + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
   if (p.user_name) out += String(p.user_name).trim().toUpperCase() + "\n";
@@ -782,15 +779,12 @@ function buildComandaLegacy(p) {
   }
 
   if (p.header && otKey === "mesa") {
-    const headerText = String(p.header)
-      .toUpperCase()
-      .replace(/^\**\s*/, "")
-      .replace(/\s*\**$/, "")
-      .replace(/^PEDIDO\s+MESA[\s·:-]*/i, "")
-      .replace(/^MESA\s*#?\s*/i, "MESA #")
-      .trim();
+    const headerText = formatMesaHeader(p.header);
     if (headerText) {
-      out += rasterHeaderMarker(headerText);
+      const maxCols = Math.max(1, Math.floor(WIDTH / 2));
+      out += BOLD_ON + SIZE_DOUBLE;
+      for (const line of wrapText(headerText, maxCols)) out += line + "\n";
+      out += SIZE_NORMAL + BOLD_OFF;
     }
   }
 
@@ -851,7 +845,7 @@ function buildComandaLegacy(p) {
   }
 
   out += FEED(4) + CUT;
-  return encodeEscPosWithRasterHeaders(out);
+  return encodeEscPos(out);
 }
 
 function buildComandaRaw(p) {
