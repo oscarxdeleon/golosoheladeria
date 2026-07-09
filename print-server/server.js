@@ -89,9 +89,25 @@ const CP1252_OVERRIDES = {
   "˜": 0x98, "™": 0x99, "š": 0x9a, "›": 0x9b, "œ": 0x9c, "ž": 0x9e, "Ÿ": 0x9f,
 };
 
+// Normaliza cualquier separador extraño (glifo, "·", "º", "Nº", "N.º", "No.",
+// bullets, etc.) que aparezca entre etiquetas como PEDIDO/MESA/TICKET y el
+// número, forzando siempre el carácter estándar "#" antes de enviar a la
+// impresora. Evita que print-servers antiguos o encodings mal configurados
+// muestren un glifo raro en lugar del "#".
+function forceHashBeforeNumber(text) {
+  return String(text ?? "")
+    // "PEDIDO · 1193" / "MESA º 1" / "TICKET Nº 12" → "PEDIDO #1193"
+    .replace(/\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN|ORDER|TABLE|NUM(?:ERO)?|N[ºo°]\.?)\b(\s*)(?:[#·º°•●◦▪◆■\-–—:·]|N[ºo°]\.?)+\s*(\d)/gi, (_m, lbl, sp, digit) => `${lbl}${sp || " "}#${digit}`)
+    // Etiquetas seguidas de espacio y número, sin ningún separador: añade "#"
+    .replace(/\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN)\b(\s+)(\d)/gi, (_m, lbl, sp, digit) => `${lbl}${sp}#${digit}`)
+    // Colapsa "# #" o "##" a un solo "#"
+    .replace(/#\s*#+/g, "#");
+}
+
 function encodeEscPos(text) {
+  const normalized = forceHashBeforeNumber(text);
   const bytes = [];
-  for (const ch of String(text ?? "")) {
+  for (const ch of String(normalized ?? "")) {
     const override = CP1252_OVERRIDES[ch];
     if (override !== undefined) { bytes.push(override); continue; }
     const code = ch.charCodeAt(0);
@@ -502,17 +518,17 @@ function fmtQty(qty, mode) {
   return `${n}x`;
 }
 function fmtOrderNum(num, mode) {
-  const s = String(num ?? "").trim();
+  const s = String(num ?? "").trim().replace(/^#+\s*/, "");
   if (!s) return "";
-  if (mode === "pedido") return `PEDIDO ${s}`;
+  if (mode === "pedido") return `PEDIDO #${s}`;
   if (mode === "ticket") return `TICKET #${s}`;
   return `#${s}`;
 }
 function fmtTable(header, mode) {
   const s = String(header || "").replace(/^mesa\s*#?\s*/i, "").replace(/^pedido\s+mesa[\s·:-]*/i, "").replace(/\**/g, "").trim();
   if (!s) return "";
-  if (mode === "Mesa: N") return `Mesa: ${s}`;
-  if (mode === "MN") return `M${s}`;
+  if (mode === "Mesa: N") return `Mesa: #${s}`;
+  if (mode === "MN") return `M#${s}`;
   return `MESA #${s}`;
 }
 const ORDER_TYPE_LABELS = {
@@ -712,9 +728,9 @@ function buildComandaLegacy(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim();
+  const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim().replace(/^#+\s*/, "");
   if (ticketNum) {
-    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO # ${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO #${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
   if (p.user_name) out += String(p.user_name).trim().toUpperCase() + "\n";
@@ -743,7 +759,7 @@ function buildComandaLegacy(p) {
       .replace(/^\**\s*/, "")
       .replace(/\s*\**$/, "")
       .replace(/^PEDIDO\s+MESA[\s·:-]*/i, "")
-      .replace(/^MESA\s*#?\s*/i, "MESA # ")
+      .replace(/^MESA\s*#?\s*/i, "MESA #")
       .trim();
     if (headerText) {
       const maxCols = Math.max(1, Math.floor(WIDTH / 2));
