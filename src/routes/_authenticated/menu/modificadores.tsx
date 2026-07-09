@@ -191,6 +191,7 @@ function ModPage() {
   }
 
   async function removeGroup(id: string) {
+    if (!branchId) return toast.error("Selecciona una sede");
     if (!confirm("¿Eliminar grupo y sus modificadores en esta sede?")) return;
     const { error } = await supabase.from("modifier_groups").delete().eq("id", id).eq("branch_id", branchId);
     if (error) return toast.error(error.message);
@@ -272,6 +273,10 @@ function ModPage() {
     }
     if (!isAdmin) {
       toast.error("Solo un administrador puede guardar estos cambios");
+      return;
+    }
+    if (!branchId) {
+      toast.error("Selecciona una sede");
       return;
     }
     setSavingBulk(true);
