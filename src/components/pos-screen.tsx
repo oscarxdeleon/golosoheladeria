@@ -287,7 +287,7 @@ export function ticketHTML(o: {
     ${cfg.show_phone && b.phone ? `<div class="biz-meta">${SVG.phone}<span>${b.phone}</span></div>` : ""}
     ${cfg.show_email && b.email ? `<div class="biz-meta">${SVG.mail}<span>${b.email}</span></div>` : ""}
     <hr class="dashed"/>
-    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"}<span class="num">#${ticketNo}</span></div><hr class="dashed"/>
+    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"}</div><div class="ticket-no"><span class="num">N.º ${ticketNo}</span></div><hr class="dashed"/>
     ${infoRows.length ? `<div class="info">${infoRows.join("")}</div><hr class="dashed"/>` : ""}
     <table class="tbl">
       <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
