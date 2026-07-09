@@ -336,6 +336,28 @@ function ModPage() {
         )}
       </div>
 
+      {isAdmin && (
+        <div className={`sticky top-14 z-20 rounded-lg border p-3 flex flex-wrap items-center justify-between gap-3 shadow-sm ${pendingCount > 0 ? "bg-amber-50 border-amber-300" : "bg-card"}`}>
+          <div className="text-sm">
+            {pendingCount > 0 ? (
+              <span className="font-medium text-amber-900">
+                {pendingCount} cambio(s) pendiente(s) en {activeBranchName || "esta sede"}
+              </span>
+            ) : (
+              <span className="text-muted-foreground">Sin cambios pendientes</span>
+            )}
+          </div>
+          <div className="flex gap-2">
+            <Button variant="outline" onClick={discardChanges} disabled={pendingCount === 0 || savingBulk}>
+              Descartar
+            </Button>
+            <Button onClick={saveAllChanges} disabled={pendingCount === 0 || savingBulk}>
+              {savingBulk ? "Guardando…" : "Guardar cambios"}
+            </Button>
+          </div>
+        </div>
+      )}
+
       {isAdmin && branches.length > 0 && (
         <Card>
           <CardContent className="flex flex-wrap items-center gap-3 py-3">
