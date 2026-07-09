@@ -106,9 +106,9 @@ export function formatQuantity(qty: number, fmt: CommandFormat["quantityFormat"]
 }
 
 export function formatOrderNumber(num: string | number | null | undefined, fmt: CommandFormat["orderNumberFormat"]): string {
-  const s = String(num ?? "").trim();
+  const s = String(num ?? "").trim().replace(/^#+\s*/, "");
   if (!s) return "";
-  if (fmt === "pedido") return `PEDIDO ${s}`;
+  if (fmt === "pedido") return `PEDIDO #${s}`;
   if (fmt === "ticket") return `TICKET #${s}`;
   return `#${s}`;
 }
@@ -116,9 +116,9 @@ export function formatOrderNumber(num: string | number | null | undefined, fmt: 
 export function formatTable(num: string | number | null | undefined, fmt: CommandFormat["tableFormat"]): string {
   const s = String(num ?? "").trim().replace(/^mesa\s*#?\s*/i, "");
   if (!s) return "";
-  if (fmt === "Mesa: N") return `Mesa: ${s}`;
-  if (fmt === "MN") return `M${s}`;
-  return `MESA ${s}`;
+  if (fmt === "Mesa: N") return `Mesa: #${s}`;
+  if (fmt === "MN") return `M#${s}`;
+  return `MESA #${s}`;
 }
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
