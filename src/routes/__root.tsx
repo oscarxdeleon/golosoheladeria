@@ -12,6 +12,7 @@ import { useEffect, type ReactNode } from "react";
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 function NotFoundComponent() {
   return (
@@ -127,6 +128,29 @@ function RootShell({ children }: { children: ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    const invalidateMenu = () => {
+      void queryClient.invalidateQueries({ queryKey: ["mod-groups"] });
+      void queryClient.invalidateQueries({ queryKey: ["modifier-groups-all"] });
+      void queryClient.invalidateQueries({ queryKey: ["mods"] });
+      void queryClient.invalidateQueries({ queryKey: ["mods-for"] });
+      void queryClient.invalidateQueries({ queryKey: ["products"] });
+      void queryClient.invalidateQueries({ queryKey: ["products-all"] });
+      void queryClient.invalidateQueries({ queryKey: ["public-products"] });
+    };
+
+    const channel = supabase
+      .channel("menu-modifier-cache-sync")
+      .on("postgres_changes", { event: "*", schema: "public", table: "modifiers" }, invalidateMenu)
+      .on("postgres_changes", { event: "*", schema: "public", table: "modifier_groups" }, invalidateMenu)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, invalidateMenu)
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [queryClient]);
 
   return (
     <QueryClientProvider client={queryClient}>
