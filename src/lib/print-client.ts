@@ -437,7 +437,8 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      if (!(await assertCompatiblePrintServer(url, payload, controller.signal))) continue;
+      // Chequeo de versión NO bloqueante: solo advertencia en consola.
+      void assertCompatiblePrintServer(url, payload, controller.signal).catch(() => false);
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
