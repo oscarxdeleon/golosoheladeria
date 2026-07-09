@@ -713,7 +713,8 @@ function buildComandaLegacy(p) {
   out += ALIGN_C;
 
   const otKeyEarlyL = normalizeOrderTypeKey(p.order_type);
-  if (p.business_name && otKeyEarlyL !== "mesa") {
+  const OMIT_BUSINESS_NAME_L = new Set(["mesa", "llevar", "kiosko"]);
+  if (p.business_name && !OMIT_BUSINESS_NAME_L.has(otKeyEarlyL)) {
     const business = String(p.business_name).toUpperCase().trim();
     const maxCols = Math.max(1, Math.floor(WIDTH / 2));
     out += BOLD_ON + SIZE_DOUBLE;
