@@ -96,10 +96,13 @@ const CP1252_OVERRIDES = {
 // muestren un glifo raro en lugar del "#".
 function forceHashBeforeNumber(text) {
   return String(text ?? "")
-    // "PEDIDO · 1193" / "MESA º 1" / "TICKET Nº 12" → "PEDIDO #1193"
-    .replace(/\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN|ORDER|TABLE|NUM(?:ERO)?|N[ºo°]\.?)\b(\s*)(?:[#·º°•●◦▪◆■\-–—:·]|N[ºo°]\.?)+\s*(\d)/gi, (_m, lbl, sp, digit) => `${lbl}${sp || " "}#${digit}`)
-    // Etiquetas seguidas de espacio y número, sin ningún separador: añade "#"
-    .replace(/\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN)\b(\s+)(\d)/gi, (_m, lbl, sp, digit) => `${lbl}${sp}#${digit}`)
+    // Etiqueta + cualquier basura no numérica (glifo, ·, º, Nº, N.º, No.,
+    // bullets, letras sueltas por mal encoding tipo "Ñ"/"M"/"Ð", etc.) +
+    // dígito. Se normaliza SIEMPRE a "ETIQUETA #<numero>".
+    .replace(
+      /\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN|ORDER|TABLE|NUM(?:ERO)?)\b[^0-9\n\r]{0,6}(\d)/gi,
+      (_m, lbl, digit) => `${lbl} #${digit}`,
+    )
     // Colapsa "# #" o "##" a un solo "#"
     .replace(/#\s*#+/g, "#");
 }
