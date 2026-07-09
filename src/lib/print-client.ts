@@ -54,6 +54,7 @@ export type PrintPayload = {
 
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
+const MIN_COMANDA_PRINT_SERVER_VERSION = "2.7.0";
 
 /**
  * Normaliza texto para el servidor ESC/POS sin quitar tildes ni ñ. El servidor
@@ -221,6 +222,46 @@ function normalizePrintUrl(raw: string | null | undefined): string | null {
     return url.toString();
   } catch {
     return value.endsWith("/print") ? value : value.replace(/\/+$/, "") + "/print";
+  }
+}
+
+function healthUrlForPrintUrl(printUrl: string): string {
+  try {
+    const url = new URL(printUrl);
+    url.pathname = "/health";
+    url.search = "";
+    url.hash = "";
+    return url.toString();
+  } catch {
+    return printUrl.replace(/\/print\/?$/i, "/health");
+  }
+}
+
+function versionAtLeast(current: string | undefined, minimum: string): boolean {
+  const a = String(current || "0.0.0").split(".").map((n) => Number(n) || 0);
+  const b = minimum.split(".").map((n) => Number(n) || 0);
+  for (let i = 0; i < Math.max(a.length, b.length); i += 1) {
+    const av = a[i] ?? 0;
+    const bv = b[i] ?? 0;
+    if (av > bv) return true;
+    if (av < bv) return false;
+  }
+  return true;
+}
+
+async function assertCompatiblePrintServer(url: string, payload: PrintPayload, signal: AbortSignal): Promise<boolean> {
+  if (payload.type !== "comanda") return true;
+  try {
+    const res = await fetch(healthUrlForPrintUrl(url), { method: "GET", signal, mode: "cors" });
+    if (!res.ok) return false;
+    const health = (await res.json()) as { version?: string };
+    const ok = versionAtLeast(health.version, MIN_COMANDA_PRINT_SERVER_VERSION);
+    if (!ok) {
+      console.error(`[print] Print Server obsoleto (${health.version ?? "sin version"}). Requiere ${MIN_COMANDA_PRINT_SERVER_VERSION}+ para comandas.`);
+    }
+    return ok;
+  } catch {
+    return false;
   }
 }
 
@@ -403,6 +444,7 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
         signal: controller.signal,
         mode: "cors",
       });
+      if (!(await assertCompatiblePrintServer(url, payload, controller.signal))) continue;
       if (res.ok) {
         _lastGoodUrl = url;
         if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
