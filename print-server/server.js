@@ -599,9 +599,11 @@ function buildComandaFormatted(p, fmt) {
 
   let out = INIT + CODEPAGE + INTL_CHARSET + fontCmd;
 
-  // Encabezado (sede) - se omite en comandas de mesa para un encabezado más limpio.
+  // Encabezado (sede) - se omite en mesa, llevar y kiosko para un
+  // encabezado más limpio en comandas donde la sede no aporta información.
   const otKeyEarly = normalizeOrderTypeKey(p.order_type);
-  if (p.business_name && otKeyEarly !== "mesa") {
+  const OMIT_BUSINESS_NAME = new Set(["mesa", "llevar", "kiosko"]);
+  if (p.business_name && !OMIT_BUSINESS_NAME.has(otKeyEarly)) {
     const business = String(p.business_name).toUpperCase().trim();
     out += bigLine(`** ${business} **`, f.titleSize, f.bold.title, f.align.header);
   }
@@ -711,7 +713,8 @@ function buildComandaLegacy(p) {
   out += ALIGN_C;
 
   const otKeyEarlyL = normalizeOrderTypeKey(p.order_type);
-  if (p.business_name && otKeyEarlyL !== "mesa") {
+  const OMIT_BUSINESS_NAME_L = new Set(["mesa", "llevar", "kiosko"]);
+  if (p.business_name && !OMIT_BUSINESS_NAME_L.has(otKeyEarlyL)) {
     const business = String(p.business_name).toUpperCase().trim();
     const maxCols = Math.max(1, Math.floor(WIDTH / 2));
     out += BOLD_ON + SIZE_DOUBLE;
