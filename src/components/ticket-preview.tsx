@@ -105,7 +105,13 @@ export function TicketPreview({
         className="text-center font-black text-[16px] uppercase tracking-wide"
         style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
       >
-        TICKET DE VENTA <span className="font-black normal-case">#{ticketNo}</span>
+        TICKET DE VENTA
+      </div>
+      <div
+        className="text-center font-black text-[18px] tracking-wide mt-1"
+        style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
+      >
+        N.º {ticketNo}
       </div>
 
       <Dashed />
