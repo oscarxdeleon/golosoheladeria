@@ -111,7 +111,7 @@ export function TicketPreview({
         className="text-center font-black text-[18px] tracking-wide mt-1"
         style={{ fontFamily: '"Arial Black", system-ui, sans-serif' }}
       >
-        N.º {ticketNo}
+        #{ticketNo}
       </div>
 
       <Dashed />
