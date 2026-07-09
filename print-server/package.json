@@ -6,7 +6,8 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "test-print": "node -e \"fetch('http://localhost:3001/test').then(r=>r.json()).then(console.log)\""
+    "test-print": "node -e \"fetch('http://localhost:3001/test').then(r=>r.json()).then(console.log)\"",
+    "test-comanda": "node -e \"fetch('http://localhost:3001/test-comanda').then(r=>r.json()).then(console.log)\""
   },
   "dependencies": {
     "jimp": "^0.22.12"

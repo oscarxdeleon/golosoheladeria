@@ -988,6 +988,28 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  if (req.method === "GET" && req.url === "/test-comanda") {
+    try {
+      await printJob({
+        type: "comanda",
+        ticket: 1197,
+        ticket_number: 1197,
+        header: "MESA #5",
+        order_type: "mesa",
+        user_name: "Prueba",
+        created_at: new Date().toISOString(),
+        items: [
+          { name: "Producto prueba", qty: 1, modifiers: ["Sin azucar"] },
+        ],
+        command_format: { orderNumberFormat: "pedido", tableFormat: "MESA N" },
+      });
+      return send(200, { ok: true, expected: "PEDIDO #1197", hashAscii: 35, version: APP_VERSION });
+    } catch (e) {
+      console.error("[test-comanda]", e);
+      return send(500, { ok: false, error: String(e?.message || e) });
+    }
+  }
+
   if (req.method === "POST" && req.url === "/print") {
     let body = "";
     req.on("data", (c) => (body += c));
