@@ -330,14 +330,19 @@ async function buildPersonalizedTicketRaw(p) {
   // ==== TITULO Y NUMERO ====
   // Título distinto para precuenta vs ticket de venta.
   const isPrecuenta = p.type === "precuenta";
-  const baseTitle = isPrecuenta ? "PRECUENTA" : (String(cfg.title_text || "").trim() || "TICKET DE VENTA");
+  // Elimina cualquier "#123" o "N.º 123" ya incluido en title_text para
+  // evitar duplicar el consecutivo cuando el POS lo inyecta en el título.
+  const rawTitle = String(cfg.title_text || "").trim() || "TICKET DE VENTA";
+  const baseTitle = isPrecuenta
+    ? "PRECUENTA"
+    : rawTitle.replace(/\s*(?:#|N\.?\s*º\s*|No\.?\s*)\d+\s*$/i, "").trim() || "TICKET DE VENTA";
   const rawNum = p.ticket ?? p.ticket_number ?? p.ticketNumber ?? p.ticket_no;
-  const strNum = rawNum == null ? "" : String(rawNum).trim();
+  const strNum = rawNum == null ? "" : String(rawNum).trim().replace(/^#+\s*/, "");
   const hasNum = strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined";
-  // El número siempre acompaña al título del ticket de venta para asegurar
+  // El número SIEMPRE acompaña al título del ticket de venta para asegurar
   // trazabilidad; en precuenta se conserva el comportamiento anterior.
   const titleLine = !isPrecuenta && hasNum
-    ? `${baseTitle} #${strNum.replace(/^#+\s*/, "")}`
+    ? `${baseTitle} #${strNum}`
     : baseTitle;
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + titleLine + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (isPrecuenta && cfg.show_ticket_number && hasNum) {
