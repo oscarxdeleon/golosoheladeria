@@ -259,19 +259,27 @@ function ModPage() {
   }
 
   // Warn before browser unload if there are pending changes
-  if (typeof window !== "undefined") {
-    // eslint-disable-next-line react-hooks/rules-of-hooks
-    useMemo(() => {
-      const handler = (e: BeforeUnloadEvent) => {
-        if (pendingCount > 0) {
-          e.preventDefault();
-          e.returnValue = "";
-        }
-      };
-      window.addEventListener("beforeunload", handler);
-      return () => window.removeEventListener("beforeunload", handler);
-    }, [pendingCount]);
-  }
+  useEffect(() => {
+    if (pendingCount === 0) return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [pendingCount]);
+
+  // Block in-app navigation when there are pending changes
+  useBlocker({
+    shouldBlockFn: () => {
+      if (pendingCount === 0) return false;
+      return !window.confirm(
+        `Tienes ${pendingCount} cambio(s) sin guardar. ¿Salir sin guardar?`,
+      );
+    },
+    enableBeforeUnload: false,
+  });
+
 
 
   return (
