@@ -380,9 +380,10 @@ function ModPage() {
                 <CardContent>
                   <ul className="space-y-1">
                     {myMods.map((m) => {
-                      const availableHere = m.active;
+                      const availableHere = pendingActive[m.id] ?? m.active;
+                      const isPending = pendingActive[m.id] !== undefined;
                       return (
-                        <li key={m.id} className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${availableHere ? "bg-muted/50" : "bg-muted/30 opacity-60"}`}>
+                        <li key={m.id} className={`flex items-center justify-between rounded px-2 py-1.5 text-sm ${availableHere ? "bg-muted/50" : "bg-muted/30 opacity-60"} ${isPending ? "ring-1 ring-amber-400" : ""}`}>
                           <span className="flex items-center gap-2 min-w-0">
                             {m.image_url ? (
                               <img src={m.image_url} alt={m.name} className={`h-8 w-8 rounded object-cover bg-white border ${availableHere ? "" : "grayscale"}`} loading="lazy" />
@@ -393,6 +394,7 @@ function ModPage() {
                             )}
                             <span className={`truncate ${availableHere ? "" : "line-through text-muted-foreground"}`}>{m.name}</span>
                             {!availableHere && <span className="text-[10px] px-1.5 py-0.5 rounded bg-destructive/10 text-destructive">Inactivo</span>}
+                            {isPending && <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-800">Pendiente</span>}
                           </span>
                           <span className="flex items-center gap-2">
                             <span className="text-muted-foreground">{formatMoney(m.price)}</span>
