@@ -339,14 +339,12 @@ async function buildPersonalizedTicketRaw(p) {
   const rawNum = p.ticket ?? p.ticket_number ?? p.ticketNumber ?? p.ticket_no;
   const strNum = rawNum == null ? "" : String(rawNum).trim().replace(/^#+\s*/, "");
   const hasNum = strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined";
-  // El número SIEMPRE acompaña al título del ticket de venta para asegurar
-  // trazabilidad; en precuenta se conserva el comportamiento anterior.
-  const titleLine = !isPrecuenta && hasNum
-    ? `${baseTitle} #${strNum}`
-    : baseTitle;
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + titleLine + "\n" + SIZE_NORMAL + BOLD_OFF;
-  if (isPrecuenta && cfg.show_ticket_number && hasNum) {
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${strNum}\n` + SIZE_NORMAL + BOLD_OFF;
+  // El título va SOLO (sin número). El consecutivo se imprime en una línea
+  // aparte debajo del título con el formato "N.º 1258" para evitar duplicidad.
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + baseTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
+  if (hasNum) {
+    const numLabel = isPrecuenta ? `#${strNum}` : `N.º ${strNum}`;
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + numLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
 
