@@ -72,9 +72,8 @@ const CODEPAGE = ESC + "t" + String.fromCharCode(CODEPAGE_ID);
 // remapea '#' a 'Ñ' y aparece un símbolo raro en el ticket.
 // Los acentos y ñ vienen de CP858/CP850 vía ESC t (CODEPAGE).
 const INTL_CHARSET = ESC + "R" + "\x00";
-// Hash seguro para texto normal. En encabezados críticos de comanda se usa
-// además raster/imagen para que el # no dependa del mapa de caracteres.
-const SAFE_HASH = CODEPAGE + INTL_CHARSET + "#";
+// Hash estándar: ASCII 35. No usar variantes Unicode ni glifos.
+const ASCII_HASH = "#";
 const FEED = (n) => "\n".repeat(n);
 const DASH_LINE = "-".repeat(WIDTH) + "\n";
 const DOT_LINE = ".".repeat(WIDTH) + "\n";
@@ -104,7 +103,7 @@ function forceHashBeforeNumber(text) {
     // dígito. Se normaliza SIEMPRE a "ETIQUETA #<numero>".
     .replace(
       /\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN|ORDER|TABLE|NUM(?:ERO)?)\b[^0-9\n\r]{0,6}(\d)/gi,
-      (_m, lbl, digit) => `${lbl} ${SAFE_HASH}${digit}`,
+      (_m, lbl, digit) => `${lbl} ${ASCII_HASH}${digit}`,
     )
     // Colapsa "# #" o "##" a un solo "#"
     .replace(/#\s*#+/g, "#");
@@ -124,104 +123,25 @@ function encodeEscPos(text) {
   return Buffer.from(bytes);
 }
 
-// ---------- Texto raster para encabezados con # ----------
-// Algunas impresoras remapean el byte ASCII 0x23 a un glifo aunque se envíe
-// ESC R 0. Para PEDIDO # y MESA # imprimimos la línea como imagen térmica.
-const RASTER_FONT = {
-  " ": ["00000","00000","00000","00000","00000","00000","00000"],
-  "#": ["01010","11111","01010","01010","11111","01010","01010"],
-  "0": ["01110","10001","10011","10101","11001","10001","01110"],
-  "1": ["00100","01100","00100","00100","00100","00100","01110"],
-  "2": ["01110","10001","00001","00010","00100","01000","11111"],
-  "3": ["11110","00001","00001","01110","00001","00001","11110"],
-  "4": ["00010","00110","01010","10010","11111","00010","00010"],
-  "5": ["11111","10000","11110","00001","00001","10001","01110"],
-  "6": ["00110","01000","10000","11110","10001","10001","01110"],
-  "7": ["11111","00001","00010","00100","01000","01000","01000"],
-  "8": ["01110","10001","10001","01110","10001","10001","01110"],
-  "9": ["01110","10001","10001","01111","00001","00010","01100"],
-  "A": ["01110","10001","10001","11111","10001","10001","10001"],
-  "D": ["11110","10001","10001","10001","10001","10001","11110"],
-  "E": ["11111","10000","10000","11110","10000","10000","11111"],
-  "I": ["11111","00100","00100","00100","00100","00100","11111"],
-  "M": ["10001","11011","10101","10101","10001","10001","10001"],
-  "O": ["01110","10001","10001","10001","10001","10001","01110"],
-  "P": ["11110","10001","10001","11110","10000","10000","10000"],
-  "S": ["01111","10000","10000","01110","00001","00001","11110"],
-  "T": ["11111","00100","00100","00100","00100","00100","00100"],
-};
-
-function rasterTextLine(text, opts = {}) {
-  const raw = String(text ?? "").toUpperCase().replace(/[^A-Z0-9 #]/g, " ").trim();
-  if (!raw) return Buffer.alloc(0);
-  const paperPx = WIDTH >= 42 ? 384 : 288;
-  let scale = Number(opts.scale || 4);
-  const charW = 5;
-  const charH = 7;
-  const spacing = 1;
-  let textPx = raw.length * charW * scale + Math.max(0, raw.length - 1) * spacing * scale;
-  while (textPx > paperPx - 8 && scale > 1) {
-    scale -= 1;
-    textPx = raw.length * charW * scale + Math.max(0, raw.length - 1) * spacing * scale;
-  }
-  const widthPx = Math.max(8, Math.ceil(paperPx / 8) * 8);
-  const heightPx = charH * scale + 8;
-  const bytesPerRow = widthPx / 8;
-  const raster = Buffer.alloc(bytesPerRow * heightPx, 0);
-  const left = Math.max(0, Math.floor((widthPx - textPx) / 2));
-  const top = 4;
-  const setPixel = (x, y) => {
-    if (x < 0 || y < 0 || x >= widthPx || y >= heightPx) return;
-    raster[y * bytesPerRow + (x >> 3)] |= 0x80 >> (x & 7);
-  };
-  let cursor = left;
-  for (const ch of raw) {
-    const glyph = RASTER_FONT[ch] || RASTER_FONT[" "];
-    for (let gy = 0; gy < charH; gy++) {
-      for (let gx = 0; gx < charW; gx++) {
-        if (glyph[gy]?.[gx] !== "1") continue;
-        for (let sy = 0; sy < scale; sy++) {
-          for (let sx = 0; sx < scale; sx++) setPixel(cursor + gx * scale + sx, top + gy * scale + sy);
-        }
-      }
-    }
-    cursor += (charW + spacing) * scale;
-  }
-  const header = Buffer.from([0x1d, 0x76, 0x30, 0x00, bytesPerRow & 0xff, (bytesPerRow >> 8) & 0xff, heightPx & 0xff, (heightPx >> 8) & 0xff]);
-  return Buffer.concat([encodeEscPos(ALIGN_L), header, raster, encodeEscPos("\n")]);
+function normalizeTicketNumber(value) {
+  return String(value ?? "").trim().replace(/^[^0-9]*/, "").replace(/[^0-9].*$/, "");
 }
 
-function rasterHashHeaderLine(label, num, scale = 4) {
-  const s = String(num ?? "").trim().replace(/^#+\s*/, "");
-  if (!s) return Buffer.alloc(0);
-  return rasterTextLine(`${label} #${s}`, { scale });
+function formatPedidoHeader(value) {
+  const s = normalizeTicketNumber(value);
+  return s ? `PEDIDO #${s}` : "";
 }
 
-const RASTER_START = "\uE000";
-const RASTER_END = "\uE001";
-const rasterHeaderMarker = (text) => `${RASTER_START}${String(text ?? "")}${RASTER_END}`;
-
-function encodeEscPosWithRasterHeaders(text) {
-  const source = String(text ?? "");
-  const chunks = [];
-  let cursor = 0;
-  while (cursor < source.length) {
-    const start = source.indexOf(RASTER_START, cursor);
-    if (start < 0) {
-      chunks.push(encodeEscPos(source.slice(cursor)));
-      break;
-    }
-    if (start > cursor) chunks.push(encodeEscPos(source.slice(cursor, start)));
-    const end = source.indexOf(RASTER_END, start + RASTER_START.length);
-    if (end < 0) {
-      chunks.push(encodeEscPos(source.slice(start)));
-      break;
-    }
-    const rasterText = source.slice(start + RASTER_START.length, end);
-    chunks.push(rasterTextLine(rasterText, { scale: 4 }));
-    cursor = end + RASTER_END.length;
-  }
-  return Buffer.concat(chunks.filter((b) => b && b.length));
+function formatMesaHeader(value) {
+  const s = String(value ?? "")
+    .toUpperCase()
+    .replace(/^\**\s*/, "")
+    .replace(/\s*\**$/, "")
+    .replace(/^PEDIDO\s+MESA[\s\S]*?(\d+)\s*$/i, "$1")
+    .replace(/^MESA\s*[^0-9]*(\d+)\s*$/i, "$1")
+    .replace(/[^0-9]/g, "")
+    .trim();
+  return s ? `MESA #${s}` : "";
 }
 
 function row(left, right, width = WIDTH) {
@@ -465,7 +385,7 @@ async function buildPersonalizedTicketRaw(p) {
   // aparte debajo del título con "#1258" para evitar glifos como "N.º".
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + baseTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (hasNum) {
-    out += rasterHeaderMarker(`#${strNum}`);
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${strNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
 
@@ -560,7 +480,7 @@ async function buildPersonalizedTicketRaw(p) {
 
 
   out += ALIGN_L + FEED(4) + CUT;
-  const textBuf = encodeEscPosWithRasterHeaders(out);
+  const textBuf = encodeEscPos(out);
   if (logoBuf) {
     // Prepend logo (con INIT propio) antes del ticket, sin duplicar INIT.
     return Buffer.concat([encodeEscPos(INIT + CODEPAGE + INTL_CHARSET), logoBuf, textBuf]);
@@ -623,18 +543,15 @@ function fmtQty(qty, mode) {
   return `${n}x`;
 }
 function fmtOrderNum(num, mode) {
-  const s = String(num ?? "").trim().replace(/^#+\s*/, "");
+  const s = normalizeTicketNumber(num);
   if (!s) return "";
   if (mode === "pedido") return `PEDIDO #${s}`;
   if (mode === "ticket") return `TICKET #${s}`;
   return `#${s}`;
 }
 function fmtTable(header, mode) {
-  const s = String(header || "").replace(/^mesa\s*#?\s*/i, "").replace(/^pedido\s+mesa[\s·:-]*/i, "").replace(/\**/g, "").trim();
-  if (!s) return "";
-  if (mode === "Mesa: N") return `MESA #${s}`;
-  if (mode === "MN") return `M #${s}`;
-  return `MESA #${s}`;
+  void mode;
+  return formatMesaHeader(header);
 }
 const ORDER_TYPE_LABELS = {
   mesa: "PARA MESA",
@@ -717,7 +634,7 @@ function buildComandaFormatted(p, fmt) {
   const ticketNum = p.ticket ?? p.ticket_number;
   const orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
   if (orderNumTxt) {
-    out += rasterHeaderMarker(orderNumTxt);
+    out += bigLine(orderNumTxt, f.titleSize, f.bold.title, f.align.header);
   }
 
   // Cajero + fecha (siempre en tamaño normal)
@@ -737,7 +654,7 @@ function buildComandaFormatted(p, fmt) {
   // Mesa
   if (p.header && otKey === "mesa") {
     const tableTxt = fmtTable(p.header, f.tableFormat);
-    if (tableTxt) out += rasterHeaderMarker(tableTxt);
+    if (tableTxt) out += bigLine(tableTxt, f.titleSize, f.bold.title, f.align.header);
   }
 
   out += separator;
@@ -806,7 +723,7 @@ function buildComandaFormatted(p, fmt) {
   }
 
   out += FEED(4) + CUT;
-  return encodeEscPosWithRasterHeaders(out);
+  return encodeEscPos(out);
 }
 
 // ---------- Comanda de cocina (formato legacy fijo) ----------
@@ -836,9 +753,9 @@ function buildComandaLegacy(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim().replace(/^#+\s*/, "");
-  if (ticketNum) {
-    out += rasterHeaderMarker(`PEDIDO #${ticketNum}`);
+  const ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
+  if (ticketHeader) {
+    out += BOLD_ON + SIZE_DOUBLE + ticketHeader + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
   if (p.user_name) out += String(p.user_name).trim().toUpperCase() + "\n";
@@ -862,15 +779,12 @@ function buildComandaLegacy(p) {
   }
 
   if (p.header && otKey === "mesa") {
-    const headerText = String(p.header)
-      .toUpperCase()
-      .replace(/^\**\s*/, "")
-      .replace(/\s*\**$/, "")
-      .replace(/^PEDIDO\s+MESA[\s·:-]*/i, "")
-      .replace(/^MESA\s*#?\s*/i, "MESA #")
-      .trim();
+    const headerText = formatMesaHeader(p.header);
     if (headerText) {
-      out += rasterHeaderMarker(headerText);
+      const maxCols = Math.max(1, Math.floor(WIDTH / 2));
+      out += BOLD_ON + SIZE_DOUBLE;
+      for (const line of wrapText(headerText, maxCols)) out += line + "\n";
+      out += SIZE_NORMAL + BOLD_OFF;
     }
   }
 
@@ -931,7 +845,7 @@ function buildComandaLegacy(p) {
   }
 
   out += FEED(4) + CUT;
-  return encodeEscPosWithRasterHeaders(out);
+  return encodeEscPos(out);
 }
 
 function buildComandaRaw(p) {
@@ -1070,6 +984,28 @@ const server = http.createServer(async (req, res) => {
       return send(200, { ok: true });
     } catch (e) {
       console.error("[test]", e);
+      return send(500, { ok: false, error: String(e?.message || e) });
+    }
+  }
+
+  if (req.method === "GET" && req.url === "/test-comanda") {
+    try {
+      await printJob({
+        type: "comanda",
+        ticket: 1197,
+        ticket_number: 1197,
+        header: "MESA #5",
+        order_type: "mesa",
+        user_name: "Prueba",
+        created_at: new Date().toISOString(),
+        items: [
+          { name: "Producto prueba", qty: 1, modifiers: ["Sin azucar"] },
+        ],
+        command_format: { orderNumberFormat: "pedido", tableFormat: "MESA N" },
+      });
+      return send(200, { ok: true, expected: "PEDIDO #1197", hashAscii: 35, version: APP_VERSION });
+    } catch (e) {
+      console.error("[test-comanda]", e);
       return send(500, { ok: false, error: String(e?.message || e) });
     }
   }

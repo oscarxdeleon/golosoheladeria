@@ -15,6 +15,11 @@ echo.
 echo === Goloso Print Server: instalacion ===
 echo.
 
+echo Cerrando cualquier Print Server anterior...
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3001 " ^| findstr LISTENING') do (
+  taskkill /F /PID %%P >nul 2>nul
+)
+
 where node >nul 2>nul
 if errorlevel 1 (
   echo [ERROR] Node.js no esta instalado.
@@ -69,13 +74,22 @@ echo.
 echo Iniciando el Print Server en segundo plano...
 start "" wscript.exe //nologo "%~dp0start-hidden.vbs"
 
+timeout /t 2 /nobreak >nul
+echo Verificando version activa...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $h = Invoke-RestMethod http://localhost:3001/health -TimeoutSec 5; if ($h.version -ne '2.7.0') { Write-Host '[ERROR] Version activa inesperada:' $h.version; exit 1 }; Write-Host 'Print Server activo version' $h.version } catch { Write-Host '[ERROR] No se pudo verificar /health'; exit 1 }"
+if errorlevel 1 (
+  echo [ERROR] La version nueva no quedo activa. Revisa que no exista otro servicio usando el puerto 3001.
+  pause
+  exit /b 1
+)
+
 echo.
 echo === Instalacion completada ===
 echo.
 echo El Print Server ya esta corriendo y se iniciara automaticamente
 echo cada vez que enciendas este computador, sin pedir confirmacion.
 echo.
-echo Verifica en el navegador: http://localhost:3001/health
+echo Verifica en el navegador: http://localhost:3001/health ^(debe mostrar version 2.7.0^)
 echo.
 pause
 endlocal
