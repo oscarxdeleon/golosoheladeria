@@ -712,9 +712,9 @@ function buildComandaLegacy(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim();
+  const ticketNum = String(p.ticket ?? p.ticket_number ?? "").trim().replace(/^#+\s*/, "");
   if (ticketNum) {
-    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO # ${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += BOLD_ON + SIZE_DOUBLE + `PEDIDO #${ticketNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
   if (p.user_name) out += String(p.user_name).trim().toUpperCase() + "\n";
