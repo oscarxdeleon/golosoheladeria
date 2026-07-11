@@ -580,6 +580,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [editingLineKey, setEditingLineKey] = useState<string | null>(null);
   const [noteProduct, setNoteProduct] = useState<Product | null>(null);
   const [noteText, setNoteText] = useState("");
   const [noteQty, setNoteQty] = useState(1);
