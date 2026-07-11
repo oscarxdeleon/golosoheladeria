@@ -563,6 +563,53 @@ export type Database = {
           },
         ]
       }
+      customer_addresses: {
+        Row: {
+          address: string
+          created_at: string
+          customer_id: string
+          id: string
+          is_default: boolean
+          label: string
+          neighborhood: string | null
+          phone: string | null
+          reference: string | null
+          updated_at: string
+        }
+        Insert: {
+          address: string
+          created_at?: string
+          customer_id: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          neighborhood?: string | null
+          phone?: string | null
+          reference?: string | null
+          updated_at?: string
+        }
+        Update: {
+          address?: string
+          created_at?: string
+          customer_id?: string
+          id?: string
+          is_default?: boolean
+          label?: string
+          neighborhood?: string | null
+          phone?: string | null
+          reference?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_addresses_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: string | null
@@ -2026,6 +2073,7 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      get_customer_by_phone: { Args: { _phone: string }; Returns: Json }
       get_employee_current_state: {
         Args: { _employee_id: string }
         Returns: string
