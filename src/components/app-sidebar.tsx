@@ -52,7 +52,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutGrid, MessageSquareHeart } from "lucide-react";
+import { LayoutGrid, MessageSquareHeart, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const main = [
