@@ -305,14 +305,40 @@ function MesasPage() {
       </div>
 
 
-      {/* Botón discreto para admin: crear nueva mesa */}
-      {isAdmin && (
-        <div className="flex justify-end">
+      {/* Barra de acciones: fusionar/separar mesas + crear */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {!mergeMode ? (
+          <Button size="sm" variant="outline" onClick={() => setMergeMode(true)}>
+            <Link2 className="h-4 w-4" /> Fusionar mesas
+          </Button>
+        ) : (
+          <>
+            <span className="text-xs text-muted-foreground">
+              {mergeSelected.length === 0
+                ? "Toca las mesas a fusionar y elige la principal"
+                : mergePrincipal
+                  ? `Principal: Mesa ${mesas.find((x) => x.id === mergePrincipal)?.number} · ${mergeSelected.length} seleccionadas`
+                  : `${mergeSelected.length} seleccionadas · elige la principal`}
+            </span>
+            <Button size="sm" variant="ghost" onClick={cancelMerge}>
+              <X className="h-4 w-4" /> Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={confirmMerge}
+              disabled={merging || !mergePrincipal || mergeSelected.length < 2}
+            >
+              <Check className="h-4 w-4" /> Fusionar
+            </Button>
+          </>
+        )}
+        {isAdmin && !mergeMode && (
           <Button size="sm" onClick={() => setCreateOpen(true)} className="shadow-md">
             <Plus className="h-4 w-4" /> Nueva mesa
           </Button>
-        </div>
-      )}
+        )}
+      </div>
+
 
 
       {/* Grid de mesas sin recuadro externo */}
