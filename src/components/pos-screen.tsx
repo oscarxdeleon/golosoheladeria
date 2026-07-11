@@ -594,6 +594,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
   const [courtesyDialogOpen, setCourtesyDialogOpen] = useState(false);
   const [courtesyReason, setCourtesyReason] = useState("");
+  // Direcciones guardadas del cliente (lookup por teléfono)
+  type SavedAddress = { id: string; label: string; address: string; neighborhood: string | null; reference: string | null; phone: string | null; is_default: boolean };
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [saveNewAddress, setSaveNewAddress] = useState(false);
+  const [newAddressLabel, setNewAddressLabel] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -642,6 +648,41 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, []);
+
+  // Lookup de direcciones guardadas por teléfono (con debounce)
+  useEffect(() => {
+    if (orderType !== "domicilio") { setSavedAddresses([]); setSelectedAddressId(""); return; }
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (digits.length < 7) { setSavedAddresses([]); setSelectedAddressId(""); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.rpc("get_customer_by_phone", { _phone: digits });
+        if (cancelled) return;
+        const payload = data as { found?: boolean; customer?: { name?: string }; addresses?: SavedAddress[] } | null;
+        if (payload?.found && Array.isArray(payload.addresses)) {
+          setSavedAddresses(payload.addresses);
+          // Autocompletar nombre si está vacío
+          if (!customer.trim() && payload.customer?.name) setCustomer(payload.customer.name);
+          // Seleccionar por defecto si no hay dirección elegida
+          if (!selectedAddressId && !address.trim() && payload.addresses.length > 0) {
+            const def = payload.addresses.find((a) => a.is_default) ?? payload.addresses[0];
+            setSelectedAddressId(def.id);
+            setAddress(def.address);
+            setNeighborhood(def.neighborhood ?? "");
+          }
+        } else {
+          setSavedAddresses([]);
+          setSelectedAddressId("");
+        }
+      } catch (err) {
+        console.warn("[pos] lookup addresses failed", err);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, orderType]);
+
 
 
 
@@ -1049,6 +1090,29 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       const snapshotHeader = header;
       const snapshotUserName = profile?.full_name ?? user.email ?? "";
 
+      // Guardar dirección nueva si el cajero lo marcó (solo domicilio)
+      if (orderType === "domicilio" && saveNewAddress && address.trim() && phone.trim()) {
+        try {
+          const digits = phone.replace(/[^0-9]/g, "");
+          const { data: lookup } = await supabase.rpc("get_customer_by_phone", { _phone: digits });
+          const custId = (lookup as { customer?: { id?: string } } | null)?.customer?.id;
+          if (custId) {
+            const isFirst = savedAddresses.length === 0;
+            await supabase.from("customer_addresses").insert({
+              customer_id: custId,
+              label: newAddressLabel.trim() || (isFirst ? "Principal" : `Dirección ${savedAddresses.length + 1}`),
+              address: address.trim(),
+              neighborhood: neighborhood.trim() || null,
+              phone: digits,
+              is_default: isFirst,
+            });
+          }
+        } catch (err) {
+          console.warn("[pay] no se pudo guardar la dirección nueva", err);
+        }
+      }
+
+
       setCart([]);
       setCustomer("");
       setNotes("");
@@ -1061,6 +1125,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       setCashReceived("");
       setTip(0);
       setTipInput("");
+      setSaveNewAddress(false);
+      setNewAddressLabel("");
+      setSelectedAddressId("");
+      setSavedAddresses([]);
 
       qc.invalidateQueries({ queryKey: ["dashboard-today"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
@@ -1730,11 +1798,45 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             </div>
             {orderType === "domicilio" && (
               <>
+                {savedAddresses.length > 0 && (
+                  <div className="space-y-1 rounded-lg border border-blue-300/60 bg-blue-50/50 dark:bg-blue-950/20 p-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-blue-800 dark:text-blue-300">
+                      📍 Direcciones guardadas de este cliente
+                    </label>
+                    <select
+                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                      value={selectedAddressId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setSelectedAddressId(id);
+                        if (id === "__new__") {
+                          setAddress(""); setNeighborhood("");
+                          setSaveNewAddress(true);
+                        } else {
+                          const a = savedAddresses.find((x) => x.id === id);
+                          if (a) {
+                            setAddress(a.address);
+                            setNeighborhood(a.neighborhood ?? "");
+                            setFieldErrors((prev) => ({ ...prev, address: false, neighborhood: false }));
+                            setSaveNewAddress(false);
+                          }
+                        }
+                      }}
+                    >
+                      {savedAddresses.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.label}{a.is_default ? " ★" : ""} — {a.address}{a.neighborhood ? ` (${a.neighborhood})` : ""}
+                        </option>
+                      ))}
+                      <option value="__new__">➕ Usar una dirección nueva…</option>
+                    </select>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Input
                     placeholder="Dirección completa *"
                     value={address}
-                    onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                    onChange={(e) => { setAddress(e.target.value); setSelectedAddressId(""); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
                     className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
                   {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
@@ -1758,6 +1860,29 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   />
                   {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
                 </div>
+                {/* Guardar dirección nueva */}
+                {(savedAddresses.length === 0 || selectedAddressId === "__new__" || (selectedAddressId === "" && address.trim().length > 0)) && (
+                  <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5">
+                    <input
+                      id="save-address"
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={saveNewAddress}
+                      onChange={(e) => setSaveNewAddress(e.target.checked)}
+                    />
+                    <label htmlFor="save-address" className="text-xs font-medium cursor-pointer flex-1">
+                      Guardar esta dirección para próximos pedidos
+                    </label>
+                    {saveNewAddress && (
+                      <Input
+                        placeholder="Etiqueta (ej: Casa, Oficina)"
+                        value={newAddressLabel}
+                        onChange={(e) => setNewAddressLabel(e.target.value)}
+                        className="h-7 w-40 text-xs"
+                      />
+                    )}
+                  </div>
+                )}
               </>
             )}
             <div className="space-y-1.5 rounded-xl border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 shadow-sm">
