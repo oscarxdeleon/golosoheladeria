@@ -1094,17 +1094,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       if (orderType === "domicilio" && saveNewAddress && address.trim() && phone.trim()) {
         try {
           const digits = phone.replace(/[^0-9]/g, "");
-          // El trigger sync_customer_from_sale ya creó/actualizó el cliente. Buscarlo por teléfono normalizado.
-          const { data: custRows } = await supabase
-            .from("customers")
-            .select("id")
-            .limit(50);
-          const cust = (custRows ?? []).find((c) => {
-            // fetch phone client-side match; a safer path is a dedicated RPC, but for volume esperado basta un lookup adicional
-            return false && c.id === c.id;
-          });
-          void cust;
-          // Uso directo: RPC get_customer_by_phone
           const { data: lookup } = await supabase.rpc("get_customer_by_phone", { _phone: digits });
           const custId = (lookup as { customer?: { id?: string } } | null)?.customer?.id;
           if (custId) {
