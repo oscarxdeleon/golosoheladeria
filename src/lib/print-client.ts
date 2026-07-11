@@ -136,10 +136,21 @@ export function normalizeModifiers(mods: unknown): string[] {
   return mods.map((m) => formatModifierLabel(m)).filter((s) => s.length > 0);
 }
 
+// Cache de logo rasterizado por URL — evita reprocesar la misma imagen en cada
+// ticket. La rasterización ESC/POS es la operación más pesada del ciclo.
+const _logoRasterCache = new Map<string, string | null>();
+
+/** Invalida el cache de logos (llamar tras cambiar el logo en Ajustes). */
+export function refreshLogoRasterCache(): void {
+  _logoRasterCache.clear();
+}
+
 async function imageToEscPosRasterBase64(url: string, maxWidthPx = 384): Promise<string | null> {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
   const src = String(url || "").trim();
   if (!src) return null;
+  const cacheKey = `${src}|${maxWidthPx}`;
+  if (_logoRasterCache.has(cacheKey)) return _logoRasterCache.get(cacheKey) ?? null;
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
@@ -193,9 +204,12 @@ async function imageToEscPosRasterBase64(url: string, maxWidthPx = 384): Promise
     for (let i = 0; i < bytes.length; i += 0x8000) {
       binary += String.fromCharCode(...bytes.slice(i, i + 0x8000));
     }
-    return window.btoa(binary);
+    const encoded = window.btoa(binary);
+    _logoRasterCache.set(cacheKey, encoded);
+    return encoded;
   } catch (e) {
     console.warn("[print] no se pudo rasterizar logo en cliente", e);
+    _logoRasterCache.set(cacheKey, null);
     return null;
   }
 }
@@ -249,16 +263,27 @@ function versionAtLeast(current: string | undefined, minimum: string): boolean {
   return true;
 }
 
+// Cache del resultado de /health por URL (60 s). El chequeo se hace en paralelo
+// con la impresión, pero repetirlo en cada comanda desperdicia RTT en LAN.
+const _healthCache = new Map<string, { ok: boolean; at: number }>();
+const HEALTH_TTL_MS = 60_000;
+
 async function assertCompatiblePrintServer(url: string, payload: PrintPayload, signal: AbortSignal): Promise<boolean> {
   if (payload.type !== "comanda") return true;
+  const cached = _healthCache.get(url);
+  if (cached && Date.now() - cached.at < HEALTH_TTL_MS) return cached.ok;
   try {
     const res = await fetch(healthUrlForPrintUrl(url), { method: "GET", signal, mode: "cors" });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      _healthCache.set(url, { ok: false, at: Date.now() });
+      return false;
+    }
     const health = (await res.json()) as { version?: string };
     const ok = versionAtLeast(health.version, MIN_COMANDA_PRINT_SERVER_VERSION);
     if (!ok) {
       console.error(`[print] Print Server obsoleto (${health.version ?? "sin version"}). Requiere ${MIN_COMANDA_PRINT_SERVER_VERSION}+ para comandas.`);
     }
+    _healthCache.set(url, { ok, at: Date.now() });
     return ok;
   } catch {
     return false;
@@ -393,7 +418,78 @@ if (typeof window !== "undefined") {
  * OK se cachea como `_lastGoodUrl` y se usa como primera opción en el
  * próximo envío. Nunca lanza.
  */
-export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
+// ---------- Dedupe de impresiones duplicadas ----------
+// Evita doble impresión por doble-click, doble-envío desde useEffect, o
+// re-render que dispare la misma comanda dos veces. Un payload idéntico dentro
+// de 4 s se ignora silenciosamente y devuelve `true`.
+const _recentPrints = new Map<string, number>();
+const DEDUPE_MS = 4000;
+
+function hashPayload(p: PrintPayload): string {
+  // Hash rápido: tipo + ticket + firma de items (nombre × cantidad).
+  const items = (p.items ?? [])
+    .map((i) => `${i.name}#${i.qty}#${i.unit_price ?? ""}`)
+    .join("|");
+  return `${p.type}|${p.ticket ?? p.ticket_number ?? ""}|${p.order_type ?? ""}|${p.total ?? ""}|${items}`;
+}
+
+function isDuplicatePrint(payload: PrintPayload): boolean {
+  // Nunca deduplicar apertura de cajón — es una acción explícita repetible.
+  if (payload.type === "drawer") return false;
+  const key = hashPayload(payload);
+  const now = Date.now();
+  const last = _recentPrints.get(key);
+  // Purga entradas viejas de forma perezosa.
+  if (_recentPrints.size > 40) {
+    for (const [k, at] of _recentPrints) if (now - at > DEDUPE_MS * 4) _recentPrints.delete(k);
+  }
+  if (last && now - last < DEDUPE_MS) return true;
+  _recentPrints.set(key, now);
+  return false;
+}
+
+// ---------- Cola de reintentos (memoria; se pierde al cerrar pestaña) ----------
+// Cuando la impresora no responde, guardamos los payloads en memoria e
+// intentamos flushear al recuperar red o antes del próximo envío. No usamos
+// localStorage porque los payloads (con logos raster) pueden ser grandes y
+// una reimpresión tras horas puede confundir al operador.
+interface QueuedPrint { payload: PrintPayload; at: number; tries: number }
+const _retryQueue: QueuedPrint[] = [];
+const MAX_QUEUE = 20;
+const MAX_TRIES = 3;
+let _flushing = false;
+
+async function flushRetryQueue(): Promise<void> {
+  if (_flushing || _retryQueue.length === 0) return;
+  _flushing = true;
+  try {
+    while (_retryQueue.length > 0) {
+      const next = _retryQueue[0];
+      const ok = await sendToLocalPrinterInternal(next.payload);
+      if (ok) {
+        _retryQueue.shift();
+        continue;
+      }
+      next.tries += 1;
+      if (next.tries >= MAX_TRIES) {
+        console.warn("[print] descartado tras varios reintentos", next.payload.type);
+        _retryQueue.shift();
+        continue;
+      }
+      break; // sigue caído — reintentamos más tarde
+    }
+  } finally {
+    _flushing = false;
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => void flushRetryQueue());
+  // Reintento periódico ligero (30 s) mientras haya pendientes.
+  setInterval(() => { if (_retryQueue.length > 0) void flushRetryQueue(); }, 30_000);
+}
+
+async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolean> {
   let configuredUrl = getLocalPrintUrl();
   if (!configuredUrl) {
     configuredUrl = await bootstrapLocalPrintUrl();
@@ -432,7 +528,6 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     ),
   );
 
-
   for (const url of candidates) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -458,8 +553,40 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     }
   }
 
-  console.warn("[print] ningún servidor local respondió; no se abrirá diálogo del sistema");
   return false;
+}
+
+export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
+  // Dedupe primero — barato y evita rasterizar logo dos veces.
+  if (isDuplicatePrint(payload)) {
+    console.info("[print] impresión duplicada suprimida", payload.type);
+    return true;
+  }
+
+  // Aprovecha para vaciar la cola si hay pendientes de reintento.
+  if (_retryQueue.length > 0) void flushRetryQueue();
+
+  const ok = await sendToLocalPrinterInternal(payload);
+  if (ok) return true;
+
+  // Sin conexión al servidor local — encolar para reintento (excepto drawer).
+  if (payload.type !== "drawer" && _retryQueue.length < MAX_QUEUE) {
+    _retryQueue.push({ payload, at: Date.now(), tries: 1 });
+    console.warn(`[print] servidor local no responde; encolado (${_retryQueue.length} pendientes)`);
+  } else {
+    console.warn("[print] ningún servidor local respondió; no se abrirá diálogo del sistema");
+  }
+  return false;
+}
+
+/** Cantidad de tickets/comandas pendientes de reimpresión. */
+export function getPendingPrintCount(): number {
+  return _retryQueue.length;
+}
+
+/** Fuerza un intento manual de vaciar la cola de impresión. */
+export function retryPendingPrints(): Promise<void> {
+  return flushRetryQueue();
 }
 
 export function printHTMLFallback(html: string) {
