@@ -600,6 +600,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState("");
+  const [foundCustomerId, setFoundCustomerId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -659,9 +661,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       try {
         const { data } = await supabase.rpc("get_customer_by_phone", { _phone: digits });
         if (cancelled) return;
-        const payload = data as { found?: boolean; customer?: { name?: string }; addresses?: SavedAddress[] } | null;
+        const payload = data as { found?: boolean; customer?: { id?: string; name?: string }; addresses?: SavedAddress[] } | null;
         if (payload?.found && Array.isArray(payload.addresses)) {
           setSavedAddresses(payload.addresses);
+          setFoundCustomerId(payload.customer?.id ?? null);
           // Autocompletar nombre si está vacío
           if (!customer.trim() && payload.customer?.name) setCustomer(payload.customer.name);
           // Seleccionar por defecto si no hay dirección elegida
@@ -674,6 +677,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         } else {
           setSavedAddresses([]);
           setSelectedAddressId("");
+          setFoundCustomerId(null);
         }
       } catch (err) {
         console.warn("[pos] lookup addresses failed", err);
@@ -682,6 +686,51 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return () => { cancelled = true; clearTimeout(t); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phone, orderType]);
+
+  // Repetir el último pedido del cliente identificado por teléfono
+  async function reorderLastForCustomer() {
+    if (!foundCustomerId) return;
+    setReordering(true);
+    try {
+      const { data: lastSale, error: e1 } = await supabase
+        .from("sales")
+        .select("id, ticket_number, created_at")
+        .eq("customer_id", foundCustomerId)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (e1) throw e1;
+      if (!lastSale) { toast.error("Este cliente no tiene pedidos anteriores"); return; }
+      const { data: items, error: e2 } = await supabase
+        .from("sale_items")
+        .select("product_id, product_name, unit_price, qty, modifiers, notes")
+        .eq("sale_id", lastSale.id);
+      if (e2) throw e2;
+      if (!items || items.length === 0) { toast.error("El último pedido no tiene productos"); return; }
+      const newLines: CartLine[] = items.map((it, idx) => {
+        const rawMods = Array.isArray(it.modifiers) ? (it.modifiers as unknown as SaleModifier[]) : [];
+        const mods = normalizeModifiers(rawMods) as unknown as SaleModifier[];
+        return {
+          key: `reorder-${lastSale.id}-${idx}-${Date.now()}`,
+          product_id: it.product_id ?? "",
+          name: it.product_name,
+          unit_price: Number(it.unit_price ?? 0),
+          qty: Number(it.qty ?? 1),
+          modifiers: mods,
+          notes: it.notes ?? undefined,
+        };
+      });
+      setCart((prev) => [...prev, ...newLines]);
+      toast.success(`Repetido pedido #${lastSale.ticket_number} (${newLines.length} productos)`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudo repetir el pedido";
+      toast.error(msg);
+    } finally {
+      setReordering(false);
+    }
+  }
+
 
 
 
@@ -1830,6 +1879,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       ))}
                       <option value="__new__">➕ Usar una dirección nueva…</option>
                     </select>
+                    {foundCustomerId && (
+                      <button
+                        type="button"
+                        disabled={reordering}
+                        onClick={() => void reorderLastForCustomer()}
+                        className="mt-1 w-full rounded-md border-2 border-emerald-400 bg-gradient-to-b from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 px-2 py-1.5 text-xs font-black uppercase tracking-wide text-emerald-800 dark:text-emerald-200 hover:from-emerald-100 hover:to-emerald-200 disabled:opacity-60"
+                      >
+                        {reordering ? "Cargando…" : "🔁 Repetir último pedido de este cliente"}
+                      </button>
+                    )}
                   </div>
                 )}
                 <div className="space-y-1">
