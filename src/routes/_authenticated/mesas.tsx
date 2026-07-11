@@ -212,6 +212,49 @@ function MesasPage() {
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
   }
 
+  function cancelMerge() {
+    setMergeMode(false);
+    setMergeSelected([]);
+    setMergePrincipal(null);
+  }
+
+  function toggleMergeSelect(m: Mesa) {
+    if (m.status === "merged") return;
+    setMergeSelected((prev) =>
+      prev.includes(m.id) ? prev.filter((x) => x !== m.id) : [...prev, m.id],
+    );
+    setMergePrincipal((p) => (p && !mergeSelected.includes(p) ? p : p));
+  }
+
+  async function confirmMerge() {
+    if (!mergePrincipal) return toast.error("Selecciona la mesa principal");
+    const sources = mergeSelected.filter((id) => id !== mergePrincipal);
+    if (sources.length === 0) return toast.error("Selecciona al menos una mesa a fusionar");
+    setMerging(true);
+    const { error } = await supabase.rpc("merge_tables", {
+      _principal_id: mergePrincipal,
+      _source_ids: sources,
+      _reason: null,
+    });
+    setMerging(false);
+    if (error) return toast.error(error.message);
+    toast.success("Mesas fusionadas");
+    cancelMerge();
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+  }
+
+  async function confirmSplit() {
+    if (!splitTarget) return;
+    const { error } = await supabase.rpc("split_merged_tables", {
+      _principal_id: splitTarget.id,
+      _reason: null,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Mesas separadas");
+    setSplitTarget(null);
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+  }
+
   async function eliminar(m: Mesa, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm(`¿Eliminar Mesa ${m.number}?`)) return;
