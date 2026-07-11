@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Pencil, Store, Globe, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
+import { VoiceMicButton } from "@/components/voice-input";
 
 export const Route = createFileRoute("/_authenticated/menu/categorias")({
   head: () => ({ meta: [{ title: "Categorías · Goloso POS" }] }),
@@ -95,7 +96,24 @@ function CategoriasPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>{editing?.id ? "Editar" : "Nueva"} categoría</DialogTitle></DialogHeader>
               <div className="space-y-4">
-                <div><Label>Nombre</Label><Input value={editing?.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
+                <div>
+                  <Label>Nombre</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      className="flex-1"
+                      value={editing?.name ?? ""}
+                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    />
+                    <VoiceMicButton
+                      onTranscript={(t, isFinal) => {
+                        if (!isFinal) return;
+                        const cur = editing?.name ?? "";
+                        const sep = cur && !cur.endsWith(" ") ? " " : "";
+                        setEditing({ ...editing, name: cur + sep + t });
+                      }}
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Orden</Label><Input type="number" value={editing?.sort_order ?? 0} onChange={(e) => setEditing({ ...editing, sort_order: Number(e.target.value) })} /></div>
                   <div><Label>Color</Label><Input type="color" value={editing?.color ?? "#FF8FAB"} onChange={(e) => setEditing({ ...editing, color: e.target.value })} /></div>

@@ -16,6 +16,7 @@ import { Plus, Trash2, Pencil, Copy, ImageIcon } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ImageDropzone } from "@/components/image-dropzone";
+import { VoiceMicButton } from "@/components/voice-input";
 import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/menu/modificadores")({
@@ -374,7 +375,13 @@ function ModPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>{groupEdit?.id ? "Editar" : "Nuevo"} grupo</DialogTitle></DialogHeader>
               <div className="space-y-3">
-                <div><Label>Nombre</Label><Input value={groupEdit?.name ?? ""} onChange={(e) => setGroupEdit({ ...groupEdit, name: e.target.value })} /></div>
+                <div>
+                  <Label>Nombre</Label>
+                  <div className="flex gap-2">
+                    <Input className="flex-1" value={groupEdit?.name ?? ""} onChange={(e) => setGroupEdit({ ...groupEdit, name: e.target.value })} />
+                    <VoiceMicButton onTranscript={(t, isFinal) => { if (!isFinal) return; const cur = groupEdit?.name ?? ""; const sep = cur && !cur.endsWith(" ") ? " " : ""; setGroupEdit({ ...groupEdit, name: cur + sep + t }); }} />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Mín. selección</Label><Input type="number" value={groupEdit?.min_select ?? 0} onChange={(e) => setGroupEdit({ ...groupEdit, min_select: Number(e.target.value) })} /></div>
                   <div><Label>Máx. selección</Label><Input type="number" value={groupEdit?.max_select ?? 1} onChange={(e) => setGroupEdit({ ...groupEdit, max_select: Number(e.target.value) })} /></div>
@@ -522,7 +529,13 @@ function ModPage() {
           <DialogHeader><DialogTitle>{modEdit?.id ? "Editar" : "Agregar"} modificador</DialogTitle></DialogHeader>
           {modEdit?.id ? (
             <div className="space-y-3">
-              <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
+              <div>
+                <Label>Nombre</Label>
+                <div className="flex gap-2">
+                  <Input className="flex-1" value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} />
+                  <VoiceMicButton onTranscript={(t, isFinal) => { if (!isFinal) return; const cur = modEdit?.name ?? ""; const sep = cur && !cur.endsWith(" ") ? " " : ""; setModEdit({ ...modEdit, name: cur + sep + t }); }} />
+                </div>
+              </div>
               <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
               <div>
                 <Label>Foto (opcional)</Label>
@@ -544,7 +557,13 @@ function ModPage() {
                 <TabsTrigger value="reuse" className="flex-1">Reutilizar existente</TabsTrigger>
               </TabsList>
               <TabsContent value="custom" className="space-y-3 pt-3">
-                <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
+                <div>
+                  <Label>Nombre</Label>
+                  <div className="flex gap-2">
+                    <Input className="flex-1" value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} />
+                    <VoiceMicButton onTranscript={(t, isFinal) => { if (!isFinal) return; const cur = modEdit?.name ?? ""; const sep = cur && !cur.endsWith(" ") ? " " : ""; setModEdit({ ...modEdit, name: cur + sep + t }); }} />
+                  </div>
+                </div>
                 <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
                 <div>
                   <Label>Foto (opcional)</Label>
