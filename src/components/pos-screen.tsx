@@ -1090,6 +1090,40 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       const snapshotHeader = header;
       const snapshotUserName = profile?.full_name ?? user.email ?? "";
 
+      // Guardar dirección nueva si el cajero lo marcó (solo domicilio)
+      if (orderType === "domicilio" && saveNewAddress && address.trim() && phone.trim()) {
+        try {
+          const digits = phone.replace(/[^0-9]/g, "");
+          // El trigger sync_customer_from_sale ya creó/actualizó el cliente. Buscarlo por teléfono normalizado.
+          const { data: custRows } = await supabase
+            .from("customers")
+            .select("id")
+            .limit(50);
+          const cust = (custRows ?? []).find((c) => {
+            // fetch phone client-side match; a safer path is a dedicated RPC, but for volume esperado basta un lookup adicional
+            return false && c.id === c.id;
+          });
+          void cust;
+          // Uso directo: RPC get_customer_by_phone
+          const { data: lookup } = await supabase.rpc("get_customer_by_phone", { _phone: digits });
+          const custId = (lookup as { customer?: { id?: string } } | null)?.customer?.id;
+          if (custId) {
+            const isFirst = savedAddresses.length === 0;
+            await supabase.from("customer_addresses").insert({
+              customer_id: custId,
+              label: newAddressLabel.trim() || (isFirst ? "Principal" : `Dirección ${savedAddresses.length + 1}`),
+              address: address.trim(),
+              neighborhood: neighborhood.trim() || null,
+              phone: digits,
+              is_default: isFirst,
+            });
+          }
+        } catch (err) {
+          console.warn("[pay] no se pudo guardar la dirección nueva", err);
+        }
+      }
+
+
       setCart([]);
       setCustomer("");
       setNotes("");
