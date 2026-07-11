@@ -52,6 +52,8 @@ export function usePermissions() {
   const { primaryRole, isAdmin, loading: authLoading, rolesLoading } = useAuth();
   const { data = [], isLoading } = useQuery({
     queryKey: ["role-permissions"],
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     queryFn: async (): Promise<RolePermission[]> => {
       const { data } = await supabase.from("role_permissions").select("*");
       return (data ?? []) as RolePermission[];
