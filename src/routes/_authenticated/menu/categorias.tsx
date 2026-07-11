@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { Plus, Trash2, Pencil, Store, Globe, ArrowUp, ArrowDown, ArrowUpDown } from "lucide-react";
 import { toast } from "sonner";
+import { VoiceMicButton } from "@/components/voice-input";
 
 export const Route = createFileRoute("/_authenticated/menu/categorias")({
   head: () => ({ meta: [{ title: "Categorías · Goloso POS" }] }),
