@@ -600,6 +600,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState("");
+  const [foundCustomerId, setFoundCustomerId] = useState<string | null>(null);
+  const [reordering, setReordering] = useState(false);
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
