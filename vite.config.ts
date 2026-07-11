@@ -32,8 +32,8 @@ export default defineConfig({
           globPatterns: ["**/*.{js,css,ico,png,svg,webp,woff2}"],
           runtimeCaching: [
             {
-              // Navegaciones: red primero, fallback a caché para funcionar offline.
-              urlPattern: ({ request }) => request.mode === "navigate",
+              // Navegaciones HTML: red primero, cae al caché offline.
+              urlPattern: /^https?:\/\/[^/]+\/(?!api\/|_serverFn|~oauth).*$/i,
               handler: "NetworkFirst",
               options: {
                 cacheName: "html-nav",
@@ -42,10 +42,8 @@ export default defineConfig({
               },
             },
             {
-              // Assets hasheados propios (JS/CSS del bundle).
-              urlPattern: ({ request, url }) =>
-                url.origin === self.location.origin &&
-                (request.destination === "script" || request.destination === "style"),
+              // Assets propios hasheados (JS/CSS del bundle).
+              urlPattern: /\/assets\/.*\.(?:js|css|woff2?)$/i,
               handler: "CacheFirst",
               options: {
                 cacheName: "assets",
@@ -53,8 +51,8 @@ export default defineConfig({
               },
             },
             {
-              // Imágenes/logos de la app.
-              urlPattern: ({ request }) => request.destination === "image",
+              // Imágenes/logos servidos desde el mismo dominio.
+              urlPattern: /\.(?:png|jpg|jpeg|svg|webp|ico)$/i,
               handler: "CacheFirst",
               options: {
                 cacheName: "img",
