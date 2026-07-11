@@ -263,16 +263,27 @@ function versionAtLeast(current: string | undefined, minimum: string): boolean {
   return true;
 }
 
+// Cache del resultado de /health por URL (60 s). El chequeo se hace en paralelo
+// con la impresión, pero repetirlo en cada comanda desperdicia RTT en LAN.
+const _healthCache = new Map<string, { ok: boolean; at: number }>();
+const HEALTH_TTL_MS = 60_000;
+
 async function assertCompatiblePrintServer(url: string, payload: PrintPayload, signal: AbortSignal): Promise<boolean> {
   if (payload.type !== "comanda") return true;
+  const cached = _healthCache.get(url);
+  if (cached && Date.now() - cached.at < HEALTH_TTL_MS) return cached.ok;
   try {
     const res = await fetch(healthUrlForPrintUrl(url), { method: "GET", signal, mode: "cors" });
-    if (!res.ok) return false;
+    if (!res.ok) {
+      _healthCache.set(url, { ok: false, at: Date.now() });
+      return false;
+    }
     const health = (await res.json()) as { version?: string };
     const ok = versionAtLeast(health.version, MIN_COMANDA_PRINT_SERVER_VERSION);
     if (!ok) {
       console.error(`[print] Print Server obsoleto (${health.version ?? "sin version"}). Requiere ${MIN_COMANDA_PRINT_SERVER_VERSION}+ para comandas.`);
     }
+    _healthCache.set(url, { ok, at: Date.now() });
     return ok;
   } catch {
     return false;
