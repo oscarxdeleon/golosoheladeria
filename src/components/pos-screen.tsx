@@ -661,9 +661,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       try {
         const { data } = await supabase.rpc("get_customer_by_phone", { _phone: digits });
         if (cancelled) return;
-        const payload = data as { found?: boolean; customer?: { name?: string }; addresses?: SavedAddress[] } | null;
+        const payload = data as { found?: boolean; customer?: { id?: string; name?: string }; addresses?: SavedAddress[] } | null;
         if (payload?.found && Array.isArray(payload.addresses)) {
           setSavedAddresses(payload.addresses);
+          setFoundCustomerId(payload.customer?.id ?? null);
           // Autocompletar nombre si está vacío
           if (!customer.trim() && payload.customer?.name) setCustomer(payload.customer.name);
           // Seleccionar por defecto si no hay dirección elegida
@@ -676,6 +677,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         } else {
           setSavedAddresses([]);
           setSelectedAddressId("");
+          setFoundCustomerId(null);
         }
       } catch (err) {
         console.warn("[pos] lookup addresses failed", err);
