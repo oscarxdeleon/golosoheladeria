@@ -133,6 +133,11 @@ function MesasPage() {
   const [moveFrom, setMoveFrom] = useState<Mesa | null>(null);
   const [moveTarget, setMoveTarget] = useState<Mesa | null>(null);
   const [moving, setMoving] = useState(false);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSelected, setMergeSelected] = useState<string[]>([]);
+  const [mergePrincipal, setMergePrincipal] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [splitTarget, setSplitTarget] = useState<Mesa | null>(null);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
