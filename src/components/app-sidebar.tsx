@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import logoUrl from "@/assets/logo-goloso.png";
 import { usePermissions } from "@/hooks/use-permissions";
+import { ConnectionStatus } from "@/components/connection-status";
 
 import {
   LayoutDashboard,
@@ -271,7 +272,8 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="gap-2">
+        <ConnectionStatus />
         <Button
           type="button"
           disabled={signingOut}
