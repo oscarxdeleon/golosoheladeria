@@ -165,8 +165,10 @@ function HistorialPage() {
           branding,
         };
         const ok = await printComanda(args);
-        if (ok) toast.success("Comanda enviada", { id: t });
-        else toast.warning("No se pudo imprimir: revisa el servidor local", { id: t });
+        if (ok) {
+          toast.success("Comanda enviada", { id: t });
+          void supabase.rpc("log_reimpression", { _sale_id: saleId, _kind: "comanda" });
+        } else toast.warning("No se pudo imprimir: revisa el servidor local", { id: t });
       } else {
         const args = {
           ticket: sale.ticket_number,
@@ -188,6 +190,7 @@ function HistorialPage() {
         };
         await printTicketFinal(args);
         toast.success("Ticket enviado", { id: t });
+        void supabase.rpc("log_reimpression", { _sale_id: saleId, _kind: "ticket" });
       }
     } catch (e) {
       console.error(e);
