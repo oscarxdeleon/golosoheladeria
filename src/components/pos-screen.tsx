@@ -2728,11 +2728,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 };
               } else if (isCourtesy) {
                 style = {
-                  background: "linear-gradient(180deg, #fda4af 0%, #e11d48 100%)",
+                  background:
+                    "linear-gradient(180deg, #ff5b7f 0%, #e11d48 55%, #b30836 100%)",
                   color: "#ffffff",
+                  border: "2px solid transparent",
+                  backgroundClip: "padding-box",
                   boxShadow:
-                    "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(190,18,60,0.55)",
-                  textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+                    "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -6px 0 rgba(0,0,0,0.25), 0 0 0 2px #f5c451, 0 0 0 3px #a97516, 0 10px 24px -6px rgba(190,18,60,0.7), 0 0 22px -4px rgba(245,196,81,0.55)",
+                  textShadow: "0 2px 3px rgba(0,0,0,0.35)",
                 };
               }
 
