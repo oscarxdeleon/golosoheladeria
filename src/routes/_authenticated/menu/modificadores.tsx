@@ -16,6 +16,7 @@ import { Plus, Trash2, Pencil, Copy, ImageIcon } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ImageDropzone } from "@/components/image-dropzone";
+import { VoiceMicButton } from "@/components/voice-input";
 import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/menu/modificadores")({
