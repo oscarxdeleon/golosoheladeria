@@ -646,13 +646,13 @@ function SessionTipsCard({ sessionId, openedAt, closedAt, branchId }: { sessionI
   const { data } = useQuery({
     queryKey: ["cash-session-tips", sessionId],
     queryFn: async () => {
-      let q = supabase
+      // Preferimos filtrar por cash_session_id; si no hay, caemos a rango + sede
+      const bySession = await supabase
         .from("sales")
         .select("tip_amount")
         .neq("status", "cancelled")
-        .gt("tip_amount", 0);
-      // Preferimos filtrar por cash_session_id; si no hay, caemos a rango + sede
-      const bySession = await q.eq("cash_session_id", sessionId);
+        .gt("tip_amount", 0)
+        .eq("cash_session_id", sessionId);
       let rows = bySession.data ?? [];
       if (rows.length === 0 && branchId) {
         const fromDate = openedAt;
