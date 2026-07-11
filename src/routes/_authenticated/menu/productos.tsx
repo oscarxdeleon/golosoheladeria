@@ -553,7 +553,14 @@ function ProductosPage() {
           <p className="text-muted-foreground">Items que se venden en la caja</p>
         </div>
         {isAdmin && (
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <Button
+              size="lg"
+              onClick={() => openEditor({ active: true, show_in_online: true })}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-md ring-2 ring-primary/30 order-first"
+            >
+              <Plus className="h-5 w-5 mr-1.5" /> Nuevo Producto
+            </Button>
             <Button variant="outline" onClick={downloadTemplate}>
               <Download className="h-4 w-4 mr-1" /> Plantilla Excel
             </Button>
@@ -591,13 +598,6 @@ function ProductosPage() {
               </label>
             </Button>
             <CloneToBranchDialog branches={branches} qc={qc} />
-            <Button
-              size="lg"
-              onClick={() => openEditor({ active: true, show_in_online: true })}
-              className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-md ring-2 ring-primary/30"
-            >
-              <Plus className="h-5 w-5 mr-1.5" /> Nuevo Producto
-            </Button>
 
 
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
