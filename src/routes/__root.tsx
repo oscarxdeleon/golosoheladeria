@@ -170,6 +170,5 @@ function RootComponent() {
       {/* <OfflineBanner /> desactivado — ver useEffect arriba */}
       <Toaster position="top-right" richColors closeButton />
     </QueryClientProvider>
-    </QueryClientProvider>
   );
 }
