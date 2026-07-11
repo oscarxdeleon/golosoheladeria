@@ -5,11 +5,63 @@
 //     error logger plugins, and sandbox detection (port/host/strictPort).
 // You can pass additional config via defineConfig({ vite: { ... }, etc... }) if needed.
 import { defineConfig } from "@lovable.dev/vite-tanstack-config";
+import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
   tanstackStart: {
     // Redirect TanStack Start's bundled server entry to src/server.ts (our SSR error wrapper).
     // nitro/vite builds from this
     server: { entry: "server" },
+  },
+  vite: {
+    plugins: [
+      VitePWA({
+        // El registro lo hace nuestro wrapper con guardas Lovable. No dejar que
+        // el plugin inyecte su propio registrador.
+        injectRegister: null,
+        registerType: "autoUpdate",
+        // No emitir service worker en dev/preview — evita cachear HTML del editor.
+        devOptions: { enabled: false },
+        filename: "sw.js",
+        manifest: false, // el manifest se sirve desde public/manifest.webmanifest
+        workbox: {
+          // Nunca cachear rutas de OAuth ni endpoints de servidor.
+          navigateFallbackDenylist: [/^\/~oauth/, /^\/api\//, /^\/_serverFn/],
+          // HTML: siempre red primero (autoUpdate + NetworkFirst para navegaciones).
+          navigateFallback: null,
+          globPatterns: ["**/*.{js,css,ico,png,svg,webp,woff2}"],
+          runtimeCaching: [
+            {
+              // Navegaciones HTML: red primero, cae al caché offline.
+              urlPattern: /^https?:\/\/[^/]+\/(?!api\/|_serverFn|~oauth).*$/i,
+              handler: "NetworkFirst",
+              options: {
+                cacheName: "html-nav",
+                networkTimeoutSeconds: 4,
+                expiration: { maxEntries: 40, maxAgeSeconds: 60 * 60 * 24 * 7 },
+              },
+            },
+            {
+              // Assets propios hasheados (JS/CSS del bundle).
+              urlPattern: /\/assets\/.*\.(?:js|css|woff2?)$/i,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "assets",
+                expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              },
+            },
+            {
+              // Imágenes/logos servidos desde el mismo dominio.
+              urlPattern: /\.(?:png|jpg|jpeg|svg|webp|ico)$/i,
+              handler: "CacheFirst",
+              options: {
+                cacheName: "img",
+                expiration: { maxEntries: 300, maxAgeSeconds: 60 * 60 * 24 * 30 },
+              },
+            },
+          ],
+        },
+      }),
+    ],
   },
 });
