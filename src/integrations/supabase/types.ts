@@ -1247,6 +1247,8 @@ export type Database = {
           current_guests: number | null
           id: string
           label: string | null
+          merged_at: string | null
+          merged_into_id: string | null
           notes: string | null
           number: number
           occupied_at: string | null
@@ -1264,6 +1266,8 @@ export type Database = {
           current_guests?: number | null
           id?: string
           label?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           notes?: string | null
           number: number
           occupied_at?: string | null
@@ -1281,6 +1285,8 @@ export type Database = {
           current_guests?: number | null
           id?: string
           label?: string | null
+          merged_at?: string | null
+          merged_into_id?: string | null
           notes?: string | null
           number?: number
           occupied_at?: string | null
@@ -1297,6 +1303,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_tables_merged_into_id_fkey"
+            columns: ["merged_into_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
             referencedColumns: ["id"]
           },
           {
@@ -1378,6 +1391,7 @@ export type Database = {
           id: string
           modifiers: Json
           notes: string | null
+          origin_table_id: string | null
           product_id: string | null
           product_name: string
           qty: number
@@ -1390,6 +1404,7 @@ export type Database = {
           id?: string
           modifiers?: Json
           notes?: string | null
+          origin_table_id?: string | null
           product_id?: string | null
           product_name: string
           qty?: number
@@ -1402,6 +1417,7 @@ export type Database = {
           id?: string
           modifiers?: Json
           notes?: string | null
+          origin_table_id?: string | null
           product_id?: string | null
           product_name?: string
           qty?: number
@@ -1411,6 +1427,13 @@ export type Database = {
           unit_price?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "sale_items_origin_table_id_fkey"
+            columns: ["origin_table_id"]
+            isOneToOne: false
+            referencedRelation: "restaurant_tables"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "sale_items_product_id_fkey"
             columns: ["product_id"]
@@ -2137,6 +2160,10 @@ export type Database = {
       }
       kds_public_pending: { Args: { p_slug: string }; Returns: Json }
       lookup_customer_loyalty: { Args: { _phone: string }; Returns: Json }
+      merge_tables: {
+        Args: { _principal_id: string; _reason?: string; _source_ids: string[] }
+        Returns: Json
+      }
       move_table: {
         Args: {
           _force?: boolean
@@ -2212,6 +2239,10 @@ export type Database = {
       resync_product_from_parent: {
         Args: { _child_id: string }
         Returns: undefined
+      }
+      split_merged_tables: {
+        Args: { _principal_id: string; _reason?: string }
+        Returns: Json
       }
       terminal_list_employees: {
         Args: { _slug: string }
