@@ -74,7 +74,7 @@ function AuthPage() {
         await supabase.rpc("log_failed_login", {
           _email: email,
           _reason: message,
-          _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : null,
+          _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
         });
       } catch {}
       toast.error(message);
