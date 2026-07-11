@@ -557,7 +557,13 @@ function ModPage() {
                 <TabsTrigger value="reuse" className="flex-1">Reutilizar existente</TabsTrigger>
               </TabsList>
               <TabsContent value="custom" className="space-y-3 pt-3">
-                <div><Label>Nombre</Label><Input value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} /></div>
+                <div>
+                  <Label>Nombre</Label>
+                  <div className="flex gap-2">
+                    <Input className="flex-1" value={modEdit?.name ?? ""} onChange={(e) => setModEdit({ ...modEdit, name: e.target.value })} />
+                    <VoiceMicButton onTranscript={(t, isFinal) => { if (!isFinal) return; const cur = modEdit?.name ?? ""; const sep = cur && !cur.endsWith(" ") ? " " : ""; setModEdit({ ...modEdit, name: cur + sep + t }); }} />
+                  </div>
+                </div>
                 <div><Label>Precio extra</Label><Input type="number" value={modEdit?.price ?? 0} onChange={(e) => setModEdit({ ...modEdit, price: Number(e.target.value) })} /></div>
                 <div>
                   <Label>Foto (opcional)</Label>
