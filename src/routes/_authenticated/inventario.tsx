@@ -120,9 +120,22 @@ function MovementDialog({
 
 function ProductsStock({ isAdmin }: { isAdmin: boolean }) {
   const qc = useQueryClient();
+  const { activeBranchId } = useBranch();
+  const [filter, setFilter] = useState<"all" | "out" | "low">("all");
   const { data = [] } = useQuery<ProductRow[]>({
-    queryKey: ["inv-products"],
-    queryFn: async () => (await supabase.from("products").select("id,name,stock,min_stock,track_stock,sku").order("name")).data as ProductRow[] ?? [],
+    queryKey: ["inv-products", activeBranchId],
+    enabled: !!activeBranchId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id,name,stock,min_stock,track_stock,sku,available_branch_ids")
+        .order("name");
+      return (data ?? []).filter((p: any) =>
+        !p.available_branch_ids ||
+        p.available_branch_ids.length === 0 ||
+        p.available_branch_ids.includes(activeBranchId),
+      ) as ProductRow[];
+    },
   });
   async function toggleTrack(p: ProductRow, v: boolean) {
     await supabase.from("products").update({ track_stock: v }).eq("id", p.id);
@@ -133,9 +146,48 @@ function ProductsStock({ isAdmin }: { isAdmin: boolean }) {
     qc.invalidateQueries({ queryKey: ["inv-products"] });
   }
   const refresh = () => { qc.invalidateQueries({ queryKey: ["inv-products"] }); qc.invalidateQueries({ queryKey: ["inv-movements"] }); };
+
+  const outCount = data.filter((p) => p.track_stock && Number(p.stock) <= 0).length;
+  const lowCount = data.filter((p) => p.track_stock && Number(p.stock) > 0 && Number(p.stock) <= Number(p.min_stock)).length;
+  const filtered = data.filter((p) => {
+    if (filter === "all") return true;
+    if (!p.track_stock) return false;
+    const s = Number(p.stock), m = Number(p.min_stock);
+    if (filter === "out") return s <= 0;
+    if (filter === "low") return s > 0 && s <= m;
+    return true;
+  });
+
   return (
     <Card>
-      <CardHeader><CardTitle>Stock de productos</CardTitle></CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between gap-3 flex-wrap">
+        <CardTitle>Stock de productos</CardTitle>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            size="sm"
+            variant={filter === "all" ? "default" : "outline"}
+            onClick={() => setFilter("all")}
+          >
+            Todos ({data.length})
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === "out" ? "default" : "outline"}
+            className={filter === "out" ? "bg-rose-600 hover:bg-rose-700 text-white" : "border-rose-500/40 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/30"}
+            onClick={() => setFilter("out")}
+          >
+            <PackageX className="h-3.5 w-3.5" /> Agotados ({outCount})
+          </Button>
+          <Button
+            size="sm"
+            variant={filter === "low" ? "default" : "outline"}
+            className={filter === "low" ? "bg-amber-500 hover:bg-amber-600 text-white" : "border-amber-500/40 text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-950/30"}
+            onClick={() => setFilter("low")}
+          >
+            <PackageMinus className="h-3.5 w-3.5" /> Stock bajo ({lowCount})
+          </Button>
+        </div>
+      </CardHeader>
       <CardContent className="p-0">
         <Table>
           <TableHeader>
@@ -149,20 +201,24 @@ function ProductsStock({ isAdmin }: { isAdmin: boolean }) {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.map((p) => {
-              const low = p.track_stock && Number(p.stock) <= Number(p.min_stock);
+            {filtered.map((p) => {
+              const stock = Number(p.stock);
+              const min = Number(p.min_stock);
+              const out = p.track_stock && stock <= 0;
+              const low = p.track_stock && !out && stock <= min;
               return (
-                <TableRow key={p.id}>
+                <TableRow key={p.id} className={out ? "bg-rose-50/40 dark:bg-rose-950/20" : low ? "bg-amber-50/40 dark:bg-amber-950/20" : ""}>
                   <TableCell className="font-medium flex items-center gap-2">
                     {p.name}
-                    {low && <Badge variant="destructive" className="gap-1"><AlertTriangle className="h-3 w-3" />Bajo</Badge>}
+                    {out && <Badge variant="destructive" className="gap-1"><PackageX className="h-3 w-3" />Agotado</Badge>}
+                    {low && <Badge className="gap-1 bg-amber-500 hover:bg-amber-600 text-white"><AlertTriangle className="h-3 w-3" />Bajo</Badge>}
                   </TableCell>
                   <TableCell className="text-muted-foreground">{p.sku ?? "—"}</TableCell>
-                  <TableCell className="text-right font-mono">{Number(p.stock)}</TableCell>
+                  <TableCell className="text-right font-mono">{stock}</TableCell>
                   <TableCell className="text-right">
                     <Input
                       type="number" className="h-8 w-20 ml-auto text-right"
-                      defaultValue={Number(p.min_stock)}
+                      defaultValue={min}
                       disabled={!isAdmin}
                       onBlur={(e) => setMin(p, Number(e.target.value))}
                     />
@@ -171,12 +227,12 @@ function ProductsStock({ isAdmin }: { isAdmin: boolean }) {
                     <Switch checked={p.track_stock} disabled={!isAdmin} onCheckedChange={(v) => toggleTrack(p, v)} />
                   </TableCell>
                   <TableCell className="text-right">
-                    {isAdmin && <MovementDialog itemType="product" itemId={p.id} itemName={p.name} currentStock={Number(p.stock)} onDone={refresh} />}
+                    {isAdmin && <MovementDialog itemType="product" itemId={p.id} itemName={p.name} currentStock={stock} onDone={refresh} />}
                   </TableCell>
                 </TableRow>
               );
             })}
-            {data.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin productos</TableCell></TableRow>}
+            {filtered.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin productos</TableCell></TableRow>}
           </TableBody>
         </Table>
       </CardContent>
