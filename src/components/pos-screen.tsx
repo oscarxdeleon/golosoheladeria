@@ -2406,10 +2406,31 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             : null
         }
         branchId={activeBranchId}
-        onClose={() => setModalProduct(null)}
+        initialPicked={
+          editingLineKey
+            ? (() => {
+                const line = cart.find((c) => c.key === editingLineKey);
+                if (!line) return undefined;
+                const map: Record<string, number> = {};
+                for (const m of line.modifiers) map[m.id] = (map[m.id] ?? 0) + (m.qty || 1);
+                return map;
+              })()
+            : undefined
+        }
+        initialNote={editingLineKey ? cart.find((c) => c.key === editingLineKey)?.notes : undefined}
+        confirmLabel={editingLineKey ? "Guardar cambios" : undefined}
+        onClose={() => { setModalProduct(null); setEditingLineKey(null); }}
         onConfirm={(mods, unitExtra, note) => {
-          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra, note);
+          if (modalProduct) {
+            if (editingLineKey) {
+              const line = cart.find((c) => c.key === editingLineKey);
+              if (line) replaceLineModifiers(line, modalProduct, mods, unitExtra, note);
+            } else {
+              addWithModifiers(modalProduct, mods, unitExtra, note);
+            }
+          }
           setModalProduct(null);
+          setEditingLineKey(null);
         }}
       />
 
