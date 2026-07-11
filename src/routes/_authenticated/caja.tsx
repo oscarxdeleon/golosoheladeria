@@ -276,7 +276,17 @@ function CajaPage() {
                 </div>
               </div>
               {canCloseSession && (
-                <Button onClick={() => setCloseDialog(true)} variant="destructive">
+                <Button
+                  onClick={() => {
+                    // Abre el cajón monedero automáticamente al iniciar el cierre.
+                    // Si el Print Server local no responde, no bloquea el arqueo.
+                    kickCashDrawer().catch((e) =>
+                      console.warn("[caja] no se pudo abrir el cajón:", e),
+                    );
+                    setCloseDialog(true);
+                  }}
+                  variant="destructive"
+                >
                   <LockKeyhole className="h-4 w-4" />Cerrar caja
                 </Button>
               )}
