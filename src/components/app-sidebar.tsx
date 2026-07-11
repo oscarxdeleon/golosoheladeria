@@ -271,7 +271,8 @@ export function AppSidebar() {
         )}
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="gap-2">
+        <ConnectionStatus />
         <Button
           type="button"
           disabled={signingOut}
