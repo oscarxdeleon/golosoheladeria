@@ -594,6 +594,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
   const [courtesyDialogOpen, setCourtesyDialogOpen] = useState(false);
   const [courtesyReason, setCourtesyReason] = useState("");
+  // Direcciones guardadas del cliente (lookup por teléfono)
+  type SavedAddress = { id: string; label: string; address: string; neighborhood: string | null; reference: string | null; phone: string | null; is_default: boolean };
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  const [selectedAddressId, setSelectedAddressId] = useState<string>("");
+  const [saveNewAddress, setSaveNewAddress] = useState(false);
+  const [newAddressLabel, setNewAddressLabel] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
