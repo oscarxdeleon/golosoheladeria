@@ -193,6 +193,48 @@ export type Database = {
           },
         ]
       }
+      audit_log: {
+        Row: {
+          action: string
+          after: Json | null
+          before: Json | null
+          branch_id: string | null
+          created_at: string
+          entity: string
+          entity_id: string | null
+          id: string
+          meta: Json | null
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          action: string
+          after?: Json | null
+          before?: Json | null
+          branch_id?: string | null
+          created_at?: string
+          entity: string
+          entity_id?: string | null
+          id?: string
+          meta?: Json | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          action?: string
+          after?: Json | null
+          before?: Json | null
+          branch_id?: string | null
+          created_at?: string
+          entity?: string
+          entity_id?: string | null
+          id?: string
+          meta?: Json | null
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: []
+      }
       branches: {
         Row: {
           address: string | null
