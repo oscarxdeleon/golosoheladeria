@@ -2369,6 +2369,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               const isCash = lower.includes("efectivo");
               const isNequi = lower.includes("nequi");
               const isBanco = lower.includes("bancolombia");
+              const isCourtesy = lower.includes("cortes");
               const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
               const isDisabled = paying || !hasOrder;
 
@@ -2404,6 +2405,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                     "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 18px -6px rgba(202,138,4,0.55)",
                   textShadow: "0 1px 0 rgba(255,255,255,0.35)",
                 };
+              } else if (isCourtesy) {
+                style = {
+                  background: "linear-gradient(180deg, #fda4af 0%, #e11d48 100%)",
+                  color: "#ffffff",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(190,18,60,0.55)",
+                  textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+                };
               }
 
               return (
@@ -2420,6 +2429,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       if (isCash) {
                         setCashReceived("");
                         setCashDialogOpen(true);
+                      } else if (isCourtesy) {
+                        setCourtesyReason("");
+                        setCourtesyDialogOpen(true);
                       } else {
                         void pay(m.name);
                       }
@@ -2451,6 +2463,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       className="h-14 w-14 shrink-0 object-contain drop-shadow-sm"
                       loading="eager"
                     />
+                  )}
+                  {isCourtesy && (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/25">
+                      <Gift className="h-6 w-6" strokeWidth={2.5} />
+                    </span>
                   )}
                   <span className="min-w-0 truncate">{m.name}</span>
                 </button>
