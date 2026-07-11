@@ -6,15 +6,18 @@ import { Badge } from "@/components/ui/badge";
 import { Activity, Database, ShieldAlert, RefreshCw, Clock, AlertCircle } from "lucide-react";
 import { useConnectionStatus } from "@/hooks/use-connection-status";
 import { Button } from "@/components/ui/button";
-import { RoleRouteGuard } from "@/components/role-route-guard";
+import { usePermissions } from "@/hooks/use-permissions";
 
 export const Route = createFileRoute("/_authenticated/monitoreo")({
-  component: () => (
-    <RoleRouteGuard role="admin">
-      <MonitoreoPage />
-    </RoleRouteGuard>
-  ),
+  component: MonitoreoGate,
 });
+
+function MonitoreoGate() {
+  const { isAdmin, loading } = usePermissions();
+  if (loading) return <div className="p-8 text-muted-foreground">Cargando…</div>;
+  if (!isAdmin) return <div className="p-8 text-muted-foreground">Solo administradores.</div>;
+  return <MonitoreoPage />;
+}
 
 interface FailedLogin {
   id: string;
