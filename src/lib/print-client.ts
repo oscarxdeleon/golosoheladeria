@@ -418,7 +418,78 @@ if (typeof window !== "undefined") {
  * OK se cachea como `_lastGoodUrl` y se usa como primera opción en el
  * próximo envío. Nunca lanza.
  */
-export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
+// ---------- Dedupe de impresiones duplicadas ----------
+// Evita doble impresión por doble-click, doble-envío desde useEffect, o
+// re-render que dispare la misma comanda dos veces. Un payload idéntico dentro
+// de 4 s se ignora silenciosamente y devuelve `true`.
+const _recentPrints = new Map<string, number>();
+const DEDUPE_MS = 4000;
+
+function hashPayload(p: PrintPayload): string {
+  // Hash rápido: tipo + ticket + firma de items (nombre × cantidad).
+  const items = (p.items ?? [])
+    .map((i) => `${i.name}#${i.qty}#${i.unit_price ?? ""}`)
+    .join("|");
+  return `${p.type}|${p.ticket ?? p.ticket_number ?? ""}|${p.order_type ?? ""}|${p.total ?? ""}|${items}`;
+}
+
+function isDuplicatePrint(payload: PrintPayload): boolean {
+  // Nunca deduplicar apertura de cajón — es una acción explícita repetible.
+  if (payload.type === "drawer") return false;
+  const key = hashPayload(payload);
+  const now = Date.now();
+  const last = _recentPrints.get(key);
+  // Purga entradas viejas de forma perezosa.
+  if (_recentPrints.size > 40) {
+    for (const [k, at] of _recentPrints) if (now - at > DEDUPE_MS * 4) _recentPrints.delete(k);
+  }
+  if (last && now - last < DEDUPE_MS) return true;
+  _recentPrints.set(key, now);
+  return false;
+}
+
+// ---------- Cola de reintentos (memoria; se pierde al cerrar pestaña) ----------
+// Cuando la impresora no responde, guardamos los payloads en memoria e
+// intentamos flushear al recuperar red o antes del próximo envío. No usamos
+// localStorage porque los payloads (con logos raster) pueden ser grandes y
+// una reimpresión tras horas puede confundir al operador.
+interface QueuedPrint { payload: PrintPayload; at: number; tries: number }
+const _retryQueue: QueuedPrint[] = [];
+const MAX_QUEUE = 20;
+const MAX_TRIES = 3;
+let _flushing = false;
+
+async function flushRetryQueue(): Promise<void> {
+  if (_flushing || _retryQueue.length === 0) return;
+  _flushing = true;
+  try {
+    while (_retryQueue.length > 0) {
+      const next = _retryQueue[0];
+      const ok = await sendToLocalPrinterInternal(next.payload);
+      if (ok) {
+        _retryQueue.shift();
+        continue;
+      }
+      next.tries += 1;
+      if (next.tries >= MAX_TRIES) {
+        console.warn("[print] descartado tras varios reintentos", next.payload.type);
+        _retryQueue.shift();
+        continue;
+      }
+      break; // sigue caído — reintentamos más tarde
+    }
+  } finally {
+    _flushing = false;
+  }
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("online", () => void flushRetryQueue());
+  // Reintento periódico ligero (30 s) mientras haya pendientes.
+  setInterval(() => { if (_retryQueue.length > 0) void flushRetryQueue(); }, 30_000);
+}
+
+async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolean> {
   let configuredUrl = getLocalPrintUrl();
   if (!configuredUrl) {
     configuredUrl = await bootstrapLocalPrintUrl();
@@ -457,7 +528,6 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     ),
   );
 
-
   for (const url of candidates) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
@@ -483,8 +553,40 @@ export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean
     }
   }
 
-  console.warn("[print] ningún servidor local respondió; no se abrirá diálogo del sistema");
   return false;
+}
+
+export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
+  // Dedupe primero — barato y evita rasterizar logo dos veces.
+  if (isDuplicatePrint(payload)) {
+    console.info("[print] impresión duplicada suprimida", payload.type);
+    return true;
+  }
+
+  // Aprovecha para vaciar la cola si hay pendientes de reintento.
+  if (_retryQueue.length > 0) void flushRetryQueue();
+
+  const ok = await sendToLocalPrinterInternal(payload);
+  if (ok) return true;
+
+  // Sin conexión al servidor local — encolar para reintento (excepto drawer).
+  if (payload.type !== "drawer" && _retryQueue.length < MAX_QUEUE) {
+    _retryQueue.push({ payload, at: Date.now(), tries: 1 });
+    console.warn(`[print] servidor local no responde; encolado (${_retryQueue.length} pendientes)`);
+  } else {
+    console.warn("[print] ningún servidor local respondió; no se abrirá diálogo del sistema");
+  }
+  return false;
+}
+
+/** Cantidad de tickets/comandas pendientes de reimpresión. */
+export function getPendingPrintCount(): number {
+  return _retryQueue.length;
+}
+
+/** Fuerza un intento manual de vaciar la cola de impresión. */
+export function retryPendingPrints(): Promise<void> {
+  return flushRetryQueue();
 }
 
 export function printHTMLFallback(html: string) {
