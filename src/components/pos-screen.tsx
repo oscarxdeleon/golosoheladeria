@@ -1346,6 +1346,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       console.warn("[pos] saveComanda ignorado: ya hay una operación en curso");
       return;
     }
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return toast.error("Sin conexión — no puedes enviar comandas hasta recuperar internet");
+    }
     if (!user) return toast.error("Inicia sesión para guardar el pedido");
     if (!effectiveSessionId) return toast.error("No hay caja abierta en esta sede");
     if (cart.length === 0) return toast.error("Carrito vacío");
