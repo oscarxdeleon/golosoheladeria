@@ -621,6 +621,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   // evita la duplicación de productos ya enviados a cocina.
   const printedQtyRef = useRef<Record<string, number>>({});
 
+  // Clave estable para persistir un borrador del carrito por usuario/modo/mesa.
+  // Permite recuperar la venta si el navegador se cierra o pierde la corriente.
+  const draftKey = useMemo(
+    () => (user?.id ? `pos:draft:${user.id}:${orderType}:${tableId ?? "-"}` : null),
+    [user?.id, orderType, tableId],
+  );
+  const draftLoadedRef = useRef(false);
+
   useEffect(() => {
     setCart([]);
     setCustomer(initialCustomer ?? "");
@@ -632,8 +640,78 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     setTip(0);
     setTipInput("");
     printedQtyRef.current = {};
+    draftLoadedRef.current = false;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [orderType, tableId, initialCustomer, initialPhone, initialAddress, initialNeighborhood]);
+
+  // Al montar (o cambiar de modo), intenta recuperar borrador previo si existe.
+  useEffect(() => {
+    if (!draftKey || draftLoadedRef.current) return;
+    draftLoadedRef.current = true;
+    try {
+      const raw = localStorage.getItem(draftKey);
+      if (!raw) return;
+      const draft = JSON.parse(raw) as {
+        cart?: CartLine[];
+        customer?: string;
+        notes?: string;
+        address?: string;
+        phone?: string;
+        neighborhood?: string;
+        savedAt?: number;
+      };
+      if (!draft?.cart?.length) return;
+      if (draft.savedAt && Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
+        localStorage.removeItem(draftKey);
+        return;
+      }
+      const totalQty = draft.cart.reduce((a, l) => a + (l.qty || 0), 0);
+      toast.info(`Borrador encontrado: ${totalQty} ítem(s)`, {
+        duration: 15000,
+        action: {
+          label: "Restaurar",
+          onClick: () => {
+            setCart(draft.cart ?? []);
+            if (draft.customer) setCustomer(draft.customer);
+            if (draft.notes) setNotes(draft.notes);
+            if (draft.address) setAddress(draft.address);
+            if (draft.phone) setPhone(draft.phone);
+            if (draft.neighborhood) setNeighborhood(draft.neighborhood);
+            toast.success("Borrador restaurado");
+          },
+        },
+        cancel: {
+          label: "Descartar",
+          onClick: () => {
+            try { localStorage.removeItem(draftKey); } catch { /* noop */ }
+          },
+        },
+      });
+    } catch (err) {
+      console.warn("[pos] no se pudo leer borrador", err);
+    }
+  }, [draftKey]);
+
+  // Persistir borrador cuando cambia el carrito o datos del cliente.
+  useEffect(() => {
+    if (!draftKey) return;
+    if (paying) return;
+    if (cart.length === 0) {
+      try { localStorage.removeItem(draftKey); } catch { /* noop */ }
+      return;
+    }
+    const t = setTimeout(() => {
+      try {
+        localStorage.setItem(
+          draftKey,
+          JSON.stringify({ cart, customer, notes, address, phone, neighborhood, savedAt: Date.now() }),
+        );
+      } catch (err) {
+        console.warn("[pos] no se pudo guardar borrador", err);
+      }
+    }, 400);
+    return () => clearTimeout(t);
+  }, [draftKey, cart, customer, notes, address, phone, neighborhood, paying]);
 
   // Enfocar buscador al entrar al POS (sidebar queda como el usuario lo tenga)
   useEffect(() => {
