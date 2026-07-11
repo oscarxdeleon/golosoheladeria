@@ -21,7 +21,7 @@ import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
-import { Split, Smartphone, Building2, Sparkles } from "lucide-react";
+import { Split, Smartphone, Building2, Sparkles, Gift } from "lucide-react";
 import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/components/credit-dialogs";
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
@@ -592,6 +592,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [splitDialogOpen, setSplitDialogOpen] = useState(false);
   const [creditDialogOpen, setCreditDialogOpen] = useState(false);
   const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
+  const [courtesyDialogOpen, setCourtesyDialogOpen] = useState(false);
+  const [courtesyReason, setCourtesyReason] = useState("");
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
@@ -2367,6 +2369,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               const isCash = lower.includes("efectivo");
               const isNequi = lower.includes("nequi");
               const isBanco = lower.includes("bancolombia");
+              const isCourtesy = lower.includes("cortes");
               const hasOrder = total > 0 || !!pendingSaleId || cart.length > 0;
               const isDisabled = paying || !hasOrder;
 
@@ -2402,6 +2405,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                     "inset 0 2px 0 rgba(255,255,255,0.55), inset 0 -5px 0 rgba(0,0,0,0.2), 0 8px 18px -6px rgba(202,138,4,0.55)",
                   textShadow: "0 1px 0 rgba(255,255,255,0.35)",
                 };
+              } else if (isCourtesy) {
+                style = {
+                  background: "linear-gradient(180deg, #fda4af 0%, #e11d48 100%)",
+                  color: "#ffffff",
+                  boxShadow:
+                    "inset 0 2px 0 rgba(255,255,255,0.45), inset 0 -5px 0 rgba(0,0,0,0.22), 0 8px 18px -6px rgba(190,18,60,0.55)",
+                  textShadow: "0 2px 2px rgba(0,0,0,0.25)",
+                };
               }
 
               return (
@@ -2418,6 +2429,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       if (isCash) {
                         setCashReceived("");
                         setCashDialogOpen(true);
+                      } else if (isCourtesy) {
+                        setCourtesyReason("");
+                        setCourtesyDialogOpen(true);
                       } else {
                         void pay(m.name);
                       }
@@ -2449,6 +2463,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       className="h-14 w-14 shrink-0 object-contain drop-shadow-sm"
                       loading="eager"
                     />
+                  )}
+                  {isCourtesy && (
+                    <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/25">
+                      <Gift className="h-6 w-6" strokeWidth={2.5} />
+                    </span>
                   )}
                   <span className="min-w-0 truncate">{m.name}</span>
                 </button>
@@ -2538,6 +2557,55 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         cashSessionId={effectiveSessionId ?? null}
         onPaid={() => { qc.invalidateQueries({ queryKey: ["credits"] }); }}
       />
+
+      {/* Diálogo de confirmación para venta Cortesía */}
+      <Dialog open={courtesyDialogOpen} onOpenChange={(o) => { if (!paying) setCourtesyDialogOpen(o); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Gift className="h-5 w-5" /> Cortesía
+            </DialogTitle>
+            <DialogDescription>
+              La venta se marcará como cortesía. <b>No ingresa dinero a la caja</b> y no afectará el arqueo, pero sí descuenta inventario y queda registrada en el historial.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Total obsequiado</span><span className="font-extrabold">{formatMoney(total)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Autoriza</span><span className="font-semibold">{profile?.full_name ?? user?.email ?? "—"}</span></div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="courtesy-reason">Motivo de la cortesía <span className="text-rose-600">*</span></Label>
+              <Textarea
+                id="courtesy-reason"
+                placeholder="Ej: Cumpleaños del cliente, reposición por error, invitación gerencia…"
+                value={courtesyReason}
+                onChange={(e) => setCourtesyReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCourtesyDialogOpen(false)} disabled={paying}>Cancelar</Button>
+            <Button
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={paying || courtesyReason.trim().length < 3}
+              onClick={() => {
+                const reason = courtesyReason.trim();
+                setCourtesyDialogOpen(false);
+                void pay("Cortesía", {
+                  courtesy: true,
+                  reason,
+                  authorized_by_id: user?.id ?? null,
+                  authorized_by_name: profile?.full_name ?? user?.email ?? null,
+                });
+              }}
+            >
+              <Gift className="h-4 w-4 mr-1" /> Confirmar cortesía
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <Dialog open={cancelDialogOpen} onOpenChange={(o) => { if (!cancelling) setCancelDialogOpen(o); }}>
         <DialogContent className="max-w-md">
