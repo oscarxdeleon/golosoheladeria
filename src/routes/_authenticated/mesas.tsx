@@ -81,6 +81,14 @@ const STATUS_STYLES: Record<Status, {
     num: TABLE_NUMBER_COLOR,
     glow: "bg-amber-400/25",
   },
+  merged: {
+    bg: "bg-violet-50/60 dark:bg-violet-950/25 ring-1 ring-violet-500/20 hover:ring-violet-500/50",
+    bar: "bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500",
+    dot: "bg-violet-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-violet-500/60",
+    chip: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    num: TABLE_NUMBER_COLOR,
+    glow: "bg-violet-400/25",
+  },
 };
 
 const STAT_CHIP_STYLES: Record<"emerald" | "rose" | "amber", string> = {
