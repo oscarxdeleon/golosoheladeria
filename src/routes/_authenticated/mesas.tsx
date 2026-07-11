@@ -234,7 +234,7 @@ function MesasPage() {
     const { error } = await supabase.rpc("merge_tables", {
       _principal_id: mergePrincipal,
       _source_ids: sources,
-      _reason: null,
+      _reason: undefined,
     });
     setMerging(false);
     if (error) return toast.error(error.message);
@@ -247,7 +247,7 @@ function MesasPage() {
     if (!splitTarget) return;
     const { error } = await supabase.rpc("split_merged_tables", {
       _principal_id: splitTarget.id,
-      _reason: null,
+      _reason: undefined,
     });
     if (error) return toast.error(error.message);
     toast.success("Mesas separadas");
