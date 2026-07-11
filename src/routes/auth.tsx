@@ -68,7 +68,16 @@ function AuthPage() {
       }
       window.location.replace("/");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Error de autenticación");
+      const message = err instanceof Error ? err.message : "Error de autenticación";
+      // Registrar intento fallido (best-effort; nunca bloquea el flujo)
+      try {
+        await supabase.rpc("log_failed_login", {
+          _email: email,
+          _reason: message,
+          _user_agent: typeof navigator !== "undefined" ? navigator.userAgent : undefined,
+        });
+      } catch {}
+      toast.error(message);
     } finally {
       setLoading(false);
     }

@@ -27,6 +27,7 @@ import { Route as AuthenticatedRepartidoresRouteImport } from './routes/_authent
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedPedidosOnlineRouteImport } from './routes/_authenticated/pedidos-online'
 import { Route as AuthenticatedOpinionesRouteImport } from './routes/_authenticated/opiniones'
+import { Route as AuthenticatedMonitoreoRouteImport } from './routes/_authenticated/monitoreo'
 import { Route as AuthenticatedMesasAdminRouteImport } from './routes/_authenticated/mesas-admin'
 import { Route as AuthenticatedMesasRouteImport } from './routes/_authenticated/mesas'
 import { Route as AuthenticatedLlevarPendientesRouteImport } from './routes/_authenticated/llevar-pendientes'
@@ -153,6 +154,11 @@ const AuthenticatedPedidosOnlineRoute =
 const AuthenticatedOpinionesRoute = AuthenticatedOpinionesRouteImport.update({
   id: '/opiniones',
   path: '/opiniones',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
+const AuthenticatedMonitoreoRoute = AuthenticatedMonitoreoRouteImport.update({
+  id: '/monitoreo',
+  path: '/monitoreo',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
 const AuthenticatedMesasAdminRoute = AuthenticatedMesasAdminRouteImport.update({
@@ -365,6 +371,7 @@ export interface FileRoutesByFullPath {
   '/llevar-pendientes': typeof AuthenticatedLlevarPendientesRoute
   '/mesas': typeof AuthenticatedMesasRoute
   '/mesas-admin': typeof AuthenticatedMesasAdminRoute
+  '/monitoreo': typeof AuthenticatedMonitoreoRoute
   '/opiniones': typeof AuthenticatedOpinionesRoute
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
@@ -418,6 +425,7 @@ export interface FileRoutesByTo {
   '/llevar-pendientes': typeof AuthenticatedLlevarPendientesRoute
   '/mesas': typeof AuthenticatedMesasRoute
   '/mesas-admin': typeof AuthenticatedMesasAdminRoute
+  '/monitoreo': typeof AuthenticatedMonitoreoRoute
   '/opiniones': typeof AuthenticatedOpinionesRoute
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
@@ -472,6 +480,7 @@ export interface FileRoutesById {
   '/_authenticated/llevar-pendientes': typeof AuthenticatedLlevarPendientesRoute
   '/_authenticated/mesas': typeof AuthenticatedMesasRoute
   '/_authenticated/mesas-admin': typeof AuthenticatedMesasAdminRoute
+  '/_authenticated/monitoreo': typeof AuthenticatedMonitoreoRoute
   '/_authenticated/opiniones': typeof AuthenticatedOpinionesRoute
   '/_authenticated/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
@@ -527,6 +536,7 @@ export interface FileRouteTypes {
     | '/llevar-pendientes'
     | '/mesas'
     | '/mesas-admin'
+    | '/monitoreo'
     | '/opiniones'
     | '/pedidos-online'
     | '/pos'
@@ -580,6 +590,7 @@ export interface FileRouteTypes {
     | '/llevar-pendientes'
     | '/mesas'
     | '/mesas-admin'
+    | '/monitoreo'
     | '/opiniones'
     | '/pedidos-online'
     | '/pos'
@@ -633,6 +644,7 @@ export interface FileRouteTypes {
     | '/_authenticated/llevar-pendientes'
     | '/_authenticated/mesas'
     | '/_authenticated/mesas-admin'
+    | '/_authenticated/monitoreo'
     | '/_authenticated/opiniones'
     | '/_authenticated/pedidos-online'
     | '/_authenticated/pos'
@@ -796,6 +808,13 @@ declare module '@tanstack/react-router' {
       path: '/opiniones'
       fullPath: '/opiniones'
       preLoaderRoute: typeof AuthenticatedOpinionesRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/monitoreo': {
+      id: '/_authenticated/monitoreo'
+      path: '/monitoreo'
+      fullPath: '/monitoreo'
+      preLoaderRoute: typeof AuthenticatedMonitoreoRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/mesas-admin': {
@@ -1063,6 +1082,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedLlevarPendientesRoute: typeof AuthenticatedLlevarPendientesRoute
   AuthenticatedMesasRoute: typeof AuthenticatedMesasRoute
   AuthenticatedMesasAdminRoute: typeof AuthenticatedMesasAdminRoute
+  AuthenticatedMonitoreoRoute: typeof AuthenticatedMonitoreoRoute
   AuthenticatedOpinionesRoute: typeof AuthenticatedOpinionesRoute
   AuthenticatedPedidosOnlineRoute: typeof AuthenticatedPedidosOnlineRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
@@ -1102,6 +1122,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedLlevarPendientesRoute: AuthenticatedLlevarPendientesRoute,
   AuthenticatedMesasRoute: AuthenticatedMesasRoute,
   AuthenticatedMesasAdminRoute: AuthenticatedMesasAdminRoute,
+  AuthenticatedMonitoreoRoute: AuthenticatedMonitoreoRoute,
   AuthenticatedOpinionesRoute: AuthenticatedOpinionesRoute,
   AuthenticatedPedidosOnlineRoute: AuthenticatedPedidosOnlineRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,

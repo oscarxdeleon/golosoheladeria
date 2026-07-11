@@ -52,7 +52,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutGrid, MessageSquareHeart } from "lucide-react";
+import { LayoutGrid, MessageSquareHeart, Activity } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const main = [
@@ -102,6 +102,7 @@ const admin = [
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace, key: "asistencia" },
   { to: "/usuarios", label: "Usuarios", icon: Users, key: "usuarios" },
   { to: "/auditoria", label: "Auditoría", icon: History, key: "__admin_only__" },
+  { to: "/monitoreo", label: "Monitoreo", icon: Activity, key: "__admin_only__" },
   { to: "/ajustes", label: "Ajustes", icon: Settings, key: "ajustes" },
   { to: "/ayuda", label: "Ayuda", icon: HelpCircle, key: "ayuda" },
 ];
