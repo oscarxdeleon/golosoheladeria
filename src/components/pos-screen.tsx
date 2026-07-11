@@ -977,6 +977,28 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   function remove(key: string) {
     setCart((p) => p.filter((l) => l.key !== key));
   }
+  function editLineModifiers(line: CartLine) {
+    const p = products.find((x) => x.id === line.product_id);
+    if (!p || !p.modifier_group_ids || p.modifier_group_ids.length === 0) {
+      toast.info("Este producto no tiene modificadores configurados");
+      return;
+    }
+    setEditingLineKey(line.key);
+    setModalProduct(p);
+  }
+  function replaceLineModifiers(line: CartLine, p: Product, mods: SaleModifier[], unitExtra: number, note?: string) {
+    const label = mods.length
+      ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
+      : p.name;
+    setCart((prev) =>
+      prev.map((x) =>
+        x.key === line.key
+          ? { ...x, name: label, unit_price: Number(p.price) + unitExtra, modifiers: mods, notes: note ?? x.notes }
+          : x,
+      ),
+    );
+    toast.success("Modificadores actualizados", { duration: 900, position: "bottom-center" });
+  }
 
   function validateDelivery(): boolean {
     if (orderType !== "domicilio") {
