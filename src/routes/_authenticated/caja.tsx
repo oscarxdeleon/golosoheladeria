@@ -595,8 +595,11 @@ function CajaPage() {
           </DialogHeader>
           {detail && (
             <div className="space-y-3">
-              <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <b>Monto inicial:</b> {formatMoney(detail.opening_amount)}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                  <b>Monto inicial:</b> {formatMoney(detail.opening_amount)}
+                </div>
+                <SessionTipsCard sessionId={detail.id} openedAt={detail.opened_at} closedAt={detail.closed_at} branchId={detail.branch_id} />
               </div>
               <Table>
                 <TableHeader>
@@ -635,6 +638,49 @@ function CajaPage() {
           )}
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+function SessionTipsCard({ sessionId, openedAt, closedAt, branchId }: { sessionId: string; openedAt: string; closedAt: string | null; branchId: string | null }) {
+  const { data } = useQuery({
+    queryKey: ["cash-session-tips", sessionId],
+    queryFn: async () => {
+      // Preferimos filtrar por cash_session_id; si no hay, caemos a rango + sede
+      const bySession = await supabase
+        .from("sales")
+        .select("tip_amount")
+        .neq("status", "cancelled")
+        .gt("tip_amount", 0)
+        .eq("cash_session_id", sessionId);
+      let rows = bySession.data ?? [];
+      if (rows.length === 0 && branchId) {
+        const fromDate = openedAt;
+        const toDate = closedAt ?? new Date().toISOString();
+        const fallback = await supabase
+          .from("sales")
+          .select("tip_amount")
+          .neq("status", "cancelled")
+          .gt("tip_amount", 0)
+          .eq("branch_id", branchId)
+          .gte("created_at", fromDate)
+          .lte("created_at", toDate);
+        rows = fallback.data ?? [];
+      }
+      const total = rows.reduce((acc, r) => acc + Number(r.tip_amount ?? 0), 0);
+      return { total, count: rows.length };
+    },
+    enabled: !!sessionId,
+  });
+  return (
+    <div className="rounded-md border-2 border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 text-sm">
+      <div className="flex items-center justify-between">
+        <span className="font-extrabold text-amber-800 dark:text-amber-200">✨ Propinas</span>
+        <span className="text-xs text-muted-foreground">{data?.count ?? 0} venta(s)</span>
+      </div>
+      <div className="text-xl font-black tabular-nums text-amber-700 dark:text-amber-300">
+        {formatMoney(data?.total ?? 0)}
+      </div>
     </div>
   );
 }
