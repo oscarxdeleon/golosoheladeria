@@ -208,7 +208,7 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm, initialP
           <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button onClick={confirm}>
-              Agregar · {formatMoney(Number(product.price) + unitExtra)}
+              {confirmLabel ?? "Agregar"} · {formatMoney(Number(product.price) + unitExtra)}
             </Button>
           </DialogFooter>
         </DialogContent>
