@@ -595,8 +595,11 @@ function CajaPage() {
           </DialogHeader>
           {detail && (
             <div className="space-y-3">
-              <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                <b>Monto inicial:</b> {formatMoney(detail.opening_amount)}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                  <b>Monto inicial:</b> {formatMoney(detail.opening_amount)}
+                </div>
+                <SessionTipsCard sessionId={detail.id} openedAt={detail.opened_at} closedAt={detail.closed_at} branchId={detail.branch_id} />
               </div>
               <Table>
                 <TableHeader>
