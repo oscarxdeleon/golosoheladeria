@@ -22,6 +22,7 @@ import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedTodosPedidosRouteImport } from './routes/_authenticated/todos-pedidos'
+import { Route as AuthenticatedSugerenciasCompraRouteImport } from './routes/_authenticated/sugerencias-compra'
 import { Route as AuthenticatedRepartidoresRouteImport } from './routes/_authenticated/repartidores'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedPedidosOnlineRouteImport } from './routes/_authenticated/pedidos-online'
@@ -123,6 +124,12 @@ const AuthenticatedTodosPedidosRoute =
   AuthenticatedTodosPedidosRouteImport.update({
     id: '/todos-pedidos',
     path: '/todos-pedidos',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedSugerenciasCompraRoute =
+  AuthenticatedSugerenciasCompraRouteImport.update({
+    id: '/sugerencias-compra',
+    path: '/sugerencias-compra',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedRepartidoresRoute =
@@ -355,6 +362,7 @@ export interface FileRoutesByFullPath {
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/repartidores': typeof AuthenticatedRepartidoresRoute
+  '/sugerencias-compra': typeof AuthenticatedSugerenciasCompraRoute
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
@@ -406,6 +414,7 @@ export interface FileRoutesByTo {
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/repartidores': typeof AuthenticatedRepartidoresRoute
+  '/sugerencias-compra': typeof AuthenticatedSugerenciasCompraRoute
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
@@ -458,6 +467,7 @@ export interface FileRoutesById {
   '/_authenticated/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/repartidores': typeof AuthenticatedRepartidoresRoute
+  '/_authenticated/sugerencias-compra': typeof AuthenticatedSugerenciasCompraRoute
   '/_authenticated/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
@@ -511,6 +521,7 @@ export interface FileRouteTypes {
     | '/pedidos-online'
     | '/pos'
     | '/repartidores'
+    | '/sugerencias-compra'
     | '/todos-pedidos'
     | '/usuarios'
     | '/ventas'
@@ -562,6 +573,7 @@ export interface FileRouteTypes {
     | '/pedidos-online'
     | '/pos'
     | '/repartidores'
+    | '/sugerencias-compra'
     | '/todos-pedidos'
     | '/usuarios'
     | '/ventas'
@@ -613,6 +625,7 @@ export interface FileRouteTypes {
     | '/_authenticated/pedidos-online'
     | '/_authenticated/pos'
     | '/_authenticated/repartidores'
+    | '/_authenticated/sugerencias-compra'
     | '/_authenticated/todos-pedidos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
@@ -736,6 +749,13 @@ declare module '@tanstack/react-router' {
       path: '/todos-pedidos'
       fullPath: '/todos-pedidos'
       preLoaderRoute: typeof AuthenticatedTodosPedidosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/sugerencias-compra': {
+      id: '/_authenticated/sugerencias-compra'
+      path: '/sugerencias-compra'
+      fullPath: '/sugerencias-compra'
+      preLoaderRoute: typeof AuthenticatedSugerenciasCompraRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/repartidores': {
@@ -1027,6 +1047,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPedidosOnlineRoute: typeof AuthenticatedPedidosOnlineRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedRepartidoresRoute: typeof AuthenticatedRepartidoresRoute
+  AuthenticatedSugerenciasCompraRoute: typeof AuthenticatedSugerenciasCompraRoute
   AuthenticatedTodosPedidosRoute: typeof AuthenticatedTodosPedidosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
   AuthenticatedVentasRoute: typeof AuthenticatedVentasRoute
@@ -1064,6 +1085,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPedidosOnlineRoute: AuthenticatedPedidosOnlineRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedRepartidoresRoute: AuthenticatedRepartidoresRoute,
+  AuthenticatedSugerenciasCompraRoute: AuthenticatedSugerenciasCompraRoute,
   AuthenticatedTodosPedidosRoute: AuthenticatedTodosPedidosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
   AuthenticatedVentasRoute: AuthenticatedVentasRoute,
