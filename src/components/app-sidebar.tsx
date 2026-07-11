@@ -35,6 +35,7 @@ import {
   Truck,
   Wallet,
   Clock,
+  History,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
@@ -99,6 +100,7 @@ const admin = [
   { to: "/repartidores", label: "Repartidores", icon: Bike, key: "usuarios" },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace, key: "asistencia" },
   { to: "/usuarios", label: "Usuarios", icon: Users, key: "usuarios" },
+  { to: "/auditoria", label: "Auditoría", icon: History, key: "__admin_only__" },
   { to: "/ajustes", label: "Ajustes", icon: Settings, key: "ajustes" },
   { to: "/ayuda", label: "Ayuda", icon: HelpCircle, key: "ayuda" },
 ];
