@@ -1845,6 +1845,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                     <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setCart((p) => p.map((x) => x.key === l.key ? { ...x, qty: x.qty + 1 } : x))}><Plus className="h-3 w-3" /></Button>
                   </div>
                   <div className="w-20 text-right text-sm font-medium">{formatMoney(l.unit_price * l.qty)}</div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-blue-600 hover:text-blue-700"
+                    title="Cambiar sabor / modificadores"
+                    onClick={() => editLineModifiers(l)}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(l.key)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
                 <Input
