@@ -1100,6 +1100,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
+    if (typeof navigator !== "undefined" && !navigator.onLine) {
+      return toast.error("Sin conexión — no puedes cobrar hasta recuperar internet");
+    }
     if (!user) return toast.error("Inicia sesión para cobrar");
     if (!effectiveSessionId) return toast.error("Debes abrir caja antes de cobrar");
     if (cart.length === 0) return toast.error("Carrito vacío");
