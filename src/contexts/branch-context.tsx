@@ -35,6 +35,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
 
   const { data: branches = [], isLoading } = useQuery({
     queryKey: ["branches-all"],
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     queryFn: async () => {
       const { data } = await supabase
         .from("branches")
