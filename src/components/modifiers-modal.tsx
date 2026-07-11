@@ -44,9 +44,12 @@ interface Props {
   branchId?: string | null;
   onClose: () => void;
   onConfirm: (mods: SelectedModifier[], unitExtra: number, note?: string) => void;
+  initialPicked?: Record<string, number>;
+  initialNote?: string;
+  confirmLabel?: string;
 }
 
-export function ModifiersModal({ product, branchId, onClose, onConfirm }: Props) {
+export function ModifiersModal({ product, branchId, onClose, onConfirm, initialPicked, initialNote, confirmLabel }: Props) {
   const open = !!product;
   const groupIds = useMemo(() => [...(product?.modifier_group_ids ?? [])].sort(), [product?.modifier_group_ids]);
 
@@ -87,9 +90,10 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm }: Props)
   const [note, setNote] = useState("");
   useEffect(() => {
     if (open) {
-      setPicked({});
-      setNote("");
+      setPicked(initialPicked ? { ...initialPicked } : {});
+      setNote(initialNote ?? "");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, product?.id]);
 
   const countsByGroup = useMemo(() => {
@@ -204,7 +208,7 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm }: Props)
           <DialogFooter className="flex-col sm:flex-row gap-2 pt-2">
             <Button variant="outline" onClick={onClose}>Cancelar</Button>
             <Button onClick={confirm}>
-              Agregar · {formatMoney(Number(product.price) + unitExtra)}
+              {confirmLabel ?? "Agregar"} · {formatMoney(Number(product.price) + unitExtra)}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -388,7 +392,7 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm }: Props)
           </div>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
           <Button onClick={confirm} disabled={!!validation}>
-            Agregar · {formatMoney(Number(product.price) + unitExtra)}
+            {confirmLabel ?? "Agregar"} · {formatMoney(Number(product.price) + unitExtra)}
           </Button>
         </DialogFooter>
       </DialogContent>

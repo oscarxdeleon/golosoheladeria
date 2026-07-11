@@ -12,7 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users, XCircle } from "lucide-react";
+import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users, XCircle, Pencil } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, sendToLocalPrinter, kickCashDrawer, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
@@ -580,6 +580,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [paying, setPaying] = useState(false);
   const [pendingSaleId, setPendingSaleId] = useState<string | null>(null);
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
+  const [editingLineKey, setEditingLineKey] = useState<string | null>(null);
   const [noteProduct, setNoteProduct] = useState<Product | null>(null);
   const [noteText, setNoteText] = useState("");
   const [noteQty, setNoteQty] = useState(1);
@@ -975,6 +976,28 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   }
   function remove(key: string) {
     setCart((p) => p.filter((l) => l.key !== key));
+  }
+  function editLineModifiers(line: CartLine) {
+    const p = products.find((x) => x.id === line.product_id);
+    if (!p || !p.modifier_group_ids || p.modifier_group_ids.length === 0) {
+      toast.info("Este producto no tiene modificadores configurados");
+      return;
+    }
+    setEditingLineKey(line.key);
+    setModalProduct(p);
+  }
+  function replaceLineModifiers(line: CartLine, p: Product, mods: SaleModifier[], unitExtra: number, note?: string) {
+    const label = mods.length
+      ? [p.name, ...mods.map((m) => `  + ${m.qty}× ${m.name}`)].join("\n")
+      : p.name;
+    setCart((prev) =>
+      prev.map((x) =>
+        x.key === line.key
+          ? { ...x, name: label, unit_price: Number(p.price) + unitExtra, modifiers: mods, notes: note ?? x.notes }
+          : x,
+      ),
+    );
+    toast.success("Modificadores actualizados", { duration: 900, position: "bottom-center" });
   }
 
   function validateDelivery(): boolean {
@@ -1822,6 +1845,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                     <Button size="icon" variant="outline" className="h-7 w-7" onClick={() => setCart((p) => p.map((x) => x.key === l.key ? { ...x, qty: x.qty + 1 } : x))}><Plus className="h-3 w-3" /></Button>
                   </div>
                   <div className="w-20 text-right text-sm font-medium">{formatMoney(l.unit_price * l.qty)}</div>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="h-7 w-7 text-blue-600 hover:text-blue-700"
+                    title="Cambiar sabor / modificadores"
+                    onClick={() => editLineModifiers(l)}
+                  >
+                    <Pencil className="h-3 w-3" />
+                  </Button>
                   <Button size="icon" variant="ghost" className="h-7 w-7 text-destructive" onClick={() => remove(l.key)}><Trash2 className="h-3 w-3" /></Button>
                 </div>
                 <Input
@@ -2374,10 +2406,31 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             : null
         }
         branchId={activeBranchId}
-        onClose={() => setModalProduct(null)}
+        initialPicked={
+          editingLineKey
+            ? (() => {
+                const line = cart.find((c) => c.key === editingLineKey);
+                if (!line) return undefined;
+                const map: Record<string, number> = {};
+                for (const m of line.modifiers) map[m.id] = (map[m.id] ?? 0) + (m.qty || 1);
+                return map;
+              })()
+            : undefined
+        }
+        initialNote={editingLineKey ? cart.find((c) => c.key === editingLineKey)?.notes : undefined}
+        confirmLabel={editingLineKey ? "Guardar cambios" : undefined}
+        onClose={() => { setModalProduct(null); setEditingLineKey(null); }}
         onConfirm={(mods, unitExtra, note) => {
-          if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra, note);
+          if (modalProduct) {
+            if (editingLineKey) {
+              const line = cart.find((c) => c.key === editingLineKey);
+              if (line) replaceLineModifiers(line, modalProduct, mods, unitExtra, note);
+            } else {
+              addWithModifiers(modalProduct, mods, unitExtra, note);
+            }
+          }
           setModalProduct(null);
+          setEditingLineKey(null);
         }}
       />
 
