@@ -47,6 +47,7 @@ import { Route as AuthenticatedComprasRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedClientesRouteImport } from './routes/_authenticated/clientes'
 import { Route as AuthenticatedCajaRouteImport } from './routes/_authenticated/caja'
 import { Route as AuthenticatedAyudaRouteImport } from './routes/_authenticated/ayuda'
+import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authenticated/auditoria'
 import { Route as AuthenticatedAsistenciaRouteImport } from './routes/_authenticated/asistencia'
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
 import { Route as SSlugIndexRouteImport } from './routes/s.$slug.index'
@@ -256,6 +257,11 @@ const AuthenticatedAyudaRoute = AuthenticatedAyudaRouteImport.update({
   path: '/ayuda',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedAuditoriaRoute = AuthenticatedAuditoriaRouteImport.update({
+  id: '/auditoria',
+  path: '/auditoria',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedAsistenciaRoute = AuthenticatedAsistenciaRouteImport.update({
   id: '/asistencia',
   path: '/asistencia',
@@ -338,6 +344,7 @@ export interface FileRoutesByFullPath {
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/asistencia': typeof AuthenticatedAsistenciaRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
@@ -390,6 +397,7 @@ export interface FileRoutesByTo {
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/asistencia': typeof AuthenticatedAsistenciaRoute
+  '/auditoria': typeof AuthenticatedAuditoriaRoute
   '/ayuda': typeof AuthenticatedAyudaRoute
   '/caja': typeof AuthenticatedCajaRoute
   '/clientes': typeof AuthenticatedClientesRoute
@@ -443,6 +451,7 @@ export interface FileRoutesById {
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
   '/_authenticated/asistencia': typeof AuthenticatedAsistenciaRoute
+  '/_authenticated/auditoria': typeof AuthenticatedAuditoriaRoute
   '/_authenticated/ayuda': typeof AuthenticatedAyudaRoute
   '/_authenticated/caja': typeof AuthenticatedCajaRoute
   '/_authenticated/clientes': typeof AuthenticatedClientesRoute
@@ -497,6 +506,7 @@ export interface FileRouteTypes {
     | '/tablet-pedidos'
     | '/ajustes'
     | '/asistencia'
+    | '/auditoria'
     | '/ayuda'
     | '/caja'
     | '/clientes'
@@ -549,6 +559,7 @@ export interface FileRouteTypes {
     | '/tablet-pedidos'
     | '/ajustes'
     | '/asistencia'
+    | '/auditoria'
     | '/ayuda'
     | '/caja'
     | '/clientes'
@@ -601,6 +612,7 @@ export interface FileRouteTypes {
     | '/tablet-pedidos'
     | '/_authenticated/ajustes'
     | '/_authenticated/asistencia'
+    | '/_authenticated/auditoria'
     | '/_authenticated/ayuda'
     | '/_authenticated/caja'
     | '/_authenticated/clientes'
@@ -926,6 +938,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedAyudaRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/auditoria': {
+      id: '/_authenticated/auditoria'
+      path: '/auditoria'
+      fullPath: '/auditoria'
+      preLoaderRoute: typeof AuthenticatedAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/asistencia': {
       id: '/_authenticated/asistencia'
       path: '/asistencia'
@@ -1023,6 +1042,7 @@ declare module '@tanstack/react-router' {
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAjustesRoute: typeof AuthenticatedAjustesRoute
   AuthenticatedAsistenciaRoute: typeof AuthenticatedAsistenciaRoute
+  AuthenticatedAuditoriaRoute: typeof AuthenticatedAuditoriaRoute
   AuthenticatedAyudaRoute: typeof AuthenticatedAyudaRoute
   AuthenticatedCajaRoute: typeof AuthenticatedCajaRoute
   AuthenticatedClientesRoute: typeof AuthenticatedClientesRoute
@@ -1061,6 +1081,7 @@ interface AuthenticatedRouteRouteChildren {
 const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedAjustesRoute: AuthenticatedAjustesRoute,
   AuthenticatedAsistenciaRoute: AuthenticatedAsistenciaRoute,
+  AuthenticatedAuditoriaRoute: AuthenticatedAuditoriaRoute,
   AuthenticatedAyudaRoute: AuthenticatedAyudaRoute,
   AuthenticatedCajaRoute: AuthenticatedCajaRoute,
   AuthenticatedClientesRoute: AuthenticatedClientesRoute,
