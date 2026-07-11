@@ -647,7 +647,24 @@ function ProductosPage() {
                     onChange={(url) => setEditing((prev) => ({ ...(prev ?? {}), image_url: url }))}
                   />
                 </div>
-                <div><Label>Nombre</Label><Input value={editing?.name ?? ""} onChange={(e) => setEditing({ ...editing, name: e.target.value })} /></div>
+                <div>
+                  <Label>Nombre</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      className="flex-1"
+                      value={editing?.name ?? ""}
+                      onChange={(e) => setEditing({ ...editing, name: e.target.value })}
+                    />
+                    <VoiceMicButton
+                      onTranscript={(t, isFinal) => {
+                        if (!isFinal) return;
+                        const cur = editing?.name ?? "";
+                        const sep = cur && !cur.endsWith(" ") ? " " : "";
+                        setEditing({ ...editing, name: cur + sep + t });
+                      }}
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Precio (COP)</Label><Input type="number" value={editing?.price ?? 0} onChange={(e) => setEditing({ ...editing, price: Number(e.target.value) })} /></div>
                   <div><Label>SKU</Label><Input value={editing?.sku ?? ""} onChange={(e) => setEditing({ ...editing, sku: e.target.value })} /></div>
