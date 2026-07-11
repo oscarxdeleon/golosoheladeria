@@ -419,6 +419,16 @@ function MesasPage() {
                   >
                     <LogOut className="h-3 w-3" /> Liberar
                   </span>
+                  {hasMerged && (
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); setSplitTarget(m); }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300 shadow-sm backdrop-blur transition hover:bg-violet-500/20"
+                      title="Separar mesas fusionadas"
+                    >
+                      <Unlink className="h-3 w-3" /> Separar
+                    </span>
+                  )}
                 </div>
               )}
 
