@@ -272,6 +272,9 @@ function DashboardPage() {
         )}
       </div>
 
+      {/* Alertas de inventario */}
+      <InventoryAlerts branchId={activeBranchId} />
+
       {/* Evolución */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
@@ -570,5 +573,75 @@ function KpiCard({
         <div className={`h-10 w-10 rounded-xl grid place-items-center shrink-0 ${c.bg}`}>{icon}</div>
       </CardContent>
     </Card>
+  );
+}
+
+function InventoryAlerts({ branchId }: { branchId: string | null }) {
+  const { data } = useQuery({
+    queryKey: ["dash-inv-alerts", branchId],
+    enabled: !!branchId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id,name,stock,min_stock,track_stock,available_branch_ids,categories(name)")
+        .eq("track_stock", true)
+        .eq("active", true);
+      const rows = (data ?? []).filter((p: any) =>
+        !p.available_branch_ids ||
+        p.available_branch_ids.length === 0 ||
+        p.available_branch_ids.includes(branchId),
+      );
+      const out = rows.filter((p: any) => Number(p.stock) <= 0);
+      const low = rows.filter((p: any) => Number(p.stock) > 0 && Number(p.stock) <= Number(p.min_stock));
+      return { out, low };
+    },
+  });
+  const outCount = data?.out.length ?? 0;
+  const lowCount = data?.low.length ?? 0;
+  if (outCount === 0 && lowCount === 0) return null;
+
+  return (
+    <div className="grid gap-3 sm:grid-cols-2">
+      {outCount > 0 && (
+        <Card className="rounded-2xl border-rose-500/40 bg-rose-50/60 dark:bg-rose-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-rose-700 dark:text-rose-300 text-base flex items-center justify-between">
+              <span>🚨 Productos agotados</span>
+              <Badge variant="destructive">{outCount}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {data?.out.slice(0, 20).map((p: any) => (
+                <span key={p.id} className="rounded-md bg-rose-500/10 text-rose-700 dark:text-rose-300 px-2 py-1 text-xs font-medium">
+                  {p.name}
+                </span>
+              ))}
+              {outCount > 20 && <span className="text-xs text-muted-foreground self-center">+{outCount - 20} más</span>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+      {lowCount > 0 && (
+        <Card className="rounded-2xl border-amber-500/40 bg-amber-50/60 dark:bg-amber-950/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-amber-700 dark:text-amber-300 text-base flex items-center justify-between">
+              <span>⚠️ Stock bajo</span>
+              <Badge className="bg-amber-500 hover:bg-amber-600 text-white">{lowCount}</Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto">
+              {data?.low.slice(0, 20).map((p: any) => (
+                <span key={p.id} className="rounded-md bg-amber-500/10 text-amber-700 dark:text-amber-300 px-2 py-1 text-xs font-medium">
+                  {p.name} · {Number(p.stock)}/{Number(p.min_stock)}
+                </span>
+              ))}
+              {lowCount > 20 && <span className="text-xs text-muted-foreground self-center">+{lowCount - 20} más</span>}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+    </div>
   );
 }
