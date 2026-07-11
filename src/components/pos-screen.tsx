@@ -2558,6 +2558,55 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         onPaid={() => { qc.invalidateQueries({ queryKey: ["credits"] }); }}
       />
 
+      {/* Diálogo de confirmación para venta Cortesía */}
+      <Dialog open={courtesyDialogOpen} onOpenChange={(o) => { if (!paying) setCourtesyDialogOpen(o); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-rose-600">
+              <Gift className="h-5 w-5" /> Cortesía
+            </DialogTitle>
+            <DialogDescription>
+              La venta se marcará como cortesía. <b>No ingresa dinero a la caja</b> y no afectará el arqueo, pero sí descuenta inventario y queda registrada en el historial.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="rounded-lg border bg-muted/40 p-3 text-sm">
+              <div className="flex justify-between"><span className="text-muted-foreground">Total obsequiado</span><span className="font-extrabold">{formatMoney(total)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Autoriza</span><span className="font-semibold">{profile?.full_name ?? user?.email ?? "—"}</span></div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="courtesy-reason">Motivo de la cortesía <span className="text-rose-600">*</span></Label>
+              <Textarea
+                id="courtesy-reason"
+                placeholder="Ej: Cumpleaños del cliente, reposición por error, invitación gerencia…"
+                value={courtesyReason}
+                onChange={(e) => setCourtesyReason(e.target.value)}
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCourtesyDialogOpen(false)} disabled={paying}>Cancelar</Button>
+            <Button
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+              disabled={paying || courtesyReason.trim().length < 3}
+              onClick={() => {
+                const reason = courtesyReason.trim();
+                setCourtesyDialogOpen(false);
+                void pay("Cortesía", {
+                  courtesy: true,
+                  reason,
+                  authorized_by_id: user?.id ?? null,
+                  authorized_by_name: profile?.full_name ?? user?.email ?? null,
+                });
+              }}
+            >
+              <Gift className="h-4 w-4 mr-1" /> Confirmar cortesía
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <Dialog open={cancelDialogOpen} onOpenChange={(o) => { if (!cancelling) setCancelDialogOpen(o); }}>
         <DialogContent className="max-w-md">
           <DialogHeader>
