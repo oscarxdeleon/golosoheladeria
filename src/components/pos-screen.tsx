@@ -2621,13 +2621,36 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
+            {/* Presets rápidos por porcentaje sobre el subtotal (sin propina) */}
+            <div className="grid grid-cols-4 gap-2">
+              {[5, 10, 15, 20].map((pct) => {
+                const base = subtotal + tax + deliveryFee;
+                const amount = Math.round((base * pct) / 100);
+                const isSelected = Number(tipInput || 0) === amount && amount > 0;
+                return (
+                  <button
+                    key={pct}
+                    type="button"
+                    onClick={() => setTipInput(String(amount))}
+                    className={`rounded-lg border-2 py-2 text-center transition-all ${
+                      isSelected
+                        ? "border-amber-500 bg-amber-100 text-amber-900 dark:bg-amber-900/40 dark:text-amber-100 shadow-md scale-105"
+                        : "border-border bg-background hover:border-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/30"
+                    }`}
+                  >
+                    <div className="text-base font-black">{pct}%</div>
+                    <div className="text-[10px] text-muted-foreground tabular-nums">{formatMoney(amount)}</div>
+                  </button>
+                );
+              })}
+            </div>
             <div className="relative">
               <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-2xl font-semibold text-muted-foreground">$</span>
               <Input
                 autoFocus
                 type="text"
                 inputMode="numeric"
-                placeholder="0"
+                placeholder="Monto personalizado"
                 className="h-16 rounded-xl border-2 pl-10 text-center font-display text-4xl font-black tabular-nums"
                 value={tipInput === "" ? "" : Number(tipInput).toLocaleString("es-CO")}
                 onChange={(e) => {
