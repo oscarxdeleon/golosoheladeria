@@ -763,6 +763,33 @@ export type Database = {
           },
         ]
       }
+      failed_login_attempts: {
+        Row: {
+          created_at: string
+          email: string | null
+          id: string
+          ip: string | null
+          reason: string | null
+          user_agent: string | null
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip?: string | null
+          reason?: string | null
+          user_agent?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          id?: string
+          ip?: string | null
+          reason?: string | null
+          user_agent?: string | null
+        }
+        Relationships: []
+      }
       inventory_movements: {
         Row: {
           created_at: string
@@ -2159,6 +2186,19 @@ export type Database = {
         Returns: undefined
       }
       kds_public_pending: { Args: { p_slug: string }; Returns: Json }
+      log_failed_login: {
+        Args: {
+          _email: string
+          _ip?: string
+          _reason?: string
+          _user_agent?: string
+        }
+        Returns: undefined
+      }
+      log_reimpression: {
+        Args: { _kind?: string; _reason?: string; _sale_id: string }
+        Returns: Json
+      }
       lookup_customer_loyalty: { Args: { _phone: string }; Returns: Json }
       merge_tables: {
         Args: { _principal_id: string; _reason?: string; _source_ids: string[] }
