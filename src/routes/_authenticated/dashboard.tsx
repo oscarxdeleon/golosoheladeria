@@ -272,6 +272,9 @@ function DashboardPage() {
         )}
       </div>
 
+      {/* Alertas de inventario */}
+      <InventoryAlerts branchId={activeBranchId} />
+
       {/* Evolución */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
