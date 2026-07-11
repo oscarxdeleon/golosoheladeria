@@ -1879,6 +1879,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       ))}
                       <option value="__new__">➕ Usar una dirección nueva…</option>
                     </select>
+                    {foundCustomerId && (
+                      <button
+                        type="button"
+                        disabled={reordering}
+                        onClick={() => void reorderLastForCustomer()}
+                        className="mt-1 w-full rounded-md border-2 border-emerald-400 bg-gradient-to-b from-emerald-50 to-emerald-100 dark:from-emerald-950/40 dark:to-emerald-900/40 px-2 py-1.5 text-xs font-black uppercase tracking-wide text-emerald-800 dark:text-emerald-200 hover:from-emerald-100 hover:to-emerald-200 disabled:opacity-60"
+                      >
+                        {reordering ? "Cargando…" : "🔁 Repetir último pedido de este cliente"}
+                      </button>
+                    )}
                   </div>
                 )}
                 <div className="space-y-1">
