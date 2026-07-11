@@ -649,6 +649,41 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Lookup de direcciones guardadas por teléfono (con debounce)
+  useEffect(() => {
+    if (orderType !== "domicilio") { setSavedAddresses([]); setSelectedAddressId(""); return; }
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (digits.length < 7) { setSavedAddresses([]); setSelectedAddressId(""); return; }
+    let cancelled = false;
+    const t = setTimeout(async () => {
+      try {
+        const { data } = await supabase.rpc("get_customer_by_phone", { _phone: digits });
+        if (cancelled) return;
+        const payload = data as { found?: boolean; customer?: { name?: string }; addresses?: SavedAddress[] } | null;
+        if (payload?.found && Array.isArray(payload.addresses)) {
+          setSavedAddresses(payload.addresses);
+          // Autocompletar nombre si está vacío
+          if (!customer.trim() && payload.customer?.name) setCustomer(payload.customer.name);
+          // Seleccionar por defecto si no hay dirección elegida
+          if (!selectedAddressId && !address.trim() && payload.addresses.length > 0) {
+            const def = payload.addresses.find((a) => a.is_default) ?? payload.addresses[0];
+            setSelectedAddressId(def.id);
+            setAddress(def.address);
+            setNeighborhood(def.neighborhood ?? "");
+          }
+        } else {
+          setSavedAddresses([]);
+          setSelectedAddressId("");
+        }
+      } catch (err) {
+        console.warn("[pos] lookup addresses failed", err);
+      }
+    }, 350);
+    return () => { cancelled = true; clearTimeout(t); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phone, orderType]);
+
+
 
 
   const { data: cats = [] } = useQuery({
