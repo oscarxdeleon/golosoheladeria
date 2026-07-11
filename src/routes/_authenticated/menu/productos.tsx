@@ -591,7 +591,13 @@ function ProductosPage() {
               </label>
             </Button>
             <CloneToBranchDialog branches={branches} qc={qc} />
-            <Button onClick={() => openEditor({ active: true, show_in_online: true })}><Plus className="h-4 w-4 mr-1" /> Nuevo</Button>
+            <Button
+              size="lg"
+              onClick={() => openEditor({ active: true, show_in_online: true })}
+              className="bg-primary text-primary-foreground hover:bg-primary/90 font-bold shadow-md ring-2 ring-primary/30"
+            >
+              <Plus className="h-5 w-5 mr-1.5" /> Nuevo Producto
+            </Button>
 
 
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
