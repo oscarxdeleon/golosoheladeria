@@ -375,7 +375,13 @@ function ModPage() {
             <DialogContent>
               <DialogHeader><DialogTitle>{groupEdit?.id ? "Editar" : "Nuevo"} grupo</DialogTitle></DialogHeader>
               <div className="space-y-3">
-                <div><Label>Nombre</Label><Input value={groupEdit?.name ?? ""} onChange={(e) => setGroupEdit({ ...groupEdit, name: e.target.value })} /></div>
+                <div>
+                  <Label>Nombre</Label>
+                  <div className="flex gap-2">
+                    <Input className="flex-1" value={groupEdit?.name ?? ""} onChange={(e) => setGroupEdit({ ...groupEdit, name: e.target.value })} />
+                    <VoiceMicButton onTranscript={(t, isFinal) => { if (!isFinal) return; const cur = groupEdit?.name ?? ""; const sep = cur && !cur.endsWith(" ") ? " " : ""; setGroupEdit({ ...groupEdit, name: cur + sep + t }); }} />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>Mín. selección</Label><Input type="number" value={groupEdit?.min_select ?? 0} onChange={(e) => setGroupEdit({ ...groupEdit, min_select: Number(e.target.value) })} /></div>
                   <div><Label>Máx. selección</Label><Input type="number" value={groupEdit?.max_select ?? 1} onChange={(e) => setGroupEdit({ ...groupEdit, max_select: Number(e.target.value) })} /></div>
