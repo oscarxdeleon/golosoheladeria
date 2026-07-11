@@ -204,9 +204,12 @@ async function imageToEscPosRasterBase64(url: string, maxWidthPx = 384): Promise
     for (let i = 0; i < bytes.length; i += 0x8000) {
       binary += String.fromCharCode(...bytes.slice(i, i + 0x8000));
     }
-    return window.btoa(binary);
+    const encoded = window.btoa(binary);
+    _logoRasterCache.set(cacheKey, encoded);
+    return encoded;
   } catch (e) {
     console.warn("[print] no se pudo rasterizar logo en cliente", e);
+    _logoRasterCache.set(cacheKey, null);
     return null;
   }
 }
