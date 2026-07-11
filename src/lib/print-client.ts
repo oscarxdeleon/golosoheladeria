@@ -136,10 +136,21 @@ export function normalizeModifiers(mods: unknown): string[] {
   return mods.map((m) => formatModifierLabel(m)).filter((s) => s.length > 0);
 }
 
+// Cache de logo rasterizado por URL — evita reprocesar la misma imagen en cada
+// ticket. La rasterización ESC/POS es la operación más pesada del ciclo.
+const _logoRasterCache = new Map<string, string | null>();
+
+/** Invalida el cache de logos (llamar tras cambiar el logo en Ajustes). */
+export function refreshLogoRasterCache(): void {
+  _logoRasterCache.clear();
+}
+
 async function imageToEscPosRasterBase64(url: string, maxWidthPx = 384): Promise<string | null> {
   if (typeof window === "undefined" || typeof document === "undefined") return null;
   const src = String(url || "").trim();
   if (!src) return null;
+  const cacheKey = `${src}|${maxWidthPx}`;
+  if (_logoRasterCache.has(cacheKey)) return _logoRasterCache.get(cacheKey) ?? null;
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
