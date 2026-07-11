@@ -50,6 +50,8 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   // SU branch_id y los pedidos no se filtren a la sede equivocada.
   const { data: userScope } = useQuery({
     queryKey: ["branch-user-scope"],
+    staleTime: 5 * 60_000,
+    gcTime: 10 * 60_000,
     queryFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       const uid = u.user?.id;
