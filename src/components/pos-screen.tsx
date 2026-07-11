@@ -1136,6 +1136,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       setCashReceived("");
       setTip(0);
       setTipInput("");
+      setSaveNewAddress(false);
+      setNewAddressLabel("");
+      setSelectedAddressId("");
+      setSavedAddresses([]);
 
       qc.invalidateQueries({ queryKey: ["dashboard-today"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
