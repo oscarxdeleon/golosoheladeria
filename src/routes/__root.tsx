@@ -133,6 +133,13 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   useEffect(() => {
+    // Persistir queries en IndexedDB para lectura offline (Fase 3 – Etapa A).
+    enableOfflineQueryPersistence(queryClient);
+    // Registrar Service Worker (con guardas anti-preview de Lovable).
+    registerServiceWorker();
+  }, [queryClient]);
+
+  useEffect(() => {
     const invalidateMenu = () => {
       void queryClient.invalidateQueries({ queryKey: ["mod-groups"] });
       void queryClient.invalidateQueries({ queryKey: ["modifier-groups-all"] });
@@ -159,6 +166,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <OfflineBanner />
       <Toaster position="top-right" richColors closeButton />
     </QueryClientProvider>
   );
