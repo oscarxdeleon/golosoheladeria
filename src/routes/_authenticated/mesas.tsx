@@ -346,11 +346,24 @@ function MesasPage() {
         {mesas.map((m) => {
           const status = m.status;
           const styles = STATUS_STYLES[status];
+          const selected = mergeSelected.includes(m.id);
+          const isPrincipal = mergePrincipal === m.id;
+          const hasMerged = mesas.some((x) => x.merged_into_id === m.id);
           return (
             <button
               key={m.id}
-              onClick={() => openMesa(m)}
-              className={`group relative flex flex-col items-center overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${styles.bg}`}
+              onClick={() => {
+                if (mergeMode) {
+                  if (!selected) toggleMergeSelect(m);
+                  else if (!isPrincipal) setMergePrincipal(m.id);
+                  else setMergePrincipal(null);
+                  return;
+                }
+                openMesa(m);
+              }}
+              className={`group relative flex flex-col items-center overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${styles.bg} ${
+                mergeMode && selected ? "ring-4 ring-violet-500/80" : ""
+              } ${isPrincipal ? "ring-4 ring-amber-400" : ""}`}
               aria-label={`Mesa ${m.number} ${STATUS_LABEL[status]}`}
             >
               {/* franja superior de estado */}
