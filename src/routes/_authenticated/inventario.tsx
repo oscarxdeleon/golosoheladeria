@@ -13,8 +13,9 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, AlertTriangle, ArrowDownCircle, ArrowUpCircle, Pencil } from "lucide-react";
+import { Plus, AlertTriangle, ArrowDownCircle, ArrowUpCircle, Pencil, PackageX, PackageMinus } from "lucide-react";
 import { toast } from "sonner";
+import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/inventario")({
   head: () => ({ meta: [{ title: "Inventario · Goloso POS" }] }),
