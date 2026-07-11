@@ -613,6 +613,32 @@ function MesasPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <Dialog open={!!splitTarget} onOpenChange={(o) => !o && setSplitTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Separar Mesa {splitTarget?.number}</DialogTitle>
+            <DialogDescription>
+              Los productos volverán a la mesa desde la que se fusionaron. Las mesas sin productos quedarán libres.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="text-sm">
+            Mesas fusionadas:{" "}
+            <span className="font-semibold">
+              {mesas
+                .filter((x) => x.merged_into_id === splitTarget?.id)
+                .map((x) => `Mesa ${x.number}`)
+                .join(", ") || "—"}
+            </span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSplitTarget(null)}>Cancelar</Button>
+            <Button onClick={confirmSplit}>
+              <Unlink className="h-4 w-4" /> Separar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
     </BranchCashGuard>
   );
