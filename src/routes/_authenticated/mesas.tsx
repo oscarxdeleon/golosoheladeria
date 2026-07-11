@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike } from "lucide-react";
+import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/mesas")({
   component: MesasPage,
 });
 
-type Status = "free" | "occupied" | "reserved";
+type Status = "free" | "occupied" | "reserved" | "merged";
 interface Mesa {
   id: string;
   number: number;
@@ -39,12 +39,14 @@ interface Mesa {
   current_guests: number | null;
   occupied_at: string | null;
   notes: string | null;
+  merged_into_id: string | null;
 }
 
 const STATUS_LABEL: Record<Status, string> = {
   free: "Libre",
   occupied: "Ocupada",
   reserved: "Reservada",
+  merged: "Fusionada",
 };
 
 // El número siempre se pinta en un azul premium para máxima legibilidad y
@@ -78,6 +80,14 @@ const STATUS_STYLES: Record<Status, {
     chip: "bg-amber-500/10 text-amber-700 dark:text-amber-300",
     num: TABLE_NUMBER_COLOR,
     glow: "bg-amber-400/25",
+  },
+  merged: {
+    bg: "bg-violet-50/60 dark:bg-violet-950/25 ring-1 ring-violet-500/20 hover:ring-violet-500/50",
+    bar: "bg-gradient-to-r from-violet-500 via-purple-500 to-fuchsia-500",
+    dot: "bg-violet-500 shadow-[0_0_10px_var(--tw-shadow-color)] shadow-violet-500/60",
+    chip: "bg-violet-500/10 text-violet-700 dark:text-violet-300",
+    num: TABLE_NUMBER_COLOR,
+    glow: "bg-violet-400/25",
   },
 };
 
@@ -123,6 +133,11 @@ function MesasPage() {
   const [moveFrom, setMoveFrom] = useState<Mesa | null>(null);
   const [moveTarget, setMoveTarget] = useState<Mesa | null>(null);
   const [moving, setMoving] = useState(false);
+  const [mergeMode, setMergeMode] = useState(false);
+  const [mergeSelected, setMergeSelected] = useState<string[]>([]);
+  const [mergePrincipal, setMergePrincipal] = useState<string | null>(null);
+  const [merging, setMerging] = useState(false);
+  const [splitTarget, setSplitTarget] = useState<Mesa | null>(null);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
@@ -197,6 +212,49 @@ function MesasPage() {
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
   }
 
+  function cancelMerge() {
+    setMergeMode(false);
+    setMergeSelected([]);
+    setMergePrincipal(null);
+  }
+
+  function toggleMergeSelect(m: Mesa) {
+    if (m.status === "merged") return;
+    setMergeSelected((prev) =>
+      prev.includes(m.id) ? prev.filter((x) => x !== m.id) : [...prev, m.id],
+    );
+    setMergePrincipal((p) => (p && !mergeSelected.includes(p) ? p : p));
+  }
+
+  async function confirmMerge() {
+    if (!mergePrincipal) return toast.error("Selecciona la mesa principal");
+    const sources = mergeSelected.filter((id) => id !== mergePrincipal);
+    if (sources.length === 0) return toast.error("Selecciona al menos una mesa a fusionar");
+    setMerging(true);
+    const { error } = await supabase.rpc("merge_tables", {
+      _principal_id: mergePrincipal,
+      _source_ids: sources,
+      _reason: undefined,
+    });
+    setMerging(false);
+    if (error) return toast.error(error.message);
+    toast.success("Mesas fusionadas");
+    cancelMerge();
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+  }
+
+  async function confirmSplit() {
+    if (!splitTarget) return;
+    const { error } = await supabase.rpc("split_merged_tables", {
+      _principal_id: splitTarget.id,
+      _reason: undefined,
+    });
+    if (error) return toast.error(error.message);
+    toast.success("Mesas separadas");
+    setSplitTarget(null);
+    qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+  }
+
   async function eliminar(m: Mesa, e: React.MouseEvent) {
     e.stopPropagation();
     if (!confirm(`¿Eliminar Mesa ${m.number}?`)) return;
@@ -247,14 +305,40 @@ function MesasPage() {
       </div>
 
 
-      {/* Botón discreto para admin: crear nueva mesa */}
-      {isAdmin && (
-        <div className="flex justify-end">
+      {/* Barra de acciones: fusionar/separar mesas + crear */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        {!mergeMode ? (
+          <Button size="sm" variant="outline" onClick={() => setMergeMode(true)}>
+            <Link2 className="h-4 w-4" /> Fusionar mesas
+          </Button>
+        ) : (
+          <>
+            <span className="text-xs text-muted-foreground">
+              {mergeSelected.length === 0
+                ? "Toca las mesas a fusionar y elige la principal"
+                : mergePrincipal
+                  ? `Principal: Mesa ${mesas.find((x) => x.id === mergePrincipal)?.number} · ${mergeSelected.length} seleccionadas`
+                  : `${mergeSelected.length} seleccionadas · elige la principal`}
+            </span>
+            <Button size="sm" variant="ghost" onClick={cancelMerge}>
+              <X className="h-4 w-4" /> Cancelar
+            </Button>
+            <Button
+              size="sm"
+              onClick={confirmMerge}
+              disabled={merging || !mergePrincipal || mergeSelected.length < 2}
+            >
+              <Check className="h-4 w-4" /> Fusionar
+            </Button>
+          </>
+        )}
+        {isAdmin && !mergeMode && (
           <Button size="sm" onClick={() => setCreateOpen(true)} className="shadow-md">
             <Plus className="h-4 w-4" /> Nueva mesa
           </Button>
-        </div>
-      )}
+        )}
+      </div>
+
 
 
       {/* Grid de mesas sin recuadro externo */}
@@ -262,11 +346,24 @@ function MesasPage() {
         {mesas.map((m) => {
           const status = m.status;
           const styles = STATUS_STYLES[status];
+          const selected = mergeSelected.includes(m.id);
+          const isPrincipal = mergePrincipal === m.id;
+          const hasMerged = mesas.some((x) => x.merged_into_id === m.id);
           return (
             <button
               key={m.id}
-              onClick={() => openMesa(m)}
-              className={`group relative flex flex-col items-center overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${styles.bg}`}
+              onClick={() => {
+                if (mergeMode) {
+                  if (!selected) toggleMergeSelect(m);
+                  else if (!isPrincipal) setMergePrincipal(m.id);
+                  else setMergePrincipal(null);
+                  return;
+                }
+                openMesa(m);
+              }}
+              className={`group relative flex flex-col items-center overflow-hidden rounded-2xl p-4 text-left transition-all duration-300 hover:-translate-y-1 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${styles.bg} ${
+                mergeMode && selected ? "ring-4 ring-violet-500/80" : ""
+              } ${isPrincipal ? "ring-4 ring-amber-400" : ""}`}
               aria-label={`Mesa ${m.number} ${STATUS_LABEL[status]}`}
             >
               {/* franja superior de estado */}
@@ -322,6 +419,16 @@ function MesasPage() {
                   >
                     <LogOut className="h-3 w-3" /> Liberar
                   </span>
+                  {hasMerged && (
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); setSplitTarget(m); }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-violet-500/10 px-2 py-1 text-[11px] font-semibold text-violet-700 dark:text-violet-300 shadow-sm backdrop-blur transition hover:bg-violet-500/20"
+                      title="Separar mesas fusionadas"
+                    >
+                      <Unlink className="h-3 w-3" /> Separar
+                    </span>
+                  )}
                 </div>
               )}
 
@@ -502,6 +609,32 @@ function MesasPage() {
             </Button>
             <Button onClick={() => doMove(false)} disabled={!moveTarget || moving}>
               Confirmar traslado{moveTarget ? ` a Mesa ${moveTarget.number}` : ""}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={!!splitTarget} onOpenChange={(o) => !o && setSplitTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Separar Mesa {splitTarget?.number}</DialogTitle>
+            <DialogDescription>
+              Los productos volverán a la mesa desde la que se fusionaron. Las mesas sin productos quedarán libres.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="text-sm">
+            Mesas fusionadas:{" "}
+            <span className="font-semibold">
+              {mesas
+                .filter((x) => x.merged_into_id === splitTarget?.id)
+                .map((x) => `Mesa ${x.number}`)
+                .join(", ") || "—"}
+            </span>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSplitTarget(null)}>Cancelar</Button>
+            <Button onClick={confirmSplit}>
+              <Unlink className="h-4 w-4" /> Separar
             </Button>
           </DialogFooter>
         </DialogContent>
