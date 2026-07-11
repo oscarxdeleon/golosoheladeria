@@ -1771,11 +1771,45 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             </div>
             {orderType === "domicilio" && (
               <>
+                {savedAddresses.length > 0 && (
+                  <div className="space-y-1 rounded-lg border border-blue-300/60 bg-blue-50/50 dark:bg-blue-950/20 p-2">
+                    <label className="block text-[11px] font-bold uppercase tracking-wide text-blue-800 dark:text-blue-300">
+                      📍 Direcciones guardadas de este cliente
+                    </label>
+                    <select
+                      className="h-9 w-full rounded-md border border-input bg-background px-2 text-sm"
+                      value={selectedAddressId}
+                      onChange={(e) => {
+                        const id = e.target.value;
+                        setSelectedAddressId(id);
+                        if (id === "__new__") {
+                          setAddress(""); setNeighborhood("");
+                          setSaveNewAddress(true);
+                        } else {
+                          const a = savedAddresses.find((x) => x.id === id);
+                          if (a) {
+                            setAddress(a.address);
+                            setNeighborhood(a.neighborhood ?? "");
+                            setFieldErrors((prev) => ({ ...prev, address: false, neighborhood: false }));
+                            setSaveNewAddress(false);
+                          }
+                        }
+                      }}
+                    >
+                      {savedAddresses.map((a) => (
+                        <option key={a.id} value={a.id}>
+                          {a.label}{a.is_default ? " ★" : ""} — {a.address}{a.neighborhood ? ` (${a.neighborhood})` : ""}
+                        </option>
+                      ))}
+                      <option value="__new__">➕ Usar una dirección nueva…</option>
+                    </select>
+                  </div>
+                )}
                 <div className="space-y-1">
                   <Input
                     placeholder="Dirección completa *"
                     value={address}
-                    onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                    onChange={(e) => { setAddress(e.target.value); setSelectedAddressId(""); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
                     className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
                   />
                   {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
@@ -1799,6 +1833,29 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   />
                   {fieldErrors.phone && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
                 </div>
+                {/* Guardar dirección nueva */}
+                {(savedAddresses.length === 0 || selectedAddressId === "__new__" || (selectedAddressId === "" && address.trim().length > 0)) && (
+                  <div className="flex items-center gap-2 rounded-md bg-muted/40 px-2 py-1.5">
+                    <input
+                      id="save-address"
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={saveNewAddress}
+                      onChange={(e) => setSaveNewAddress(e.target.checked)}
+                    />
+                    <label htmlFor="save-address" className="text-xs font-medium cursor-pointer flex-1">
+                      Guardar esta dirección para próximos pedidos
+                    </label>
+                    {saveNewAddress && (
+                      <Input
+                        placeholder="Etiqueta (ej: Casa, Oficina)"
+                        value={newAddressLabel}
+                        onChange={(e) => setNewAddressLabel(e.target.value)}
+                        className="h-7 w-40 text-xs"
+                      />
+                    )}
+                  </div>
+                )}
               </>
             )}
             <div className="space-y-1.5 rounded-xl border border-amber-300/60 bg-amber-50/60 dark:bg-amber-950/20 p-3 shadow-sm">
