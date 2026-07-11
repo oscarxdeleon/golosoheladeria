@@ -687,6 +687,51 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phone, orderType]);
 
+  // Repetir el último pedido del cliente identificado por teléfono
+  async function reorderLastForCustomer() {
+    if (!foundCustomerId) return;
+    setReordering(true);
+    try {
+      const { data: lastSale, error: e1 } = await supabase
+        .from("sales")
+        .select("id, ticket_number, created_at")
+        .eq("customer_id", foundCustomerId)
+        .neq("status", "cancelled")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (e1) throw e1;
+      if (!lastSale) { toast.error("Este cliente no tiene pedidos anteriores"); return; }
+      const { data: items, error: e2 } = await supabase
+        .from("sale_items")
+        .select("product_id, product_name, unit_price, qty, modifiers, notes")
+        .eq("sale_id", lastSale.id);
+      if (e2) throw e2;
+      if (!items || items.length === 0) { toast.error("El último pedido no tiene productos"); return; }
+      const newLines: CartLine[] = items.map((it, idx) => {
+        const rawMods = Array.isArray(it.modifiers) ? (it.modifiers as unknown as SaleModifier[]) : [];
+        const mods = normalizeModifiers(rawMods) as unknown as SaleModifier[];
+        return {
+          key: `reorder-${lastSale.id}-${idx}-${Date.now()}`,
+          product_id: it.product_id ?? "",
+          name: it.product_name,
+          unit_price: Number(it.unit_price ?? 0),
+          qty: Number(it.qty ?? 1),
+          modifiers: mods,
+          notes: it.notes ?? undefined,
+        };
+      });
+      setCart((prev) => [...prev, ...newLines]);
+      toast.success(`Repetido pedido #${lastSale.ticket_number} (${newLines.length} productos)`);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "No se pudo repetir el pedido";
+      toast.error(msg);
+    } finally {
+      setReordering(false);
+    }
+  }
+
+
 
 
 
