@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import logoUrl from "@/assets/logo-goloso.png";
 import { usePermissions } from "@/hooks/use-permissions";
+import { ConnectionStatus } from "@/components/connection-status";
 
 import {
   LayoutDashboard,
