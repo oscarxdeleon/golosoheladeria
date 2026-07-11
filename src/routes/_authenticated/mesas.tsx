@@ -29,7 +29,7 @@ export const Route = createFileRoute("/_authenticated/mesas")({
   component: MesasPage,
 });
 
-type Status = "free" | "occupied" | "reserved";
+type Status = "free" | "occupied" | "reserved" | "merged";
 interface Mesa {
   id: string;
   number: number;
@@ -39,12 +39,14 @@ interface Mesa {
   current_guests: number | null;
   occupied_at: string | null;
   notes: string | null;
+  merged_into_id: string | null;
 }
 
 const STATUS_LABEL: Record<Status, string> = {
   free: "Libre",
   occupied: "Ocupada",
   reserved: "Reservada",
+  merged: "Fusionada",
 };
 
 // El número siempre se pinta en un azul premium para máxima legibilidad y
