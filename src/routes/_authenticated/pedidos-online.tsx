@@ -387,7 +387,7 @@ function OnlineOrdersPage() {
       lines.push(dash);
       lines.push(center(footer));
       const ticketBlock = "```\n" + lines.join("\n") + "\n```";
-      waMessage = `🧾 *TICKET DE VENTA #${o.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
+      waMessage = `🧾 *TICKET DE VENTA # ${o.ticket_number}*\n${bizName}\n\n${ticketBlock}\n\n¡Gracias por tu compra! 💛`;
     }
 
     return { ticketArgs, waMessage, waPhone: o.customer_phone ?? null };

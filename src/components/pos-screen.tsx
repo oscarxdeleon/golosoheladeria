@@ -465,7 +465,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
   const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
 
-  // El título del ticket se envía SIN número; el Print Server (>=2.11.0)
+  // El título del ticket se envía SIN número; el Print Server (>=2.12.0)
   // imprime el encabezado completo como "TICKET DE VENTA # 1258".
   const rawTicketNum = o.ticket;
   const ticketNumStr = rawTicketNum == null
