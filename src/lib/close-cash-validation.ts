@@ -54,7 +54,7 @@ async function reconcileKioskPaidReady(branchId: string): Promise<number> {
 async function reconcileDeliveredDomicilios(branchId: string): Promise<number> {
   const { data, error } = await supabase
     .from("sales")
-    .update({ status: "completed" })
+    .update({ status: "paid" })
     .eq("branch_id", branchId)
     .eq("order_type", "domicilio")
     .in("status", ["pending", "confirmed", "ready"])
@@ -101,7 +101,7 @@ async function reconcileStaleTableQr(branchId: string): Promise<number> {
     if (orphanIds.length > 0) {
       const upd = await supabase
         .from("sales")
-        .update({ status: "completed" })
+        .update({ status: "paid" })
         .in("id", orphanIds)
         .select("id");
       if (upd.error) console.warn("[close-validation:reconcile-qr-orphan]", upd.error);
