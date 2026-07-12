@@ -709,16 +709,16 @@ function DenomField({
   const current = parseQty(value);
 
   // Ref con último valor para el repeat on-hold sin cierres obsoletos
-  const valueRef = React.useRef(value);
-  React.useEffect(() => { valueRef.current = value; }, [value]);
+  const valueRef = useRef(value);
+  useEffect(() => { valueRef.current = value; }, [value]);
 
-  const holdRef = React.useRef<{ timeout?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }>({});
-  const stopHold = React.useCallback(() => {
+  const holdRef = useRef<{ timeout?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }>({});
+  const stopHold = useCallback(() => {
     if (holdRef.current.timeout) clearTimeout(holdRef.current.timeout);
     if (holdRef.current.interval) clearInterval(holdRef.current.interval);
     holdRef.current = {};
   }, []);
-  const bump = React.useCallback((delta: number) => {
+  const bump = useCallback((delta: number) => {
     const next = Math.max(0, parseQty(valueRef.current) + delta);
     valueRef.current = String(next);
     onChange(String(next));
@@ -729,7 +729,7 @@ function DenomField({
       holdRef.current.interval = setInterval(() => bump(delta), 90);
     }, 400);
   };
-  React.useEffect(() => () => stopHold(), [stopHold]);
+  useEffect(() => () => stopHold(), [stopHold]);
 
   const btnBase =
     "select-none touch-manipulation grid place-items-center h-9 w-9 rounded-lg font-black text-lg text-white active:scale-95 transition-transform shadow-sm disabled:opacity-40 disabled:active:scale-100";
