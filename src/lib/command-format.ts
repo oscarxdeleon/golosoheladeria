@@ -38,7 +38,7 @@ export const DEFAULT_FORMATS: CommandFormatsMap = {
     margins: { left: 0, right: 0 },
     modifiersLayout: "list",
     quantityFormat: "x",
-    orderNumberFormat: "hash",
+    orderNumberFormat: "pedido",
     tableFormat: "MESA N",
     orderTypeFormat: "prefix",
   },
@@ -53,7 +53,7 @@ export const DEFAULT_FORMATS: CommandFormatsMap = {
     margins: { left: 0, right: 0 },
     modifiersLayout: "list",
     quantityFormat: "x",
-    orderNumberFormat: "hash",
+    orderNumberFormat: "pedido",
     tableFormat: "MN",
     orderTypeFormat: "prefix",
   },
@@ -92,7 +92,9 @@ export function normalizeFormat(f: Partial<CommandFormat> | null | undefined): C
     margins: { ...base.margins, ...(src.margins ?? {}) },
     modifiersLayout: "list",
     quantityFormat: src.quantityFormat ?? base.quantityFormat,
-    orderNumberFormat: src.orderNumberFormat ?? base.orderNumberFormat,
+    // Formato único definitivo para comandas: nunca permitir "PEDIDO 123",
+    // "#123" ni variantes configuradas previamente en la base de datos.
+    orderNumberFormat: "pedido",
     tableFormat: src.tableFormat ?? base.tableFormat,
     orderTypeFormat: src.orderTypeFormat ?? base.orderTypeFormat,
   };

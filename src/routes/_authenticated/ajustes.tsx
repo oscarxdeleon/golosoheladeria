@@ -799,12 +799,28 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     const url = localUrl.trim();
     if (!url) return toast.error("Ingresa la URL primero");
     try {
+      const healthUrl = (() => {
+        try {
+          const u = new URL(url);
+          u.pathname = "/health";
+          u.search = "";
+          u.hash = "";
+          return u.toString();
+        } catch {
+          return url.replace(/\/print\/?$/i, "/health");
+        }
+      })();
+      const health = await fetch(healthUrl, { method: "GET" });
+      const info = (await health.json().catch(() => ({}))) as { version?: string };
+      if (!health.ok || info.version !== PRINT_SERVER_VERSION) {
+        return toast.error(`Print Server obsoleto. Instala la versión ${PRINT_SERVER_VERSION}.`);
+      }
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "comanda", header: "PRUEBA", items: [{ name: "Test", qty: 1 }] }),
+        body: JSON.stringify({ type: "comanda", ticket: 999, header: "MESA # 1", order_type: "mesa", items: [{ name: "Test", qty: 1, modifiers: ["VERANO TROPICAL"] }] }),
       });
-      if (res.ok) toast.success("Servidor de impresión OK");
+      if (res.ok) toast.success(`Servidor de impresión OK v${PRINT_SERVER_VERSION}`);
       else toast.error(`Servidor respondió ${res.status}`);
     } catch (e) {
       toast.error("No se pudo conectar al servidor local");

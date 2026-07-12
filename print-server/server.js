@@ -5,6 +5,7 @@
 // Endpoints:
 //   GET  /health  -> estado del servidor
 //   GET  /test    -> imprime un ticket de prueba
+//   POST /render  -> diagnóstico: devuelve el texto ESC/POS renderizado sin imprimir
 //   POST /print   -> imprime el payload recibido
 //
 // Variables de entorno (impresora por defecto):
@@ -132,6 +133,15 @@ function normalizeTicketNumber(value) {
 function formatPedidoHeader(value) {
   const s = normalizeTicketNumber(value);
   return s ? `PEDIDO # ${s}` : "";
+}
+
+function formatTicketVentaHeader(value, title = "TICKET DE VENTA") {
+  const base = String(title || "TICKET DE VENTA")
+    .replace(/\s*(?:#|N\.?\s*º\s*|No\.?\s*)\d+\s*$/i, "")
+    .replace(/\s+/g, " ")
+    .trim() || "TICKET DE VENTA";
+  const s = normalizeTicketNumber(value);
+  return s ? `${base} # ${s}` : base;
 }
 
 function formatMesaHeader(value) {
@@ -377,15 +387,10 @@ async function buildPersonalizedTicketRaw(p) {
   // Elimina cualquier "#123" o "N.º 123" ya incluido en title_text para
   // evitar duplicar el consecutivo cuando el POS lo inyecta en el título.
   const rawTitle = String(cfg.title_text || "").trim() || "TICKET DE VENTA";
-  const baseTitle = isPrecuenta
-    ? "PRECUENTA"
-    : rawTitle.replace(/\s*(?:#|N\.?\s*º\s*|No\.?\s*)\d+\s*$/i, "").trim() || "TICKET DE VENTA";
   const rawNum = p.ticket ?? p.ticket_number ?? p.ticketNumber ?? p.ticket_no;
-  const strNum = rawNum == null ? "" : String(rawNum).trim().replace(/^#+\s*/, "");
-  const hasNum = strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined";
   // Formato único definitivo: "TICKET DE VENTA # 1207". Se mantiene en una
   // sola línea y en doble alto (no doble ancho) para que quepa en 80mm.
-  const ticketTitle = hasNum ? `${baseTitle} # ${strNum}` : baseTitle;
+  const ticketTitle = isPrecuenta ? formatTicketVentaHeader(rawNum, "PRECUENTA") : formatTicketVentaHeader(rawNum, rawTitle);
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + ticketTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
   out += ALIGN_L + DASH_LINE;
 
@@ -510,7 +515,7 @@ const DEFAULT_CMD_FMT = {
   margins: { left: 0, right: 0 },
   modifiersLayout: "list",
   quantityFormat: "x",
-  orderNumberFormat: "hash",
+  orderNumberFormat: "pedido",
   tableFormat: "MESA N",
   orderTypeFormat: "prefix",
 };
@@ -531,7 +536,9 @@ function mergeCmdFmt(f) {
     margins: { ...base.margins, ...(s.margins || {}) },
     modifiersLayout: "list",
     quantityFormat: s.quantityFormat || base.quantityFormat,
-    orderNumberFormat: s.orderNumberFormat || base.orderNumberFormat,
+    // Formato único definitivo para TODAS las comandas. Ignora cualquier
+    // configuración vieja enviada por el POS o guardada en la base de datos.
+    orderNumberFormat: "pedido",
     tableFormat: s.tableFormat || base.tableFormat,
     orderTypeFormat: s.orderTypeFormat || base.orderTypeFormat,
   };
@@ -780,7 +787,7 @@ function buildComandaLegacy(p) {
   };
   const otKey = otKeyL;
   const otLabel = orderTypeLabels[otKey] || (otKey ? `PEDIDO ${otKey.toUpperCase()}` : "");
-  // En MESA se omite el rótulo "PEDIDO PARA MESA" para un encabezado limpio.
+  // En MESA se omite cualquier rótulo de tipo de pedido para un encabezado limpio.
   if (otLabel && !isMesaCmdL) {
     out += BOLD_ON + SIZE_DOUBLE_H + otLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
@@ -863,6 +870,44 @@ function buildComandaRaw(p) {
     return buildComandaFormatted(p, p.command_format);
   }
   return buildComandaLegacy(p);
+}
+
+function stripEscPosForDebug(buf) {
+  const bytes = Buffer.isBuffer(buf) ? buf : Buffer.from(buf || []);
+  let out = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    const b = bytes[i];
+    if (b === 0x1b) {
+      const cmd = bytes[i + 1];
+      if ([0x40, 0x61, 0x45, 0x4d, 0x74, 0x52].includes(cmd)) { i += cmd === 0x40 ? 1 : 2; continue; }
+      if (cmd === 0x70) { i += 4; continue; }
+      i += 1;
+      continue;
+    }
+    if (b === 0x1d) {
+      const cmd = bytes[i + 1];
+      if (cmd === 0x21 || cmd === 0x56) { i += 2; continue; }
+      if (cmd === 0x76 && bytes[i + 2] === 0x30) {
+        const xL = bytes[i + 4] || 0;
+        const xH = bytes[i + 5] || 0;
+        const yL = bytes[i + 6] || 0;
+        const yH = bytes[i + 7] || 0;
+        i += 7 + ((xL + (xH << 8)) * (yL + (yH << 8)));
+        continue;
+      }
+      i += 1;
+      continue;
+    }
+    if (b === 0x00) continue;
+    out += String.fromCharCode(b);
+  }
+  return forceHashBeforeNumber(out)
+    .replace(/\r/g, "")
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+$/g, ""))
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 }
 
 // ---------- Router de plantillas ----------
@@ -1018,6 +1063,22 @@ const server = http.createServer(async (req, res) => {
       console.error("[test-comanda]", e);
       return send(500, { ok: false, error: String(e?.message || e) });
     }
+  }
+
+  if (req.method === "POST" && req.url === "/render") {
+    let body = "";
+    req.on("data", (c) => (body += c));
+    req.on("end", async () => {
+      try {
+        const payload = JSON.parse(body || "{}");
+        const buf = await buildRaw(payload);
+        send(200, { ok: true, version: APP_VERSION, text: stripEscPosForDebug(buf) });
+      } catch (e) {
+        console.error("[render] ERROR:", e?.message || e);
+        send(500, { ok: false, error: String(e?.message || e) });
+      }
+    });
+    return;
   }
 
   if (req.method === "POST" && req.url === "/print") {

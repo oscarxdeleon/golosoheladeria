@@ -140,6 +140,21 @@ function RootComponent() {
     // estabilice la detección de red.
     // enableOfflineQueryPersistence(queryClient);
     // registerServiceWorker();
+
+    // El POS no debe seguir sirviendo bundles antiguos desde un Service Worker
+    // previo: eso impide que las plantillas nuevas de impresión lleguen al
+    // navegador. Mientras el modo offline está desactivado, se eliminan SW y
+    // caches heredados en cada arranque.
+    if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+      void navigator.serviceWorker.getRegistrations()
+        .then((regs) => Promise.all(regs.map((reg) => reg.unregister())))
+        .catch(() => undefined);
+    }
+    if (typeof window !== "undefined" && "caches" in window) {
+      void window.caches.keys()
+        .then((keys) => Promise.all(keys.map((key) => window.caches.delete(key))))
+        .catch(() => undefined);
+    }
   }, [queryClient]);
 
   useEffect(() => {
