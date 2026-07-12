@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { reconcileTables } from "@/lib/reconcile-tables";
 import { supabase } from "@/integrations/supabase/client";
 import { BranchProvider, useBranch } from "@/contexts/branch-context";
 import { BranchSelector } from "@/components/branch-selector";
