@@ -777,7 +777,7 @@ function buildComandaLegacy(p) {
   out += BOLD_ON + `${hora}    ${fecha}` + "\n" + BOLD_OFF;
 
   const orderTypeLabels = {
-    mesa: "PEDIDO PARA MESA",
+  mesa: "",
     llevar: "PEDIDO PARA LLEVAR",
     domicilio: "PEDIDO A DOMICILIO",
     kiosko: "AUTOPEDIDO",

@@ -14,7 +14,7 @@ export type PrintPayload = {
   ticket?: number | null;
   ticket_number?: number | null;
   header: string;
-  /** Origen del pedido — se imprime como "PEDIDO PARA MESA / EN LÍNEA / DESDE QUIOSCO / PARA LLEVAR". */
+  /** Origen del pedido — en mesa no imprime rótulo; en otros tipos imprime PARA LLEVAR / DOMICILIO / AUTOPEDIDO. */
   order_type?: "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
   items: { name: string; qty: number; unit_price?: number; modifiers?: string[] }[];
   subtotal?: number;
