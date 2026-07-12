@@ -1935,7 +1935,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       <Button
                         size="sm"
                         disabled={paying || (cart.length === 0 && !pendingSaleId)}
-                        onClick={() => setPayDialogOpen(true)}
+                        onClick={handleCobrar}
                         className="h-11 rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-600 text-white font-black uppercase tracking-wide text-sm border border-emerald-300/50 shadow-[0_4px_0_0_hsl(150_70%_25%),0_10px_25px_-4px_hsl(150_80%_40%/0.6)] hover:from-emerald-300 hover:to-emerald-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(150_70%_25%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
                       >
                         <Banknote className="h-4 w-4 sm:mr-1.5" />
@@ -2630,7 +2630,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <Button
               size="sm"
               disabled={paying || (cart.length === 0 && !pendingSaleId)}
-              onClick={() => setPayDialogOpen(true)}
+              onClick={handleCobrar}
               className="h-11 shrink-0 bg-gradient-primary px-4 font-bold"
             >
               <Banknote className="h-4 w-4 mr-1" /> Cobrar
