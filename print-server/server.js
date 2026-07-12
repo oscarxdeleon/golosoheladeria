@@ -502,13 +502,13 @@ const SIZE_MAP = {
 const ALIGN_MAP = { left: ALIGN_L, center: ALIGN_C, right: ALIGN_R };
 const DEFAULT_CMD_FMT = {
   font: "A",
-  titleSize: 2, productSize: 1, modifierSize: 1,
-  bold: { title: true, product: true, modifier: false },
+  titleSize: 2, productSize: 1, modifierSize: 2,
+  bold: { title: true, product: true, modifier: true },
   align: { header: "center", product: "left", orderType: "center" },
   separator: { char: "-", blankLines: 0 },
   lineSpacing: 0,
   margins: { left: 0, right: 0 },
-  modifiersLayout: "inline",
+  modifiersLayout: "list",
   quantityFormat: "x",
   orderNumberFormat: "hash",
   tableFormat: "MESA N",
