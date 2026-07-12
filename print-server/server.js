@@ -385,7 +385,7 @@ async function buildPersonalizedTicketRaw(p) {
   // aparte debajo del título con "#1258" para evitar glifos como "N.º".
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + baseTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
   if (hasNum) {
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `#${strNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
+    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `# ${strNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
   out += ALIGN_L + DASH_LINE;
 
