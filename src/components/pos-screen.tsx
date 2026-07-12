@@ -1113,6 +1113,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
+  // Handler del botón "Cobrar". En pedidos "para llevar" imprime la comanda
+  // de cocina de inmediato (crea el pedido pendiente + envía a KDS + imprime)
+  // y luego abre el diálogo de medio de pago sobre ese mismo pedido. Así la
+  // cocina empieza a preparar mientras el cajero termina el cobro.
+  async function handleCobrar() {
+    if (paying) return;
+    if (cart.length === 0 && !pendingSaleId) return toast.error("Carrito vacío");
+    if (orderType === "llevar" && cart.length > 0 && !pendingSaleId) {
+      const ok = await saveComanda({ stayForPayment: true });
+      if (!ok) return; // saveComanda ya notificó el error
+    }
+    setPayDialogOpen(true);
+  }
+
   async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
@@ -1357,7 +1371,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     }
   }
 
-  async function saveComanda() {
+  async function saveComanda(opts?: { stayForPayment?: boolean }) {
+    const stayForPayment = opts?.stayForPayment === true;
     if (paying) {
       console.warn("[pos] saveComanda ignorado: ya hay una operación en curso");
       return;
@@ -1590,16 +1605,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         })();
       }
 
-      // Limpiar estado local y regresar al panel principal
-      setCart([]);
-      setCustomer("");
-      setNotes("");
-      setAddress("");
-      setPhone("");
-      setNeighborhood("");
-      setFieldErrors({});
-      setPendingSaleId(null);
-      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      // Cuando se llama desde el flujo "Cobrar → imprime comanda ya" (llevar),
+      // NO limpiamos el carrito ni navegamos: el cajero sigue en la misma
+      // pantalla para seleccionar el medio de pago sobre este pedido pendiente.
+      if (!stayForPayment) {
+        setCart([]);
+        setCustomer("");
+        setNotes("");
+        setAddress("");
+        setPhone("");
+        setNeighborhood("");
+        setFieldErrors({});
+        setPendingSaleId(null);
+        qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      }
 
       // CRÍTICO: liberamos `paying` ANTES de navegar. Antes se hacía en el
       // `finally`, pero al navegar el componente se desmonta y el setState
@@ -1607,6 +1626,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // recuperado por React) veía el botón atascado en "Enviando…".
       window.clearTimeout(watchdog);
       setPaying(false);
+
+      if (stayForPayment) {
+        return sale.id;
+      }
 
       if (onSaved) {
         onSaved();
@@ -1616,6 +1639,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         else if (orderType === "domicilio") navigate({ to: "/domicilio" });
         else if (orderType === "kiosko") navigate({ to: "/kiosko" });
       }
+
     } catch (err) {
       console.error("[pos] saveComanda error", err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
@@ -1891,7 +1915,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   <Button
                     size="sm"
                     disabled={paying || cart.length === 0}
-                    onClick={saveComanda}
+                    onClick={() => saveComanda()}
                     className="h-11 rounded-xl bg-gradient-to-b from-sky-400 to-sky-600 text-white font-extrabold uppercase tracking-wide text-xs border border-sky-300/50 shadow-[0_4px_0_0_hsl(210_90%_35%),0_8px_20px_-4px_hsl(210_90%_45%/0.5)] hover:from-sky-300 hover:to-sky-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(210_90%_35%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
                   >
                     <Save className="h-4 w-4 sm:mr-1.5" />
@@ -1911,7 +1935,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       <Button
                         size="sm"
                         disabled={paying || (cart.length === 0 && !pendingSaleId)}
-                        onClick={() => setPayDialogOpen(true)}
+                        onClick={handleCobrar}
                         className="h-11 rounded-xl bg-gradient-to-b from-emerald-400 to-emerald-600 text-white font-black uppercase tracking-wide text-sm border border-emerald-300/50 shadow-[0_4px_0_0_hsl(150_70%_25%),0_10px_25px_-4px_hsl(150_80%_40%/0.6)] hover:from-emerald-300 hover:to-emerald-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(150_70%_25%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
                       >
                         <Banknote className="h-4 w-4 sm:mr-1.5" />
@@ -2119,7 +2143,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             )}
             <Button
               disabled={paying || cart.length === 0}
-              onClick={saveComanda}
+              onClick={() => saveComanda()}
               variant={meseroMode ? "default" : "outline"}
               className={meseroMode ? "h-14 text-lg" : "border-primary text-primary hover:bg-primary/10"}
             >
@@ -2596,7 +2620,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             size="sm"
             variant="outline"
             disabled={paying || cart.length === 0}
-            onClick={saveComanda}
+            onClick={() => saveComanda()}
             className="h-11 shrink-0 border-primary text-primary"
           >
             <Save className="h-4 w-4 sm:mr-1" />
@@ -2606,7 +2630,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <Button
               size="sm"
               disabled={paying || (cart.length === 0 && !pendingSaleId)}
-              onClick={() => setPayDialogOpen(true)}
+              onClick={handleCobrar}
               className="h-11 shrink-0 bg-gradient-primary px-4 font-bold"
             >
               <Banknote className="h-4 w-4 mr-1" /> Cobrar
