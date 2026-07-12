@@ -55,15 +55,33 @@ const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 //   tipográfico entre productos (Font A + negrita) y modificadores (Font B).
 const FONT_A = ESC + "M\x00";
 const FONT_B = ESC + "M\x01";
-// Subrayado ESC/POS (ESC - n). 0 = off, 1 = simple, 2 = doble. Se usa junto
-// con Font B en los modificadores para diferenciarlos tipográficamente del
-// producto (Font A) sin alterar el tamaño de la letra.
+// Subrayado ESC/POS (ESC - n). 0 = off, 1 = simple, 2 = doble.
 const UNDERLINE_ON = ESC + "-" + "\x02";
 const UNDERLINE_OFF = ESC + "-" + "\x00";
-// Cursiva ESC/POS (ESC 4 / ESC 5). Muchas térmicas la ignoran, pero cuando
-// está soportada refuerza aún más el contraste visual del modificador.
+// Cursiva ESC/POS (ESC 4 / ESC 5). Muchas térmicas la ignoran.
 const ITALIC_ON = ESC + "4";
 const ITALIC_OFF = ESC + "5";
+// Doble impacto (ESC G n): la cabeza reimprime cada punto, dejando el trazo
+// notoriamente más grueso sin cambiar el tamaño de la fuente.
+const DOUBLE_STRIKE_ON = ESC + "G\x01";
+const DOUBLE_STRIKE_OFF = ESC + "G\x00";
+// Espaciado horizontal entre caracteres (ESC SP n): n = puntos extra a la
+// derecha de cada carácter. Da "tracking" a los modificadores.
+const CHAR_SPACING_WIDE = ESC + " " + "\x04";
+const CHAR_SPACING_RESET = ESC + " " + "\x00";
+// Inserta un espacio entre cada carácter no-espacio para reforzar el tracking
+// incluso en impresoras que ignoran ESC SP. Preserva los espacios existentes
+// convirtiéndolos en doble espacio, replicando el patrón "J U M B O".
+function spaceOutChars(s) {
+  const str = String(s == null ? "" : s);
+  let out = "";
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    out += ch;
+    if (i < str.length - 1) out += " ";
+  }
+  return out;
+}
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 // Selección de página de códigos:
