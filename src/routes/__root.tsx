@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { reconcileTables } from "@/lib/reconcile-tables";
 // Modo offline desactivado — imports conservados como comentario para reactivar rápido.
 // import { registerServiceWorker } from "@/lib/pwa-register";
 // import { enableOfflineQueryPersistence } from "@/lib/offline-query-persister";
