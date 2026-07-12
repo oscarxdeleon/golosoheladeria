@@ -383,7 +383,9 @@ export function OnlineOrdersNotifier() {
     const ids = pending.map((p) => p.id);
     acknowledge(ids);
     setPending([]);
+    stopAlertLoop();
     void ackOrdersInDb(ids);
+    if (activeBranchId) broadcastAck(activeBranchId, ids);
   }
 
   function confirmAndNavigate(kind: OrderKind) {
@@ -393,7 +395,9 @@ export function OnlineOrdersNotifier() {
     const ids = pending.map((p) => p.id);
     acknowledge(ids);
     setPending([]);
+    stopAlertLoop();
     void ackOrdersInDb(ids);
+    if (activeBranchId) broadcastAck(activeBranchId, ids);
     navigate({
       to:
         kind === "kiosko" ? "/kiosko"
@@ -401,6 +405,7 @@ export function OnlineOrdersNotifier() {
             : "/pedidos-online",
     });
   }
+
 
 
   const invalidateOrderViews = useCallback(() => {
