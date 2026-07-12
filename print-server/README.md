@@ -58,7 +58,7 @@ activo, el POS muestra un aviso, pero no abre el diálogo de impresión del nave
 ## Endpoints
 
 - `GET /health` → `{ ok: true, printerType }` para verificar que el servidor responde.
-  Debe mostrar `version: "2.12.0"` o superior. Si muestra una versión anterior,
+  Debe mostrar `version: "2.13.0"` o superior. Si muestra una versión anterior,
   Windows todavía tiene activo un Print Server viejo en el puerto 3001.
 - `POST /print` con JSON:
   ```json

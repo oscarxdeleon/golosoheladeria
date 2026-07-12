@@ -462,21 +462,26 @@ async function buildPersonalizedTicketRaw(p) {
   }
 
   // ==== PIE ====
+  // Centrado real por ESC/POS (ESC a 1). No usamos centerLine() porque
+  // añade padding manual con espacios y, combinado con ALIGN_C, la
+  // impresora desplaza el texto a la derecha (queda descentrado).
   if (cfg.show_thanks) {
     const oneLine = String(cfg.thanks_text || "¡Gracias por Preferirnos!").replace(/\s+/g, " ").trim();
-    out += ALIGN_C + BOLD_ON + centerLine(oneLine) + BOLD_OFF;
+    out += ALIGN_C + BOLD_ON + oneLine + "\n" + BOLD_OFF + ALIGN_L;
   }
 
   if (cfg.extra_footer) {
     out += ALIGN_C;
     for (const line of String(cfg.extra_footer).split("\n"))
-      for (const w of wrapText(line, WIDTH)) out += centerLine(w);
+      for (const w of wrapText(line, WIDTH)) out += w + "\n";
+    out += ALIGN_L;
   }
 
   if (p.ticket_footer) {
     out += ALIGN_C;
     for (const line of String(p.ticket_footer).split("\n"))
-      for (const w of wrapText(line, WIDTH)) out += centerLine(w);
+      for (const w of wrapText(line, WIDTH)) out += w + "\n";
+    out += ALIGN_L;
   }
 
   if (cfg.show_decorations) {
@@ -618,8 +623,13 @@ function buildComandaFormatted(p, fmt) {
     const t = String(text ?? "");
     if (!t) return "";
     const sizeCmd = SIZE_MAP[size] || SIZE_NORMAL;
-    // En tamaño doble/triple el número de columnas se reduce; envolvemos si aplica.
-    const cols = size >= 3 ? Math.floor(usable / 3) : size === 2 ? Math.floor(usable / 2) : usable;
+    // Solo los tamaños de DOBLE/TRIPLE ANCHO reducen las columnas útiles.
+    // SIZE_DOUBLE_H (size=2) es doble ALTO únicamente: mantiene el ancho
+    // normal, así que el nombre del producto conserva las 42 columnas
+    // (80 mm) y no se parte en dos líneas innecesariamente.
+    const cols = size >= 4 ? Math.floor(usable / 3)
+      : size === 3 ? Math.floor(usable / 2)
+      : usable;
     const lines = wrapText(t, Math.max(1, cols));
     let out = alignFor(alignMode) + (boldOn ? BOLD_ON : "") + sizeCmd;
     for (const ln of lines) out += marginL + ln + "\n";
@@ -691,11 +701,10 @@ function buildComandaFormatted(p, fmt) {
   const modIndent = "  ";
   const modCols = Math.max(10, Math.floor(usable * (f.font === "B" ? 4 / 3 : 1)) - modIndent.length);
 
-  items.forEach((it) => {
+  items.forEach((it, idx) => {
     const qtyTxt = fmtQty(it.qty, f.quantityFormat);
     const prodText = `${qtyTxt} ${String(it.name || "").toUpperCase().trim()}`;
     out += bigLine(prodText, f.productSize, f.bold.product, f.align.product);
-    if (gap) out += gap;
 
     if (Array.isArray(it.modifiers) && it.modifiers.length) {
       const seen = new Set();
@@ -709,22 +718,22 @@ function buildComandaFormatted(p, fmt) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Formato único definitivo para TODAS las comandas: modificadores en
-        // Font A, negrita y mínimo doble alto, con separación entre líneas.
+        // Modificadores compactos: Font A, negrita y doble alto, SIN línea en
+        // blanco entre uno y otro. La separación mayor entre productos se
+        // garantiza con `separator` (línea guiones) al final del bloque.
         const effModSize = Math.max(2, f.modifierSize);
         const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
         const modBold = true;
         const modFont = FONT_A;
-        // Alineación de modificadores hereda la de producto
         out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
         for (const m of parts) {
           for (const ln of wrapText(`+ ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
-          out += "\n";
         }
         out += SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
       }
     }
-    out += separator;
+    // Separador entre productos (jerarquía visual). No añadir después del último.
+    if (idx < items.length - 1) out += separator;
   });
 
   if (p.notes) {
@@ -823,9 +832,11 @@ function buildComandaLegacy(p) {
   const productCols = Math.max(1, WIDTH);
   const MOD_INDENT = "   ";
   const modCols = Math.max(10, Math.floor(WIDTH * 4 / 3) - MOD_INDENT.length);
-  items.forEach((i) => {
+  items.forEach((i, idx) => {
     const qty = Number(i.qty || 0);
     const productText = `${qty}x ${String(i.name || "").toUpperCase().trim()}`;
+    // SIZE_DOUBLE_H sólo aumenta el alto: mantenemos las columnas normales
+    // para que "CONO 2 SABORES HELADO" quepa en una sola línea.
     const lines = wrapText(productText, productCols);
     out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
     out += lines[0] + "\n";
@@ -844,16 +855,15 @@ function buildComandaLegacy(p) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Formato único definitivo para TODAS las comandas.
+        // Modificadores compactos y legibles. Sin blancos entre uno y otro.
         out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
         for (const m of parts) {
           for (const line of wrapText(`+ ${m}`, modCols)) out += MOD_INDENT + line + "\n";
-          out += "\n";
         }
-        out += "\n" + SIZE_NORMAL + BOLD_OFF;
+        out += SIZE_NORMAL + BOLD_OFF;
       }
     }
-    out += DASH_LINE;
+    if (idx < items.length - 1) out += DASH_LINE;
   });
 
   if (p.notes) {
