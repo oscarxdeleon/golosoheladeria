@@ -30,13 +30,13 @@ export const DEFAULT_FORMATS: CommandFormatsMap = {
   clasico: {
     label: "Clásico",
     font: "A",
-    titleSize: 2, productSize: 1, modifierSize: 1,
-    bold: { title: true, product: true, modifier: false },
+    titleSize: 2, productSize: 1, modifierSize: 2,
+    bold: { title: true, product: true, modifier: true },
     align: { header: "center", product: "left", orderType: "center" },
     separator: { char: "-", blankLines: 0 },
     lineSpacing: 0,
     margins: { left: 0, right: 0 },
-    modifiersLayout: "inline",
+    modifiersLayout: "list",
     quantityFormat: "x",
     orderNumberFormat: "hash",
     tableFormat: "MESA N",
@@ -45,13 +45,13 @@ export const DEFAULT_FORMATS: CommandFormatsMap = {
   compacto: {
     label: "Compacto",
     font: "B",
-    titleSize: 1, productSize: 1, modifierSize: 1,
-    bold: { title: true, product: true, modifier: false },
+    titleSize: 1, productSize: 1, modifierSize: 2,
+    bold: { title: true, product: true, modifier: true },
     align: { header: "left", product: "left", orderType: "left" },
     separator: { char: "-", blankLines: 0 },
     lineSpacing: 0,
     margins: { left: 0, right: 0 },
-    modifiersLayout: "inline",
+    modifiersLayout: "list",
     quantityFormat: "x",
     orderNumberFormat: "hash",
     tableFormat: "MN",
@@ -60,7 +60,7 @@ export const DEFAULT_FORMATS: CommandFormatsMap = {
   grande: {
     label: "Grande / Legible",
     font: "A",
-    titleSize: 3, productSize: 2, modifierSize: 1,
+    titleSize: 3, productSize: 2, modifierSize: 2,
     bold: { title: true, product: true, modifier: true },
     align: { header: "center", product: "left", orderType: "center" },
     separator: { char: "=", blankLines: 1 },
@@ -84,13 +84,13 @@ export function normalizeFormat(f: Partial<CommandFormat> | null | undefined): C
     font: src.font ?? base.font,
     titleSize: (src.titleSize ?? base.titleSize) as CommandFormat["titleSize"],
     productSize: (src.productSize ?? base.productSize) as CommandFormat["productSize"],
-    modifierSize: (src.modifierSize ?? base.modifierSize) as CommandFormat["modifierSize"],
-    bold: { ...base.bold, ...(src.bold ?? {}) },
+    modifierSize: Math.max(2, Number(src.modifierSize ?? base.modifierSize) || 2) as CommandFormat["modifierSize"],
+    bold: { ...base.bold, ...(src.bold ?? {}), modifier: true },
     align: { ...base.align, ...(src.align ?? {}) },
     separator: { ...base.separator, ...(src.separator ?? {}) },
     lineSpacing: (src.lineSpacing ?? base.lineSpacing) as CommandFormat["lineSpacing"],
     margins: { ...base.margins, ...(src.margins ?? {}) },
-    modifiersLayout: src.modifiersLayout ?? base.modifiersLayout,
+    modifiersLayout: "list",
     quantityFormat: src.quantityFormat ?? base.quantityFormat,
     orderNumberFormat: src.orderNumberFormat ?? base.orderNumberFormat,
     tableFormat: src.tableFormat ?? base.tableFormat,
@@ -108,21 +108,21 @@ export function formatQuantity(qty: number, fmt: CommandFormat["quantityFormat"]
 export function formatOrderNumber(num: string | number | null | undefined, fmt: CommandFormat["orderNumberFormat"]): string {
   const s = String(num ?? "").trim().replace(/^#+\s*/, "");
   if (!s) return "";
-  if (fmt === "pedido") return `PEDIDO #${s}`;
-  if (fmt === "ticket") return `TICKET #${s}`;
-  return `#${s}`;
+  if (fmt === "pedido") return `PEDIDO # ${s}`;
+  if (fmt === "ticket") return `TICKET # ${s}`;
+  return `# ${s}`;
 }
 
 export function formatTable(num: string | number | null | undefined, fmt: CommandFormat["tableFormat"]): string {
   const s = String(num ?? "").trim().replace(/^mesa\s*#?\s*/i, "");
   if (!s) return "";
-  if (fmt === "Mesa: N") return `Mesa: #${s}`;
-  if (fmt === "MN") return `M#${s}`;
-  return `MESA #${s}`;
+  if (fmt === "Mesa: N") return `Mesa: # ${s}`;
+  if (fmt === "MN") return `M# ${s}`;
+  return `MESA # ${s}`;
 }
 
 const ORDER_TYPE_LABELS: Record<string, string> = {
-  mesa: "PARA MESA",
+  mesa: "",
   llevar: "PARA LLEVAR",
   domicilio: "A DOMICILIO",
   kiosko: "AUTOPEDIDO",

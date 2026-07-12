@@ -133,10 +133,15 @@ export function comandaHTML(o: {
   const b = o.branding ?? DEFAULT_BRANDING;
   const rows = o.items
     .map(
-      (i) => `<tr>
+      (i) => {
+        const mods = Array.isArray(i.modifiers) && i.modifiers.length
+          ? `<div class="mods">${i.modifiers.map((m) => `<div>+ ${String(m).replace(/^\s*[+*]\s*/, "").trim()}</div>`).join("")}</div>`
+          : "";
+        return `<tr>
         <td class="qty">${i.qty}×</td>
-        <td class="name">${i.name}</td>
-      </tr>`,
+        <td class="name">${i.name}${mods}</td>
+      </tr>`;
+      },
     )
     .join("");
   const logoHTML = b.logo_url
@@ -155,6 +160,8 @@ export function comandaHTML(o: {
     td{vertical-align:top;padding:3px 0;border-bottom:1px dashed #000}
     td.qty{font-size:13px;font-weight:900;width:36px;text-align:right;padding-right:8px}
     td.name{font-size:12px;font-weight:800;text-transform:uppercase;line-height:1.15;white-space:pre-line}
+    .mods{font-size:16px;font-weight:900;line-height:1.35;margin-top:4px;text-transform:uppercase}
+    .mods div{margin:3px 0}
     hr{border:none;border-top:1px dashed #000;margin:3px 0}
     .meta{font-size:10px;font-weight:700;margin:1px 0}
     .meta.big{font-size:11px;font-weight:800}
@@ -166,7 +173,7 @@ export function comandaHTML(o: {
   <body>
     ${logoHTML}
     <div class="sede">${b.business_name || "Heladería Goloso"}</div>
-    <h1>PEDIDO #${o.ticket}</h1>
+    <h1>PEDIDO # ${o.ticket}</h1>
     <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
     <div class="meta" style="text-align:center">Cajero: ${o.user_name}</div>
     <hr/>
@@ -287,7 +294,7 @@ export function ticketHTML(o: {
     ${cfg.show_phone && b.phone ? `<div class="biz-meta">${SVG.phone}<span>${b.phone}</span></div>` : ""}
     ${cfg.show_email && b.email ? `<div class="biz-meta">${SVG.mail}<span>${b.email}</span></div>` : ""}
     <hr class="dashed"/>
-    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"}</div><div class="ticket-no"><span class="num"># ${ticketNo}</span></div><hr class="dashed"/>
+    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"} # ${ticketNo}</div><hr class="dashed"/>
     ${infoRows.length ? `<div class="info">${infoRows.join("")}</div><hr class="dashed"/>` : ""}
     <table class="tbl">
       <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
@@ -458,8 +465,8 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
   const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
 
-  // El título del ticket se envía SIN número; el Print Server (>=2.5.8)
-  // imprime el consecutivo en una línea aparte con formato "#1258".
+  // El título del ticket se envía SIN número; el Print Server (>=2.11.0)
+  // imprime el encabezado completo como "TICKET DE VENTA # 1258".
   const rawTicketNum = o.ticket;
   const ticketNumStr = rawTicketNum == null
     ? ""

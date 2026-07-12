@@ -217,11 +217,11 @@ export function ComandasFormatTab() {
               <SelectField label="Formato cantidad" value={current.quantityFormat} onChange={(v) => updateCurrent({ quantityFormat: v as CommandFormat["quantityFormat"] })}
                 options={[["x", "2x"], ["times", "2×"], ["paren", "(2)"]]} />
               <SelectField label="Formato n.º pedido" value={current.orderNumberFormat} onChange={(v) => updateCurrent({ orderNumberFormat: v as CommandFormat["orderNumberFormat"] })}
-                options={[["hash", "#123"], ["pedido", "PEDIDO 123"], ["ticket", "TICKET #123"]]} />
+                options={[["hash", "# 123"], ["pedido", "PEDIDO # 123"], ["ticket", "TICKET # 123"]]} />
               <SelectField label="Formato mesa" value={current.tableFormat} onChange={(v) => updateCurrent({ tableFormat: v as CommandFormat["tableFormat"] })}
-                options={[["MESA N", "MESA 4"], ["Mesa: N", "Mesa: 4"], ["MN", "M4"]]} />
+                options={[["MESA N", "MESA # 4"], ["Mesa: N", "Mesa: # 4"], ["MN", "M# 4"]]} />
               <SelectField label="Formato tipo de pedido" value={current.orderTypeFormat} onChange={(v) => updateCurrent({ orderTypeFormat: v as CommandFormat["orderTypeFormat"] })}
-                options={[["prefix", "PEDIDO PARA MESA"], ["arrow", ">> PARA MESA"], ["hidden", "Oculto"]]} />
+                options={[["prefix", "Para llevar / domicilio"], ["arrow", ">> Para llevar / domicilio"], ["hidden", "Oculto"]]} />
             </div>
           </div>
 
