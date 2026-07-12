@@ -755,11 +755,12 @@ function buildComandaFormatted(p, fmt) {
         // modificadores del nombre del producto (Font A). Mantenemos SIZE_DOUBLE_H
         // para conservar altura y legibilidad.
         const modFont = FONT_B;
-        out += alignFor(f.align.product) + modFont + modSize + ITALIC_ON + UNDERLINE_ON + (modBold ? BOLD_ON : "");
+        out += alignFor(f.align.product) + modFont + modSize + BOLD_ON + DOUBLE_STRIKE_ON + CHAR_SPACING_WIDE;
         for (const m of parts) {
-          for (const ln of wrapText(`* ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
+          const spaced = spaceOutChars(m);
+          for (const ln of wrapText(`*  ${spaced}`, modCols)) out += marginL + modIndent + ln + "\n";
         }
-        out += UNDERLINE_OFF + ITALIC_OFF + SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
+        out += CHAR_SPACING_RESET + DOUBLE_STRIKE_OFF + SIZE_NORMAL + BOLD_OFF + fontCmd;
       }
     }
     // Separador entre productos (jerarquía visual). No añadir después del último.
