@@ -479,17 +479,26 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   mergedTicketCfg.title_text = cleanBaseTitle;
   mergedTicketCfg.show_ticket_number = true;
 
+  // Cortesía: el ticket entregado al cliente debe mostrar SIEMPRE $0 en
+  // todos los valores (productos, subtotal, propina, domicilio, total,
+  // recibido y cambio). Internamente la venta conserva su valor real
+  // para estadísticas, rentabilidad y auditoría.
+  const isCourtesy = String(o.payment_method ?? "").trim().toLowerCase().startsWith("cortes");
+  const displayItems = isCourtesy
+    ? (o.items ?? []).map((it) => ({ ...it, unit_price: 0 }))
+    : o.items;
+
   const payload: PrintPayload = {
     type: "ticket",
     ticket: o.ticket,
     ticket_number: o.ticket,
     header: o.header,
-    items: o.items,
-    subtotal: o.subtotal,
-    tax: o.tax,
-    deliveryFee: o.deliveryFee,
-    tip: o.tip,
-    total: o.total,
+    items: displayItems,
+    subtotal: isCourtesy ? 0 : o.subtotal,
+    tax: isCourtesy ? 0 : o.tax,
+    deliveryFee: isCourtesy ? 0 : o.deliveryFee,
+    tip: isCourtesy ? 0 : o.tip,
+    total: isCourtesy ? 0 : o.total,
     payment_method: o.payment_method,
     customer: o.customer,
     notes: o.notes,
@@ -497,7 +506,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     phone: o.phone,
     user_name: o.user_name,
     created_at: o.created_at,
-    cash_received: o.cash_received,
+    cash_received: isCourtesy ? 0 : o.cash_received,
     business_name: b.business_name,
     nit: b.nit ?? undefined,
     address_biz: b.address ?? undefined,
@@ -510,7 +519,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     ticket_template: "goloso_personalizado",
     printer_ip: printerIp,
     printer_port: printerPort,
-    open_drawer: openDrawer,
+    open_drawer: isCourtesy ? false : openDrawer,
   };
 
   // Impresión SIEMPRE silenciosa vía servidor de impresión local (ESC/POS).
