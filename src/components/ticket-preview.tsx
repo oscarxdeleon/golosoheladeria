@@ -63,11 +63,13 @@ export function TicketPreview({
   const footerText = (settings?.ticket_footer ?? "¡Gracias por Preferirnos!").trim();
   const logoSrc = settings?.logo_url || logoUrl;
 
-  const lines: SaleLine[] = sale.lines;
-  const subtotal = lines.reduce((s, l) => s + l.qty * l.unit_price, 0);
-  const total = Number(sale.total) || subtotal;
-  const received = sale.cash_received ?? total;
-  const change = Math.max(0, received - total);
+  const isCourtesy = String(sale.payment_method ?? "").trim().toLowerCase().startsWith("cortes");
+  const rawLines: SaleLine[] = sale.lines;
+  const lines: SaleLine[] = isCourtesy ? rawLines.map((l) => ({ ...l, unit_price: 0 })) : rawLines;
+  const subtotal = isCourtesy ? 0 : rawLines.reduce((s, l) => s + l.qty * l.unit_price, 0);
+  const total = isCourtesy ? 0 : (Number(sale.total) || subtotal);
+  const received = isCourtesy ? 0 : (sale.cash_received ?? total);
+  const change = isCourtesy ? 0 : Math.max(0, received - total);
   const ticketNo = String(sale.ticket_number).trim().replace(/^#+\s*/, "");
 
   return (
