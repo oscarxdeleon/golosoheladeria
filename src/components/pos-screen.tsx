@@ -1113,6 +1113,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
+  // Handler del botón "Cobrar". En pedidos "para llevar" imprime la comanda
+  // de cocina de inmediato (crea el pedido pendiente + envía a KDS + imprime)
+  // y luego abre el diálogo de medio de pago sobre ese mismo pedido. Así la
+  // cocina empieza a preparar mientras el cajero termina el cobro.
+  async function handleCobrar() {
+    if (paying) return;
+    if (cart.length === 0 && !pendingSaleId) return toast.error("Carrito vacío");
+    if (orderType === "llevar" && cart.length > 0 && !pendingSaleId) {
+      const ok = await saveComanda({ stayForPayment: true });
+      if (!ok) return; // saveComanda ya notificó el error
+    }
+    setPayDialogOpen(true);
+  }
+
   async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
