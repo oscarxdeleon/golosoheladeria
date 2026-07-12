@@ -48,8 +48,8 @@ function useKioskLock(enabled: boolean) {
     let wakeLock: { release: () => Promise<void> } | null = null;
     const requestWake = async () => {
       try {
-        // @ts-expect-error wakeLock is not typed in all envs
-        const wl = await navigator.wakeLock?.request?.("screen");
+        const nav = navigator as Navigator & { wakeLock?: { request: (t: string) => Promise<{ release: () => Promise<void> }> } };
+        const wl = await nav.wakeLock?.request?.("screen");
         if (wl) wakeLock = wl;
       } catch {
         /* noop */
