@@ -2745,7 +2745,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   type="button"
                   disabled={isDisabled}
                   style={style}
-                  className={`group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-full font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 ${isCourtesy ? "h-[68px] mx-auto max-w-[88%] px-5 text-lg tracking-wider" : "h-20 px-6 text-xl"}`}
+                  className={`group relative flex items-center justify-center gap-2 overflow-hidden rounded-full font-extrabold uppercase tracking-wide transition-all duration-150 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-inner disabled:cursor-not-allowed disabled:opacity-50 ${isCourtesy ? "h-10 mx-auto px-4 text-sm tracking-wide" : "h-20 w-full px-6 text-xl"}`}
                   onClick={() => {
                     try {
                       if (isDisabled) return;
