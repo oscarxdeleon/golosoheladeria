@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { RolesTab } from "@/components/ajustes/roles-tab";
 import { FidelizacionTab } from "@/components/ajustes/fidelizacion-tab";
 import { ComandasFormatTab } from "@/components/ajustes/comandas-format-tab";
+import { DescargasTab } from "@/components/ajustes/descargas-tab";
 import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
@@ -92,9 +93,10 @@ type TabDef = {
   label: string;
   icon: React.ComponentType<{ className?: string }>;
   hint: string;
-  group: "negocio" | "ventas" | "operaciones" | "personal";
+  group: "negocio" | "ventas" | "operaciones" | "personal" | "sistema";
   accent: string;
   hidden?: boolean;
+  adminOnly?: boolean;
 };
 
 const TABS: TabDef[] = [
@@ -110,6 +112,7 @@ const TABS: TabDef[] = [
   { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Pantalla de cocina para ver comandas en vivo",        group: "operaciones", accent: "from-orange-500 to-red-600" },
   { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
   { value: "extras",      label: "Configuraciones adicionales", icon: Sparkles, hint: "Opciones extra del POS (propina y otros)",     group: "ventas",      accent: "from-yellow-400 to-amber-500" },
+  { value: "descargas",   label: "Descargas e Instaladores", icon: Download,  hint: "Instaladores POS, apps de mesero, quiosco y Print Server", group: "sistema", accent: "from-cyan-500 to-blue-600", adminOnly: true },
 ];
 
 const GROUPS: Array<{ id: TabDef["group"]; label: string; description: string }> = [
@@ -117,17 +120,18 @@ const GROUPS: Array<{ id: TabDef["group"]; label: string; description: string }>
   { id: "ventas",      label: "Ventas y cobros",  description: "Ticket, pagos, domicilio y fidelización" },
   { id: "operaciones", label: "Operaciones",      description: "Impresoras, KDS y autopedido" },
   { id: "personal",    label: "Personal",         description: "Roles, permisos y accesos" },
+  { id: "sistema",     label: "Sistema",          description: "Descargas, instaladores y complementos" },
 ];
 
 function AjustesPage() {
-  useAuth();
+  const { isAdmin } = useAuth();
   const [tab, setTab] = useState<string | null>(null);
   const [editBranchId, setEditBranchId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const goEditBranch = (id: string) => { setEditBranchId(id); setTab("sede-edit"); };
 
   const activeTab = tab ? (TABS.find((t) => t.value === tab) ?? null) : null;
-  const visibleTabs = TABS.filter((t) => !t.hidden);
+  const visibleTabs = TABS.filter((t) => !t.hidden && (!t.adminOnly || isAdmin));
   const q = query.trim().toLowerCase();
   const filtered = visibleTabs.filter((t) => !q || t.label.toLowerCase().includes(q) || t.hint.toLowerCase().includes(q));
 
@@ -147,6 +151,7 @@ function AjustesPage() {
           {tab === "fidel"       && <SectionErrorBoundary label="Fidelización"><FidelizacionTab /></SectionErrorBoundary>}
           {tab === "roles"       && <SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary>}
           {tab === "extras"      && <SectionErrorBoundary label="Configuraciones adicionales"><ExtrasTab /></SectionErrorBoundary>}
+          {tab === "descargas"   && isAdmin && <SectionErrorBoundary label="Descargas"><DescargasTab /></SectionErrorBoundary>}
         </SectionView>
       ) : (
         <HubView query={query} setQuery={setQuery} filtered={filtered} allTabs={visibleTabs} onSelect={setTab} />

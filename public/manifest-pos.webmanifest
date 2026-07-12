@@ -1,0 +1,24 @@
+{
+  "name": "Goloso POS",
+  "short_name": "POS",
+  "description": "Sistema POS de Heladería Goloso — cajero y administración.",
+  "start_url": "/?src=pwa",
+  "scope": "/",
+  "id": "/goloso-pos",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0EA5E9",
+  "theme_color": "#0EA5E9",
+  "lang": "es-CO",
+  "categories": ["business", "productivity", "food"],
+  "shortcuts": [
+    { "name": "Mesas",       "url": "/mesas",   "icons": [{ "src": "/goloso-icon-192.png", "sizes": "192x192" }] },
+    { "name": "Para llevar", "url": "/llevar",  "icons": [{ "src": "/goloso-icon-192.png", "sizes": "192x192" }] },
+    { "name": "Cierre caja", "url": "/caja",    "icons": [{ "src": "/goloso-icon-192.png", "sizes": "192x192" }] }
+  ],
+  "icons": [
+    { "src": "/goloso-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/goloso-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/goloso-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
