@@ -633,10 +633,11 @@ function buildComandaFormatted(p, fmt) {
   // Número de pedido
   const ticketNum = p.ticket ?? p.ticket_number;
   const isMesaCmd = otKeyEarly === "mesa";
+  const isLlevarCmd = otKeyEarly === "llevar";
+  const useHashSpacedHeader = isMesaCmd || isLlevarCmd;
   let orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
-  if (orderNumTxt && isMesaCmd) {
-    // Para MESA: "PEDIDO # 1209" (# separado por espacios). Si el formato
-    // activo no antepone "PEDIDO", lo agregamos para cumplir el estándar.
+  if (orderNumTxt && useHashSpacedHeader) {
+    // "PEDIDO # 1211": # con espacios a ambos lados (aplica a mesa y llevar).
     const num = normalizeTicketNumber(ticketNum);
     orderNumTxt = `PEDIDO # ${num}`;
   }
