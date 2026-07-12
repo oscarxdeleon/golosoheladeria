@@ -272,11 +272,10 @@ const HEALTH_TTL_MS = 60_000;
 async function assertCompatiblePrintServer(url: string, payload: PrintPayload, signal: AbortSignal): Promise<boolean> {
   if (payload.type === "drawer") return true;
   const cached = _healthCache.get(url);
-  if (cached && Date.now() - cached.at < HEALTH_TTL_MS) return cached.ok;
+  if (cached?.ok && Date.now() - cached.at < HEALTH_TTL_MS) return true;
   try {
     const res = await fetch(healthUrlForPrintUrl(url), { method: "GET", signal, mode: "cors" });
     if (!res.ok) {
-      _healthCache.set(url, { ok: false, at: Date.now() });
       return false;
     }
     const health = (await res.json().catch(() => ({}))) as { version?: string };
@@ -285,7 +284,6 @@ async function assertCompatiblePrintServer(url: string, payload: PrintPayload, s
         `[print] Print Server ${health.version ?? "desconocido"} obsoleto en uso; ` +
           `actualiza a ${MIN_PRINT_SERVER_VERSION}+ para imprimir con las plantillas corregidas.`,
       );
-      _healthCache.set(url, { ok: false, at: Date.now() });
       return false;
     }
     _healthCache.set(url, { ok: true, at: Date.now() });
