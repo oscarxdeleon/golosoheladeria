@@ -2790,16 +2790,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   )}
                   {isCourtesy && (
                     <span
-                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full"
+                      className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full"
                       style={{
                         background:
                           "radial-gradient(circle at 30% 25%, #ffe28a 0%, #f5c451 55%, #b88422 100%)",
-                        border: "2px solid #7a5311",
+                        border: "1.5px solid #7a5311",
                         boxShadow:
-                          "inset 0 2px 2px rgba(255,255,255,0.75), inset 0 -3px 3px rgba(0,0,0,0.25), 0 2px 6px rgba(0,0,0,0.35)",
+                          "inset 0 1px 1px rgba(255,255,255,0.75), inset 0 -1.5px 1.5px rgba(0,0,0,0.25), 0 1px 3px rgba(0,0,0,0.35)",
                       }}
                     >
-                      <Gift className="h-6 w-6" strokeWidth={2.6} style={{ color: "#7a3d10", filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.5))" }} />
+                      <Gift className="h-3 w-3" strokeWidth={2.6} style={{ color: "#7a3d10", filter: "drop-shadow(0 1px 0 rgba(255,255,255,0.5))" }} />
                     </span>
                   )}
                   <span className="min-w-0 truncate">{m.name}</span>
