@@ -827,9 +827,11 @@ function buildComandaLegacy(p) {
   const productCols = Math.max(1, WIDTH);
   const MOD_INDENT = "   ";
   const modCols = Math.max(10, Math.floor(WIDTH * 4 / 3) - MOD_INDENT.length);
-  items.forEach((i) => {
+  items.forEach((i, idx) => {
     const qty = Number(i.qty || 0);
     const productText = `${qty}x ${String(i.name || "").toUpperCase().trim()}`;
+    // SIZE_DOUBLE_H sólo aumenta el alto: mantenemos las columnas normales
+    // para que "CONO 2 SABORES HELADO" quepa en una sola línea.
     const lines = wrapText(productText, productCols);
     out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
     out += lines[0] + "\n";
@@ -848,16 +850,15 @@ function buildComandaLegacy(p) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Formato único definitivo para TODAS las comandas.
+        // Modificadores compactos y legibles. Sin blancos entre uno y otro.
         out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
         for (const m of parts) {
           for (const line of wrapText(`+ ${m}`, modCols)) out += MOD_INDENT + line + "\n";
-          out += "\n";
         }
-        out += "\n" + SIZE_NORMAL + BOLD_OFF;
+        out += SIZE_NORMAL + BOLD_OFF;
       }
     }
-    out += DASH_LINE;
+    if (idx < items.length - 1) out += DASH_LINE;
   });
 
   if (p.notes) {
