@@ -787,7 +787,7 @@ function buildComandaLegacy(p) {
   };
   const otKey = otKeyL;
   const otLabel = orderTypeLabels[otKey] || (otKey ? `PEDIDO ${otKey.toUpperCase()}` : "");
-  // En MESA se omite el rótulo "PEDIDO PARA MESA" para un encabezado limpio.
+  // En MESA se omite cualquier rótulo de tipo de pedido para un encabezado limpio.
   if (otLabel && !isMesaCmdL) {
     out += BOLD_ON + SIZE_DOUBLE_H + otLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
