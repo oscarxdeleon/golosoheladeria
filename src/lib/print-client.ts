@@ -54,7 +54,7 @@ export type PrintPayload = {
 
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
-const MIN_PRINT_SERVER_VERSION = "2.11.0";
+const MIN_PRINT_SERVER_VERSION = "2.12.0";
 
 /**
  * Normaliza texto para el servidor ESC/POS sin quitar tildes ni ñ. El servidor
@@ -263,8 +263,9 @@ function versionAtLeast(current: string | undefined, minimum: string): boolean {
   return true;
 }
 
-// Cache del resultado de /health por URL (60 s). El chequeo se hace en paralelo
-// con la impresión, pero repetirlo en cada comanda desperdicia RTT en LAN.
+// Cache del resultado de /health por URL (60 s). Si el servidor local es viejo,
+// NO se permite imprimir: esa fue la causa raíz de que siguieran saliendo las
+// plantillas antiguas desde instalaciones previas del Print Server.
 const _healthCache = new Map<string, { ok: boolean; at: number }>();
 const HEALTH_TTL_MS = 60_000;
 
@@ -278,16 +279,14 @@ async function assertCompatiblePrintServer(url: string, payload: PrintPayload, s
       _healthCache.set(url, { ok: false, at: Date.now() });
       return false;
     }
-    // Aceptamos cualquier Print Server que responda /health. Si es una versión
-    // anterior a la recomendada avisamos por consola pero NO bloqueamos la
-    // impresión — el formato ya se normaliza en el cliente, así que las
-    // comandas se imprimen correctamente aunque el servidor no esté actualizado.
     const health = (await res.json().catch(() => ({}))) as { version?: string };
     if (!versionAtLeast(health.version, MIN_PRINT_SERVER_VERSION)) {
-      console.warn(
-        `[print] Print Server ${health.version ?? "desconocido"} en uso; ` +
-          `se recomienda actualizar a ${MIN_PRINT_SERVER_VERSION}+.`,
+      console.error(
+        `[print] Print Server ${health.version ?? "desconocido"} obsoleto en uso; ` +
+          `actualiza a ${MIN_PRINT_SERVER_VERSION}+ para imprimir con las plantillas corregidas.`,
       );
+      _healthCache.set(url, { ok: false, at: Date.now() });
+      return false;
     }
     _healthCache.set(url, { ok: true, at: Date.now() });
     return true;
