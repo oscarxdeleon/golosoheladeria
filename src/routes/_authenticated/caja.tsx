@@ -214,13 +214,20 @@ function CajaPage() {
     setCloseError(null);
     if (!user || !current) return;
     if (!activeBranchId) return toast.error("Selecciona una sede antes de cerrar caja");
-    if (occupiedTables.length > 0) {
-      return toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar.`);
+
+    // Validación Integral de Operación: bloquea el cierre si hay pendientes.
+    const validation = await validateOperationBeforeClose(activeBranchId);
+    if (!validation.ok) {
+      await logValidationAudit(activeBranchId, validation, "blocked");
+      setPendingBlock(validation);
+      return;
     }
+
     const cc = parseAmount(cashCounted), nc = parseAmount(nequiCounted), bc = parseAmount(bancoCounted);
     if (![cc, nc, bc].every((v) => Number.isFinite(v) && v >= 0)) {
       return toast.error("Completa los tres valores (Efectivo, Nequi, Bancolombia)");
     }
+    await logValidationAudit(activeBranchId, validation, "allowed");
     setSaving(true);
     try {
       const { data, error } = await supabase.rpc("close_cash_session_blind", {
