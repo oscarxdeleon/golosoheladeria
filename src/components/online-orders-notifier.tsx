@@ -211,6 +211,27 @@ async function ackOrdersInDb(ids: string[]) {
   } catch { /* noop */ }
 }
 
+// Canal broadcast por sede para propagar confirmaciones al instante entre
+// dispositivos, sin depender de la latencia de postgres_changes ni de RLS.
+const ackBroadcastChannels = new Map<string, ReturnType<typeof supabase.channel>>();
+function getAckBroadcastChannel(branchId: string) {
+  let ch = ackBroadcastChannels.get(branchId);
+  if (!ch) {
+    ch = supabase.channel(`orders-ack-broadcast-${branchId}`, { config: { broadcast: { self: false } } });
+    ch.subscribe();
+    ackBroadcastChannels.set(branchId, ch);
+  }
+  return ch;
+}
+function broadcastAck(branchId: string, ids: string[]) {
+  if (!branchId || ids.length === 0) return;
+  try {
+    const ch = getAckBroadcastChannel(branchId);
+    void ch.send({ type: "broadcast", event: "orders-ack", payload: { ids } });
+  } catch { /* noop */ }
+}
+
+
 
 async function autoPrintKioskOrder(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
@@ -362,7 +383,9 @@ export function OnlineOrdersNotifier() {
     const ids = pending.map((p) => p.id);
     acknowledge(ids);
     setPending([]);
+    stopAlertLoop();
     void ackOrdersInDb(ids);
+    if (activeBranchId) broadcastAck(activeBranchId, ids);
   }
 
   function confirmAndNavigate(kind: OrderKind) {
@@ -372,7 +395,9 @@ export function OnlineOrdersNotifier() {
     const ids = pending.map((p) => p.id);
     acknowledge(ids);
     setPending([]);
+    stopAlertLoop();
     void ackOrdersInDb(ids);
+    if (activeBranchId) broadcastAck(activeBranchId, ids);
     navigate({
       to:
         kind === "kiosko" ? "/kiosko"
@@ -380,6 +405,7 @@ export function OnlineOrdersNotifier() {
             : "/pedidos-online",
     });
   }
+
 
 
   const invalidateOrderViews = useCallback(() => {
@@ -508,12 +534,29 @@ export function OnlineOrdersNotifier() {
       .subscribe((status) => {
         if (status === "SUBSCRIBED") void loadRecentPending();
       });
+    // Canal broadcast: propaga confirmaciones al instante entre dispositivos
+    // de la misma sede, sin esperar la latencia de postgres_changes.
+    const ackChannel = supabase
+      .channel(`orders-ack-broadcast-${activeBranchId}`, { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "orders-ack" }, (msg) => {
+        const ids = (msg?.payload as { ids?: unknown } | undefined)?.ids;
+        if (!Array.isArray(ids)) return;
+        const idList = ids.filter((x): x is string => typeof x === "string");
+        if (idList.length === 0) return;
+        acknowledge(idList);
+        setPending((arr) => arr.filter((p) => !idList.includes(p.id)));
+        invalidateOrderViews();
+      })
+      .subscribe();
+
     const fallback = window.setInterval(() => { void loadRecentPending(); }, 5000);
     return () => {
       window.clearInterval(fallback);
       supabase.removeChannel(channel);
+      supabase.removeChannel(ackChannel);
     };
   }, [acknowledge, activeBranchId, addAlert, canReceiveAlerts, invalidateOrderViews, loadRecentPending]);
+
 
   if (pending.length === 0 || !canReceiveAlerts) return null;
 
