@@ -48,6 +48,72 @@ async function reconcileKioskPaidReady(branchId: string): Promise<number> {
 }
 
 /**
+ * Domicilios ya entregados (delivery_status='entregado') que quedaron
+ * en status pending/confirmed/ready porque nadie los cerró.
+ */
+async function reconcileDeliveredDomicilios(branchId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("sales")
+    .update({ status: "paid" })
+    .eq("branch_id", branchId)
+    .eq("order_type", "domicilio")
+    .in("status", ["pending", "confirmed", "ready"])
+    .eq("delivery_status", "entregado")
+    .select("id");
+  if (error) {
+    console.warn("[close-validation:reconcile-delivered]", error);
+    return 0;
+  }
+  return data?.length ?? 0;
+}
+
+/**
+ * Pedidos QR (table_qr) huérfanos: (a) con pago ya registrado o
+ * (b) cuya mesa ya no está ocupada (mesa libre / sin mesa).
+ */
+async function reconcileStaleTableQr(branchId: string): Promise<number> {
+  const paid = await supabase
+    .from("sales")
+    .update({ status: "paid" })
+    .eq("branch_id", branchId)
+    .eq("source", "table_qr")
+    .in("status", ["ready", "confirmed"])
+    .not("payment_method", "is", null)
+    .not("payment_method", "in", '("Pendiente","pendiente","")')
+    .select("id");
+  if (paid.error) console.warn("[close-validation:reconcile-qr-paid]", paid.error);
+
+  const candidates = await supabase
+    .from("sales")
+    .select("id, table_id, restaurant_tables:table_id(status)")
+    .eq("branch_id", branchId)
+    .eq("source", "table_qr")
+    .in("status", ["ready", "confirmed"]);
+  let orphanCount = 0;
+  if (!candidates.error) {
+    const orphanIds = (candidates.data ?? [])
+      .filter((r: { table_id: string | null; restaurant_tables: { status: string } | null }) => {
+        if (!r.table_id) return true;
+        const st = r.restaurant_tables?.status;
+        return !st || st === "free";
+      })
+      .map((r) => r.id);
+    if (orphanIds.length > 0) {
+      const upd = await supabase
+        .from("sales")
+        .update({ status: "paid" })
+        .in("id", orphanIds)
+        .select("id");
+      if (upd.error) console.warn("[close-validation:reconcile-qr-orphan]", upd.error);
+      orphanCount = upd.data?.length ?? 0;
+    }
+  } else {
+    console.warn("[close-validation:reconcile-qr-orphan-read]", candidates.error);
+  }
+  return (paid.data?.length ?? 0) + orphanCount;
+}
+
+/**
  * Validación Integral de Operación previa al cierre de caja.
  * Verifica que no existan pedidos, mesas ni procesos pendientes en la sede.
  * Reutilizable desde otros módulos administrativos.
@@ -55,10 +121,17 @@ async function reconcileKioskPaidReady(branchId: string): Promise<number> {
 export async function validateOperationBeforeClose(
   branchId: string,
 ): Promise<ValidationResult> {
-  // Reconciliación automática: kiosco cobrado pero no cerrado por KDS.
-  const reconciledKiosk = await reconcileKioskPaidReady(branchId);
-  if (reconciledKiosk > 0) {
-    console.info(`[close-validation] Reconciliados ${reconciledKiosk} pedidos de kiosco ya cobrados.`);
+  // Reconciliación automática previa: cerrar registros huérfanos que
+  // aparentan estar activos pero ya fueron entregados/cobrados.
+  const [reconciledKiosk, reconciledDelivered, reconciledQr] = await Promise.all([
+    reconcileKioskPaidReady(branchId),
+    reconcileDeliveredDomicilios(branchId),
+    reconcileStaleTableQr(branchId),
+  ]);
+  if (reconciledKiosk + reconciledDelivered + reconciledQr > 0) {
+    console.info(
+      `[close-validation] Reconciliados kiosco=${reconciledKiosk} domicilios=${reconciledDelivered} qr=${reconciledQr}`,
+    );
   }
   const [tables, llevar, domicilio, online, tableQr, kiosk] = await Promise.all([
     supabase
@@ -74,21 +147,27 @@ export async function validateOperationBeforeClose(
       .eq("source", "pos")
       .eq("order_type", "llevar")
       .in("status", ACTIVE_STATUSES as unknown as string[]),
+    // Domicilios: excluir los ya entregados (delivery_status='entregado')
     supabase
       .from("sales")
       .select("id,ticket_number,status,delivery_status", { count: "exact" })
       .eq("branch_id", branchId)
       .eq("order_type", "domicilio")
-      .in("status", ACTIVE_STATUSES as unknown as string[]),
+      .in("status", ACTIVE_STATUSES as unknown as string[])
+      .or("delivery_status.is.null,delivery_status.neq.entregado"),
     supabase
       .from("sales")
       .select("id,ticket_number,status", { count: "exact" })
       .eq("branch_id", branchId)
       .eq("source", "online_menu")
       .in("status", ACTIVE_STATUSES as unknown as string[]),
+    // QR de mesa: sólo cuenta si mesa sigue ocupada o el pago está pendiente
     supabase
       .from("sales")
-      .select("id,ticket_number,status", { count: "exact" })
+      .select(
+        "id,ticket_number,status,payment_method,table_id,restaurant_tables:table_id(status)",
+        { count: "exact" },
+      )
       .eq("branch_id", branchId)
       .eq("source", "table_qr")
       .in("status", ACTIVE_STATUSES as unknown as string[]),
@@ -99,6 +178,23 @@ export async function validateOperationBeforeClose(
       .eq("source", "kiosk")
       .eq("status", "pending"),
   ]);
+
+  // Filtrado adicional QR: descartar huérfanos (mesa libre) que no
+  // fueron reconciliados por concurrencia.
+  const qrActive = (tableQr.data ?? []).filter(
+    (r: {
+      table_id: string | null;
+      restaurant_tables: { status: string } | null;
+      payment_method: string | null;
+    }) => {
+      const pmPending =
+        !r.payment_method || ["pendiente", ""].includes(r.payment_method.trim().toLowerCase());
+      if (!r.table_id) return pmPending;
+      const st = r.restaurant_tables?.status;
+      return st === "occupied" || pmPending;
+    },
+  );
+
 
   const categories: PendingCategory[] = [];
 
@@ -155,7 +251,7 @@ export async function validateOperationBeforeClose(
   push(
     "table_qr",
     "Pedidos de mesa (QR) pendientes",
-    tableQr.data?.length ?? 0,
+    qrActive.length,
     "/mesas",
     "Pedidos realizados desde QR de mesa sin cerrar.",
   );
