@@ -33,7 +33,7 @@ const ACTIVE_STATUSES = ["pending", "confirmed", "ready"] as const;
 async function reconcileKioskPaidReady(branchId: string): Promise<number> {
   const { data, error } = await supabase
     .from("sales")
-    .update({ status: "completed" })
+    .update({ status: "paid" })
     .eq("branch_id", branchId)
     .eq("source", "kiosk")
     .in("status", ["ready", "confirmed"])
