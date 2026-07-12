@@ -206,11 +206,11 @@ export function renderPreview(fmt: CommandFormat, opts: { width?: number } = {})
     if (gap) lines.push(gap);
     if (it.mods.length) {
       if (fmt.modifiersLayout === "inline") {
-        const joined = "+ " + it.mods.join(" + ");
+        const joined = "* " + it.mods.join(" * ");
         lines.push(align(bold(joined, fmt.bold.modifier), fmt.align.product).replace(marginL, marginL + "  "));
       } else {
         for (const m of it.mods) {
-          lines.push(align(bold(`+ ${m}`, fmt.bold.modifier), fmt.align.product).replace(marginL, marginL + "  "));
+          lines.push(align(bold(`* ${m}`, fmt.bold.modifier), fmt.align.product).replace(marginL, marginL + "  "));
         }
       }
     }
