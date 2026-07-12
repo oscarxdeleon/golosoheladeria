@@ -17,7 +17,7 @@ export async function reconcileTables(
 ): Promise<number> {
   try {
     const { data, error } = await supabase.rpc("reconcile_restaurant_tables", {
-      _branch_id: branchId ?? null,
+      _branch_id: branchId ?? undefined,
     });
     if (error) {
       // Silencioso: es una tarea de mantenimiento, no debe romper la UI.
