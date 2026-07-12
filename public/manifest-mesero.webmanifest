@@ -1,0 +1,19 @@
+{
+  "name": "Goloso Mesero",
+  "short_name": "Mesero",
+  "description": "App para meseros de Heladería Goloso: mesas, pedidos y comandas.",
+  "start_url": "/mesas?src=pwa",
+  "scope": "/",
+  "id": "/goloso-mesero",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0EA5E9",
+  "theme_color": "#0EA5E9",
+  "lang": "es-CO",
+  "categories": ["business", "productivity"],
+  "icons": [
+    { "src": "/goloso-icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/goloso-icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/goloso-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
