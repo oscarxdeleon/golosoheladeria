@@ -54,7 +54,7 @@ export type PrintPayload = {
 
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
-const MIN_COMANDA_PRINT_SERVER_VERSION = "2.10.0";
+const MIN_PRINT_SERVER_VERSION = "2.11.0";
 
 /**
  * Normaliza texto para el servidor ESC/POS sin quitar tildes ni ñ. El servidor
@@ -269,7 +269,7 @@ const _healthCache = new Map<string, { ok: boolean; at: number }>();
 const HEALTH_TTL_MS = 60_000;
 
 async function assertCompatiblePrintServer(url: string, payload: PrintPayload, signal: AbortSignal): Promise<boolean> {
-  if (payload.type !== "comanda") return true;
+  if (payload.type === "drawer") return true;
   const cached = _healthCache.get(url);
   if (cached && Date.now() - cached.at < HEALTH_TTL_MS) return cached.ok;
   try {
@@ -279,9 +279,9 @@ async function assertCompatiblePrintServer(url: string, payload: PrintPayload, s
       return false;
     }
     const health = (await res.json()) as { version?: string };
-    const ok = versionAtLeast(health.version, MIN_COMANDA_PRINT_SERVER_VERSION);
+    const ok = versionAtLeast(health.version, MIN_PRINT_SERVER_VERSION);
     if (!ok) {
-      console.error(`[print] Print Server obsoleto (${health.version ?? "sin version"}). Requiere ${MIN_COMANDA_PRINT_SERVER_VERSION}+ para comandas.`);
+      console.error(`[print] Print Server obsoleto (${health.version ?? "sin version"}). Requiere ${MIN_PRINT_SERVER_VERSION}+ para impresión.`);
     }
     _healthCache.set(url, { ok, at: Date.now() });
     return ok;
@@ -532,8 +532,8 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     try {
-      // Chequeo de versión NO bloqueante: solo advertencia en consola.
-      void assertCompatiblePrintServer(url, payload, controller.signal).catch(() => false);
+      const compatible = await assertCompatiblePrintServer(url, payload, controller.signal);
+      if (!compatible) continue;
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
