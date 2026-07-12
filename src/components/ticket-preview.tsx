@@ -183,7 +183,7 @@ export function TicketPreview({
         <span>{formatMoney(subtotal)}</span>
       </div>
 
-      {Number(sale.tip ?? 0) > 0 && (
+      {!isCourtesy && Number(sale.tip ?? 0) > 0 && (
         <div className="flex justify-end gap-4 text-[13px] pt-1">
           <span className="uppercase tracking-wide font-bold">PROPINA:</span>
           <span>{formatMoney(Number(sale.tip))}</span>
