@@ -534,12 +534,29 @@ export function OnlineOrdersNotifier() {
       .subscribe((status) => {
         if (status === "SUBSCRIBED") void loadRecentPending();
       });
+    // Canal broadcast: propaga confirmaciones al instante entre dispositivos
+    // de la misma sede, sin esperar la latencia de postgres_changes.
+    const ackChannel = supabase
+      .channel(`orders-ack-broadcast-${activeBranchId}`, { config: { broadcast: { self: false } } })
+      .on("broadcast", { event: "orders-ack" }, (msg) => {
+        const ids = (msg?.payload as { ids?: unknown } | undefined)?.ids;
+        if (!Array.isArray(ids)) return;
+        const idList = ids.filter((x): x is string => typeof x === "string");
+        if (idList.length === 0) return;
+        acknowledge(idList);
+        setPending((arr) => arr.filter((p) => !idList.includes(p.id)));
+        invalidateOrderViews();
+      })
+      .subscribe();
+
     const fallback = window.setInterval(() => { void loadRecentPending(); }, 5000);
     return () => {
       window.clearInterval(fallback);
       supabase.removeChannel(channel);
+      supabase.removeChannel(ackChannel);
     };
   }, [acknowledge, activeBranchId, addAlert, canReceiveAlerts, invalidateOrderViews, loadRecentPending]);
+
 
   if (pending.length === 0 || !canReceiveAlerts) return null;
 
