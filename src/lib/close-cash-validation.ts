@@ -121,10 +121,17 @@ async function reconcileStaleTableQr(branchId: string): Promise<number> {
 export async function validateOperationBeforeClose(
   branchId: string,
 ): Promise<ValidationResult> {
-  // Reconciliación automática: kiosco cobrado pero no cerrado por KDS.
-  const reconciledKiosk = await reconcileKioskPaidReady(branchId);
-  if (reconciledKiosk > 0) {
-    console.info(`[close-validation] Reconciliados ${reconciledKiosk} pedidos de kiosco ya cobrados.`);
+  // Reconciliación automática previa: cerrar registros huérfanos que
+  // aparentan estar activos pero ya fueron entregados/cobrados.
+  const [reconciledKiosk, reconciledDelivered, reconciledQr] = await Promise.all([
+    reconcileKioskPaidReady(branchId),
+    reconcileDeliveredDomicilios(branchId),
+    reconcileStaleTableQr(branchId),
+  ]);
+  if (reconciledKiosk + reconciledDelivered + reconciledQr > 0) {
+    console.info(
+      `[close-validation] Reconciliados kiosco=${reconciledKiosk} domicilios=${reconciledDelivered} qr=${reconciledQr}`,
+    );
   }
   const [tables, llevar, domicilio, online, tableQr, kiosk] = await Promise.all([
     supabase
@@ -140,21 +147,27 @@ export async function validateOperationBeforeClose(
       .eq("source", "pos")
       .eq("order_type", "llevar")
       .in("status", ACTIVE_STATUSES as unknown as string[]),
+    // Domicilios: excluir los ya entregados (delivery_status='entregado')
     supabase
       .from("sales")
       .select("id,ticket_number,status,delivery_status", { count: "exact" })
       .eq("branch_id", branchId)
       .eq("order_type", "domicilio")
-      .in("status", ACTIVE_STATUSES as unknown as string[]),
+      .in("status", ACTIVE_STATUSES as unknown as string[])
+      .or("delivery_status.is.null,delivery_status.neq.entregado"),
     supabase
       .from("sales")
       .select("id,ticket_number,status", { count: "exact" })
       .eq("branch_id", branchId)
       .eq("source", "online_menu")
       .in("status", ACTIVE_STATUSES as unknown as string[]),
+    // QR de mesa: sólo cuenta si mesa sigue ocupada o el pago está pendiente
     supabase
       .from("sales")
-      .select("id,ticket_number,status", { count: "exact" })
+      .select(
+        "id,ticket_number,status,payment_method,table_id,restaurant_tables:table_id(status)",
+        { count: "exact" },
+      )
       .eq("branch_id", branchId)
       .eq("source", "table_qr")
       .in("status", ACTIVE_STATUSES as unknown as string[]),
@@ -165,6 +178,23 @@ export async function validateOperationBeforeClose(
       .eq("source", "kiosk")
       .eq("status", "pending"),
   ]);
+
+  // Filtrado adicional QR: descartar huérfanos (mesa libre) que no
+  // fueron reconciliados por concurrencia.
+  const qrActive = (tableQr.data ?? []).filter(
+    (r: {
+      table_id: string | null;
+      restaurant_tables: { status: string } | null;
+      payment_method: string | null;
+    }) => {
+      const pmPending =
+        !r.payment_method || ["pendiente", ""].includes(r.payment_method.trim().toLowerCase());
+      if (!r.table_id) return pmPending;
+      const st = r.restaurant_tables?.status;
+      return st === "occupied" || pmPending;
+    },
+  );
+
 
   const categories: PendingCategory[] = [];
 
