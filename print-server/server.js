@@ -618,8 +618,13 @@ function buildComandaFormatted(p, fmt) {
     const t = String(text ?? "");
     if (!t) return "";
     const sizeCmd = SIZE_MAP[size] || SIZE_NORMAL;
-    // En tamaño doble/triple el número de columnas se reduce; envolvemos si aplica.
-    const cols = size >= 3 ? Math.floor(usable / 3) : size === 2 ? Math.floor(usable / 2) : usable;
+    // Solo los tamaños de DOBLE/TRIPLE ANCHO reducen las columnas útiles.
+    // SIZE_DOUBLE_H (size=2) es doble ALTO únicamente: mantiene el ancho
+    // normal, así que el nombre del producto conserva las 42 columnas
+    // (80 mm) y no se parte en dos líneas innecesariamente.
+    const cols = size >= 4 ? Math.floor(usable / 3)
+      : size === 3 ? Math.floor(usable / 2)
+      : usable;
     const lines = wrapText(t, Math.max(1, cols));
     let out = alignFor(alignMode) + (boldOn ? BOLD_ON : "") + sizeCmd;
     for (const ln of lines) out += marginL + ln + "\n";
