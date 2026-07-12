@@ -2252,6 +2252,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      reconcile_restaurant_tables: {
+        Args: { _branch_id?: string }
+        Returns: Json
+      }
       register_credit_payment: {
         Args: {
           _amount: number
@@ -2275,6 +2279,10 @@ export type Database = {
       release_table: {
         Args: { _reason: string; _table_id: string }
         Returns: Json
+      }
+      release_table_if_no_active_sales: {
+        Args: { _reason?: string; _sale_id?: string; _table_id: string }
+        Returns: boolean
       }
       resync_product_from_parent: {
         Args: { _child_id: string }
