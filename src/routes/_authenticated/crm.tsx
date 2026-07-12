@@ -146,7 +146,7 @@ function CrmPage() {
   }, [items]);
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 premium-scope">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h1 className="font-display text-3xl">CRM</h1>

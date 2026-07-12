@@ -59,7 +59,7 @@ function AutopedidoInbox() {
   });
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 premium-scope">
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center sm:gap-4">
         <div className="flex min-w-0 items-center gap-2">
           <h1 className="font-display text-2xl sm:text-3xl font-extrabold tracking-tight truncate uppercase">Autopedidos</h1>

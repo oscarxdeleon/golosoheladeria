@@ -142,7 +142,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
   }
 
   return (
-    <div className="mx-auto max-w-3xl p-4 space-y-4">
+    <div className="mx-auto max-w-3xl p-4 space-y-4 premium-scope">
       {/* Encabezado premium compacto — la ilustración vive dentro del hero para
           ahorrar espacio vertical y que la búsqueda quede visible sin scroll. */}
       <div className="relative overflow-hidden rounded-3xl border border-sky-500/20 bg-gradient-to-br from-sky-500/10 via-background to-background p-[1px] shadow-xl">

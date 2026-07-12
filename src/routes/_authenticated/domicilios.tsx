@@ -123,7 +123,7 @@ function DespachoDomiciliosPage() {
   const done = data.filter((d) => d.delivery_status === "entregado");
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 premium-scope">
       <div className="flex items-center gap-3">
         <Bike className="h-7 w-7 text-primary" />
         <div>

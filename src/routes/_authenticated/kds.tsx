@@ -145,7 +145,7 @@ function KdsPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 premium-scope">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="font-display text-3xl">KDS</h1>

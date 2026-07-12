@@ -305,7 +305,7 @@ function MesasPage() {
 
   return (
     <BranchCashGuard>
-    <div className="space-y-6">
+    <div className="space-y-6 premium-scope">
       {/* Accesos rápidos a otros canales de venta */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Button

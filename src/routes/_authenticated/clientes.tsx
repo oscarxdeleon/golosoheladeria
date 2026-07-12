@@ -188,7 +188,7 @@ function ClientesPage() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 premium-scope">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="font-display text-3xl">Clientes y fidelización</h1>
         <div className="flex flex-wrap gap-2">

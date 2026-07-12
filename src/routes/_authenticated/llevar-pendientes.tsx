@@ -212,7 +212,7 @@ function LlevarPendientesPage() {
   }
 
   return (
-    <div className="space-y-4 p-2 sm:p-4">
+    <div className="space-y-4 p-2 sm:p-4 premium-scope">
       <header className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600">
