@@ -632,7 +632,14 @@ function buildComandaFormatted(p, fmt) {
 
   // Número de pedido
   const ticketNum = p.ticket ?? p.ticket_number;
-  const orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
+  const isMesaCmd = otKeyEarly === "mesa";
+  let orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
+  if (orderNumTxt && isMesaCmd) {
+    // Para MESA: "PEDIDO # 1209" (# separado por espacios). Si el formato
+    // activo no antepone "PEDIDO", lo agregamos para cumplir el estándar.
+    const num = normalizeTicketNumber(ticketNum);
+    orderNumTxt = `PEDIDO # ${num}`;
+  }
   if (orderNumTxt) {
     out += bigLine(orderNumTxt, f.titleSize, f.bold.title, f.align.header);
   }
@@ -644,18 +651,23 @@ function buildComandaFormatted(p, fmt) {
   const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
   out += (f.bold.title ? BOLD_ON : "") + line(`${hora}    ${fecha}`, f.align.header) + (f.bold.title ? BOLD_OFF : "");
 
-  // Tipo de pedido
+  // Tipo de pedido — se omite en MESA para un encabezado más limpio.
   const otKey = normalizeOrderTypeKey(p.order_type);
-  const otTxt = fmtOrderType(otKey, f.orderTypeFormat);
-  if (otTxt) {
-    out += bigLine(otTxt, Math.min(f.titleSize, 2), f.bold.title, f.align.orderType);
+  if (otKey !== "mesa") {
+    const otTxt = fmtOrderType(otKey, f.orderTypeFormat);
+    if (otTxt) {
+      out += bigLine(otTxt, Math.min(f.titleSize, 2), f.bold.title, f.align.orderType);
+    }
   }
 
   // Mesa
   if (p.header && otKey === "mesa") {
-    const tableTxt = fmtTable(p.header, f.tableFormat);
+    let tableTxt = fmtTable(p.header, f.tableFormat);
+    // "MESA # 1" (espacio entre # y número) para comandas de mesa.
+    if (tableTxt) tableTxt = tableTxt.replace(/#\s*(\d)/, "# $1");
     if (tableTxt) out += bigLine(tableTxt, f.titleSize, f.bold.title, f.align.header);
   }
+
 
   out += separator;
 
@@ -698,10 +710,15 @@ function buildComandaFormatted(p, fmt) {
         parts.push(clean);
       }
       if (parts.length) {
-        const modSize = SIZE_MAP[f.modifierSize] || SIZE_NORMAL;
-        const modBold = f.bold.modifier;
+        // En comandas de MESA se agranda la fuente de modificadores para que
+        // sean claramente legibles en cocina (mín. tamaño 2, doble alto).
+        const effModSize = isMesaCmd ? Math.max(2, f.modifierSize) : f.modifierSize;
+        const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
+        const modBold = f.bold.modifier || isMesaCmd;
+        // Mesa usa FONT_A (más grande y legible) en lugar de FONT_B.
+        const modFont = isMesaCmd ? FONT_A : FONT_B;
         // Alineación de modificadores hereda la de producto
-        out += alignFor(f.align.product) + FONT_B + modSize + (modBold ? BOLD_ON : "");
+        out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
         if (f.modifiersLayout === "inline") {
           const joined = "+ " + parts.join(" + ");
           for (const ln of wrapText(joined, modCols)) out += marginL + modIndent + ln + "\n";
@@ -753,7 +770,13 @@ function buildComandaLegacy(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  const ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
+  const otKeyL = normalizeOrderTypeKey(p.order_type);
+  const isMesaCmdL = otKeyL === "mesa";
+  let ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
+  if (ticketHeader && isMesaCmdL) {
+    // "PEDIDO # 1209" (# separado por espacios) para comandas de MESA.
+    ticketHeader = ticketHeader.replace(/#\s*(\d)/, "# $1");
+  }
   if (ticketHeader) {
     out += BOLD_ON + SIZE_DOUBLE + ticketHeader + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
@@ -772,21 +795,25 @@ function buildComandaLegacy(p) {
     kiosko: "AUTOPEDIDO",
     online: "PEDIDO EN LINEA",
   };
-  const otKey = normalizeOrderTypeKey(p.order_type);
+  const otKey = otKeyL;
   const otLabel = orderTypeLabels[otKey] || (otKey ? `PEDIDO ${otKey.toUpperCase()}` : "");
-  if (otLabel) {
+  // En MESA se omite el rótulo "PEDIDO PARA MESA" para un encabezado limpio.
+  if (otLabel && !isMesaCmdL) {
     out += BOLD_ON + SIZE_DOUBLE_H + otLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
   if (p.header && otKey === "mesa") {
-    const headerText = formatMesaHeader(p.header);
+    let headerText = formatMesaHeader(p.header);
     if (headerText) {
+      // "MESA # 1" (espacio entre # y número).
+      headerText = headerText.replace(/#\s*(\d)/, "# $1");
       const maxCols = Math.max(1, Math.floor(WIDTH / 2));
       out += BOLD_ON + SIZE_DOUBLE;
       for (const line of wrapText(headerText, maxCols)) out += line + "\n";
       out += SIZE_NORMAL + BOLD_OFF;
     }
   }
+
 
   out += ALIGN_L + DASH_LINE;
 
@@ -831,9 +858,16 @@ function buildComandaLegacy(p) {
       if (parts.length) {
         const joined = "+ " + parts.join(" + ");
         const modLines = wrapText(joined, modCols);
-        out += FONT_B;
-        for (const line of modLines) out += MOD_INDENT + line + "\n";
-        out += FONT_A;
+        // Mesa: modificadores en FONT_A + doble alto + bold para máxima legibilidad.
+        if (isMesaCmdL) {
+          out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
+          for (const line of modLines) out += MOD_INDENT + line + "\n";
+          out += SIZE_NORMAL + BOLD_OFF;
+        } else {
+          out += FONT_B;
+          for (const line of modLines) out += MOD_INDENT + line + "\n";
+          out += FONT_A;
+        }
       }
     }
     out += DASH_LINE;
