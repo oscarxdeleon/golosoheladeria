@@ -26,6 +26,7 @@ import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/co
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.png";
+import { VoiceMicButton } from "@/components/voice-input";
 
 
 
