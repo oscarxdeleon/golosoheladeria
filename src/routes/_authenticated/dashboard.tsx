@@ -79,11 +79,11 @@ function DashboardPage() {
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
-          .from("expenses").select("amount,created_at")
+          .from("expenses").select("amount,created_at,payment_method")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
-          .from("purchases").select("total,created_at")
+          .from("purchases").select("total,created_at,payment_method")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
@@ -140,9 +140,27 @@ function DashboardPage() {
           methodMap.set(key, (methodMap.get(key) ?? 0) + Number(s.total));
         }
       });
-      const methods = [...methodMap.entries()]
-        .map(([name, total]) => ({ name, total }))
-        .sort((a, b) => b.total - a.total);
+      // Egresos por medio de pago (gastos + compras) — se descuentan del medio en que realmente se pagaron
+      const egresosPorMedio = new Map<string, number>();
+      const addEgreso = (method: string | null | undefined, amount: number) => {
+        const key = (method ?? "otro").toString().trim().toLowerCase() || "otro";
+        egresosPorMedio.set(key, (egresosPorMedio.get(key) ?? 0) + Number(amount || 0));
+      };
+      (expensesRes.data ?? []).forEach((e: any) => addEgreso(e.payment_method, e.amount));
+      (purchasesRes.data ?? []).forEach((p: any) => addEgreso(p.payment_method, p.total));
+
+      const allMethodKeys = new Set<string>([
+        ...Array.from(methodMap.keys()).map((k) => k.toLowerCase()),
+        ...Array.from(egresosPorMedio.keys()),
+      ]);
+      const methods = Array.from(allMethodKeys).map((key) => {
+        // ingresos: acumular por lower-case
+        const ingresos = Array.from(methodMap.entries())
+          .filter(([n]) => n.toLowerCase() === key)
+          .reduce((a, [, v]) => a + v, 0);
+        const egresos = egresosPorMedio.get(key) ?? 0;
+        return { name: key, ingresos, egresos, neto: ingresos - egresos, total: ingresos };
+      }).sort((a, b) => b.ingresos - a.ingresos);
 
       // Efectivo real (arqueo de cajas cerradas en el período)
       const cashSessions = cashSessionsRes.data ?? [];
@@ -359,43 +377,64 @@ function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* Métodos de Pago */}
+      {/* Métodos de Pago — saldos NETOS (ingresos − egresos por medio) */}
       <Card className="rounded-2xl shadow-sm">
         <CardHeader className="pb-1">
-          <CardTitle className="font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Métodos de Pago</CardTitle>
-          <p className="text-xs text-muted-foreground">Ingresos por medio de pago · incluye pagos divididos</p>
+          <CardTitle className="font-display text-xl sm:text-2xl font-black tracking-tight bg-gradient-to-r from-primary via-primary to-primary/70 bg-clip-text text-transparent">Disponible por Medio de Pago</CardTitle>
+          <p className="text-xs text-muted-foreground">Ingresos − gastos, compras y egresos del mismo medio</p>
         </CardHeader>
-        <CardContent className="space-y-2">
+        <CardContent className="space-y-3">
           {(data?.methods ?? []).length === 0 && (
-            <p className="text-sm text-muted-foreground">Sin pagos registrados.</p>
+            <p className="text-sm text-muted-foreground">Sin movimientos registrados.</p>
           )}
           {(() => {
-            const totalMethods = (data?.methods ?? []).reduce((a, m) => a + m.total, 0);
-            return (data?.methods ?? []).map((m) => {
-              const pct = totalMethods > 0 ? (m.total / totalMethods) * 100 : 0;
-              return (
-                <div key={m.name} className="space-y-1">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <span className={`h-2.5 w-2.5 rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} />
-                      <span className="uppercase text-sm">{m.name}</span>
+            const totalIngresos = (data?.methods ?? []).reduce((a, m: any) => a + (m.ingresos ?? 0), 0);
+            const totalEgresos = (data?.methods ?? []).reduce((a, m: any) => a + (m.egresos ?? 0), 0);
+            const totalNeto = totalIngresos - totalEgresos;
+            return (
+              <>
+                {(data?.methods ?? []).map((m: any) => {
+                  const pct = totalIngresos > 0 ? (m.ingresos / totalIngresos) * 100 : 0;
+                  const negativo = m.neto < 0;
+                  return (
+                    <div key={m.name} className="space-y-1 border-b border-border/40 pb-2 last:border-0 last:pb-0">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-3">
+                          <span className={`h-2.5 w-2.5 rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} />
+                          <span className="uppercase text-sm font-medium">{m.name}</span>
+                        </div>
+                        <div className="text-right">
+                          <div className={`font-bold text-base ${negativo ? "text-[#D6303A]" : "text-foreground"}`}>{formatMoney(m.neto)}</div>
+                          <div className="text-[10px] text-muted-foreground">Disponible real</div>
+                        </div>
+                      </div>
+                      <div className="flex justify-between text-[11px] text-muted-foreground pl-5">
+                        <span>Ingresos: <span className="text-foreground font-medium">{formatMoney(m.ingresos)}</span></span>
+                        <span>Egresos: <span className="text-[#D6303A] font-medium">−{formatMoney(m.egresos)}</span></span>
+                      </div>
+                      <div className="h-1 rounded-full bg-muted overflow-hidden">
+                        <div className={`h-full rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} style={{ width: `${pct}%` }} />
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="font-semibold text-sm">{formatMoney(m.total)}</div>
-                      <div className="text-[10px] text-muted-foreground">{pct.toFixed(1)}%</div>
-                    </div>
+                  );
+                })}
+                <div className="pt-3 border-t space-y-1">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="tracking-widest uppercase text-muted-foreground">Total ingresos</span>
+                    <span className="font-semibold text-foreground">{formatMoney(totalIngresos)}</span>
                   </div>
-                  <div className="h-1 rounded-full bg-muted overflow-hidden">
-                    <div className={`h-full rounded-full ${METHOD_COLORS[norm(m.name)] ?? "bg-slate-400"}`} style={{ width: `${pct}%` }} />
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="tracking-widest uppercase text-muted-foreground">Total egresos</span>
+                    <span className="font-semibold text-[#D6303A]">−{formatMoney(totalEgresos)}</span>
+                  </div>
+                  <div className="flex items-center justify-between text-sm pt-1 border-t">
+                    <span className="tracking-widest uppercase text-muted-foreground font-medium">Neto disponible</span>
+                    <span className={`font-black text-lg ${totalNeto < 0 ? "text-[#D6303A]" : "text-[#5A8A00]"}`}>{formatMoney(totalNeto)}</span>
                   </div>
                 </div>
-              );
-            });
+              </>
+            );
           })()}
-          <div className="pt-3 border-t flex items-center justify-between text-xs">
-            <span className="tracking-widest uppercase text-muted-foreground">Total ingresos</span>
-            <span className="font-bold text-foreground">{formatMoney((data?.methods ?? []).reduce((a, m) => a + m.total, 0))}</span>
-          </div>
         </CardContent>
       </Card>
 
