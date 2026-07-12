@@ -251,7 +251,7 @@ export async function validateOperationBeforeClose(
   push(
     "table_qr",
     "Pedidos de mesa (QR) pendientes",
-    tableQr.data?.length ?? 0,
+    qrActive.length,
     "/mesas",
     "Pedidos realizados desde QR de mesa sin cerrar.",
   );
