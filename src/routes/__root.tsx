@@ -165,6 +165,27 @@ function RootComponent() {
     };
   }, [queryClient]);
 
+  // Autocorrección de mesas: al iniciar el sistema y al recuperar conexión.
+  useEffect(() => {
+    let ranOnce = false;
+    const run = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return; // requiere sesión (RPC exige authenticated)
+      const fixed = await reconcileTables(null, { silent: true });
+      if (fixed > 0) {
+        void queryClient.invalidateQueries({ queryKey: ["restaurant_tables"] });
+      }
+    };
+    // Al iniciar (una sola vez)
+    if (!ranOnce) {
+      ranOnce = true;
+      void run();
+    }
+    const onOnline = () => void run();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [queryClient]);
+
   return (
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
