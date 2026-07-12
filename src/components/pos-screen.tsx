@@ -166,7 +166,7 @@ export function comandaHTML(o: {
   <body>
     ${logoHTML}
     <div class="sede">${b.business_name || "Heladería Goloso"}</div>
-    <h1>PEDIDO #${o.ticket}</h1>
+    <h1>PEDIDO # ${o.ticket}</h1>
     <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
     <div class="meta" style="text-align:center">Cajero: ${o.user_name}</div>
     <hr/>
@@ -287,7 +287,7 @@ export function ticketHTML(o: {
     ${cfg.show_phone && b.phone ? `<div class="biz-meta">${SVG.phone}<span>${b.phone}</span></div>` : ""}
     ${cfg.show_email && b.email ? `<div class="biz-meta">${SVG.mail}<span>${b.email}</span></div>` : ""}
     <hr class="dashed"/>
-    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"}</div><div class="ticket-no"><span class="num"># ${ticketNo}</span></div><hr class="dashed"/>
+    <div class="ticket-no">${cfg.title_text || "TICKET DE VENTA"} # ${ticketNo}</div><hr class="dashed"/>
     ${infoRows.length ? `<div class="info">${infoRows.join("")}</div><hr class="dashed"/>` : ""}
     <table class="tbl">
       <thead><tr><th class="qty">CANTIDAD</th><th class="det">DETALLE</th><th class="tot">TOTAL</th></tr></thead>
@@ -458,8 +458,8 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
   const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
 
-  // El título del ticket se envía SIN número; el Print Server (>=2.5.8)
-  // imprime el consecutivo en una línea aparte con formato "#1258".
+  // El título del ticket se envía SIN número; el Print Server (>=2.11.0)
+  // imprime el encabezado completo como "TICKET DE VENTA # 1258".
   const rawTicketNum = o.ticket;
   const ticketNumStr = rawTicketNum == null
     ? ""
