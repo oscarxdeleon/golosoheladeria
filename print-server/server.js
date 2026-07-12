@@ -724,10 +724,13 @@ function buildComandaFormatted(p, fmt) {
         const effModSize = Math.max(2, f.modifierSize);
         const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
         const modBold = true;
-        const modFont = FONT_A;
+        // Fuente distinta (Font B condensada) para diferenciar visualmente los
+        // modificadores del nombre del producto (Font A). Mantenemos SIZE_DOUBLE_H
+        // para conservar altura y legibilidad.
+        const modFont = FONT_B;
         out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
         for (const m of parts) {
-          for (const ln of wrapText(`+ ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
+          for (const ln of wrapText(`* ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
         }
         out += SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
       }
@@ -855,12 +858,12 @@ function buildComandaLegacy(p) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Modificadores compactos y legibles. Sin blancos entre uno y otro.
-        out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
+        // Modificadores: Font B (condensada) para distinguirlos del producto.
+        out += FONT_B + BOLD_ON + SIZE_DOUBLE_H;
         for (const m of parts) {
-          for (const line of wrapText(`+ ${m}`, modCols)) out += MOD_INDENT + line + "\n";
+          for (const line of wrapText(`* ${m}`, modCols)) out += MOD_INDENT + line + "\n";
         }
-        out += SIZE_NORMAL + BOLD_OFF;
+        out += SIZE_NORMAL + BOLD_OFF + FONT_A;
       }
     }
     if (idx < items.length - 1) out += DASH_LINE;
