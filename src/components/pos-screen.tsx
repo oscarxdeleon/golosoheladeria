@@ -1892,7 +1892,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   <Button
                     size="sm"
                     disabled={paying || cart.length === 0}
-                    onClick={saveComanda}
+                    onClick={() => saveComanda()}
                     className="h-11 rounded-xl bg-gradient-to-b from-sky-400 to-sky-600 text-white font-extrabold uppercase tracking-wide text-xs border border-sky-300/50 shadow-[0_4px_0_0_hsl(210_90%_35%),0_8px_20px_-4px_hsl(210_90%_45%/0.5)] hover:from-sky-300 hover:to-sky-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(210_90%_35%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
                   >
                     <Save className="h-4 w-4 sm:mr-1.5" />
@@ -2120,7 +2120,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             )}
             <Button
               disabled={paying || cart.length === 0}
-              onClick={saveComanda}
+              onClick={() => saveComanda()}
               variant={meseroMode ? "default" : "outline"}
               className={meseroMode ? "h-14 text-lg" : "border-primary text-primary hover:bg-primary/10"}
             >
@@ -2597,7 +2597,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             size="sm"
             variant="outline"
             disabled={paying || cart.length === 0}
-            onClick={saveComanda}
+            onClick={() => saveComanda()}
             className="h-11 shrink-0 border-primary text-primary"
           >
             <Save className="h-4 w-4 sm:mr-1" />
