@@ -507,8 +507,17 @@ function ModPage() {
                                   onCheckedChange={(v) => toggleActive(m, v)}
                                   title={availableHere ? "Disponible en esta sede" : "Inactivo en esta sede"}
                                 />
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
-                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6" title="Editar" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-blue-600 hover:text-blue-700"
+                                  title="Clonar modificador"
+                                  onClick={() => cloneMod(m)}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Eliminar" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
                               </>
                             )}
                           </span>
