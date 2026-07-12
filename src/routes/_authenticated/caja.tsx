@@ -70,6 +70,8 @@ function CajaPage() {
 
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
+  const [pendingBlock, setPendingBlock] = useState<ValidationResult | null>(null);
+  const navigate = useNavigate();
   const [openingAmount, setOpeningAmount] = useState("");
   const [openingNotes, setOpeningNotes] = useState("");
   const [cashCounted, setCashCounted] = useState("");
