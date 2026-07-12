@@ -188,6 +188,24 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
     },
   });
 
+  useEffect(() => {
+    if (!activeBranchId) return;
+    let cancelled = false;
+    const run = async () => {
+      const fixed = await reconcileTables(activeBranchId, { silent: true });
+      if (!cancelled && fixed > 0) {
+        void qc.invalidateQueries({ queryKey: ["restaurant_tables", activeBranchId] });
+      }
+    };
+    void run();
+    const onOnline = () => void run();
+    window.addEventListener("online", onOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", onOnline);
+    };
+  }, [activeBranchId, qc]);
+
   const counts = mesas.reduce(
     (a, m) => {
       a[m.status] += 1;
