@@ -100,18 +100,29 @@ function DashboardPage() {
 
       const saleIds = sales.map((s) => s.id);
       const { data: items } = saleIds.length
-        ? await supabase.from("sale_items").select("product_name,qty,subtotal,sale_id").in("sale_id", saleIds)
-        : { data: [] as { product_name: string; qty: number; subtotal: number }[] };
+        ? await supabase.from("sale_items").select("product_id,product_name,qty,subtotal,sale_id").in("sale_id", saleIds)
+        : { data: [] as { product_id: string | null; product_name: string; qty: number; subtotal: number }[] };
 
-      const productMap = new Map<string, { qty: number; total: number }>();
-      (items ?? []).forEach((it) => {
-        const cur = productMap.get(it.product_name) ?? { qty: 0, total: 0 };
+      // Resolver nombre base del producto (sin modificadores) desde la tabla products
+      const productIds = Array.from(new Set((items ?? []).map((i: any) => i.product_id).filter((x: any): x is string => !!x)));
+      const baseNameById = new Map<string, string>();
+      if (productIds.length) {
+        const { data: prods } = await supabase.from("products").select("id,name").in("id", productIds);
+        (prods ?? []).forEach((p: any) => baseNameById.set(p.id, p.name));
+      }
+      // Fallback: quitar todo lo que venga tras el primer "+" o "(" en product_name
+      const stripModifiers = (n: string) => (n ?? "").split(/\s*[+(]/)[0].trim() || n;
+
+      const productMap = new Map<string, { name: string; qty: number; total: number }>();
+      (items ?? []).forEach((it: any) => {
+        const baseName = (it.product_id && baseNameById.get(it.product_id)) || stripModifiers(it.product_name);
+        const key = (it.product_id as string) || baseName.toLowerCase();
+        const cur = productMap.get(key) ?? { name: baseName, qty: 0, total: 0 };
         cur.qty += Number(it.qty);
         cur.total += Number(it.subtotal);
-        productMap.set(it.product_name, cur);
+        productMap.set(key, cur);
       });
-      const top = [...productMap.entries()]
-        .map(([name, v]) => ({ name, ...v }))
+      const top = [...productMap.values()]
         .sort((a, b) => b.total - a.total).slice(0, 5);
 
       // Payment breakdown (considera pagos divididos en payment_details.splits[])
