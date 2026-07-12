@@ -462,21 +462,26 @@ async function buildPersonalizedTicketRaw(p) {
   }
 
   // ==== PIE ====
+  // Centrado real por ESC/POS (ESC a 1). No usamos centerLine() porque
+  // añade padding manual con espacios y, combinado con ALIGN_C, la
+  // impresora desplaza el texto a la derecha (queda descentrado).
   if (cfg.show_thanks) {
     const oneLine = String(cfg.thanks_text || "¡Gracias por Preferirnos!").replace(/\s+/g, " ").trim();
-    out += ALIGN_C + BOLD_ON + centerLine(oneLine) + BOLD_OFF;
+    out += ALIGN_C + BOLD_ON + oneLine + "\n" + BOLD_OFF + ALIGN_L;
   }
 
   if (cfg.extra_footer) {
     out += ALIGN_C;
     for (const line of String(cfg.extra_footer).split("\n"))
-      for (const w of wrapText(line, WIDTH)) out += centerLine(w);
+      for (const w of wrapText(line, WIDTH)) out += w + "\n";
+    out += ALIGN_L;
   }
 
   if (p.ticket_footer) {
     out += ALIGN_C;
     for (const line of String(p.ticket_footer).split("\n"))
-      for (const w of wrapText(line, WIDTH)) out += centerLine(w);
+      for (const w of wrapText(line, WIDTH)) out += w + "\n";
+    out += ALIGN_L;
   }
 
   if (cfg.show_decorations) {
