@@ -55,6 +55,15 @@ const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 //   tipográfico entre productos (Font A + negrita) y modificadores (Font B).
 const FONT_A = ESC + "M\x00";
 const FONT_B = ESC + "M\x01";
+// Subrayado ESC/POS (ESC - n). 0 = off, 1 = simple, 2 = doble. Se usa junto
+// con Font B en los modificadores para diferenciarlos tipográficamente del
+// producto (Font A) sin alterar el tamaño de la letra.
+const UNDERLINE_ON = ESC + "-" + "\x02";
+const UNDERLINE_OFF = ESC + "-" + "\x00";
+// Cursiva ESC/POS (ESC 4 / ESC 5). Muchas térmicas la ignoran, pero cuando
+// está soportada refuerza aún más el contraste visual del modificador.
+const ITALIC_ON = ESC + "4";
+const ITALIC_OFF = ESC + "5";
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 // Selección de página de códigos:
