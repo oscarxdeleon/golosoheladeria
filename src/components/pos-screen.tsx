@@ -1357,7 +1357,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     }
   }
 
-  async function saveComanda() {
+  async function saveComanda(opts?: { stayForPayment?: boolean }) {
+    const stayForPayment = opts?.stayForPayment === true;
     if (paying) {
       console.warn("[pos] saveComanda ignorado: ya hay una operación en curso");
       return;
