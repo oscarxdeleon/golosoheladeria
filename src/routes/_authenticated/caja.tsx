@@ -675,6 +675,62 @@ function CajaPage() {
   );
 }
 
+function PendingBlockDialog({
+  result,
+  onClose,
+  onGoto,
+  onRetry,
+}: {
+  result: ValidationResult | null;
+  onClose: () => void;
+  onGoto: (cat: PendingCategory) => void;
+  onRetry: () => void | Promise<void>;
+}) {
+  const open = !!result && !result.ok;
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg border-amber-300">
+        <DialogHeader>
+          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <AlertTriangle className="h-7 w-7" />
+          </div>
+          <DialogTitle className="text-center text-xl">
+            No es posible cerrar la caja
+          </DialogTitle>
+          <DialogDescription className="text-center">
+            Existen operaciones pendientes. Finalícelas antes de cerrar la caja.
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-2">
+          {result?.categories.map((c) => (
+            <li
+              key={c.key}
+              className="flex items-center gap-3 rounded-lg border bg-amber-50/60 p-3"
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-200 text-amber-800 font-bold">
+                {c.count}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-sm">{c.label}</div>
+                <div className="text-xs text-muted-foreground">{c.detail}</div>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => onGoto(c)}>
+                Ver pendientes
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void onRetry()}>Volver a validar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function SessionTipsCard({ sessionId, openedAt, closedAt, branchId }: { sessionId: string; openedAt: string; closedAt: string | null; branchId: string | null }) {
   const { data } = useQuery({
     queryKey: ["cash-session-tips", sessionId],
