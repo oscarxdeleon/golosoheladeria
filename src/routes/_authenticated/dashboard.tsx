@@ -79,11 +79,11 @@ function DashboardPage() {
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
-          .from("expenses").select("amount,created_at")
+          .from("expenses").select("amount,created_at,payment_method")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
-          .from("purchases").select("total,created_at")
+          .from("purchases").select("total,created_at,payment_method")
           .eq("branch_id", activeBranchId!)
           .gte("created_at", start).lt("created_at", end),
         supabase
