@@ -278,13 +278,19 @@ async function assertCompatiblePrintServer(url: string, payload: PrintPayload, s
       _healthCache.set(url, { ok: false, at: Date.now() });
       return false;
     }
-    const health = (await res.json()) as { version?: string };
-    const ok = versionAtLeast(health.version, MIN_PRINT_SERVER_VERSION);
-    if (!ok) {
-      console.error(`[print] Print Server obsoleto (${health.version ?? "sin version"}). Requiere ${MIN_PRINT_SERVER_VERSION}+ para impresión.`);
+    // Aceptamos cualquier Print Server que responda /health. Si es una versión
+    // anterior a la recomendada avisamos por consola pero NO bloqueamos la
+    // impresión — el formato ya se normaliza en el cliente, así que las
+    // comandas se imprimen correctamente aunque el servidor no esté actualizado.
+    const health = (await res.json().catch(() => ({}))) as { version?: string };
+    if (!versionAtLeast(health.version, MIN_PRINT_SERVER_VERSION)) {
+      console.warn(
+        `[print] Print Server ${health.version ?? "desconocido"} en uso; ` +
+          `se recomienda actualizar a ${MIN_PRINT_SERVER_VERSION}+.`,
+      );
     }
-    _healthCache.set(url, { ok, at: Date.now() });
-    return ok;
+    _healthCache.set(url, { ok: true, at: Date.now() });
+    return true;
   } catch {
     return false;
   }
