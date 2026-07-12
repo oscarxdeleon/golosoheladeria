@@ -632,7 +632,14 @@ function buildComandaFormatted(p, fmt) {
 
   // Número de pedido
   const ticketNum = p.ticket ?? p.ticket_number;
-  const orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
+  const isMesaCmd = otKeyEarly === "mesa";
+  let orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
+  if (orderNumTxt && isMesaCmd) {
+    // Para MESA: "PEDIDO # 1209" (# separado por espacios). Si el formato
+    // activo no antepone "PEDIDO", lo agregamos para cumplir el estándar.
+    const num = normalizeTicketNumber(ticketNum);
+    orderNumTxt = `PEDIDO # ${num}`;
+  }
   if (orderNumTxt) {
     out += bigLine(orderNumTxt, f.titleSize, f.bold.title, f.align.header);
   }
@@ -644,18 +651,23 @@ function buildComandaFormatted(p, fmt) {
   const hora = now.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", hour12: true }).toUpperCase();
   out += (f.bold.title ? BOLD_ON : "") + line(`${hora}    ${fecha}`, f.align.header) + (f.bold.title ? BOLD_OFF : "");
 
-  // Tipo de pedido
+  // Tipo de pedido — se omite en MESA para un encabezado más limpio.
   const otKey = normalizeOrderTypeKey(p.order_type);
-  const otTxt = fmtOrderType(otKey, f.orderTypeFormat);
-  if (otTxt) {
-    out += bigLine(otTxt, Math.min(f.titleSize, 2), f.bold.title, f.align.orderType);
+  if (otKey !== "mesa") {
+    const otTxt = fmtOrderType(otKey, f.orderTypeFormat);
+    if (otTxt) {
+      out += bigLine(otTxt, Math.min(f.titleSize, 2), f.bold.title, f.align.orderType);
+    }
   }
 
   // Mesa
   if (p.header && otKey === "mesa") {
-    const tableTxt = fmtTable(p.header, f.tableFormat);
+    let tableTxt = fmtTable(p.header, f.tableFormat);
+    // "MESA # 1" (espacio entre # y número) para comandas de mesa.
+    if (tableTxt) tableTxt = tableTxt.replace(/#\s*(\d)/, "# $1");
     if (tableTxt) out += bigLine(tableTxt, f.titleSize, f.bold.title, f.align.header);
   }
+
 
   out += separator;
 
