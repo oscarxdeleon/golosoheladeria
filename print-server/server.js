@@ -93,20 +93,22 @@ const CP1252_OVERRIDES = {
 
 // Normaliza cualquier separador extraño (glifo, "·", "º", "Nº", "N.º", "No.",
 // bullets, etc.) que aparezca entre etiquetas como PEDIDO/MESA/TICKET y el
-// número, forzando siempre el carácter estándar "#" antes de enviar a la
-// impresora. Evita que print-servers antiguos o encodings mal configurados
-// muestren un glifo raro en lugar del "#".
+// número, forzando siempre el formato definitivo "ETIQUETA # 123" antes de
+// enviar a la impresora. Esta función corre al final del render ESC/POS, por
+// eso debe preservar el espacio después del # y no volver a compactarlo.
 function forceHashBeforeNumber(text) {
   return String(text ?? "")
     // Etiqueta + cualquier basura no numérica (glifo, ·, º, Nº, N.º, No.,
     // bullets, letras sueltas por mal encoding tipo "Ñ"/"M"/"Ð", etc.) +
-    // dígito. Se normaliza SIEMPRE a "ETIQUETA #<numero>".
+    // dígito. Se normaliza SIEMPRE a "ETIQUETA # <numero>".
     .replace(
-      /\b(PEDIDO|MESA|TICKET|COMANDA|ORDEN|ORDER|TABLE|NUM(?:ERO)?)\b[^0-9\n\r]{0,6}(\d)/gi,
-      (_m, lbl, digit) => `${lbl} ${ASCII_HASH}${digit}`,
+      /\b(TICKET\s+DE\s+VENTA|PEDIDO|MESA|TICKET|COMANDA|ORDEN|ORDER|TABLE|NUM(?:ERO)?)\b[^0-9\n\r]{0,14}(\d)/gi,
+      (_m, lbl, digit) => `${String(lbl).replace(/\s+/g, " ")} ${ASCII_HASH} ${digit}`,
     )
     // Colapsa "# #" o "##" a un solo "#"
-    .replace(/#\s*#+/g, "#");
+    .replace(/#\s*#+/g, "# ")
+    // Garantiza un espacio entre # y el consecutivo sin tocar líneas de arte.
+    .replace(/#\s*(\d)/g, "# $1");
 }
 
 function encodeEscPos(text) {
@@ -129,7 +131,7 @@ function normalizeTicketNumber(value) {
 
 function formatPedidoHeader(value) {
   const s = normalizeTicketNumber(value);
-  return s ? `PEDIDO #${s}` : "";
+  return s ? `PEDIDO # ${s}` : "";
 }
 
 function formatMesaHeader(value) {
@@ -141,7 +143,7 @@ function formatMesaHeader(value) {
     .replace(/^MESA\s*[^0-9]*(\d+)\s*$/i, "$1")
     .replace(/[^0-9]/g, "")
     .trim();
-  return s ? `MESA #${s}` : "";
+  return s ? `MESA # ${s}` : "";
 }
 
 function row(left, right, width = WIDTH) {
@@ -381,12 +383,10 @@ async function buildPersonalizedTicketRaw(p) {
   const rawNum = p.ticket ?? p.ticket_number ?? p.ticketNumber ?? p.ticket_no;
   const strNum = rawNum == null ? "" : String(rawNum).trim().replace(/^#+\s*/, "");
   const hasNum = strNum && strNum !== "0" && strNum !== "null" && strNum !== "undefined";
-  // El título va SOLO (sin número). El consecutivo se imprime en una línea
-  // aparte debajo del título con "#1258" para evitar glifos como "N.º".
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + baseTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
-  if (hasNum) {
-    out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_W + `# ${strNum}` + "\n" + SIZE_NORMAL + BOLD_OFF;
-  }
+  // Formato único definitivo: "TICKET DE VENTA # 1207". Se mantiene en una
+  // sola línea y en doble alto (no doble ancho) para que quepa en 80mm.
+  const ticketTitle = hasNum ? `${baseTitle} # ${strNum}` : baseTitle;
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + ticketTitle + "\n" + SIZE_NORMAL + BOLD_OFF;
   out += ALIGN_L + DASH_LINE;
 
   // ==== METADATOS ====
@@ -545,16 +545,16 @@ function fmtQty(qty, mode) {
 function fmtOrderNum(num, mode) {
   const s = normalizeTicketNumber(num);
   if (!s) return "";
-  if (mode === "pedido") return `PEDIDO #${s}`;
-  if (mode === "ticket") return `TICKET #${s}`;
-  return `#${s}`;
+  if (mode === "pedido") return `PEDIDO # ${s}`;
+  if (mode === "ticket") return `TICKET # ${s}`;
+  return `# ${s}`;
 }
 function fmtTable(header, mode) {
   void mode;
   return formatMesaHeader(header);
 }
 const ORDER_TYPE_LABELS = {
-  mesa: "PARA MESA",
+  mesa: "",
   llevar: "PARA LLEVAR",
   domicilio: "A DOMICILIO",
   kiosko: "AUTOPEDIDO",
@@ -632,15 +632,7 @@ function buildComandaFormatted(p, fmt) {
 
   // Número de pedido
   const ticketNum = p.ticket ?? p.ticket_number;
-  const isMesaCmd = otKeyEarly === "mesa";
-  const isLlevarCmd = otKeyEarly === "llevar";
-  const useHashSpacedHeader = isMesaCmd || isLlevarCmd;
-  let orderNumTxt = fmtOrderNum(ticketNum, f.orderNumberFormat);
-  if (orderNumTxt && useHashSpacedHeader) {
-    // "PEDIDO # 1211": # con espacios a ambos lados (aplica a mesa y llevar).
-    const num = normalizeTicketNumber(ticketNum);
-    orderNumTxt = `PEDIDO # ${num}`;
-  }
+  const orderNumTxt = formatPedidoHeader(ticketNum);
   if (orderNumTxt) {
     out += bigLine(orderNumTxt, f.titleSize, f.bold.title, f.align.header);
   }
@@ -664,8 +656,6 @@ function buildComandaFormatted(p, fmt) {
   // Mesa
   if (p.header && otKey === "mesa") {
     let tableTxt = fmtTable(p.header, f.tableFormat);
-    // "MESA # 1" (espacio entre # y número) para comandas de mesa.
-    if (tableTxt) tableTxt = tableTxt.replace(/#\s*(\d)/, "# $1");
     if (tableTxt) out += bigLine(tableTxt, f.titleSize, f.bold.title, f.align.header);
   }
 
@@ -711,22 +701,22 @@ function buildComandaFormatted(p, fmt) {
         parts.push(clean);
       }
       if (parts.length) {
-        // En comandas de MESA y LLEVAR se agranda la fuente de modificadores
-        // (mín. tamaño 2, doble alto) para que sean claramente legibles.
-        const boostMods = isMesaCmd || isLlevarCmd;
-        const effModSize = boostMods ? Math.max(2, f.modifierSize) : f.modifierSize;
+        // Formato único definitivo para TODAS las comandas: modificadores en
+        // Font A, negrita y mínimo doble alto, con separación entre líneas.
+        const effModSize = Math.max(2, f.modifierSize);
         const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
-        const modBold = f.bold.modifier || boostMods;
-        // Mesa/Llevar usan FONT_A (más grande y legible) en lugar de FONT_B.
-        const modFont = boostMods ? FONT_A : FONT_B;
+        const modBold = true;
+        const modFont = FONT_A;
         // Alineación de modificadores hereda la de producto
         out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
         if (f.modifiersLayout === "inline") {
           const joined = "+ " + parts.join(" + ");
           for (const ln of wrapText(joined, modCols)) out += marginL + modIndent + ln + "\n";
+          out += "\n";
         } else {
           for (const m of parts) {
             for (const ln of wrapText(`+ ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
+            out += "\n";
           }
         }
         out += SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
@@ -774,13 +764,7 @@ function buildComandaLegacy(p) {
 
   const otKeyL = normalizeOrderTypeKey(p.order_type);
   const isMesaCmdL = otKeyL === "mesa";
-  const isLlevarCmdL = otKeyL === "llevar";
-  const boostCmdL = isMesaCmdL || isLlevarCmdL;
   let ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
-  if (ticketHeader && boostCmdL) {
-    // "PEDIDO # 1211" (# separado por espacios) para comandas de MESA y LLEVAR.
-    ticketHeader = ticketHeader.replace(/#\s*(\d)/, "# $1");
-  }
   if (ticketHeader) {
     out += BOLD_ON + SIZE_DOUBLE + ticketHeader + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
@@ -809,8 +793,6 @@ function buildComandaLegacy(p) {
   if (p.header && otKey === "mesa") {
     let headerText = formatMesaHeader(p.header);
     if (headerText) {
-      // "MESA # 1" (espacio entre # y número).
-      headerText = headerText.replace(/#\s*(\d)/, "# $1");
       const maxCols = Math.max(1, Math.floor(WIDTH / 2));
       out += BOLD_ON + SIZE_DOUBLE;
       for (const line of wrapText(headerText, maxCols)) out += line + "\n";
@@ -862,16 +844,10 @@ function buildComandaLegacy(p) {
       if (parts.length) {
         const joined = "+ " + parts.join(" + ");
         const modLines = wrapText(joined, modCols);
-        // Mesa / Llevar: modificadores en FONT_A + doble alto + bold para máxima legibilidad.
-        if (boostCmdL) {
-          out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
-          for (const line of modLines) out += MOD_INDENT + line + "\n";
-          out += SIZE_NORMAL + BOLD_OFF;
-        } else {
-          out += FONT_B;
-          for (const line of modLines) out += MOD_INDENT + line + "\n";
-          out += FONT_A;
-        }
+        // Formato único definitivo para TODAS las comandas.
+        out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
+        for (const line of modLines) out += MOD_INDENT + line + "\n";
+        out += "\n" + SIZE_NORMAL + BOLD_OFF;
       }
     }
     out += DASH_LINE;
@@ -1041,7 +1017,7 @@ const server = http.createServer(async (req, res) => {
         ],
         command_format: { orderNumberFormat: "pedido", tableFormat: "MESA N" },
       });
-      return send(200, { ok: true, expected: "PEDIDO #1197", hashAscii: 35, version: APP_VERSION });
+      return send(200, { ok: true, expected: "PEDIDO # 1197", hashAscii: 35, version: APP_VERSION });
     } catch (e) {
       console.error("[test-comanda]", e);
       return send(500, { ok: false, error: String(e?.message || e) });
