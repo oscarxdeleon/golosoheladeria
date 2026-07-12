@@ -774,9 +774,11 @@ function buildComandaLegacy(p) {
 
   const otKeyL = normalizeOrderTypeKey(p.order_type);
   const isMesaCmdL = otKeyL === "mesa";
+  const isLlevarCmdL = otKeyL === "llevar";
+  const boostCmdL = isMesaCmdL || isLlevarCmdL;
   let ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
-  if (ticketHeader && isMesaCmdL) {
-    // "PEDIDO # 1209" (# separado por espacios) para comandas de MESA.
+  if (ticketHeader && boostCmdL) {
+    // "PEDIDO # 1211" (# separado por espacios) para comandas de MESA y LLEVAR.
     ticketHeader = ticketHeader.replace(/#\s*(\d)/, "# $1");
   }
   if (ticketHeader) {
