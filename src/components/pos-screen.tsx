@@ -1591,16 +1591,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         })();
       }
 
-      // Limpiar estado local y regresar al panel principal
-      setCart([]);
-      setCustomer("");
-      setNotes("");
-      setAddress("");
-      setPhone("");
-      setNeighborhood("");
-      setFieldErrors({});
-      setPendingSaleId(null);
-      qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      // Cuando se llama desde el flujo "Cobrar → imprime comanda ya" (llevar),
+      // NO limpiamos el carrito ni navegamos: el cajero sigue en la misma
+      // pantalla para seleccionar el medio de pago sobre este pedido pendiente.
+      if (!stayForPayment) {
+        setCart([]);
+        setCustomer("");
+        setNotes("");
+        setAddress("");
+        setPhone("");
+        setNeighborhood("");
+        setFieldErrors({});
+        setPendingSaleId(null);
+        qc.invalidateQueries({ queryKey: ["pending-sale"] });
+      }
 
       // CRÍTICO: liberamos `paying` ANTES de navegar. Antes se hacía en el
       // `finally`, pero al navegar el componente se desmonta y el setState
@@ -1608,6 +1612,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // recuperado por React) veía el botón atascado en "Enviando…".
       window.clearTimeout(watchdog);
       setPaying(false);
+
+      if (stayForPayment) {
+        return sale.id;
+      }
 
       if (onSaved) {
         onSaved();
@@ -1617,6 +1625,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         else if (orderType === "domicilio") navigate({ to: "/domicilio" });
         else if (orderType === "kiosko") navigate({ to: "/kiosko" });
       }
+
     } catch (err) {
       console.error("[pos] saveComanda error", err);
       toast.error(err instanceof Error ? err.message : "Error al guardar");
