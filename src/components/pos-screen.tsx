@@ -26,6 +26,7 @@ import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/co
 import nequiLogo from "@/assets/nequi-logo-transparent.png";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.png";
+import { VoiceMicButton } from "@/components/voice-input";
 
 
 
@@ -1764,7 +1765,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <Input
               ref={searchRef}
               placeholder="Buscar producto…  (F2)"
-              className="pl-9 rounded-full"
+              className="pl-9 pr-11 rounded-full"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               onKeyDown={(e) => {
@@ -1776,8 +1777,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 }
               }}
             />
+            <div className="absolute right-1 top-1/2 -translate-y-1/2">
+              <VoiceMicButton
+                lang="es-CO"
+                title="Buscar por voz"
+                onTranscript={(text, isFinal) => {
+                  // Muestra en vivo lo que se está reconociendo dentro del buscador
+                  setSearch(text);
+                  if (isFinal) {
+                    // La búsqueda ya se ejecuta reactivamente al cambiar `search`.
+                    // Solo devolvemos foco al input para permitir Enter inmediato.
+                    setTimeout(() => searchRef.current?.focus(), 0);
+                  }
+                }}
+              />
+            </div>
           </div>
         </div>
+
 
         <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent">
