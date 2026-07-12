@@ -696,11 +696,10 @@ function buildComandaFormatted(p, fmt) {
   const modIndent = "  ";
   const modCols = Math.max(10, Math.floor(usable * (f.font === "B" ? 4 / 3 : 1)) - modIndent.length);
 
-  items.forEach((it) => {
+  items.forEach((it, idx) => {
     const qtyTxt = fmtQty(it.qty, f.quantityFormat);
     const prodText = `${qtyTxt} ${String(it.name || "").toUpperCase().trim()}`;
     out += bigLine(prodText, f.productSize, f.bold.product, f.align.product);
-    if (gap) out += gap;
 
     if (Array.isArray(it.modifiers) && it.modifiers.length) {
       const seen = new Set();
@@ -714,22 +713,22 @@ function buildComandaFormatted(p, fmt) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Formato único definitivo para TODAS las comandas: modificadores en
-        // Font A, negrita y mínimo doble alto, con separación entre líneas.
+        // Modificadores compactos: Font A, negrita y doble alto, SIN línea en
+        // blanco entre uno y otro. La separación mayor entre productos se
+        // garantiza con `separator` (línea guiones) al final del bloque.
         const effModSize = Math.max(2, f.modifierSize);
         const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
         const modBold = true;
         const modFont = FONT_A;
-        // Alineación de modificadores hereda la de producto
         out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
         for (const m of parts) {
           for (const ln of wrapText(`+ ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
-          out += "\n";
         }
         out += SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
       }
     }
-    out += separator;
+    // Separador entre productos (jerarquía visual). No añadir después del último.
+    if (idx < items.length - 1) out += separator;
   });
 
   if (p.notes) {
