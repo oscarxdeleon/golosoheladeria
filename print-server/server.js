@@ -770,7 +770,13 @@ function buildComandaLegacy(p) {
     out += SIZE_NORMAL + BOLD_OFF;
   }
 
-  const ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
+  const otKeyL = normalizeOrderTypeKey(p.order_type);
+  const isMesaCmdL = otKeyL === "mesa";
+  let ticketHeader = formatPedidoHeader(p.ticket ?? p.ticket_number);
+  if (ticketHeader && isMesaCmdL) {
+    // "PEDIDO # 1209" (# separado por espacios) para comandas de MESA.
+    ticketHeader = ticketHeader.replace(/#\s*(\d)/, "# $1");
+  }
   if (ticketHeader) {
     out += BOLD_ON + SIZE_DOUBLE + ticketHeader + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
@@ -789,21 +795,25 @@ function buildComandaLegacy(p) {
     kiosko: "AUTOPEDIDO",
     online: "PEDIDO EN LINEA",
   };
-  const otKey = normalizeOrderTypeKey(p.order_type);
+  const otKey = otKeyL;
   const otLabel = orderTypeLabels[otKey] || (otKey ? `PEDIDO ${otKey.toUpperCase()}` : "");
-  if (otLabel) {
+  // En MESA se omite el rótulo "PEDIDO PARA MESA" para un encabezado limpio.
+  if (otLabel && !isMesaCmdL) {
     out += BOLD_ON + SIZE_DOUBLE_H + otLabel + "\n" + SIZE_NORMAL + BOLD_OFF;
   }
 
   if (p.header && otKey === "mesa") {
-    const headerText = formatMesaHeader(p.header);
+    let headerText = formatMesaHeader(p.header);
     if (headerText) {
+      // "MESA # 1" (espacio entre # y número).
+      headerText = headerText.replace(/#\s*(\d)/, "# $1");
       const maxCols = Math.max(1, Math.floor(WIDTH / 2));
       out += BOLD_ON + SIZE_DOUBLE;
       for (const line of wrapText(headerText, maxCols)) out += line + "\n";
       out += SIZE_NORMAL + BOLD_OFF;
     }
   }
+
 
   out += ALIGN_L + DASH_LINE;
 
