@@ -140,9 +140,27 @@ function DashboardPage() {
           methodMap.set(key, (methodMap.get(key) ?? 0) + Number(s.total));
         }
       });
-      const methods = [...methodMap.entries()]
-        .map(([name, total]) => ({ name, total }))
-        .sort((a, b) => b.total - a.total);
+      // Egresos por medio de pago (gastos + compras) — se descuentan del medio en que realmente se pagaron
+      const egresosPorMedio = new Map<string, number>();
+      const addEgreso = (method: string | null | undefined, amount: number) => {
+        const key = (method ?? "otro").toString().trim().toLowerCase() || "otro";
+        egresosPorMedio.set(key, (egresosPorMedio.get(key) ?? 0) + Number(amount || 0));
+      };
+      (expensesRes.data ?? []).forEach((e: any) => addEgreso(e.payment_method, e.amount));
+      (purchasesRes.data ?? []).forEach((p: any) => addEgreso(p.payment_method, p.total));
+
+      const allMethodKeys = new Set<string>([
+        ...Array.from(methodMap.keys()).map((k) => k.toLowerCase()),
+        ...Array.from(egresosPorMedio.keys()),
+      ]);
+      const methods = Array.from(allMethodKeys).map((key) => {
+        // ingresos: acumular por lower-case
+        const ingresos = Array.from(methodMap.entries())
+          .filter(([n]) => n.toLowerCase() === key)
+          .reduce((a, [, v]) => a + v, 0);
+        const egresos = egresosPorMedio.get(key) ?? 0;
+        return { name: key, ingresos, egresos, neto: ingresos - egresos, total: ingresos };
+      }).sort((a, b) => b.ingresos - a.ingresos);
 
       // Efectivo real (arqueo de cajas cerradas en el período)
       const cashSessions = cashSessionsRes.data ?? [];
