@@ -704,22 +704,80 @@ function DenomField({
     variant === "coin"
       ? "bg-gradient-to-b from-yellow-300 to-amber-500 text-white shadow-inner ring-2 ring-amber-600/50"
       : "bg-gradient-to-b from-emerald-300 to-emerald-500 text-white shadow-inner ring-2 ring-emerald-700/50";
+
+  const parseQty = (v: string) => Math.max(0, parseInt((v ?? "").replace(/\D/g, ""), 10) || 0);
+  const current = parseQty(value);
+
+  // Ref con último valor para el repeat on-hold sin cierres obsoletos
+  const valueRef = React.useRef(value);
+  React.useEffect(() => { valueRef.current = value; }, [value]);
+
+  const holdRef = React.useRef<{ timeout?: ReturnType<typeof setTimeout>; interval?: ReturnType<typeof setInterval> }>({});
+  const stopHold = React.useCallback(() => {
+    if (holdRef.current.timeout) clearTimeout(holdRef.current.timeout);
+    if (holdRef.current.interval) clearInterval(holdRef.current.interval);
+    holdRef.current = {};
+  }, []);
+  const bump = React.useCallback((delta: number) => {
+    const next = Math.max(0, parseQty(valueRef.current) + delta);
+    valueRef.current = String(next);
+    onChange(String(next));
+  }, [onChange]);
+  const startHold = (delta: number) => {
+    stopHold();
+    holdRef.current.timeout = setTimeout(() => {
+      holdRef.current.interval = setInterval(() => bump(delta), 90);
+    }, 400);
+  };
+  React.useEffect(() => () => stopHold(), [stopHold]);
+
+  const btnBase =
+    "select-none touch-manipulation grid place-items-center h-9 w-9 rounded-lg font-black text-lg text-white active:scale-95 transition-transform shadow-sm disabled:opacity-40 disabled:active:scale-100";
+
   return (
     <div className="rounded-xl border-2 border-[#B8E4F5] bg-white p-2">
       <div className={`inline-flex items-center gap-1.5 pl-1 pr-3 py-1 rounded-full ${pill} shadow-md -mt-5 mb-1`}>
-        <span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-black ${badge}`}>
-          {variant === "coin" ? "$" : "$"}
-        </span>
+        <span className={`grid h-6 w-6 place-items-center rounded-full text-[10px] font-black ${badge}`}>$</span>
         <span className="font-black text-xs whitespace-nowrap">{label}</span>
       </div>
-      <input
-        type="text"
-        inputMode="numeric"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="0"
-        className="w-full text-center rounded-lg border border-slate-200 bg-white text-[#0A4E7A] font-bold py-1.5 text-lg outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200"
-      />
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          aria-label={`Disminuir ${label}`}
+          disabled={current <= 0}
+          onClick={() => bump(-1)}
+          onPointerDown={() => startHold(-1)}
+          onPointerUp={stopHold}
+          onPointerLeave={stopHold}
+          onPointerCancel={stopHold}
+          onContextMenu={(e) => e.preventDefault()}
+          className={`${btnBase} bg-gradient-to-b from-rose-500 to-rose-700`}
+        >
+          –
+        </button>
+        <input
+          type="text"
+          inputMode="numeric"
+          value={value}
+          onChange={(e) => onChange(e.target.value.replace(/\D/g, ""))}
+          onBlur={(e) => { if (e.target.value.trim() === "") onChange("0"); }}
+          placeholder="0"
+          className="w-full min-w-0 text-center rounded-lg border border-slate-200 bg-white text-[#0A4E7A] font-bold py-1.5 text-lg outline-none focus:border-sky-400 focus:ring-2 focus:ring-sky-200 tabular-nums"
+        />
+        <button
+          type="button"
+          aria-label={`Aumentar ${label}`}
+          onClick={() => bump(1)}
+          onPointerDown={() => startHold(1)}
+          onPointerUp={stopHold}
+          onPointerLeave={stopHold}
+          onPointerCancel={stopHold}
+          onContextMenu={(e) => e.preventDefault()}
+          className={`${btnBase} bg-gradient-to-b from-emerald-500 to-emerald-700`}
+        >
+          +
+        </button>
+      </div>
     </div>
   );
 }
