@@ -211,6 +211,27 @@ async function ackOrdersInDb(ids: string[]) {
   } catch { /* noop */ }
 }
 
+// Canal broadcast por sede para propagar confirmaciones al instante entre
+// dispositivos, sin depender de la latencia de postgres_changes ni de RLS.
+const ackBroadcastChannels = new Map<string, ReturnType<typeof supabase.channel>>();
+function getAckBroadcastChannel(branchId: string) {
+  let ch = ackBroadcastChannels.get(branchId);
+  if (!ch) {
+    ch = supabase.channel(`orders-ack-broadcast-${branchId}`, { config: { broadcast: { self: false } } });
+    ch.subscribe();
+    ackBroadcastChannels.set(branchId, ch);
+  }
+  return ch;
+}
+function broadcastAck(branchId: string, ids: string[]) {
+  if (!branchId || ids.length === 0) return;
+  try {
+    const ch = getAckBroadcastChannel(branchId);
+    void ch.send({ type: "broadcast", event: "orders-ack", payload: { ids } });
+  } catch { /* noop */ }
+}
+
+
 
 async function autoPrintKioskOrder(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
