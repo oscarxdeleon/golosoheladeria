@@ -599,6 +599,24 @@ function CajaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Bloqueo por operaciones pendientes */}
+      <PendingBlockDialog
+        result={pendingBlock}
+        onClose={() => setPendingBlock(null)}
+        onGoto={(cat) => {
+          setPendingBlock(null);
+          setCloseDialog(false);
+          navigate({ to: cat.route });
+        }}
+        onRetry={async () => {
+          if (!activeBranchId) return;
+          const r = await validateOperationBeforeClose(activeBranchId);
+          setPendingBlock(r.ok ? null : r);
+          if (r.ok) toast.success("Operación finalizada. Puedes continuar el cierre.");
+        }}
+      />
+
+
       {/* Detalle admin */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         <DialogContent className="max-w-2xl">
