@@ -858,12 +858,12 @@ function buildComandaLegacy(p) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Modificadores compactos y legibles. Sin blancos entre uno y otro.
-        out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
+        // Modificadores: Font B (condensada) para distinguirlos del producto.
+        out += FONT_B + BOLD_ON + SIZE_DOUBLE_H;
         for (const m of parts) {
-          for (const line of wrapText(`+ ${m}`, modCols)) out += MOD_INDENT + line + "\n";
+          for (const line of wrapText(`* ${m}`, modCols)) out += MOD_INDENT + line + "\n";
         }
-        out += SIZE_NORMAL + BOLD_OFF;
+        out += SIZE_NORMAL + BOLD_OFF + FONT_A;
       }
     }
     if (idx < items.length - 1) out += DASH_LINE;
