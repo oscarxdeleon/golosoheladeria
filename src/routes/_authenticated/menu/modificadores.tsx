@@ -250,6 +250,45 @@ function ModPage() {
     await refreshModifierCaches();
   }
 
+  /**
+   * Clona un modificador existente: prellena el formulario de edición con una
+   * copia exacta (nombre + " (Copia)", precio, imagen, estado y grupo) y deja
+   * que el usuario ajuste antes de guardar. Nunca modifica el original: el
+   * insert lo realiza `saveMod` con `id` vacío, respetando la sede actual.
+   * Registra en audit_log de forma silenciosa (best-effort).
+   */
+  function cloneMod(m: Mod) {
+    if (!isAdmin) return toast.error("Solo un administrador puede clonar modificadores");
+    if (!branchId) return toast.error("Selecciona una sede");
+    setModEdit({
+      // Sin id → saveMod hace INSERT
+      group_id: m.group_id,
+      name: `${m.name} (Copia)`,
+      price: m.price,
+      active: m.active,
+      image_url: m.image_url ?? null,
+      _scope: "current",
+    });
+    // Auditoría best-effort de la intención de clonar (registro previo)
+    void supabase.auth.getUser().then(({ data }) => {
+      void supabase.from("audit_log").insert({
+        action: "modifier:clone_started",
+        entity: "modifiers",
+        entity_id: m.id,
+        user_id: data.user?.id ?? null,
+        user_name: data.user?.email ?? null,
+        branch_id: branchId,
+        meta: {
+          source_id: m.id,
+          source_name: m.name,
+          group_id: m.group_id,
+          suggested_name: `${m.name} (Copia)`,
+        },
+      } as never);
+    }).catch(() => {});
+    toast.info("Editando copia. Ajusta lo necesario y guarda.");
+  }
+
   const [pendingActive, setPendingActive] = useState<Record<string, boolean>>({});
   const [savingBulk, setSavingBulk] = useState(false);
   const pendingCount = Object.keys(pendingActive).length;
@@ -507,8 +546,17 @@ function ModPage() {
                                   onCheckedChange={(v) => toggleActive(m, v)}
                                   title={availableHere ? "Disponible en esta sede" : "Inactivo en esta sede"}
                                 />
-                                <Button size="icon" variant="ghost" className="h-6 w-6" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
-                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6" title="Editar" onClick={() => setModEdit(m)}><Pencil className="h-3 w-3" /></Button>
+                                <Button
+                                  size="icon"
+                                  variant="ghost"
+                                  className="h-6 w-6 text-blue-600 hover:text-blue-700"
+                                  title="Clonar modificador"
+                                  onClick={() => cloneMod(m)}
+                                >
+                                  <Copy className="h-3 w-3" />
+                                </Button>
+                                <Button size="icon" variant="ghost" className="h-6 w-6 text-destructive" title="Eliminar" onClick={() => removeMod(m.id)}><Trash2 className="h-3 w-3" /></Button>
                               </>
                             )}
                           </span>
