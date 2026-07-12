@@ -754,3 +754,141 @@ iframe[src*="lovable.app/badge"] {
   border-width: 1.5px;
 }
 
+
+/* ===== Premium scope: unified visual language across POS modules ===== */
+/* Aplica el mismo lenguaje visual del panel de Cierre de Caja
+   (tarjetas suaves, encabezados con acento, botones con degradado y
+   micro-elevación) sin cambiar la tipografía display existente. */
+.premium-scope [data-slot="card"] {
+  border-radius: 1.25rem;
+  border: 1px solid color-mix(in oklab, var(--color-border) 70%, transparent);
+  background: linear-gradient(180deg, color-mix(in oklab, var(--color-card) 96%, transparent), var(--color-card));
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, #fff 60%, transparent) inset,
+    0 10px 30px -18px color-mix(in oklab, var(--color-primary) 30%, transparent),
+    0 2px 8px -4px rgb(0 0 0 / 0.05);
+  overflow: hidden;
+  transition: transform .25s ease, box-shadow .25s ease, border-color .25s ease;
+}
+.premium-scope [data-slot="card"]:hover {
+  border-color: color-mix(in oklab, var(--color-primary) 25%, transparent);
+  box-shadow:
+    0 1px 0 0 color-mix(in oklab, #fff 60%, transparent) inset,
+    0 20px 45px -22px color-mix(in oklab, var(--color-primary) 45%, transparent),
+    0 4px 14px -6px rgb(0 0 0 / 0.08);
+}
+.premium-scope [data-slot="card-header"] {
+  position: relative;
+  border-bottom: 1px solid color-mix(in oklab, var(--color-border) 60%, transparent);
+  background:
+    radial-gradient(600px 90px at 0% 0%, color-mix(in oklab, var(--color-primary) 9%, transparent), transparent 70%),
+    linear-gradient(180deg, color-mix(in oklab, var(--color-primary) 3%, transparent), transparent);
+}
+.premium-scope [data-slot="card-header"]::before {
+  content: "";
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 3px;
+  background-image: var(--gradient-primary);
+  border-radius: 0 4px 4px 0;
+  opacity: .9;
+}
+.premium-scope [data-slot="card-title"] {
+  display: flex;
+  align-items: center;
+  gap: .55rem;
+  background: linear-gradient(180deg, var(--color-foreground), color-mix(in oklab, var(--color-foreground) 75%, var(--color-primary)));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.premium-scope [data-slot="card-title"] svg {
+  color: var(--color-primary);
+  filter: drop-shadow(0 4px 10px color-mix(in oklab, var(--color-primary) 35%, transparent));
+}
+
+/* Inputs / selects / textareas */
+.premium-scope [data-slot="input"],
+.premium-scope [data-slot="textarea"],
+.premium-scope [data-slot="select-trigger"] {
+  border-radius: .75rem;
+  border-color: color-mix(in oklab, var(--color-border) 80%, transparent);
+  background: color-mix(in oklab, var(--color-card) 65%, transparent);
+  transition: border-color .2s ease, box-shadow .2s ease, background .2s ease;
+}
+.premium-scope [data-slot="input"]:focus-visible,
+.premium-scope [data-slot="textarea"]:focus-visible,
+.premium-scope [data-slot="select-trigger"]:focus-visible {
+  border-color: color-mix(in oklab, var(--color-primary) 60%, transparent);
+  box-shadow: 0 0 0 4px color-mix(in oklab, var(--color-primary) 18%, transparent);
+  background: var(--color-card);
+}
+
+/* Botones — micro elevación + gradiente en primarios */
+.premium-scope [data-slot="button"] {
+  border-radius: .8rem;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  transition: transform .18s ease, box-shadow .2s ease, filter .2s ease;
+}
+.premium-scope [data-slot="button"]:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}
+.premium-scope [data-slot="button"]:active:not(:disabled) {
+  transform: translateY(0) scale(.99);
+}
+.premium-scope [data-slot="button"].bg-primary,
+.premium-scope [data-slot="button"][class*="bg-primary"] {
+  background-image: var(--gradient-primary);
+  box-shadow: 0 10px 24px -12px color-mix(in oklab, var(--color-primary) 55%, transparent);
+}
+
+/* Badges */
+.premium-scope [data-slot="badge"] {
+  border-radius: 999px;
+  font-weight: 600;
+  letter-spacing: 0.015em;
+  padding: .2rem .65rem;
+}
+
+/* Tablas */
+.premium-scope table { border-radius: .75rem; overflow: hidden; }
+.premium-scope thead tr {
+  background: color-mix(in oklab, var(--color-primary) 6%, transparent);
+}
+.premium-scope thead th {
+  font-size: .72rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: color-mix(in oklab, var(--color-foreground) 70%, var(--color-muted-foreground));
+}
+.premium-scope tbody tr { transition: background .2s ease; }
+.premium-scope tbody tr:hover {
+  background: color-mix(in oklab, var(--color-primary) 5%, transparent);
+}
+
+/* Diálogos */
+.premium-scope [data-slot="dialog-content"] { border-radius: 1.25rem; }
+
+/* Checkbox + Radio con degradado al marcar */
+.premium-scope [data-slot="checkbox"][data-state="checked"],
+.premium-scope [data-slot="radio-group-item"][data-state="checked"] {
+  background-image: var(--gradient-primary);
+  border-color: transparent;
+  box-shadow: 0 4px 12px -4px color-mix(in oklab, var(--color-primary) 55%, transparent);
+}
+
+/* Select / Dropdown contenidos flotantes */
+.premium-scope [data-slot="select-content"],
+.premium-scope [data-slot="dropdown-menu-content"] {
+  border-radius: 1rem;
+  box-shadow:
+    0 20px 40px -20px color-mix(in oklab, var(--color-primary) 30%, transparent),
+    0 4px 12px -4px rgb(0 0 0 / 0.08);
+}
+.premium-scope [data-slot="select-item"],
+.premium-scope [data-slot="dropdown-menu-item"] {
+  border-radius: .55rem;
+  margin: 2px 4px;
+}
