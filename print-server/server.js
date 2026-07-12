@@ -50,38 +50,20 @@ const SIZE_DOUBLE_W = GS + "!" + "\x10"; // doble ancho
 const SIZE_DOUBLE = GS + "!" + "\x11";   // doble alto + ancho
 const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 // Selección de familia tipográfica ESC/POS (ESC M n).
-//   FONT_A = 12x24, es la fuente "estándar" (más ancha y de trazo firme).
-//   FONT_B = 9x17, condensada, trazo fino: ideal para dar CONTRASTE
-//   tipográfico entre productos (Font A + negrita) y modificadores (Font B).
+//   FONT_A = 12x24, es la fuente estándar: más ancha, limpia y robusta.
+//   FONT_B = 9x17, condensada: se conserva para formatos generales, pero NO
+//   para modificadores porque su trazo es fino y menos parecido a Arial Black.
 const FONT_A = ESC + "M\x00";
 const FONT_B = ESC + "M\x01";
-// Subrayado ESC/POS (ESC - n). 0 = off, 1 = simple, 2 = doble.
-const UNDERLINE_ON = ESC + "-" + "\x02";
-const UNDERLINE_OFF = ESC + "-" + "\x00";
-// Cursiva ESC/POS (ESC 4 / ESC 5). Muchas térmicas la ignoran.
-const ITALIC_ON = ESC + "4";
-const ITALIC_OFF = ESC + "5";
 // Doble impacto (ESC G n): la cabeza reimprime cada punto, dejando el trazo
 // notoriamente más grueso sin cambiar el tamaño de la fuente.
 const DOUBLE_STRIKE_ON = ESC + "G\x01";
 const DOUBLE_STRIKE_OFF = ESC + "G\x00";
-// Espaciado horizontal entre caracteres (ESC SP n): n = puntos extra a la
-// derecha de cada carácter. Da "tracking" a los modificadores.
-const CHAR_SPACING_WIDE = ESC + " " + "\x04";
+// Espaciado horizontal normal entre caracteres (ESC SP 0). Se fuerza al entrar
+// y salir de los modificadores para eliminar cualquier tracking heredado de
+// instalaciones anteriores del Print Server.
 const CHAR_SPACING_RESET = ESC + " " + "\x00";
-// Inserta un espacio entre cada carácter no-espacio para reforzar el tracking
-// incluso en impresoras que ignoran ESC SP. Preserva los espacios existentes
-// convirtiéndolos en doble espacio, replicando el patrón "J U M B O".
-function spaceOutChars(s) {
-  const str = String(s == null ? "" : s);
-  let out = "";
-  for (let i = 0; i < str.length; i++) {
-    const ch = str[i];
-    out += ch;
-    if (i < str.length - 1) out += " ";
-  }
-  return out;
-}
+const MODIFIER_FONT = FONT_A;
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 // Selección de página de códigos:
@@ -664,7 +646,7 @@ function buildComandaFormatted(p, fmt) {
     return out;
   };
 
-  let out = INIT + CODEPAGE + INTL_CHARSET + fontCmd;
+  let out = INIT + CODEPAGE + INTL_CHARSET + CHAR_SPACING_RESET + fontCmd;
 
   // Encabezado (sede) - se omite en mesa, llevar y kiosko para un
   // encabezado más limpio en comandas donde la sede no aporta información.
@@ -726,7 +708,7 @@ function buildComandaFormatted(p, fmt) {
   // Items
   const items = p.items || [];
   const modIndent = "  ";
-  const modCols = Math.max(10, Math.floor(usable * (f.font === "B" ? 4 / 3 : 1)) - modIndent.length);
+  const modCols = Math.max(10, usable - modIndent.length);
 
   items.forEach((it, idx) => {
     const qtyTxt = fmtQty(it.qty, f.quantityFormat);
@@ -745,20 +727,16 @@ function buildComandaFormatted(p, fmt) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Modificadores compactos: Font A, negrita y doble alto, SIN línea en
-        // blanco entre uno y otro. La separación mayor entre productos se
-        // garantiza con `separator` (línea guiones) al final del bloque.
+        // Modificadores compactos: estilo robusto tipo Arial Black usando la
+        // familia ESC/POS más pesada disponible (Font A) + negrita + doble
+        // impacto, SIN tracking ni espacios manuales entre letras. El tamaño
+        // se conserva exactamente con el `modifierSize` vigente.
         const effModSize = Math.max(2, f.modifierSize);
         const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
-        const modBold = true;
-        // Fuente distinta (Font B condensada) para diferenciar visualmente los
-        // modificadores del nombre del producto (Font A). Mantenemos SIZE_DOUBLE_H
-        // para conservar altura y legibilidad.
-        const modFont = FONT_B;
-        out += alignFor(f.align.product) + modFont + modSize + BOLD_ON + DOUBLE_STRIKE_ON + CHAR_SPACING_WIDE;
+        const modFont = MODIFIER_FONT;
+        out += alignFor(f.align.product) + CHAR_SPACING_RESET + modFont + modSize + BOLD_ON + DOUBLE_STRIKE_ON;
         for (const m of parts) {
-          const spaced = spaceOutChars(m);
-          for (const ln of wrapText(`*  ${spaced}`, modCols)) out += marginL + modIndent + ln + "\n";
+          for (const ln of wrapText(`* ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
         }
         out += CHAR_SPACING_RESET + DOUBLE_STRIKE_OFF + SIZE_NORMAL + BOLD_OFF + fontCmd;
       }
@@ -781,7 +759,7 @@ function buildComandaFormatted(p, fmt) {
 // Se usa cuando el payload NO trae `command_format` (compatibilidad con
 // clientes antiguos o con la primera instalación sin config).
 function buildComandaLegacy(p) {
-  let out = INIT + CODEPAGE + INTL_CHARSET;
+  let out = INIT + CODEPAGE + INTL_CHARSET + CHAR_SPACING_RESET;
 
   out += ALIGN_C;
 
@@ -862,7 +840,7 @@ function buildComandaLegacy(p) {
   const items = p.items || [];
   const productCols = Math.max(1, WIDTH);
   const MOD_INDENT = "   ";
-  const modCols = Math.max(10, Math.floor(WIDTH * 4 / 3) - MOD_INDENT.length);
+  const modCols = Math.max(10, WIDTH - MOD_INDENT.length);
   items.forEach((i, idx) => {
     const qty = Number(i.qty || 0);
     const productText = `${qty}x ${String(i.name || "").toUpperCase().trim()}`;
@@ -886,13 +864,12 @@ function buildComandaLegacy(p) {
         parts.push(clean);
       }
       if (parts.length) {
-        // Modificadores: Font B condensada + negrita + doble impacto + tracking
-        // horizontal + espaciado entre letras. Diferenciación tipográfica clara
-        // frente al producto (Font A) SIN alterar el tamaño de la fuente.
-        out += FONT_B + BOLD_ON + DOUBLE_STRIKE_ON + SIZE_DOUBLE_H + CHAR_SPACING_WIDE;
+        // Modificadores: estilo robusto tipo Arial Black con Font A + negrita
+        // + doble impacto, sin tracking y sin separación manual entre letras.
+        // Se mantiene SIZE_DOUBLE_H para conservar el tamaño existente.
+        out += CHAR_SPACING_RESET + MODIFIER_FONT + BOLD_ON + DOUBLE_STRIKE_ON + SIZE_DOUBLE_H;
         for (const m of parts) {
-          const spaced = spaceOutChars(m);
-          for (const line of wrapText(`*  ${spaced}`, modCols)) out += MOD_INDENT + line + "\n";
+          for (const line of wrapText(`* ${m}`, modCols)) out += MOD_INDENT + line + "\n";
         }
         out += CHAR_SPACING_RESET + SIZE_NORMAL + DOUBLE_STRIKE_OFF + BOLD_OFF + FONT_A;
       }
@@ -923,7 +900,7 @@ function stripEscPosForDebug(buf) {
     const b = bytes[i];
     if (b === 0x1b) {
       const cmd = bytes[i + 1];
-      if ([0x40, 0x61, 0x45, 0x4d, 0x74, 0x52].includes(cmd)) { i += cmd === 0x40 ? 1 : 2; continue; }
+      if ([0x20, 0x40, 0x47, 0x61, 0x45, 0x4d, 0x74, 0x52].includes(cmd)) { i += cmd === 0x40 ? 1 : 2; continue; }
       if (cmd === 0x70) { i += 4; continue; }
       i += 1;
       continue;
@@ -1042,6 +1019,7 @@ const server = http.createServer(async (req, res) => {
       width: WIDTH,
       codepageId: CODEPAGE_ID,
       charset: "ESC/POS + Windows-1252 + USA international charset",
+      modifierStyle: "Font A + bold + double-strike; normal character spacing",
     });
   }
 
@@ -1098,7 +1076,8 @@ const server = http.createServer(async (req, res) => {
         user_name: "Prueba",
         created_at: new Date().toISOString(),
         items: [
-          { name: "Producto prueba", qty: 1, modifiers: ["Sin azucar"] },
+          { name: "Producto prueba", qty: 1, modifiers: ["Mini Chips"] },
+          { name: "Producto varios", qty: 2, modifiers: ["Sin azucar", "Extra crema", "Chocolate"] },
         ],
         command_format: { orderNumberFormat: "pedido", tableFormat: "MESA N" },
       });
