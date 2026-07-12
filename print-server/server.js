@@ -55,6 +55,15 @@ const SIZE_TRIPLE = GS + "!" + "\x22";   // triple alto + ancho
 //   tipográfico entre productos (Font A + negrita) y modificadores (Font B).
 const FONT_A = ESC + "M\x00";
 const FONT_B = ESC + "M\x01";
+// Subrayado ESC/POS (ESC - n). 0 = off, 1 = simple, 2 = doble. Se usa junto
+// con Font B en los modificadores para diferenciarlos tipográficamente del
+// producto (Font A) sin alterar el tamaño de la letra.
+const UNDERLINE_ON = ESC + "-" + "\x02";
+const UNDERLINE_OFF = ESC + "-" + "\x00";
+// Cursiva ESC/POS (ESC 4 / ESC 5). Muchas térmicas la ignoran, pero cuando
+// está soportada refuerza aún más el contraste visual del modificador.
+const ITALIC_ON = ESC + "4";
+const ITALIC_OFF = ESC + "5";
 const DRAWER = ESC + "p" + "\x00\x32\xFA";
 const CUT = GS + "V\x00";
 // Selección de página de códigos:
@@ -728,11 +737,11 @@ function buildComandaFormatted(p, fmt) {
         // modificadores del nombre del producto (Font A). Mantenemos SIZE_DOUBLE_H
         // para conservar altura y legibilidad.
         const modFont = FONT_B;
-        out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
+        out += alignFor(f.align.product) + modFont + modSize + ITALIC_ON + UNDERLINE_ON + (modBold ? BOLD_ON : "");
         for (const m of parts) {
           for (const ln of wrapText(`* ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
         }
-        out += SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
+        out += UNDERLINE_OFF + ITALIC_OFF + SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
       }
     }
     // Separador entre productos (jerarquía visual). No añadir después del último.
@@ -859,11 +868,11 @@ function buildComandaLegacy(p) {
       }
       if (parts.length) {
         // Modificadores: Font B (condensada) para distinguirlos del producto.
-        out += FONT_B + BOLD_ON + SIZE_DOUBLE_H;
+        out += FONT_B + BOLD_ON + SIZE_DOUBLE_H + ITALIC_ON + UNDERLINE_ON;
         for (const m of parts) {
           for (const line of wrapText(`* ${m}`, modCols)) out += MOD_INDENT + line + "\n";
         }
-        out += SIZE_NORMAL + BOLD_OFF + FONT_A;
+        out += UNDERLINE_OFF + ITALIC_OFF + SIZE_NORMAL + BOLD_OFF + FONT_A;
       }
     }
     if (idx < items.length - 1) out += DASH_LINE;
