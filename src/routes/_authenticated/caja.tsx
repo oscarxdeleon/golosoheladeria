@@ -25,6 +25,12 @@ import heroImage from "@/assets/cierre-caja-hero-v2.png";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
+import {
+  validateOperationBeforeClose,
+  logValidationAudit,
+  type ValidationResult,
+  type PendingCategory,
+} from "@/lib/close-cash-validation";
 
 export const Route = createFileRoute("/_authenticated/caja")({
   head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
