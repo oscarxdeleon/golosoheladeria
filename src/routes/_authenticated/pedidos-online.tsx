@@ -53,17 +53,22 @@ function waLink(phone: string, msg: string) {
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 }
 
-function comandaHTML(o: { ticket: number; header: string; items: { name: string; qty: number }[]; customer: string; notes: string; address: string; phone: string; created_at: string; }) {
-  const rows = o.items.map((i) => `<tr><td class="qty">${i.qty}×</td><td class="name">${i.name}</td></tr>`).join("");
+function comandaHTML(o: { ticket: number; header: string; items: { name: string; qty: number; modifiers?: string[] }[]; customer: string; notes: string; address: string; phone: string; created_at: string; }) {
+  const rows = o.items.map((i) => {
+    const mods = Array.isArray(i.modifiers) && i.modifiers.length
+      ? `<div class="mods">${i.modifiers.map((m) => `<div>+ ${String(m).replace(/^\s*[+*]\s*/, "").trim()}</div>`).join("")}</div>`
+      : "";
+    return `<tr><td class="qty">${i.qty}×</td><td class="name">${i.name}${mods}</td></tr>`;
+  }).join("");
   return `<!doctype html><html><head><title> </title><style>
     @page{size:80mm auto;margin:0}@media print{html,body{width:80mm;margin:0!important;padding:0!important}}
     html,body{width:80mm}body{font-family:'Arial Black','Helvetica',sans-serif;font-size:26px;padding:5mm 4mm;width:72mm;margin:0;color:#000;font-weight:900;line-height:1.35}
     h1{font-size:42px;margin:0 0 10px;text-align:center;letter-spacing:2px}h2{font-size:34px;margin:10px 0;text-transform:uppercase;text-align:center;border:3px solid #000;padding:6px 0}
     table{width:100%;border-collapse:collapse;margin-top:8px}td{vertical-align:top;padding:10px 0;border-bottom:2px dashed #000}
-    td.qty{font-size:40px;width:80px;text-align:right;padding-right:12px}td.name{font-size:32px;text-transform:uppercase;line-height:1.2}
+    td.qty{font-size:40px;width:80px;text-align:right;padding-right:12px}td.name{font-size:32px;text-transform:uppercase;line-height:1.2}.mods{font-size:40px;font-weight:900;line-height:1.35;margin-top:8px}.mods div{margin:6px 0}
     hr{border:none;border-top:3px dashed #000;margin:8px 0}.meta{font-size:22px;margin:4px 0}.notes{margin-top:10px;font-size:24px;border:3px solid #000;padding:8px}.footer{margin-top:12px;text-align:center;font-size:24px}
   </style></head><body>
-    <h1>COMANDA #${o.ticket}</h1>
+    <h1>PEDIDO # ${o.ticket}</h1>
     <div class="meta" style="text-align:center">${new Date(o.created_at).toLocaleString("es-CO")}</div>
     <hr/><h2>${o.header}</h2>
     ${o.customer ? `<div class="meta">Cliente: ${o.customer}</div>` : ""}

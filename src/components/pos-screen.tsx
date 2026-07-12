@@ -133,10 +133,15 @@ export function comandaHTML(o: {
   const b = o.branding ?? DEFAULT_BRANDING;
   const rows = o.items
     .map(
-      (i) => `<tr>
+      (i) => {
+        const mods = Array.isArray(i.modifiers) && i.modifiers.length
+          ? `<div class="mods">${i.modifiers.map((m) => `<div>+ ${String(m).replace(/^\s*[+*]\s*/, "").trim()}</div>`).join("")}</div>`
+          : "";
+        return `<tr>
         <td class="qty">${i.qty}×</td>
-        <td class="name">${i.name}</td>
-      </tr>`,
+        <td class="name">${i.name}${mods}</td>
+      </tr>`;
+      },
     )
     .join("");
   const logoHTML = b.logo_url
@@ -155,6 +160,8 @@ export function comandaHTML(o: {
     td{vertical-align:top;padding:3px 0;border-bottom:1px dashed #000}
     td.qty{font-size:13px;font-weight:900;width:36px;text-align:right;padding-right:8px}
     td.name{font-size:12px;font-weight:800;text-transform:uppercase;line-height:1.15;white-space:pre-line}
+    .mods{font-size:16px;font-weight:900;line-height:1.35;margin-top:4px;text-transform:uppercase}
+    .mods div{margin:3px 0}
     hr{border:none;border-top:1px dashed #000;margin:3px 0}
     .meta{font-size:10px;font-weight:700;margin:1px 0}
     .meta.big{font-size:11px;font-weight:800}

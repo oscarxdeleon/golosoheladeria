@@ -518,17 +518,18 @@ const DEFAULT_CMD_FMT = {
 function mergeCmdFmt(f) {
   const base = DEFAULT_CMD_FMT;
   const s = f || {};
+  const rawBold = { ...base.bold, ...(s.bold || {}) };
   return {
     font: s.font || base.font,
     titleSize: s.titleSize || base.titleSize,
     productSize: s.productSize || base.productSize,
-    modifierSize: s.modifierSize || base.modifierSize,
-    bold: { ...base.bold, ...(s.bold || {}) },
+    modifierSize: Math.max(2, Number(s.modifierSize || base.modifierSize) || 2),
+    bold: { ...rawBold, modifier: true },
     align: { ...base.align, ...(s.align || {}) },
     separator: { ...base.separator, ...(s.separator || {}) },
     lineSpacing: s.lineSpacing ?? base.lineSpacing,
     margins: { ...base.margins, ...(s.margins || {}) },
-    modifiersLayout: s.modifiersLayout || base.modifiersLayout,
+    modifiersLayout: "list",
     quantityFormat: s.quantityFormat || base.quantityFormat,
     orderNumberFormat: s.orderNumberFormat || base.orderNumberFormat,
     tableFormat: s.tableFormat || base.tableFormat,
@@ -709,15 +710,9 @@ function buildComandaFormatted(p, fmt) {
         const modFont = FONT_A;
         // Alineación de modificadores hereda la de producto
         out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
-        if (f.modifiersLayout === "inline") {
-          const joined = "+ " + parts.join(" + ");
-          for (const ln of wrapText(joined, modCols)) out += marginL + modIndent + ln + "\n";
+        for (const m of parts) {
+          for (const ln of wrapText(`+ ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
           out += "\n";
-        } else {
-          for (const m of parts) {
-            for (const ln of wrapText(`+ ${m}`, modCols)) out += marginL + modIndent + ln + "\n";
-            out += "\n";
-          }
         }
         out += SIZE_NORMAL + (modBold ? BOLD_OFF : "") + fontCmd;
       }
@@ -842,11 +837,12 @@ function buildComandaLegacy(p) {
         parts.push(clean);
       }
       if (parts.length) {
-        const joined = "+ " + parts.join(" + ");
-        const modLines = wrapText(joined, modCols);
         // Formato único definitivo para TODAS las comandas.
         out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
-        for (const line of modLines) out += MOD_INDENT + line + "\n";
+        for (const m of parts) {
+          for (const line of wrapText(`+ ${m}`, modCols)) out += MOD_INDENT + line + "\n";
+          out += "\n";
+        }
         out += "\n" + SIZE_NORMAL + BOLD_OFF;
       }
     }
