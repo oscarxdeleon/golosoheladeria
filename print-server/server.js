@@ -710,10 +710,15 @@ function buildComandaFormatted(p, fmt) {
         parts.push(clean);
       }
       if (parts.length) {
-        const modSize = SIZE_MAP[f.modifierSize] || SIZE_NORMAL;
-        const modBold = f.bold.modifier;
+        // En comandas de MESA se agranda la fuente de modificadores para que
+        // sean claramente legibles en cocina (mín. tamaño 2, doble alto).
+        const effModSize = isMesaCmd ? Math.max(2, f.modifierSize) : f.modifierSize;
+        const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
+        const modBold = f.bold.modifier || isMesaCmd;
+        // Mesa usa FONT_A (más grande y legible) en lugar de FONT_B.
+        const modFont = isMesaCmd ? FONT_A : FONT_B;
         // Alineación de modificadores hereda la de producto
-        out += alignFor(f.align.product) + FONT_B + modSize + (modBold ? BOLD_ON : "");
+        out += alignFor(f.align.product) + modFont + modSize + (modBold ? BOLD_ON : "");
         if (f.modifiersLayout === "inline") {
           const joined = "+ " + parts.join(" + ");
           for (const ln of wrapText(joined, modCols)) out += marginL + modIndent + ln + "\n";
