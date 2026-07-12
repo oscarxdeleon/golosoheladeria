@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -25,6 +25,12 @@ import heroImage from "@/assets/cierre-caja-hero-v2.png";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
+import {
+  validateOperationBeforeClose,
+  logValidationAudit,
+  type ValidationResult,
+  type PendingCategory,
+} from "@/lib/close-cash-validation";
 
 export const Route = createFileRoute("/_authenticated/caja")({
   head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
@@ -64,6 +70,8 @@ function CajaPage() {
 
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
+  const [pendingBlock, setPendingBlock] = useState<ValidationResult | null>(null);
+  const navigate = useNavigate();
   const [openingAmount, setOpeningAmount] = useState("");
   const [openingNotes, setOpeningNotes] = useState("");
   const [cashCounted, setCashCounted] = useState("");
@@ -206,13 +214,20 @@ function CajaPage() {
     setCloseError(null);
     if (!user || !current) return;
     if (!activeBranchId) return toast.error("Selecciona una sede antes de cerrar caja");
-    if (occupiedTables.length > 0) {
-      return toast.error(`Hay ${occupiedTables.length} mesa(s) ocupada(s) sin cobrar.`);
+
+    // Validación Integral de Operación: bloquea el cierre si hay pendientes.
+    const validation = await validateOperationBeforeClose(activeBranchId);
+    if (!validation.ok) {
+      await logValidationAudit(activeBranchId, validation, "blocked");
+      setPendingBlock(validation);
+      return;
     }
+
     const cc = parseAmount(cashCounted), nc = parseAmount(nequiCounted), bc = parseAmount(bancoCounted);
     if (![cc, nc, bc].every((v) => Number.isFinite(v) && v >= 0)) {
       return toast.error("Completa los tres valores (Efectivo, Nequi, Bancolombia)");
     }
+    await logValidationAudit(activeBranchId, validation, "allowed");
     setSaving(true);
     try {
       const { data, error } = await supabase.rpc("close_cash_session_blind", {
@@ -584,6 +599,24 @@ function CajaPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Bloqueo por operaciones pendientes */}
+      <PendingBlockDialog
+        result={pendingBlock}
+        onClose={() => setPendingBlock(null)}
+        onGoto={(cat) => {
+          setPendingBlock(null);
+          setCloseDialog(false);
+          navigate({ to: cat.route });
+        }}
+        onRetry={async () => {
+          if (!activeBranchId) return;
+          const r = await validateOperationBeforeClose(activeBranchId);
+          setPendingBlock(r.ok ? null : r);
+          if (r.ok) toast.success("Operación finalizada. Puedes continuar el cierre.");
+        }}
+      />
+
+
       {/* Detalle admin */}
       <Dialog open={!!detail} onOpenChange={(o) => !o && setDetail(null)}>
         <DialogContent className="max-w-2xl">
@@ -639,6 +672,62 @@ function CajaPage() {
         </DialogContent>
       </Dialog>
     </div>
+  );
+}
+
+function PendingBlockDialog({
+  result,
+  onClose,
+  onGoto,
+  onRetry,
+}: {
+  result: ValidationResult | null;
+  onClose: () => void;
+  onGoto: (cat: PendingCategory) => void;
+  onRetry: () => void | Promise<void>;
+}) {
+  const open = !!result && !result.ok;
+  return (
+    <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
+      <DialogContent className="max-w-lg border-amber-300">
+        <DialogHeader>
+          <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+            <AlertTriangle className="h-7 w-7" />
+          </div>
+          <DialogTitle className="text-center text-xl">
+            No es posible cerrar la caja
+          </DialogTitle>
+          <DialogDescription className="text-center">
+            Existen operaciones pendientes. Finalícelas antes de cerrar la caja.
+          </DialogDescription>
+        </DialogHeader>
+        <ul className="space-y-2">
+          {result?.categories.map((c) => (
+            <li
+              key={c.key}
+              className="flex items-center gap-3 rounded-lg border bg-amber-50/60 p-3"
+            >
+              <div className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-amber-200 text-amber-800 font-bold">
+                {c.count}
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-semibold text-sm">{c.label}</div>
+                <div className="text-xs text-muted-foreground">{c.detail}</div>
+              </div>
+              <Button size="sm" variant="outline" onClick={() => onGoto(c)}>
+                Ver pendientes
+              </Button>
+            </li>
+          ))}
+        </ul>
+        <DialogFooter className="gap-2 sm:justify-between">
+          <Button variant="ghost" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button onClick={() => void onRetry()}>Volver a validar</Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
