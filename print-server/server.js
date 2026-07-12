@@ -862,8 +862,8 @@ function buildComandaLegacy(p) {
       if (parts.length) {
         const joined = "+ " + parts.join(" + ");
         const modLines = wrapText(joined, modCols);
-        // Mesa: modificadores en FONT_A + doble alto + bold para máxima legibilidad.
-        if (isMesaCmdL) {
+        // Mesa / Llevar: modificadores en FONT_A + doble alto + bold para máxima legibilidad.
+        if (boostCmdL) {
           out += FONT_A + BOLD_ON + SIZE_DOUBLE_H;
           for (const line of modLines) out += MOD_INDENT + line + "\n";
           out += SIZE_NORMAL + BOLD_OFF;
