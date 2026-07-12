@@ -314,25 +314,46 @@ function LlevarPendientesPage() {
                       )}
                     </div>
 
-                    <div className="mt-3 grid grid-cols-3 gap-2">
-                      <Button size="sm" variant="outline" onClick={() => setDetail(o)}>
-                        <Eye className="h-4 w-4 mr-1" /> Ver
+                    <div className="mt-3 flex flex-wrap items-stretch gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setDetail(o)}
+                        className="flex-1 min-w-fit whitespace-nowrap h-10 px-4 text-sm font-semibold gap-1.5 shadow-sm hover:shadow transition"
+                      >
+                        <Eye className="h-4 w-4 shrink-0" />
+                        <span>Ver</span>
                       </Button>
                       {isPending ? (
-                        <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700" onClick={() => cobrar(o)}>
-                          <Banknote className="h-4 w-4 mr-1" /> Cobrar
+                        <Button
+                          size="sm"
+                          onClick={() => cobrar(o)}
+                          className="flex-1 min-w-fit whitespace-nowrap h-10 px-4 text-sm font-semibold gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white shadow-sm hover:shadow-md transition"
+                        >
+                          <Banknote className="h-4 w-4 shrink-0" />
+                          <span>Cobrar</span>
                         </Button>
                       ) : (
-                        <Button size="sm" variant="secondary" disabled>
-                          <Banknote className="h-4 w-4 mr-1" /> Cobrado
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled
+                          className="flex-1 min-w-fit whitespace-nowrap h-10 px-4 text-sm font-semibold gap-1.5"
+                        >
+                          <Banknote className="h-4 w-4 shrink-0" />
+                          <span>Cobrado</span>
                         </Button>
                       )}
-                      {canCancel && isPending ? (
-                        <Button size="sm" variant="destructive" onClick={() => { setCancelling(o); setCancelReason(""); }}>
-                          <X className="h-4 w-4 mr-1" /> Cancelar
+                      {canCancel && isPending && (
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => { setCancelling(o); setCancelReason(""); }}
+                          className="flex-1 min-w-fit whitespace-nowrap h-10 px-4 text-sm font-semibold gap-1.5 shadow-sm hover:shadow-md transition"
+                        >
+                          <X className="h-4 w-4 shrink-0" />
+                          <span>Cancelar</span>
                         </Button>
-                      ) : (
-                        <span />
                       )}
                     </div>
                   </div>
