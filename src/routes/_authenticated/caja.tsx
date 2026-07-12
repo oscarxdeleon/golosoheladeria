@@ -267,7 +267,7 @@ function CajaPage() {
   }
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 premium-scope">
       <div>
         <h1 className="font-display text-3xl">Caja</h1>
         <p className="text-sm text-muted-foreground">Apertura y cierre de turno (auditoría a ciegas)</p>
