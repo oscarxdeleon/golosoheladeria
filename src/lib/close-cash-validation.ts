@@ -48,6 +48,72 @@ async function reconcileKioskPaidReady(branchId: string): Promise<number> {
 }
 
 /**
+ * Domicilios ya entregados (delivery_status='entregado') que quedaron
+ * en status pending/confirmed/ready porque nadie los cerró.
+ */
+async function reconcileDeliveredDomicilios(branchId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("sales")
+    .update({ status: "completed" })
+    .eq("branch_id", branchId)
+    .eq("order_type", "domicilio")
+    .in("status", ["pending", "confirmed", "ready"])
+    .eq("delivery_status", "entregado")
+    .select("id");
+  if (error) {
+    console.warn("[close-validation:reconcile-delivered]", error);
+    return 0;
+  }
+  return data?.length ?? 0;
+}
+
+/**
+ * Pedidos QR (table_qr) huérfanos: (a) con pago ya registrado o
+ * (b) cuya mesa ya no está ocupada (mesa libre / sin mesa).
+ */
+async function reconcileStaleTableQr(branchId: string): Promise<number> {
+  const paid = await supabase
+    .from("sales")
+    .update({ status: "paid" })
+    .eq("branch_id", branchId)
+    .eq("source", "table_qr")
+    .in("status", ["ready", "confirmed"])
+    .not("payment_method", "is", null)
+    .not("payment_method", "in", '("Pendiente","pendiente","")')
+    .select("id");
+  if (paid.error) console.warn("[close-validation:reconcile-qr-paid]", paid.error);
+
+  const candidates = await supabase
+    .from("sales")
+    .select("id, table_id, restaurant_tables:table_id(status)")
+    .eq("branch_id", branchId)
+    .eq("source", "table_qr")
+    .in("status", ["ready", "confirmed"]);
+  let orphanCount = 0;
+  if (!candidates.error) {
+    const orphanIds = (candidates.data ?? [])
+      .filter((r: { table_id: string | null; restaurant_tables: { status: string } | null }) => {
+        if (!r.table_id) return true;
+        const st = r.restaurant_tables?.status;
+        return !st || st === "free";
+      })
+      .map((r) => r.id);
+    if (orphanIds.length > 0) {
+      const upd = await supabase
+        .from("sales")
+        .update({ status: "completed" })
+        .in("id", orphanIds)
+        .select("id");
+      if (upd.error) console.warn("[close-validation:reconcile-qr-orphan]", upd.error);
+      orphanCount = upd.data?.length ?? 0;
+    }
+  } else {
+    console.warn("[close-validation:reconcile-qr-orphan-read]", candidates.error);
+  }
+  return (paid.data?.length ?? 0) + orphanCount;
+}
+
+/**
  * Validación Integral de Operación previa al cierre de caja.
  * Verifica que no existan pedidos, mesas ni procesos pendientes en la sede.
  * Reutilizable desde otros módulos administrativos.
