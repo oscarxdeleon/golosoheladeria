@@ -1,6 +1,7 @@
 import { createFileRoute, redirect, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { reconcileTables } from "@/lib/reconcile-tables";
 import { supabase } from "@/integrations/supabase/client";
 import { BranchProvider, useBranch } from "@/contexts/branch-context";
 import { BranchSelector } from "@/components/branch-selector";
@@ -186,6 +187,24 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
       return (data ?? []) as Mesa[];
     },
   });
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    let cancelled = false;
+    const run = async () => {
+      const fixed = await reconcileTables(activeBranchId, { silent: true });
+      if (!cancelled && fixed > 0) {
+        void qc.invalidateQueries({ queryKey: ["restaurant_tables", activeBranchId] });
+      }
+    };
+    void run();
+    const onOnline = () => void run();
+    window.addEventListener("online", onOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", onOnline);
+    };
+  }, [activeBranchId, qc]);
 
   const counts = mesas.reduce(
     (a, m) => {

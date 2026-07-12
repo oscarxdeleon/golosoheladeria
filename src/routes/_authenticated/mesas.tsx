@@ -1,6 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { reconcileTables } from "@/lib/reconcile-tables";
 import { QRCodeCanvas } from "qrcode.react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
@@ -153,6 +154,25 @@ function MesasPage() {
       return (data ?? []) as Mesa[];
     },
   });
+
+  // Autocorrección al abrir el módulo de mesas y al reconectarse.
+  useEffect(() => {
+    if (!activeBranchId) return;
+    let cancelled = false;
+    const run = async () => {
+      const fixed = await reconcileTables(activeBranchId, { silent: false });
+      if (!cancelled && fixed > 0) {
+        void qc.invalidateQueries({ queryKey: ["restaurant_tables", activeBranchId] });
+      }
+    };
+    void run();
+    const onOnline = () => void run();
+    window.addEventListener("online", onOnline);
+    return () => {
+      cancelled = true;
+      window.removeEventListener("online", onOnline);
+    };
+  }, [activeBranchId, qc]);
 
   const counts = mesas.reduce(
     (acc, m) => {

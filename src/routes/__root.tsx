@@ -13,6 +13,7 @@ import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { reconcileTables } from "@/lib/reconcile-tables";
 // Modo offline desactivado — imports conservados como comentario para reactivar rápido.
 // import { registerServiceWorker } from "@/lib/pwa-register";
 // import { enableOfflineQueryPersistence } from "@/lib/offline-query-persister";
@@ -162,6 +163,27 @@ function RootComponent() {
     return () => {
       void supabase.removeChannel(channel);
     };
+  }, [queryClient]);
+
+  // Autocorrección de mesas: al iniciar el sistema y al recuperar conexión.
+  useEffect(() => {
+    let ranOnce = false;
+    const run = async () => {
+      const { data } = await supabase.auth.getUser();
+      if (!data.user) return; // requiere sesión (RPC exige authenticated)
+      const fixed = await reconcileTables(null, { silent: true });
+      if (fixed > 0) {
+        void queryClient.invalidateQueries({ queryKey: ["restaurant_tables"] });
+      }
+    };
+    // Al iniciar (una sola vez)
+    if (!ranOnce) {
+      ranOnce = true;
+      void run();
+    }
+    const onOnline = () => void run();
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
   }, [queryClient]);
 
   return (
