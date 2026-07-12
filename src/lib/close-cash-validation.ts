@@ -25,6 +25,29 @@ export interface ValidationResult {
 const ACTIVE_STATUSES = ["pending", "confirmed", "ready"] as const;
 
 /**
+ * Limpieza previa: pedidos de kiosco que ya fueron cobrados via POS
+ * (payment_method distinto de "Pendiente") pero quedaron en status='ready'
+ * o 'confirmed' porque el KDS no los cerró. Se marcan como 'completed'
+ * para reflejar el estado real y evitar falsos positivos en el cierre de caja.
+ */
+async function reconcileKioskPaidReady(branchId: string): Promise<number> {
+  const { data, error } = await supabase
+    .from("sales")
+    .update({ status: "completed" })
+    .eq("branch_id", branchId)
+    .eq("source", "kiosk")
+    .in("status", ["ready", "confirmed"])
+    .not("payment_method", "is", null)
+    .not("payment_method", "in", '("Pendiente","pendiente","")')
+    .select("id");
+  if (error) {
+    console.warn("[close-validation:reconcile-kiosk]", error);
+    return 0;
+  }
+  return data?.length ?? 0;
+}
+
+/**
  * Validación Integral de Operación previa al cierre de caja.
  * Verifica que no existan pedidos, mesas ni procesos pendientes en la sede.
  * Reutilizable desde otros módulos administrativos.
@@ -32,6 +55,11 @@ const ACTIVE_STATUSES = ["pending", "confirmed", "ready"] as const;
 export async function validateOperationBeforeClose(
   branchId: string,
 ): Promise<ValidationResult> {
+  // Reconciliación automática: kiosco cobrado pero no cerrado por KDS.
+  const reconciledKiosk = await reconcileKioskPaidReady(branchId);
+  if (reconciledKiosk > 0) {
+    console.info(`[close-validation] Reconciliados ${reconciledKiosk} pedidos de kiosco ya cobrados.`);
+  }
   const [tables, llevar, domicilio, online, tableQr, kiosk] = await Promise.all([
     supabase
       .from("restaurant_tables")
