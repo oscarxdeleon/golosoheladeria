@@ -94,10 +94,10 @@ export async function validateOperationBeforeClose(
       .in("status", ACTIVE_STATUSES as unknown as string[]),
     supabase
       .from("sales")
-      .select("id,ticket_number,status", { count: "exact" })
+      .select("id,ticket_number,status,payment_method", { count: "exact" })
       .eq("branch_id", branchId)
       .eq("source", "kiosk")
-      .in("status", ACTIVE_STATUSES as unknown as string[]),
+      .eq("status", "pending"),
   ]);
 
   const categories: PendingCategory[] = [];
