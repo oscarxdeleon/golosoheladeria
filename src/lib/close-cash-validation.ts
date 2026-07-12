@@ -164,8 +164,8 @@ export async function logValidationAudit(
       entity: "cash_sessions",
       user_id: user.user?.id ?? null,
       user_name: user.user?.email ?? null,
-      metadata: {
-        branch_id: branchId,
+      branch_id: branchId,
+      meta: {
         checked_at: result.checkedAt,
         total_checks: result.totalChecks,
         pending_categories: result.categories.map((c) => ({
