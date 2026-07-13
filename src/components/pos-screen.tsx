@@ -430,7 +430,12 @@ async function fetchComandaPrinter(): Promise<PrinterCfg> {
   return fetchPrinterByArea(["cocina", "barra", "caja"]);
 }
 
-export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
+export type PrintComandaResult = { ok: boolean; queued: boolean; jobId?: string | null };
+
+export async function printComanda(
+  o: Parameters<typeof comandaHTML>[0],
+  opts: { branchId?: string | null; saleId?: string | null } = {},
+): Promise<PrintComandaResult> {
   const { ip, port } = await fetchComandaPrinter();
   const b = o.branding ?? DEFAULT_BRANDING;
   // En comandas de mesa, llevar y kiosko NO se imprime el nombre de la sede
@@ -449,10 +454,22 @@ export async function printComanda(o: Parameters<typeof comandaHTML>[0]) {
     printer_ip: ip, printer_port: port,
   };
   const ok = await sendToLocalPrinter(payload);
-  if (!ok) {
-    console.warn("[print] comanda no enviada: servidor local no disponible");
+  if (ok) return { ok: true, queued: false };
+  // Servidor local no disponible en esta máquina (tablet de mesero, o Print
+  // Server caído). Encolamos en la cola compartida — otra PC de la misma
+  // sede con Print Server activo procesará el trabajo por realtime.
+  const { enqueuePrintJob } = await import("@/lib/print-queue");
+  const jobId = await enqueuePrintJob(payload, {
+    branchId: opts.branchId ?? null,
+    saleId: opts.saleId ?? null,
+    kind: "comanda",
+  });
+  if (jobId) {
+    console.info("[print] comanda encolada", jobId);
+    return { ok: false, queued: true, jobId };
   }
-  return ok;
+  console.warn("[print] comanda no enviada ni encolada");
+  return { ok: false, queued: false };
 }
 
 
@@ -1592,18 +1609,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         // salga de inmediato sin que el cajero espere el round-trip.
         void (async () => {
           try {
-            const printed = await printComanda(printSnapshot);
-            if (printed) {
+            const result = await printComanda(printSnapshot, { branchId: activeBranchId, saleId: sale.id });
+            if (result.ok) {
               void supabase
                 .from("sales")
                 .update({ printed_at: new Date().toISOString() })
                 .eq("id", sale.id);
+            } else if (result.queued) {
+              toast.info("Comanda en cola de impresión — se imprimirá automáticamente en el POS");
             } else {
-              toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+              toast.warning("Comanda guardada, pero no se pudo enviar a impresión");
             }
           } catch (e) {
             console.error("[print] comanda", e);
-            toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+            toast.warning("Comanda guardada, pero no se pudo enviar a impresión");
           }
         })();
       }
@@ -2197,11 +2216,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   branding,
                 };
                 const t = toast.loading("Reimprimiendo comanda…");
-                const ok = await printComanda(snap);
-                if (ok) toast.success("Comanda reimpresa", { id: t });
-                else {
-                  toast.warning("No se pudo reimprimir: revisa el servidor local de impresión", { id: t });
-                }
+                const result = await printComanda(snap, { branchId: activeBranchId });
+                if (result.ok) toast.success("Comanda reimpresa", { id: t });
+                else if (result.queued) toast.info("Reimpresión en cola — se procesará en el POS", { id: t });
+                else toast.warning("No se pudo reimprimir: revisa el servidor local de impresión", { id: t });
               }}
             >
               <ChefHat className="h-4 w-4 mr-1" /> Reimprimir comanda
