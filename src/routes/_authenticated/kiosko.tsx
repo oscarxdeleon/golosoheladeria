@@ -7,6 +7,8 @@ import { Badge } from "@/components/ui/badge";
 import { Banknote, ShoppingBag, Utensils, Inbox, User } from "lucide-react";
 import autopedidoCharacter from "@/assets/autopedidos-character.png";
 import golosoLogo from "@/assets/goloso-logo-official.png";
+import { formatMoney } from "@/lib/format";
+
 
 import { useBranch } from "@/contexts/branch-context";
 
