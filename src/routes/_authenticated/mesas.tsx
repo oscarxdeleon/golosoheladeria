@@ -186,6 +186,25 @@ function MesasPage() {
     { free: 0, occupied: 0, reserved: 0 } as Record<Status, number>,
   );
 
+  const filteredMesas = search.trim()
+    ? mesas.filter((m) => {
+        const q = search.trim().toLowerCase();
+        return String(m.number).includes(q) || (m.label ?? "").toLowerCase().includes(q);
+      })
+    : mesas;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        const el = document.querySelector<HTMLInputElement>('input[aria-label="Buscar mesa"]');
+        el?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
   async function openMesa(m: Mesa) {
     // La mesa solo cambia a "ocupada" cuando se guarda un pedido con al menos un producto
     // (lo gestiona el trigger de DB sobre sale_items).
