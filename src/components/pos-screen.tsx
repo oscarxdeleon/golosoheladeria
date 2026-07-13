@@ -1876,6 +1876,17 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </div>
         </div>
 
+        {orderType === "llevar" && (
+          <LlevarContactPanel
+            expanded={showLlevarContact}
+            setExpanded={setShowLlevarContact}
+            customer={customer}
+            setCustomer={setCustomer}
+            phone={phone}
+            setPhone={setPhone}
+          />
+        )}
+
 
         <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent">
