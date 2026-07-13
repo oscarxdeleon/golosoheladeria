@@ -18,12 +18,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check } from "lucide-react";
+import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check, ArrowRight, Utensils } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import mesaLibreImg from "@/assets/mesa_libre.png";
 import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
+import mesasHeroImg from "@/assets/mesas-goloso-3d.png";
+import takeawayImg from "@/assets/takeaway-goloso-3d.png";
+import deliveryImg from "@/assets/delivery-goloso-3d.png";
 
 export const Route = createFileRoute("/_authenticated/mesas")({
   head: () => ({ meta: [{ title: "Mesas · Goloso POS" }] }),
