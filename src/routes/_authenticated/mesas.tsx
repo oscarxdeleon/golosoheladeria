@@ -362,49 +362,28 @@ function MesasPage() {
           />
 
           <h1
-            className="uppercase leading-none tracking-tight text-4xl sm:text-5xl md:text-6xl bg-clip-text text-transparent select-none shrink-0"
+            className="uppercase leading-[0.85] tracking-[-0.02em] text-5xl sm:text-6xl md:text-7xl bg-clip-text text-transparent select-none shrink-0 flex items-center"
             style={{
               fontFamily: '"Titan One", "Fredoka", system-ui, sans-serif',
               backgroundImage:
-                "linear-gradient(180deg, #7dd3fc 0%, #0ea5e9 50%, #0369a1 100%)",
-              WebkitTextStroke: "1.5px #ffffff",
+                "linear-gradient(180deg, #7dd3fc 0%, #0ea5e9 45%, #0369a1 100%)",
+              WebkitTextStroke: "2px #ffffff",
+              paintOrder: "stroke fill",
               filter:
-                "drop-shadow(0 2px 0 rgba(255,255,255,0.9)) drop-shadow(0 6px 12px rgba(2,132,199,0.4))",
+                "drop-shadow(0 2px 0 rgba(255,255,255,0.95)) drop-shadow(0 8px 14px rgba(2,132,199,0.45))",
             }}
           >
             Mesas
           </h1>
 
-          <div className="relative flex-1 min-w-[220px]">
-            <div className="relative flex items-center gap-2 rounded-full bg-white dark:bg-white/5 pl-4 pr-1.5 py-1.5 ring-1 ring-slate-200 dark:ring-white/10 shadow-[0_8px_20px_-12px_rgba(15,23,42,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] focus-within:ring-sky-400/70 transition">
-              <Search className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar mesa…"
-                className="flex-1 bg-transparent border-0 outline-none text-sm font-medium text-slate-700 dark:text-slate-100 placeholder:text-slate-400 min-w-0"
-                aria-label="Buscar mesa"
-              />
-              <span className="hidden sm:inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950/50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 shrink-0">
-                F2
-              </span>
-              <button
-                type="button"
-                onClick={() => toast.info("Búsqueda por voz próximamente")}
-                className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-[0_6px_14px_-4px_rgba(2,132,199,0.65)] ring-1 ring-white/40 transition hover:scale-110 active:scale-95 shrink-0"
-                aria-label="Búsqueda por voz"
-              >
-                <Mic className="h-3.5 w-3.5" />
-              </button>
-            </div>
-          </div>
+          <div className="flex-1" />
 
           <div className="hidden md:flex flex-wrap gap-1.5">
             <StatChip color="emerald" label="Libres" value={counts.free} />
             <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
             <StatChip color="amber" label="Reservadas" value={counts.reserved} />
           </div>
+
 
           <button
             type="button"
