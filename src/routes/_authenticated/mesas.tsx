@@ -368,17 +368,13 @@ function MesasPage() {
               <Utensils className="h-3 w-3" /> Salón · Heladería Goloso
             </div>
             <h1
-              className="uppercase leading-[0.85] tracking-[-0.02em] text-6xl sm:text-8xl md:text-9xl bg-clip-text text-transparent animate-fade-in select-none"
+              className="uppercase leading-[0.9] tracking-tight text-5xl sm:text-6xl md:text-7xl bg-clip-text text-transparent animate-fade-in select-none"
               style={{
-                fontFamily: '"Titan One", "Fredoka", "Sora", system-ui, sans-serif',
+                fontFamily: '"Titan One", "Fredoka", system-ui, sans-serif',
                 backgroundImage:
-                  "linear-gradient(180deg, #7dd3fc 0%, #38bdf8 20%, #0284c7 55%, #0369a1 100%)",
-                WebkitTextStroke: "3px #ffffff",
-                paintOrder: "stroke fill",
+                  "linear-gradient(180deg, #38bdf8 0%, #0ea5e9 45%, #0369a1 100%)",
                 filter:
-                  "drop-shadow(0 1px 0 #ffffff) drop-shadow(0 4px 0 rgba(30,64,175,0.35)) drop-shadow(0 10px 16px rgba(2,132,199,0.45)) drop-shadow(0 20px 30px rgba(16,185,129,0.25))",
-                textShadow:
-                  "0 2px 0 rgba(255,255,255,0.9), 0 6px 0 rgba(14,116,144,0.25), 0 12px 24px rgba(2,132,199,0.35)",
+                  "drop-shadow(0 2px 0 rgba(255,255,255,0.9)) drop-shadow(0 6px 12px rgba(2,132,199,0.35))",
               }}
             >
               Mesas
