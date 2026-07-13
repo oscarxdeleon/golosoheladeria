@@ -187,12 +187,12 @@ function KdsPage() {
             KDS
           </h1>
 
-          <div className="flex-1 flex justify-center">
+          <div className="flex-1 flex justify-center min-w-0">
             <img
               src={kdsImg}
               alt="KDS Cocina Goloso"
               loading="eager"
-              className="h-20 sm:h-24 md:h-28 w-auto object-contain select-none drop-shadow-[0_12px_18px_rgba(2,132,199,0.35)]"
+              className="h-16 sm:h-20 md:h-24 lg:h-28 w-auto max-w-full object-contain select-none drop-shadow-[0_12px_18px_rgba(2,132,199,0.35)]"
               draggable={false}
             />
           </div>
