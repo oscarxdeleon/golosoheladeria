@@ -1581,6 +1581,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         throw new Error(e2.message || "No se pudieron guardar los productos");
       }
 
+      // Upsert opcional cliente CRM (Para llevar con WhatsApp) — no bloquea
+      void upsertLlevarCustomerFromForm(sale.id);
+
+
+
       // La mesa se marca como "ocupada" automáticamente por el trigger DB
       // `auto_occupy_table_on_sale_item` cuando se inserta el primer producto.
       // No hacemos UPDATE manual aquí para evitar dejar mesas ocupadas si el
