@@ -543,7 +543,7 @@ function MesasPage() {
 
       {/* Grid de mesas sin recuadro externo */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {mesas.map((m) => {
+        {filteredMesas.map((m) => {
           const status = m.status;
           const styles = STATUS_STYLES[status];
           const selected = mergeSelected.includes(m.id);
