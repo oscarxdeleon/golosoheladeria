@@ -12,9 +12,12 @@ export interface BranchCashSession {
 }
 
 /**
- * Devuelve la sesión de caja ABIERTA de la sede indicada (compartida por todos
- * los empleados de esa sede) y se suscribe a Realtime para reaccionar a
- * aperturas y cierres en tiempo real.
+ * Fuente única de verdad para caja ABIERTA de la sede activa.
+ *
+ * La caja pertenece a la sede/turno, no al usuario. Por eso NO se consulta la
+ * tabla directamente desde el cliente: se usa la RPC SECURITY DEFINER que
+ * valida la sede, devuelve la caja abierta aunque la haya creado otro cajero y
+ * registra la sincronización automática del usuario actual en audit_log.
  */
 export function useBranchCashSession(branchId: string | null | undefined) {
   const qc = useQueryClient();
@@ -25,16 +28,14 @@ export function useBranchCashSession(branchId: string | null | undefined) {
     queryKey,
     enabled: !!branchId,
     refetchOnWindowFocus: true,
-    refetchInterval: 30_000,
+    refetchOnReconnect: true,
+    refetchInterval: 10_000,
+    retry: 2,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("cash_sessions")
-        .select("id,branch_id,user_id,user_name,opened_at,status")
-        .eq("branch_id", branchId!)
-        .eq("status", "open")
-        .order("opened_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("sync_active_cash_session", {
+        _branch_id: branchId!,
+      });
+      if (error) throw error;
       return (data as BranchCashSession | null) ?? null;
     },
   });
@@ -56,6 +57,7 @@ export function useBranchCashSession(branchId: string | null | undefined) {
           () => {
             if (!mounted) return;
             qc.invalidateQueries({ queryKey });
+            qc.invalidateQueries({ queryKey: ["cash-session-open-branch", branchId] });
           },
         )
         .subscribe((status, error) => {
@@ -79,6 +81,6 @@ export function useBranchCashSession(branchId: string | null | undefined) {
   return {
     session: query.data ?? null,
     isOpen: !!query.data,
-    loading: query.isLoading,
+    loading: query.isLoading || query.isFetching,
   };
 }
