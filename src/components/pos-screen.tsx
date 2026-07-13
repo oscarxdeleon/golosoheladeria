@@ -1290,6 +1290,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
       console.log(`[pay] venta #${sale.ticket_number} registrada como ${method}`);
 
+      // Upsert opcional cliente CRM (Para llevar con WhatsApp)
+      if (!creditCustomer) { void upsertLlevarCustomerFromForm(sale.id); }
+
       // Si es venta a crédito, crear cuenta por cobrar
       if (creditCustomer) {
         // Vincular cliente a la venta
