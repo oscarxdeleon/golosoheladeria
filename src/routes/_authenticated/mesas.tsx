@@ -24,7 +24,8 @@ import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import mesaLibreImg from "@/assets/mesa_libre.png";
 import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
-import brandLockup from "@/assets/goloso-brand-lockup.png";
+import golosoCharacter from "@/assets/goloso-character-official.png";
+import golosoLogo from "@/assets/goloso-logo-official.png";
 import takeawayImg from "@/assets/takeaway-goloso-3d.png";
 import deliveryImg from "@/assets/delivery-goloso-3d.png";
 
