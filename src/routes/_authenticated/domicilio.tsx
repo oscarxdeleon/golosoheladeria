@@ -1,4 +1,4 @@
-import { createFileRoute, useRouter } from "@tanstack/react-router";
+import { createFileRoute, useRouter, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { PosScreen } from "@/components/pos-screen";
@@ -12,7 +12,7 @@ import { Search, UserPlus, ArrowLeft, Bike, Phone, MapPin, User } from "lucide-r
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { VoiceMicButton } from "@/components/voice-input";
-import { useNavigate } from "@tanstack/react-router";
+
 import domicilioMotoImg from "@/assets/delivery-goloso-3d.png";
 import golosoLogo from "@/assets/goloso-logo-official.png";
 
