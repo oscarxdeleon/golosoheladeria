@@ -1609,18 +1609,20 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         // salga de inmediato sin que el cajero espere el round-trip.
         void (async () => {
           try {
-            const printed = await printComanda(printSnapshot);
-            if (printed) {
+            const result = await printComanda(printSnapshot, { branchId: activeBranchId, saleId: sale.id });
+            if (result.ok) {
               void supabase
                 .from("sales")
                 .update({ printed_at: new Date().toISOString() })
                 .eq("id", sale.id);
+            } else if (result.queued) {
+              toast.info("Comanda en cola de impresión — se imprimirá automáticamente en el POS");
             } else {
-              toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+              toast.warning("Comanda guardada, pero no se pudo enviar a impresión");
             }
           } catch (e) {
             console.error("[print] comanda", e);
-            toast.warning("Comanda guardada, pero no se pudo imprimir (revisa el servidor local)");
+            toast.warning("Comanda guardada, pero no se pudo enviar a impresión");
           }
         })();
       }
