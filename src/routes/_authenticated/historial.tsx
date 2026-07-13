@@ -164,10 +164,12 @@ function HistorialPage() {
           created_at: sale.created_at,
           branding,
         };
-        const ok = await printComanda(args);
-        if (ok) {
+        const result = await printComanda(args, { saleId });
+        if (result.ok) {
           toast.success("Comanda enviada", { id: t });
           void supabase.rpc("log_reimpression", { _sale_id: saleId, _kind: "comanda" });
+        } else if (result.queued) {
+          toast.info("Reimpresión en cola — se procesará en el POS", { id: t });
         } else toast.warning("No se pudo imprimir: revisa el servidor local", { id: t });
       } else {
         const args = {
@@ -424,11 +426,10 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
   async function handleReprintComanda() {
     const args = buildComandaArgs();
     if (!args) return;
-    const ok = await printComanda(args);
-    if (ok) toast.success("Comanda enviada a cocina");
-    else {
-      toast.warning("No se pudo imprimir: revisa el servidor local");
-    }
+    const result = await printComanda(args);
+    if (result.ok) toast.success("Comanda enviada a cocina");
+    else if (result.queued) toast.info("Reimpresión en cola — se procesará en el POS");
+    else toast.warning("No se pudo imprimir: revisa el servidor local");
   }
 
   return (
