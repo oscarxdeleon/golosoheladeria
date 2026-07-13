@@ -1991,6 +1991,63 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             </Button>
           )}
 
+          {orderType === "llevar" && (
+            <div className="space-y-1.5">
+              {!showLlevarContact && !customer.trim() && !phone.trim() ? (
+                <button
+                  type="button"
+                  onClick={() => setShowLlevarContact(true)}
+                  className="group flex w-full items-center justify-between gap-2 rounded-xl border-2 border-dashed border-sky-400 bg-gradient-to-r from-sky-50 via-white to-emerald-50 dark:from-sky-950/30 dark:via-slate-900 dark:to-emerald-950/30 px-3 py-2.5 text-sm font-semibold text-sky-800 dark:text-sky-200 shadow-sm transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow">
+                      <Users className="h-4 w-4" />
+                    </span>
+                    <span>👤 Nombre y WhatsApp</span>
+                    <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Opcional</span>
+                  </span>
+                  <Plus className="h-4 w-4 opacity-70 group-hover:opacity-100" />
+                </button>
+              ) : (
+                <div className="space-y-1.5 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-br from-sky-50/70 to-emerald-50/60 dark:from-sky-950/20 dark:to-emerald-950/10 p-2.5 shadow-sm">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
+                      <Users className="h-3.5 w-3.5" /> Datos del cliente
+                      <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Opcional</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setCustomer(""); setPhone(""); setShowLlevarContact(false); }}
+                      className="text-[11px] font-medium text-muted-foreground hover:text-destructive"
+                    >
+                      Omitir
+                    </button>
+                  </div>
+                  <Input
+                    placeholder="Nombre del cliente"
+                    value={customer}
+                    maxLength={100}
+                    onChange={(e) => setCustomer(e.target.value)}
+                    className="h-9 bg-white/80 dark:bg-slate-900/60"
+                  />
+                  <Input
+                    placeholder="WhatsApp (ej. 3001234567)"
+                    value={phone}
+                    inputMode="tel"
+                    maxLength={15}
+                    onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ ]/g, ""))}
+                    className="h-9 bg-white/80 dark:bg-slate-900/60"
+                  />
+                  {phone.trim() && phone.replace(/[^0-9]/g, "").replace(/^57/, "").length !== 10 && (
+                    <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                      Sugerencia: un celular colombiano tiene 10 dígitos. Puedes continuar igualmente.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
 
           {typeof document !== "undefined" && createPortal(
             <div className="fixed inset-x-0 bottom-0 z-30 border-t bg-card/95 px-4 py-2 pb-[max(0.5rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_-12px_rgba(0,0,0,0.25)] backdrop-blur supports-[backdrop-filter]:bg-card/85">
@@ -2106,62 +2163,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </div>
 
           <div className="space-y-2 border-t pt-3">
-            {orderType === "llevar" ? (
-              <div className="space-y-1.5">
-                {!showLlevarContact && !customer.trim() && !phone.trim() ? (
-                  <button
-                    type="button"
-                    onClick={() => setShowLlevarContact(true)}
-                    className="group flex w-full items-center justify-between gap-2 rounded-xl border-2 border-dashed border-sky-300 bg-gradient-to-r from-sky-50 via-white to-emerald-50 dark:from-sky-950/30 dark:via-slate-900 dark:to-emerald-950/30 px-3 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 shadow-sm transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
-                  >
-                    <span className="flex items-center gap-2">
-                      <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow">
-                        <Users className="h-3.5 w-3.5" />
-                      </span>
-                      <span>Nombre y WhatsApp</span>
-                      <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Opcional</span>
-                    </span>
-                    <Plus className="h-4 w-4 opacity-70 group-hover:opacity-100" />
-                  </button>
-                ) : (
-                  <div className="space-y-1.5 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-br from-sky-50/70 to-emerald-50/60 dark:from-sky-950/20 dark:to-emerald-950/10 p-2.5 shadow-sm">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
-                        <Users className="h-3.5 w-3.5" /> Datos del cliente
-                        <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Opcional</span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => { setCustomer(""); setPhone(""); setShowLlevarContact(false); }}
-                        className="text-[11px] font-medium text-muted-foreground hover:text-destructive"
-                      >
-                        Omitir
-                      </button>
-                    </div>
-                    <Input
-                      placeholder="Nombre del cliente"
-                      value={customer}
-                      maxLength={100}
-                      onChange={(e) => setCustomer(e.target.value)}
-                      className="h-9 bg-white/80 dark:bg-slate-900/60"
-                    />
-                    <Input
-                      placeholder="WhatsApp (ej. 3001234567)"
-                      value={phone}
-                      inputMode="tel"
-                      maxLength={15}
-                      onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ ]/g, ""))}
-                      className="h-9 bg-white/80 dark:bg-slate-900/60"
-                    />
-                    {phone.trim() && phone.replace(/[^0-9]/g, "").replace(/^57/, "").length !== 10 && (
-                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                        Sugerencia: un celular colombiano tiene 10 dígitos. Puedes continuar igualmente.
-                      </p>
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : (
+            {orderType !== "llevar" && (
               <div className="space-y-1">
                 <Input
                   placeholder={orderType === "domicilio" ? "Nombre del cliente *" : "Nombre cliente (opcional)"}
