@@ -19,6 +19,7 @@ import { printSilent, sendToLocalPrinter, kickCashDrawer, normalizeModifiers, ty
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
+import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
 import { Split, Smartphone, Building2, Sparkles, Gift } from "lucide-react";
@@ -602,6 +603,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   // el POS se abra desde una ruta que no lo pase (oculta cobros, precuenta y caja).
   const meseroMode = meseroModeProp || (primaryRole === "mesero" && !isAdmin);
   const { activeBranchId, activeBranch } = useBranch();
+  // Sincronización realtime: refresca mesas y pedidos pendientes al instante
+  // cuando la tablet del mesero (u otro POS) guarda cambios.
+  useRealtimeBranchSync(activeBranchId, { invalidatePendingSale: true });
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);

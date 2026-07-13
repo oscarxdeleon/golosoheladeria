@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Utensils, ShoppingBag, Bike, Users, ArrowLeft, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
+import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
 
 import logoUrl from "@/assets/logo-goloso.png";
 import tableFree from "@/assets/mesa_libre.png";
@@ -173,10 +174,11 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
   const qc = useQueryClient();
   const { activeBranchId, activeBranch } = useBranch();
 
+  useRealtimeBranchSync(activeBranchId);
+
   const { data: mesas = [] } = useQuery({
     queryKey: ["restaurant_tables", activeBranchId],
     enabled: !!activeBranchId,
-    refetchInterval: 8000,
     queryFn: async () => {
       const { data } = await supabase
         .from("restaurant_tables")
