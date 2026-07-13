@@ -603,6 +603,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   // el POS se abra desde una ruta que no lo pase (oculta cobros, precuenta y caja).
   const meseroMode = meseroModeProp || (primaryRole === "mesero" && !isAdmin);
   const { activeBranchId, activeBranch } = useBranch();
+  // Sincronización realtime: refresca mesas y pedidos pendientes al instante
+  // cuando la tablet del mesero (u otro POS) guarda cambios.
+  useRealtimeBranchSync(activeBranchId, { invalidatePendingSale: true });
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
