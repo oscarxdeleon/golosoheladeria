@@ -105,14 +105,10 @@ function CajaPage() {
     refetchOnWindowFocus: true,
     refetchInterval: 15_000,
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("cash_sessions")
-        .select("*")
-        .eq("branch_id", activeBranchId!)
-        .eq("status", "open")
-        .order("opened_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const { data, error } = await supabase.rpc("sync_active_cash_session", {
+        _branch_id: activeBranchId!,
+        _user_name: profile?.full_name ?? user?.email ?? "Usuario",
+      });
       if (error) throw error;
       return (data as unknown as CashSession | null) ?? null;
     },

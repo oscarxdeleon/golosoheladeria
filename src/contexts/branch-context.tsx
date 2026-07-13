@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/use-auth";
 
 export interface Branch {
   id: string;
@@ -31,6 +32,8 @@ const BranchContext = createContext<BranchContextValue | null>(null);
 const STORAGE_KEY = "goloso.activeBranchId";
 
 export function BranchProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  const authUserId = user?.id ?? null;
   const [activeBranchId, setActiveBranchIdState] = useState<string | null>(null);
 
   const { data: branches = [], isLoading } = useQuery({
@@ -51,37 +54,40 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   // quedan bloqueados a su sede para que el notifier en tiempo real escuche
   // SU branch_id y los pedidos no se filtren a la sede equivocada.
   const { data: userScope } = useQuery({
-    queryKey: ["branch-user-scope"],
+    queryKey: ["branch-user-scope", authUserId],
+    enabled: !!authUserId,
     staleTime: 5 * 60_000,
     gcTime: 10 * 60_000,
     queryFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      const uid = u.user?.id;
-      if (!uid) return { branchId: null as string | null, isAdmin: false };
       const [{ data: prof }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("branch_id").eq("id", uid).maybeSingle(),
-        supabase.from("user_roles").select("role").eq("user_id", uid),
+        supabase.from("profiles").select("branch_id").eq("id", authUserId!).maybeSingle(),
+        supabase.from("user_roles").select("role").eq("user_id", authUserId!),
       ]);
       const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
-      return { branchId: (prof?.branch_id as string | null) ?? null, isAdmin };
+      return { userId: authUserId!, branchId: (prof?.branch_id as string | null) ?? null, isAdmin };
     },
   });
 
+  const userId = userScope?.userId ?? null;
   const profileBranchId = userScope?.branchId ?? null;
   const isAdmin = userScope?.isAdmin ?? false;
   const lockedToBranch = !isAdmin && !!profileBranchId;
+  const storageKey = userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY;
 
   useEffect(() => {
-    if (branches.length === 0) return;
+    if (branches.length === 0 || !userScope) return;
 
     // No-admin: forzar la sede asignada e ignorar el localStorage.
     if (lockedToBranch && profileBranchId && branches.some((b) => b.id === profileBranchId)) {
       setActiveBranchIdState(profileBranchId);
-      if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, profileBranchId);
+      if (typeof window !== "undefined") localStorage.setItem(storageKey, profileBranchId);
       return;
     }
 
-    const saved = typeof window !== "undefined" ? localStorage.getItem(STORAGE_KEY) : null;
+    // La sede activa se guarda por usuario. Usar una sola clave global hacía que
+    // el Administrador heredara la sede de un Cajero anterior en el mismo equipo
+    // y consultara una caja distinta, mostrando falsamente "Caja cerrada".
+    const saved = typeof window !== "undefined" ? localStorage.getItem(storageKey) : null;
     if (saved && branches.some((b) => b.id === saved)) {
       setActiveBranchIdState(saved);
       return;
@@ -93,13 +99,13 @@ export function BranchProvider({ children }: { children: ReactNode }) {
     }
     const main = branches.find((b) => b.is_main) ?? branches[0];
     setActiveBranchIdState(main.id);
-  }, [branches, profileBranchId, lockedToBranch]);
+  }, [branches, profileBranchId, lockedToBranch, storageKey, userScope]);
 
   const setActiveBranchId = (id: string) => {
     // Bloquear a no-admin de cambiar de sede.
     if (lockedToBranch && profileBranchId && id !== profileBranchId) return;
     setActiveBranchIdState(id);
-    if (typeof window !== "undefined") localStorage.setItem(STORAGE_KEY, id);
+    if (typeof window !== "undefined") localStorage.setItem(storageKey, id);
   };
 
   const activeBranch = branches.find((b) => b.id === activeBranchId) ?? null;
