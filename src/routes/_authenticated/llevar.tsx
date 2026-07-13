@@ -63,8 +63,9 @@ function LlevarHeader() {
           <User className="h-5 w-5" />
         </button>
       </div>
-
+    </div>
   );
+
 }
 
 export const Route = createFileRoute("/_authenticated/llevar")({
