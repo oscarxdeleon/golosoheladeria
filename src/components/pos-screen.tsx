@@ -1364,6 +1364,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       setNotes("");
       setAddress("");
       setPhone("");
+      setShowLlevarContact(false);
       setNeighborhood("");
       setFieldErrors({});
       setPendingSaleId(null);
@@ -1687,6 +1688,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         setNotes("");
         setAddress("");
         setPhone("");
+        setShowLlevarContact(false);
         setNeighborhood("");
         setFieldErrors({});
         setPendingSaleId(null);
