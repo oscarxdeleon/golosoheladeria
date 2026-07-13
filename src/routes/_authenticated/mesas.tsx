@@ -330,65 +330,97 @@ function MesasPage() {
   return (
     <BranchCashGuard>
     <div className="space-y-6 premium-scope">
-      {/* Header bar premium — brand lockup + MESAS 3D + buscador + usuario */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-900 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.25),0_8px_24px_-12px_rgba(16,185,129,0.18),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/70 dark:ring-white/5">
+      {/* Header premium — Personaje oficial + MESAS 3D + Logo oficial + buscador */}
+      <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-br from-white via-sky-50/70 to-emerald-50/60 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_25px_70px_-25px_rgba(2,132,199,0.35),0_10px_30px_-15px_rgba(16,185,129,0.25),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/70 dark:ring-white/5">
+        {/* Fondo decorativo con burbujas */}
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              "radial-gradient(600px 200px at 100% 0%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(500px 180px at 0% 100%, rgba(2,132,199,0.10), transparent 60%)",
+              "radial-gradient(800px 260px at 92% -10%, rgba(132,204,22,0.20), transparent 60%), radial-gradient(700px 240px at -5% 110%, rgba(14,165,233,0.22), transparent 60%), radial-gradient(300px 300px at 50% 120%, rgba(56,189,248,0.10), transparent 70%)",
           }}
         />
-        <div className="relative flex flex-wrap items-center gap-4 px-4 py-3 sm:flex-nowrap sm:gap-6 sm:px-6 sm:py-4">
-          {/* Brand lockup */}
+        {/* Puntitos decorativos */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-40"
+          style={{
+            backgroundImage:
+              "radial-gradient(circle at 20% 30%, rgba(14,165,233,0.15) 1.5px, transparent 2px), radial-gradient(circle at 80% 70%, rgba(132,204,22,0.15) 1.5px, transparent 2px)",
+            backgroundSize: "40px 40px, 55px 55px",
+          }}
+        />
+
+        <div className="relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 sm:gap-6 px-4 py-4 sm:px-8 sm:py-6">
+          {/* Personaje oficial */}
           <img
-            src={brandLockup}
-            alt="Heladería Goloso"
-            width={1600}
-            height={704}
-            loading="lazy"
-            className="h-14 sm:h-20 md:h-24 w-auto object-contain select-none shrink-0 drop-shadow-[0_6px_14px_rgba(2,132,199,0.25)]"
+            src={golosoCharacter}
+            alt="Mascota Heladería Goloso"
+            width={1200}
+            height={1012}
+            loading="eager"
+            className="h-24 sm:h-36 md:h-44 w-auto object-contain select-none shrink-0 drop-shadow-[0_18px_22px_rgba(2,132,199,0.35)] animate-fade-in"
             draggable={false}
           />
 
-          {/* Divider vertical */}
-          <div className="hidden sm:block h-16 w-px bg-slate-200 dark:bg-white/10" aria-hidden />
-
-          {/* Título MESAS con ornamentos */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-            <span className="text-sky-600 dark:text-sky-400 font-black text-2xl leading-none select-none" aria-hidden>≋</span>
+          {/* Título MESAS 3D artístico */}
+          <div className="min-w-0 flex flex-col items-center text-center">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/85 dark:bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur mb-2">
+              <Utensils className="h-3 w-3" /> Salón · Heladería Goloso
+            </div>
             <h1
-              className="font-display font-black uppercase tracking-tight leading-none text-4xl sm:text-6xl md:text-7xl bg-clip-text text-transparent animate-fade-in"
+              className="uppercase leading-[0.85] tracking-[-0.02em] text-6xl sm:text-8xl md:text-9xl bg-clip-text text-transparent animate-fade-in select-none"
               style={{
+                fontFamily: '"Titan One", "Fredoka", "Sora", system-ui, sans-serif',
                 backgroundImage:
-                  "linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 55%, #1e40af 100%)",
-                WebkitTextStroke: "1px rgba(255,255,255,0.85)",
+                  "linear-gradient(180deg, #7dd3fc 0%, #38bdf8 20%, #0284c7 55%, #0369a1 100%)",
+                WebkitTextStroke: "3px #ffffff",
+                paintOrder: "stroke fill",
                 filter:
-                  "drop-shadow(0 2px 0 rgba(255,255,255,0.8)) drop-shadow(0 6px 12px rgba(30,64,175,0.35))",
+                  "drop-shadow(0 1px 0 #ffffff) drop-shadow(0 4px 0 rgba(30,64,175,0.35)) drop-shadow(0 10px 16px rgba(2,132,199,0.45)) drop-shadow(0 20px 30px rgba(16,185,129,0.25))",
+                textShadow:
+                  "0 2px 0 rgba(255,255,255,0.9), 0 6px 0 rgba(14,116,144,0.25), 0 12px 24px rgba(2,132,199,0.35)",
               }}
             >
-              MESAS
+              Mesas
             </h1>
-            <span className="text-sky-600 dark:text-sky-400 font-black text-2xl leading-none select-none" aria-hidden>≋</span>
+            <p className="mt-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
+              Toca una mesa para tomar el pedido
+            </p>
           </div>
 
-          {/* Buscador + mic */}
-          <div className="relative flex-1 min-w-[220px] sm:ml-auto">
-            <div className="relative flex items-center gap-2 rounded-full bg-slate-50 dark:bg-white/5 pl-4 pr-1.5 py-1.5 ring-1 ring-slate-200 dark:ring-white/10 shadow-inner focus-within:ring-sky-400/60 transition">
+          {/* Logo oficial */}
+          <img
+            src={golosoLogo}
+            alt="Heladería Goloso"
+            width={1200}
+            height={960}
+            loading="eager"
+            className="h-24 sm:h-36 md:h-44 w-auto object-contain select-none shrink-0 drop-shadow-[0_18px_22px_rgba(2,132,199,0.35)] animate-fade-in"
+            draggable={false}
+          />
+        </div>
+
+        {/* Barra inferior: buscador + estados + usuario */}
+        <div className="relative flex flex-wrap items-center gap-3 px-4 pb-4 sm:px-8 sm:pb-6">
+          {/* Buscador premium */}
+          <div className="relative flex-1 min-w-[240px] order-1">
+            <div className="relative flex items-center gap-2 rounded-full bg-white dark:bg-white/5 pl-4 pr-1.5 py-2 ring-1 ring-slate-200 dark:ring-white/10 shadow-[0_10px_25px_-12px_rgba(15,23,42,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] focus-within:ring-sky-400/70 focus-within:shadow-[0_14px_30px_-12px_rgba(2,132,199,0.35)] transition">
               <Search className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar mesa…"
-                className="flex-1 bg-transparent border-0 outline-none text-sm sm:text-base text-slate-700 dark:text-slate-100 placeholder:text-slate-400 min-w-0"
+                placeholder="Buscar mesa por número o nombre…"
+                className="flex-1 bg-transparent border-0 outline-none text-sm sm:text-base font-medium text-slate-700 dark:text-slate-100 placeholder:text-slate-400 min-w-0"
                 aria-label="Buscar mesa"
               />
-              <span className="hidden sm:inline text-xs font-bold text-emerald-600 tabular-nums shrink-0">(F2)</span>
+              <span className="hidden sm:inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950/50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 shrink-0">
+                F2
+              </span>
               <button
                 type="button"
                 onClick={() => toast.info("Búsqueda por voz próximamente")}
-                className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-[0_6px_14px_-4px_rgba(2,132,199,0.6)] ring-1 ring-white/40 transition hover:scale-105 active:scale-95 shrink-0"
+                className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-[0_8px_18px_-4px_rgba(2,132,199,0.65)] ring-1 ring-white/40 transition hover:scale-110 hover:from-sky-400 hover:to-blue-500 active:scale-95 shrink-0"
                 aria-label="Búsqueda por voz"
               >
                 <Mic className="h-4 w-4" />
@@ -396,29 +428,32 @@ function MesasPage() {
             </div>
           </div>
 
-          {/* Usuario */}
-          <button
-            type="button"
-            onClick={() => navigate({ to: "/ajustes" })}
-            className="grid h-11 w-11 place-items-center rounded-full bg-white dark:bg-white/10 text-emerald-600 ring-2 ring-emerald-400/60 shadow-sm transition hover:scale-105 active:scale-95 shrink-0"
-            aria-label="Perfil"
-          >
-            <User className="h-5 w-5" />
-          </button>
-        </div>
+          {/* Estados */}
+          <div className="flex flex-wrap gap-2 order-3 sm:order-2">
+            <StatChip color="emerald" label="Libres" value={counts.free} />
+            <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
+            <StatChip color="amber" label="Reservadas" value={counts.reserved} />
+          </div>
 
-        {/* Chips de estado */}
-        <div className="relative flex flex-wrap gap-2 px-4 pb-3 sm:px-6 sm:pb-4">
-          <StatChip color="emerald" label="Libres" value={counts.free} />
-          <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
-          <StatChip color="amber" label="Reservadas" value={counts.reserved} />
-          {activeBranch?.name && (
-            <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-950/30 px-3 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/20">
-              <Utensils className="h-3 w-3" /> {activeBranch.name}
-            </span>
-          )}
+          {/* Sede + usuario */}
+          <div className="flex items-center gap-2 ml-auto order-2 sm:order-3">
+            {activeBranch?.name && (
+              <span className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-white/90 dark:bg-white/10 px-3 py-1.5 text-xs font-bold text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/20 shadow-sm">
+                <Utensils className="h-3.5 w-3.5" /> {activeBranch.name}
+              </span>
+            )}
+            <button
+              type="button"
+              onClick={() => navigate({ to: "/ajustes" })}
+              className="grid h-11 w-11 place-items-center rounded-full bg-white dark:bg-white/10 text-emerald-600 ring-2 ring-emerald-400/70 shadow-[0_8px_18px_-6px_rgba(16,185,129,0.5)] transition hover:scale-110 active:scale-95 shrink-0"
+              aria-label="Perfil"
+            >
+              <User className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
+
 
 
       {/* Accesos rápidos: Para llevar / A domicilio — tarjetas premium 3D */}
