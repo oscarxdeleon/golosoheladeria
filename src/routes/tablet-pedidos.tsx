@@ -174,10 +174,11 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
   const qc = useQueryClient();
   const { activeBranchId, activeBranch } = useBranch();
 
+  useRealtimeBranchSync(activeBranchId);
+
   const { data: mesas = [] } = useQuery({
     queryKey: ["restaurant_tables", activeBranchId],
     enabled: !!activeBranchId,
-    refetchInterval: 8000,
     queryFn: async () => {
       const { data } = await supabase
         .from("restaurant_tables")
