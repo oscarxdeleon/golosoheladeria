@@ -216,7 +216,7 @@ function LlevarPendientesPage() {
 
   return (
     <div className="space-y-4 p-2 sm:p-4 premium-scope">
-      <header className="flex flex-wrap items-center gap-3">
+      
       {/* Header compacto premium — alineado como Mesas / Para Llevar */}
       <div className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-sky-50/70 to-emerald-50/60 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_18px_45px_-20px_rgba(2,132,199,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/70 dark:ring-white/5">
         <div
