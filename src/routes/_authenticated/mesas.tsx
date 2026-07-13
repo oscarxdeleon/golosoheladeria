@@ -22,6 +22,7 @@ import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingB
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
+import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
 import mesaLibreImg from "@/assets/mesa_libre.png";
 import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
 import golosoCharacter from "@/assets/goloso-character-official.png";
