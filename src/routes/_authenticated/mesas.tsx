@@ -142,6 +142,7 @@ function MesasPage() {
   const [mergePrincipal, setMergePrincipal] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [splitTarget, setSplitTarget] = useState<Mesa | null>(null);
+  const [search, setSearch] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
