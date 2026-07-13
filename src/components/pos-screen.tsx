@@ -638,6 +638,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   // Direcciones guardadas del cliente (lookup por teléfono)
   type SavedAddress = { id: string; label: string; address: string; neighborhood: string | null; reference: string | null; phone: string | null; is_default: boolean };
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  // Para llevar: panel opcional para capturar Nombre + WhatsApp del cliente
+  const [showLlevarContact, setShowLlevarContact] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState("");
@@ -1137,6 +1139,38 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
+  // Upsert opcional de cliente para pedidos "Para llevar" con WhatsApp.
+  // Si el número existe → asocia; si no existe → crea. Nunca bloquea el flujo.
+  async function upsertLlevarCustomerFromForm(saleId: string) {
+    if (orderType !== "llevar") return;
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (!digits) return;
+    try {
+      const lookup = await supabase.rpc("get_customer_by_phone", { _phone: digits });
+      const payload = lookup.data as { found?: boolean; customer?: { id: string; name: string | null } } | null;
+      let custId: string | undefined = payload?.customer?.id;
+      const currentName = payload?.customer?.name ?? "";
+      if (custId) {
+        if (customer.trim() && !currentName.trim()) {
+          await supabase.from("customers").update({ name: customer.trim() }).eq("id", custId);
+        }
+      } else {
+        const ins = await supabase
+          .from("customers")
+          .insert({ name: customer.trim() || "Cliente WhatsApp", phone: digits, frequent_channel: "llevar" })
+          .select("id")
+          .maybeSingle();
+        if (ins.error) { console.warn("[llevar] upsert customer", ins.error); return; }
+        custId = ins.data?.id;
+      }
+      if (custId) {
+        await supabase.from("sales").update({ customer_id: custId }).eq("id", saleId);
+      }
+    } catch (e) {
+      console.warn("[llevar] upsert customer failed", e);
+    }
+  }
+
   // Handler del botón "Cobrar". En pedidos "para llevar" imprime la comanda
   // de cocina de inmediato (crea el pedido pendiente + envía a KDS + imprime)
   // y luego abre el diálogo de medio de pago sobre ese mismo pedido. Así la
@@ -1185,6 +1219,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             status: "paid",
             cash_session_id: effectiveSessionId,
             customer_name: customer || null,
+            customer_phone: phone.trim() ? phone.trim() : null,
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
@@ -1215,6 +1250,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             status: "paid",
             cash_session_id: effectiveSessionId,
             customer_name: customer || null,
+            customer_phone: phone.trim() ? phone.trim() : null,
             notes: notes || null,
             order_type: orderType,
             table_id: tableId ?? null,
@@ -1253,6 +1289,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       }
 
       console.log(`[pay] venta #${sale.ticket_number} registrada como ${method}`);
+
+      // Upsert opcional cliente CRM (Para llevar con WhatsApp)
+      if (!creditCustomer) { void upsertLlevarCustomerFromForm(sale.id); }
 
       // Si es venta a crédito, crear cuenta por cobrar
       if (creditCustomer) {
@@ -1325,6 +1364,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       setNotes("");
       setAddress("");
       setPhone("");
+      setShowLlevarContact(false);
       setNeighborhood("");
       setFieldErrors({});
       setPendingSaleId(null);
@@ -1441,6 +1481,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
             total,
             customer_name: customer || null,
+            customer_phone: phone.trim() ? phone.trim() : null,
             notes: notes || null,
             delivery_address: orderType === "domicilio" ? address : null,
             delivery_phone: orderType === "domicilio" ? phone : null,
@@ -1468,6 +1509,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               status: "pending",
               source: "pos",
               customer_name: customer || null,
+              customer_phone: phone.trim() ? phone.trim() : null,
               notes: notes || null,
               order_type: orderType,
               table_id: tableId ?? null,
@@ -1500,6 +1542,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             status: "pending",
             source: "pos",
             customer_name: customer || null,
+            customer_phone: phone.trim() ? phone.trim() : null,
             notes: notes || null,
             order_type: orderType,
             table_id: tableId ?? null,
@@ -1538,6 +1581,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         console.error("save items error", e2);
         throw new Error(e2.message || "No se pudieron guardar los productos");
       }
+
+      // Upsert opcional cliente CRM (Para llevar con WhatsApp) — no bloquea
+      void upsertLlevarCustomerFromForm(sale.id);
+
+
 
       // La mesa se marca como "ocupada" automáticamente por el trigger DB
       // `auto_occupy_table_on_sale_item` cuando se inserta el primer producto.
@@ -1640,6 +1688,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         setNotes("");
         setAddress("");
         setPhone("");
+        setShowLlevarContact(false);
         setNeighborhood("");
         setFieldErrors({});
         setPendingSaleId(null);
@@ -2036,15 +2085,72 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </div>
 
           <div className="space-y-2 border-t pt-3">
-            <div className="space-y-1">
-              <Input
-                placeholder={orderType === "domicilio" ? "Nombre del cliente *" : "Nombre cliente (opcional)"}
-                value={customer}
-                onChange={(e) => { setCustomer(e.target.value); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
-                className={fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}
-              />
-              {fieldErrors.customer && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
-            </div>
+            {orderType === "llevar" ? (
+              <div className="space-y-1.5">
+                {!showLlevarContact && !customer.trim() && !phone.trim() ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowLlevarContact(true)}
+                    className="group flex w-full items-center justify-between gap-2 rounded-xl border-2 border-dashed border-sky-300 bg-gradient-to-r from-sky-50 via-white to-emerald-50 dark:from-sky-950/30 dark:via-slate-900 dark:to-emerald-950/30 px-3 py-2 text-sm font-semibold text-sky-800 dark:text-sky-200 shadow-sm transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow">
+                        <Users className="h-3.5 w-3.5" />
+                      </span>
+                      <span>Nombre y WhatsApp</span>
+                      <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Opcional</span>
+                    </span>
+                    <Plus className="h-4 w-4 opacity-70 group-hover:opacity-100" />
+                  </button>
+                ) : (
+                  <div className="space-y-1.5 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-br from-sky-50/70 to-emerald-50/60 dark:from-sky-950/20 dark:to-emerald-950/10 p-2.5 shadow-sm">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
+                        <Users className="h-3.5 w-3.5" /> Datos del cliente
+                        <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Opcional</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => { setCustomer(""); setPhone(""); setShowLlevarContact(false); }}
+                        className="text-[11px] font-medium text-muted-foreground hover:text-destructive"
+                      >
+                        Omitir
+                      </button>
+                    </div>
+                    <Input
+                      placeholder="Nombre del cliente"
+                      value={customer}
+                      maxLength={100}
+                      onChange={(e) => setCustomer(e.target.value)}
+                      className="h-9 bg-white/80 dark:bg-slate-900/60"
+                    />
+                    <Input
+                      placeholder="WhatsApp (ej. 3001234567)"
+                      value={phone}
+                      inputMode="tel"
+                      maxLength={15}
+                      onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ ]/g, ""))}
+                      className="h-9 bg-white/80 dark:bg-slate-900/60"
+                    />
+                    {phone.trim() && phone.replace(/[^0-9]/g, "").replace(/^57/, "").length !== 10 && (
+                      <p className="text-[11px] text-amber-700 dark:text-amber-300">
+                        Sugerencia: un celular colombiano tiene 10 dígitos. Puedes continuar igualmente.
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-1">
+                <Input
+                  placeholder={orderType === "domicilio" ? "Nombre del cliente *" : "Nombre cliente (opcional)"}
+                  value={customer}
+                  onChange={(e) => { setCustomer(e.target.value); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
+                  className={fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}
+                />
+                {fieldErrors.customer && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
+              </div>
+            )}
             {orderType === "domicilio" && (
               <>
                 {savedAddresses.length > 0 && (
