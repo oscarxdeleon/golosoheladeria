@@ -4,9 +4,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Banknote, ShoppingBag, Utensils, Inbox } from "lucide-react";
+import { Banknote, ShoppingBag, Utensils, Inbox, User } from "lucide-react";
 import autopedidoCharacter from "@/assets/autopedidos-character.png";
-import { formatMoney } from "@/lib/format";
+import golosoLogo from "@/assets/goloso-logo-official.png";
+
 import { useBranch } from "@/contexts/branch-context";
 
 export const Route = createFileRoute("/_authenticated/kiosko")({
