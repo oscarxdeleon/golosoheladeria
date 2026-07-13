@@ -81,6 +81,6 @@ export function useBranchCashSession(branchId: string | null | undefined) {
   return {
     session: query.data ?? null,
     isOpen: !!query.data,
-    loading: query.isLoading || query.isFetching,
+    loading: query.isLoading,
   };
 }
