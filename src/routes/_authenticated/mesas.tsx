@@ -147,6 +147,8 @@ function MesasPage() {
   const [search, setSearch] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
+  useRealtimeBranchSync(activeBranchId);
+
   const { data: mesas = [] } = useQuery({
     queryKey: ["restaurant_tables", activeBranchId],
     enabled: !!activeBranchId,
