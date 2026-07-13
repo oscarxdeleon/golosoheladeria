@@ -18,13 +18,13 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check, ArrowRight, Utensils } from "lucide-react";
+import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check, ArrowRight, Utensils, Search, Mic, User } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import mesaLibreImg from "@/assets/mesa_libre.png";
 import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
-import mesasHeroImg from "@/assets/mesas-goloso-3d.png";
+import brandLockup from "@/assets/goloso-brand-lockup.png";
 import takeawayImg from "@/assets/takeaway-goloso-3d.png";
 import deliveryImg from "@/assets/delivery-goloso-3d.png";
 
@@ -142,6 +142,7 @@ function MesasPage() {
   const [mergePrincipal, setMergePrincipal] = useState<string | null>(null);
   const [merging, setMerging] = useState(false);
   const [splitTarget, setSplitTarget] = useState<Mesa | null>(null);
+  const [search, setSearch] = useState("");
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   const { data: mesas = [] } = useQuery({
@@ -184,6 +185,25 @@ function MesasPage() {
     },
     { free: 0, occupied: 0, reserved: 0 } as Record<Status, number>,
   );
+
+  const filteredMesas = search.trim()
+    ? mesas.filter((m) => {
+        const q = search.trim().toLowerCase();
+        return String(m.number).includes(q) || (m.label ?? "").toLowerCase().includes(q);
+      })
+    : mesas;
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "F2") {
+        e.preventDefault();
+        const el = document.querySelector<HTMLInputElement>('input[aria-label="Buscar mesa"]');
+        el?.focus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   async function openMesa(m: Mesa) {
     // La mesa solo cambia a "ocupada" cuando se guarda un pedido con al menos un producto
@@ -309,52 +329,96 @@ function MesasPage() {
   return (
     <BranchCashGuard>
     <div className="space-y-6 premium-scope">
-      {/* Hero premium — título 3D "MESAS" + mascota Goloso */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-white via-sky-50/60 to-emerald-50/50 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.35),0_8px_24px_-12px_rgba(16,185,129,0.25),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-white/60 dark:ring-white/5">
+      {/* Header bar premium — brand lockup + MESAS 3D + buscador + usuario */}
+      <div className="relative overflow-hidden rounded-[2rem] bg-white dark:bg-slate-900 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.25),0_8px_24px_-12px_rgba(16,185,129,0.18),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-slate-200/70 dark:ring-white/5">
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              "radial-gradient(700px 240px at 90% -10%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(600px 220px at -5% 110%, rgba(2,132,199,0.18), transparent 60%)",
+              "radial-gradient(600px 200px at 100% 0%, rgba(16,185,129,0.10), transparent 60%), radial-gradient(500px 180px at 0% 100%, rgba(2,132,199,0.10), transparent 60%)",
           }}
         />
-        <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-5 py-5 sm:px-10 sm:py-8">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 dark:bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur">
-              <Utensils className="h-3 w-3" /> Salón · Goloso
-            </div>
-            <h1
-              className="font-display mt-2 text-5xl sm:text-7xl md:text-8xl font-black uppercase tracking-tight leading-[0.9] bg-clip-text text-transparent animate-fade-in"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg, #0369a1 0%, #0284c7 35%, #10b981 75%, #84cc16 100%)",
-                WebkitTextStroke: "0.5px rgba(255,255,255,0.4)",
-                filter:
-                  "drop-shadow(0 2px 0 rgba(255,255,255,0.6)) drop-shadow(0 8px 20px rgba(2,132,199,0.35))",
-              }}
-            >
-              Mesas
-            </h1>
-            <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-md">
-              {activeBranch?.name ? `${activeBranch.name} · ` : ""}Toca una mesa para tomar el pedido.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <StatChip color="emerald" label="Libres" value={counts.free} />
-              <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
-              <StatChip color="amber" label="Reservadas" value={counts.reserved} />
-            </div>
-          </div>
+        <div className="relative flex flex-wrap items-center gap-4 px-4 py-3 sm:flex-nowrap sm:gap-6 sm:px-6 sm:py-4">
+          {/* Brand lockup */}
           <img
-            src={mesasHeroImg}
-            alt="Goloso mascota mesas"
-            width={1024}
-            height={1024}
+            src={brandLockup}
+            alt="Heladería Goloso"
+            width={1600}
+            height={704}
             loading="lazy"
-            className="h-40 w-auto sm:h-56 md:h-64 object-contain select-none -mr-2 sm:-mr-4 drop-shadow-[0_20px_25px_rgba(2,132,199,0.35)] animate-fade-in"
+            className="h-14 sm:h-20 md:h-24 w-auto object-contain select-none shrink-0 drop-shadow-[0_6px_14px_rgba(2,132,199,0.25)]"
             draggable={false}
           />
+
+          {/* Divider vertical */}
+          <div className="hidden sm:block h-16 w-px bg-slate-200 dark:bg-white/10" aria-hidden />
+
+          {/* Título MESAS con ornamentos */}
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <span className="text-sky-600 dark:text-sky-400 font-black text-2xl leading-none select-none" aria-hidden>≋</span>
+            <h1
+              className="font-display font-black uppercase tracking-tight leading-none text-4xl sm:text-6xl md:text-7xl bg-clip-text text-transparent animate-fade-in"
+              style={{
+                backgroundImage:
+                  "linear-gradient(180deg, #1e3a8a 0%, #1d4ed8 55%, #1e40af 100%)",
+                WebkitTextStroke: "1px rgba(255,255,255,0.85)",
+                filter:
+                  "drop-shadow(0 2px 0 rgba(255,255,255,0.8)) drop-shadow(0 6px 12px rgba(30,64,175,0.35))",
+              }}
+            >
+              MESAS
+            </h1>
+            <span className="text-sky-600 dark:text-sky-400 font-black text-2xl leading-none select-none" aria-hidden>≋</span>
+          </div>
+
+          {/* Buscador + mic */}
+          <div className="relative flex-1 min-w-[220px] sm:ml-auto">
+            <div className="relative flex items-center gap-2 rounded-full bg-slate-50 dark:bg-white/5 pl-4 pr-1.5 py-1.5 ring-1 ring-slate-200 dark:ring-white/10 shadow-inner focus-within:ring-sky-400/60 transition">
+              <Search className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Buscar mesa…"
+                className="flex-1 bg-transparent border-0 outline-none text-sm sm:text-base text-slate-700 dark:text-slate-100 placeholder:text-slate-400 min-w-0"
+                aria-label="Buscar mesa"
+              />
+              <span className="hidden sm:inline text-xs font-bold text-emerald-600 tabular-nums shrink-0">(F2)</span>
+              <button
+                type="button"
+                onClick={() => toast.info("Búsqueda por voz próximamente")}
+                className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-[0_6px_14px_-4px_rgba(2,132,199,0.6)] ring-1 ring-white/40 transition hover:scale-105 active:scale-95 shrink-0"
+                aria-label="Búsqueda por voz"
+              >
+                <Mic className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+
+          {/* Usuario */}
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/ajustes" })}
+            className="grid h-11 w-11 place-items-center rounded-full bg-white dark:bg-white/10 text-emerald-600 ring-2 ring-emerald-400/60 shadow-sm transition hover:scale-105 active:scale-95 shrink-0"
+            aria-label="Perfil"
+          >
+            <User className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Chips de estado */}
+        <div className="relative flex flex-wrap gap-2 px-4 pb-3 sm:px-6 sm:pb-4">
+          <StatChip color="emerald" label="Libres" value={counts.free} />
+          <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
+          <StatChip color="amber" label="Reservadas" value={counts.reserved} />
+          {activeBranch?.name && (
+            <span className="ml-auto inline-flex items-center gap-1.5 rounded-full bg-sky-50 dark:bg-sky-950/30 px-3 py-1 text-[11px] font-semibold text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/20">
+              <Utensils className="h-3 w-3" /> {activeBranch.name}
+            </span>
+          )}
         </div>
       </div>
+
 
       {/* Accesos rápidos: Para llevar / A domicilio — tarjetas premium 3D */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -479,7 +543,7 @@ function MesasPage() {
 
       {/* Grid de mesas sin recuadro externo */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-        {mesas.map((m) => {
+        {filteredMesas.map((m) => {
           const status = m.status;
           const styles = STATUS_STYLES[status];
           const selected = mergeSelected.includes(m.id);
