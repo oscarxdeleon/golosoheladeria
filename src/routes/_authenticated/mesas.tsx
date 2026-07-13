@@ -342,24 +342,15 @@ function MesasPage() {
 
         <div className="relative flex flex-wrap items-center gap-3 px-3 py-2.5 sm:px-5 sm:py-3">
           <img
-            src={golosoCharacter}
-            alt="Mascota Heladería Goloso"
-            width={1200}
-            height={1012}
-            loading="eager"
-            className="h-14 sm:h-16 md:h-20 w-auto object-contain select-none shrink-0 drop-shadow-[0_10px_14px_rgba(2,132,199,0.35)]"
-            draggable={false}
-          />
-
-          <img
             src={golosoLogo}
             alt="Heladería Goloso"
             width={1200}
             height={960}
             loading="eager"
-            className="h-12 sm:h-14 md:h-16 w-auto object-contain select-none shrink-0 drop-shadow-[0_10px_14px_rgba(2,132,199,0.35)]"
+            className="h-14 sm:h-16 md:h-20 w-auto object-contain select-none shrink-0 drop-shadow-[0_10px_14px_rgba(2,132,199,0.35)]"
             draggable={false}
           />
+
 
           <h1
             className="uppercase leading-[0.85] tracking-[-0.02em] text-5xl sm:text-6xl md:text-7xl bg-clip-text text-transparent select-none shrink-0 flex items-center"
