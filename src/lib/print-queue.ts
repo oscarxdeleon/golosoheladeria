@@ -42,7 +42,7 @@ export async function enqueuePrintJob(payload: PrintPayload, opts: EnqueueOpts =
         branch_id: opts.branchId ?? null,
         sale_id: opts.saleId ?? null,
         kind: opts.kind ?? payload.type ?? "comanda",
-        payload: payload as unknown as Record<string, unknown>,
+        payload: JSON.parse(JSON.stringify(payload)),
         status: "pending",
       })
       .select("id")
