@@ -93,7 +93,10 @@ function ComprasPage() {
     try {
       let cashSessionId: string | null = null;
       if (payment === "efectivo") {
-        const { data: cs } = await supabase.rpc("get_active_cash_session", { _branch_id: activeBranchId });
+        const { data: cs } = await supabase.rpc("sync_active_cash_session", {
+          _branch_id: activeBranchId,
+          _user_name: profile?.full_name ?? user.email ?? "Usuario",
+        });
         cashSessionId = (cs as { id?: string } | null)?.id ?? null;
         if (!cashSessionId) {
           setSaving(false);
