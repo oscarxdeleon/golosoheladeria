@@ -18,12 +18,15 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check } from "lucide-react";
+import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check, ArrowRight, Utensils } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import mesaLibreImg from "@/assets/mesa_libre.png";
 import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
+import mesasHeroImg from "@/assets/mesas-goloso-3d.png";
+import takeawayImg from "@/assets/takeaway-goloso-3d.png";
+import deliveryImg from "@/assets/delivery-goloso-3d.png";
 
 export const Route = createFileRoute("/_authenticated/mesas")({
   head: () => ({ meta: [{ title: "Mesas · Goloso POS" }] }),
@@ -306,23 +309,136 @@ function MesasPage() {
   return (
     <BranchCashGuard>
     <div className="space-y-6 premium-scope">
-      {/* Accesos rápidos a otros canales de venta */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Button
-          onClick={() => navigate({ to: "/llevar" })}
-          className="h-28 text-2xl font-extrabold uppercase tracking-wide shadow-md hover:shadow-lg transition bg-amber-500 hover:bg-amber-600 text-white [&_svg]:size-10"
-        >
-          <ShoppingBag className="mr-3" />
-          Para llevar
-        </Button>
-        <Button
-          onClick={() => navigate({ to: "/domicilio" })}
-          className="h-28 text-2xl font-extrabold uppercase tracking-wide shadow-md hover:shadow-lg transition bg-sky-600 hover:bg-sky-700 text-white [&_svg]:size-10"
-        >
-          <Bike className="mr-3" />
-          A domicilio
-        </Button>
+      {/* Hero premium — título 3D "MESAS" + mascota Goloso */}
+      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-white via-sky-50/60 to-emerald-50/50 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.35),0_8px_24px_-12px_rgba(16,185,129,0.25),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-white/60 dark:ring-white/5">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(700px 240px at 90% -10%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(600px 220px at -5% 110%, rgba(2,132,199,0.18), transparent 60%)",
+          }}
+        />
+        <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-5 py-5 sm:px-10 sm:py-8">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 dark:bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur">
+              <Utensils className="h-3 w-3" /> Salón · Goloso
+            </div>
+            <h1
+              className="font-display mt-2 text-5xl sm:text-7xl md:text-8xl font-black uppercase tracking-tight leading-[0.9] bg-clip-text text-transparent animate-fade-in"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #0369a1 0%, #0284c7 35%, #10b981 75%, #84cc16 100%)",
+                WebkitTextStroke: "0.5px rgba(255,255,255,0.4)",
+                filter:
+                  "drop-shadow(0 2px 0 rgba(255,255,255,0.6)) drop-shadow(0 8px 20px rgba(2,132,199,0.35))",
+              }}
+            >
+              Mesas
+            </h1>
+            <p className="mt-2 text-sm sm:text-base text-slate-600 dark:text-slate-300 max-w-md">
+              {activeBranch?.name ? `${activeBranch.name} · ` : ""}Toca una mesa para tomar el pedido.
+            </p>
+            <div className="mt-3 flex flex-wrap gap-2">
+              <StatChip color="emerald" label="Libres" value={counts.free} />
+              <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
+              <StatChip color="amber" label="Reservadas" value={counts.reserved} />
+            </div>
+          </div>
+          <img
+            src={mesasHeroImg}
+            alt="Goloso mascota mesas"
+            width={1024}
+            height={1024}
+            loading="lazy"
+            className="h-40 w-auto sm:h-56 md:h-64 object-contain select-none -mr-2 sm:-mr-4 drop-shadow-[0_20px_25px_rgba(2,132,199,0.35)] animate-fade-in"
+            draggable={false}
+          />
+        </div>
       </div>
+
+      {/* Accesos rápidos: Para llevar / A domicilio — tarjetas premium 3D */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <button
+          onClick={() => navigate({ to: "/llevar" })}
+          className="group relative overflow-hidden rounded-[1.75rem] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_25px_50px_-15px_rgba(249,115,22,0.55)] shadow-[0_15px_35px_-10px_rgba(249,115,22,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-orange-300/40"
+          style={{ background: "linear-gradient(135deg, #fb923c 0%, #f97316 45%, #ea580c 100%)" }}
+        >
+          <div className="pointer-events-none absolute -bottom-8 -right-6 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
+          <div className="relative grid grid-cols-[1fr_auto] items-center gap-3">
+            <div className="min-w-0 space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-orange-600 shadow-sm">
+                  <ShoppingBag className="h-3 w-3" />
+                </span>
+                Rápido
+              </div>
+              <div className="font-display text-3xl sm:text-4xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+                Para llevar
+              </div>
+              <p className="text-xs sm:text-sm text-white/90 max-w-[220px]">Pedidos para recoger en tienda.</p>
+              <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-sky-700 shadow-md transition group-hover:translate-x-1">
+                Continuar <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </div>
+            <div className="relative shrink-0">
+              <div className="absolute inset-x-0 -bottom-2 mx-auto h-3 w-24 rounded-full bg-black/20 blur-md" />
+              <img
+                src={takeawayImg}
+                alt="Bolsa para llevar Goloso"
+                width={1024}
+                height={1024}
+                loading="lazy"
+                className="relative h-28 sm:h-36 w-auto object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:-translate-y-1"
+                draggable={false}
+              />
+            </div>
+          </div>
+        </button>
+
+        <button
+          onClick={() => navigate({ to: "/domicilio" })}
+          className="group relative overflow-hidden rounded-[1.75rem] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_25px_50px_-15px_rgba(2,132,199,0.55)] shadow-[0_15px_35px_-10px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-sky-300/40"
+          style={{ background: "linear-gradient(135deg, #38bdf8 0%, #0284c7 45%, #0369a1 100%)" }}
+        >
+          <div className="pointer-events-none absolute -bottom-8 -right-6 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
+          {/* líneas de velocidad */}
+          <div className="pointer-events-none absolute right-24 top-6 space-y-1.5 opacity-70">
+            <div className="h-0.5 w-10 rounded-full bg-white/70" />
+            <div className="h-0.5 w-6 rounded-full bg-white/60" />
+            <div className="h-0.5 w-8 rounded-full bg-white/50" />
+          </div>
+          <div className="relative grid grid-cols-[1fr_auto] items-center gap-3">
+            <div className="min-w-0 space-y-2">
+              <div className="inline-flex items-center gap-2 rounded-full bg-white/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
+                <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-sky-700 shadow-sm">
+                  <Bike className="h-3 w-3" />
+                </span>
+                Delivery
+              </div>
+              <div className="font-display text-3xl sm:text-4xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+                A domicilio
+              </div>
+              <p className="text-xs sm:text-sm text-white/90 max-w-[220px]">Envíos con seguimiento en tiempo real.</p>
+              <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-sky-700 shadow-md transition group-hover:translate-x-1">
+                Continuar <ArrowRight className="h-3.5 w-3.5" />
+              </span>
+            </div>
+            <div className="relative shrink-0">
+              <div className="absolute inset-x-0 -bottom-2 mx-auto h-3 w-24 rounded-full bg-black/20 blur-md" />
+              <img
+                src={deliveryImg}
+                alt="Repartidor Goloso"
+                width={1024}
+                height={1024}
+                loading="lazy"
+                className="relative h-28 sm:h-36 w-auto object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:-translate-y-1"
+                draggable={false}
+              />
+            </div>
+          </div>
+        </button>
+      </div>
+
 
 
       {/* Barra de acciones: fusionar/separar mesas + crear */}
