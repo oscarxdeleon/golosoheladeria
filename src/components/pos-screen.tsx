@@ -639,7 +639,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   type SavedAddress = { id: string; label: string; address: string; neighborhood: string | null; reference: string | null; phone: string | null; is_default: boolean };
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   // Para llevar: panel opcional para capturar Nombre + WhatsApp del cliente
-  const [showLlevarContact, setShowLlevarContact] = useState(false);
+  const [showLlevarContact, setShowLlevarContact] = useState(orderType === "llevar");
+  // Re-abrir automáticamente el panel al entrar/cambiar a "Para llevar"
+  useEffect(() => {
+    if (orderType === "llevar") setShowLlevarContact(true);
+    else setShowLlevarContact(false);
+  }, [orderType]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState("");
@@ -1364,7 +1369,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       setNotes("");
       setAddress("");
       setPhone("");
-      setShowLlevarContact(false);
+      setShowLlevarContact(orderType === "llevar");
       setNeighborhood("");
       setFieldErrors({});
       setPendingSaleId(null);
@@ -1688,7 +1693,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         setNotes("");
         setAddress("");
         setPhone("");
-        setShowLlevarContact(false);
+        setShowLlevarContact(orderType === "llevar");
         setNeighborhood("");
         setFieldErrors({});
         setPendingSaleId(null);
@@ -1871,6 +1876,17 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </div>
         </div>
 
+        {orderType === "llevar" && (
+          <LlevarContactPanel
+            expanded={showLlevarContact}
+            setExpanded={setShowLlevarContact}
+            customer={customer}
+            setCustomer={setCustomer}
+            phone={phone}
+            setPhone={setPhone}
+          />
+        )}
+
 
         <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent">
@@ -1991,62 +2007,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             </Button>
           )}
 
-          {orderType === "llevar" && (
-            <div className="space-y-1.5">
-              {!showLlevarContact && !customer.trim() && !phone.trim() ? (
-                <button
-                  type="button"
-                  onClick={() => setShowLlevarContact(true)}
-                  className="group flex w-full items-center justify-between gap-2 rounded-xl border-2 border-dashed border-sky-400 bg-gradient-to-r from-sky-50 via-white to-emerald-50 dark:from-sky-950/30 dark:via-slate-900 dark:to-emerald-950/30 px-3 py-2.5 text-sm font-semibold text-sky-800 dark:text-sky-200 shadow-sm transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
-                >
-                  <span className="flex items-center gap-2">
-                    <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow">
-                      <Users className="h-4 w-4" />
-                    </span>
-                    <span>👤 Nombre y WhatsApp</span>
-                    <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Opcional</span>
-                  </span>
-                  <Plus className="h-4 w-4 opacity-70 group-hover:opacity-100" />
-                </button>
-              ) : (
-                <div className="space-y-1.5 rounded-xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-br from-sky-50/70 to-emerald-50/60 dark:from-sky-950/20 dark:to-emerald-950/10 p-2.5 shadow-sm">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
-                      <Users className="h-3.5 w-3.5" /> Datos del cliente
-                      <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Opcional</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => { setCustomer(""); setPhone(""); setShowLlevarContact(false); }}
-                      className="text-[11px] font-medium text-muted-foreground hover:text-destructive"
-                    >
-                      Omitir
-                    </button>
-                  </div>
-                  <Input
-                    placeholder="Nombre del cliente"
-                    value={customer}
-                    maxLength={100}
-                    onChange={(e) => setCustomer(e.target.value)}
-                    className="h-9 bg-white/80 dark:bg-slate-900/60"
-                  />
-                  <Input
-                    placeholder="WhatsApp (ej. 3001234567)"
-                    value={phone}
-                    inputMode="tel"
-                    maxLength={15}
-                    onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ ]/g, ""))}
-                    className="h-9 bg-white/80 dark:bg-slate-900/60"
-                  />
-                  {phone.trim() && phone.replace(/[^0-9]/g, "").replace(/^57/, "").length !== 10 && (
-                    <p className="text-[11px] text-amber-700 dark:text-amber-300">
-                      Sugerencia: un celular colombiano tiene 10 dígitos. Puedes continuar igualmente.
-                    </p>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Datos del cliente para "Para llevar" se muestran arriba, sobre el catálogo */}
 
 
           {typeof document !== "undefined" && createPortal(
@@ -3250,6 +3211,201 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         </DialogContent>
       </Dialog>
 
+    </div>
+  );
+}
+
+// -----------------------------------------------------------------------------
+// Panel superior "Para llevar": captura opcional de Nombre + WhatsApp.
+// Se muestra automáticamente al entrar a Para llevar, arriba del catálogo.
+// -----------------------------------------------------------------------------
+function LlevarContactPanel({
+  expanded,
+  setExpanded,
+  customer,
+  setCustomer,
+  phone,
+  setPhone,
+}: {
+  expanded: boolean;
+  setExpanded: (v: boolean) => void;
+  customer: string;
+  setCustomer: (v: string) => void;
+  phone: string;
+  setPhone: (v: string) => void;
+}) {
+  const [lookingUp, setLookingUp] = useState(false);
+  const [foundName, setFoundName] = useState<string | null>(null);
+
+  const digits = phone.replace(/[^0-9]/g, "").replace(/^57/, "");
+  const phoneWarn = phone.trim().length > 0 && digits.length !== 10;
+
+  async function lookupByPhone(): Promise<string | null> {
+    if (digits.length !== 10) return null;
+    try {
+      setLookingUp(true);
+      const { data } = await supabase
+        .from("customers")
+        .select("name")
+        .eq("phone", digits)
+        .maybeSingle();
+      return (data?.name as string | undefined) ?? null;
+    } catch {
+      return null;
+    } finally {
+      setLookingUp(false);
+    }
+  }
+
+  async function handleContinuar() {
+    if (digits.length === 10) {
+      const found = await lookupByPhone();
+      if (found) {
+        setFoundName(found);
+        if (!customer.trim()) setCustomer(found);
+      }
+    }
+    setExpanded(false);
+  }
+
+  function handleOmitir() {
+    setCustomer("");
+    setPhone("");
+    setFoundName(null);
+    setExpanded(false);
+  }
+
+  function handleCancelarCaptura() {
+    // No cancela el pedido: solo cierra la captura conservando lo que ya se haya escrito.
+    setExpanded(false);
+  }
+
+  if (!expanded) {
+    // Estado compacto: chip resumen o botón para reabrir.
+    const hasData = customer.trim() || phone.trim();
+    if (!hasData) {
+      return (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          className="group flex w-full items-center justify-between gap-2 rounded-2xl border-2 border-dashed border-sky-400 bg-gradient-to-r from-sky-50 via-white to-emerald-50 dark:from-sky-950/30 dark:via-slate-900 dark:to-emerald-950/30 px-4 py-2.5 text-sm font-semibold text-sky-800 dark:text-sky-200 shadow-sm transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
+        >
+          <span className="flex items-center gap-2">
+            <span className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow">
+              <Users className="h-4 w-4" />
+            </span>
+            <span>👤 Nombre y WhatsApp</span>
+            <span className="rounded-full bg-white/70 dark:bg-white/10 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-700 dark:text-emerald-300">Opcional</span>
+          </span>
+          <Plus className="h-4 w-4 opacity-70 group-hover:opacity-100" />
+        </button>
+      );
+    }
+    return (
+      <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-r from-sky-50/80 to-emerald-50/70 dark:from-sky-950/25 dark:to-emerald-950/15 px-3 py-2 shadow-sm">
+        <div className="flex items-center gap-2 text-sm">
+          <span className="grid h-7 w-7 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-emerald-500 text-white shadow">
+            <Users className="h-3.5 w-3.5" />
+          </span>
+          <span className="font-semibold text-sky-900 dark:text-sky-100">
+            {customer.trim() || "Cliente"}
+          </span>
+          {phone.trim() && (
+            <span className="rounded-full bg-white/70 dark:bg-white/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-300">
+              {phone.trim()}
+            </span>
+          )}
+        </div>
+        <div className="flex items-center gap-1">
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs" onClick={() => setExpanded(true)}>
+            Editar
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 px-2 text-xs text-destructive hover:text-destructive" onClick={handleOmitir}>
+            Quitar
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-br from-sky-50/80 via-white to-emerald-50/70 dark:from-sky-950/25 dark:via-slate-900 dark:to-emerald-950/15 p-3 sm:p-4 shadow-sm">
+      <div className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
+          <Users className="h-4 w-4" /> Datos del cliente
+          <span className="rounded-full bg-white/70 dark:bg-white/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Opcional</span>
+        </div>
+        <button
+          type="button"
+          onClick={handleCancelarCaptura}
+          className="text-[11px] font-medium text-muted-foreground hover:text-foreground"
+          aria-label="Cerrar captura"
+        >
+          Cancelar
+        </button>
+      </div>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <Input
+          placeholder="Nombre"
+          value={customer}
+          maxLength={100}
+          onChange={(e) => setCustomer(e.target.value)}
+          className="h-10 bg-white/90 dark:bg-slate-900/60"
+        />
+        <Input
+          placeholder="WhatsApp (ej. 3001234567)"
+          value={phone}
+          inputMode="tel"
+          maxLength={15}
+          onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ ]/g, ""))}
+          onBlur={async () => {
+            if (digits.length === 10 && !customer.trim()) {
+              const found = await lookupByPhone();
+              if (found) { setFoundName(found); setCustomer(found); }
+            }
+          }}
+          className="h-10 bg-white/90 dark:bg-slate-900/60"
+        />
+      </div>
+      {phoneWarn && (
+        <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">
+          Sugerencia: un celular colombiano tiene 10 dígitos. Puedes continuar igualmente.
+        </p>
+      )}
+      {foundName && (
+        <p className="mt-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
+          Cliente encontrado en el CRM: <strong>{foundName}</strong>
+        </p>
+      )}
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          size="sm"
+          onClick={handleContinuar}
+          disabled={lookingUp}
+          className="h-9 rounded-xl bg-gradient-to-b from-sky-500 to-emerald-600 text-white font-semibold shadow hover:from-sky-400 hover:to-emerald-500"
+        >
+          {lookingUp ? "Buscando…" : "Continuar"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleOmitir}
+          className="h-9 rounded-xl"
+        >
+          Omitir
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={handleCancelarCaptura}
+          className="h-9 rounded-xl text-muted-foreground"
+        >
+          Cancelar
+        </Button>
+        <span className="ml-auto text-[11px] text-muted-foreground">
+          Puedes continuar el pedido sin registrar datos.
+        </span>
+      </div>
     </div>
   );
 }
