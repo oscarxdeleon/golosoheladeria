@@ -1693,7 +1693,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         setNotes("");
         setAddress("");
         setPhone("");
-        setShowLlevarContact(false);
+        setShowLlevarContact(orderType === "llevar");
         setNeighborhood("");
         setFieldErrors({});
         setPendingSaleId(null);
