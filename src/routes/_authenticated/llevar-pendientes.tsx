@@ -16,10 +16,13 @@ import {
   Tabs, TabsList, TabsTrigger,
 } from "@/components/ui/tabs";
 import {
-  Banknote, Clock, Search, ShoppingBag, X, Eye, AlertTriangle, RefreshCw,
+  Banknote, Clock, Search, ShoppingBag, X, Eye, AlertTriangle, RefreshCw, User,
 } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import golosoLogo from "@/assets/goloso-logo-official.png";
+import takeawayImg from "@/assets/takeaway-goloso-3d.png";
+
 
 export const Route = createFileRoute("/_authenticated/llevar-pendientes")({
   head: () => ({
