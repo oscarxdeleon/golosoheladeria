@@ -329,85 +329,61 @@ function MesasPage() {
 
   return (
     <BranchCashGuard>
-    <div className="space-y-6 premium-scope">
-      {/* Header premium — Personaje oficial + MESAS 3D + Logo oficial + buscador */}
-      <div className="relative overflow-hidden rounded-[2.25rem] bg-gradient-to-br from-white via-sky-50/70 to-emerald-50/60 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_25px_70px_-25px_rgba(2,132,199,0.35),0_10px_30px_-15px_rgba(16,185,129,0.25),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/70 dark:ring-white/5">
-        {/* Fondo decorativo con burbujas */}
+    <div className="space-y-3 premium-scope">
+      {/* Header premium compacto — Personaje + Logo + MESAS + buscador + usuario */}
+      <div className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-sky-50/70 to-emerald-50/60 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_18px_45px_-20px_rgba(2,132,199,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/70 dark:ring-white/5">
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              "radial-gradient(800px 260px at 92% -10%, rgba(132,204,22,0.20), transparent 60%), radial-gradient(700px 240px at -5% 110%, rgba(14,165,233,0.22), transparent 60%), radial-gradient(300px 300px at 50% 120%, rgba(56,189,248,0.10), transparent 70%)",
-          }}
-        />
-        {/* Puntitos decorativos */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-40"
-          style={{
-            backgroundImage:
-              "radial-gradient(circle at 20% 30%, rgba(14,165,233,0.15) 1.5px, transparent 2px), radial-gradient(circle at 80% 70%, rgba(132,204,22,0.15) 1.5px, transparent 2px)",
-            backgroundSize: "40px 40px, 55px 55px",
+              "radial-gradient(600px 180px at 92% -10%, rgba(132,204,22,0.18), transparent 60%), radial-gradient(500px 160px at -5% 110%, rgba(14,165,233,0.20), transparent 60%)",
           }}
         />
 
-        <div className="relative grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 sm:gap-6 px-4 py-4 sm:px-8 sm:py-6">
-          {/* Personaje oficial */}
+        <div className="relative flex flex-wrap items-center gap-3 px-3 py-2.5 sm:px-5 sm:py-3">
           <img
             src={golosoCharacter}
             alt="Mascota Heladería Goloso"
             width={1200}
             height={1012}
             loading="eager"
-            className="h-24 sm:h-36 md:h-44 w-auto object-contain select-none shrink-0 drop-shadow-[0_18px_22px_rgba(2,132,199,0.35)] animate-fade-in"
+            className="h-14 sm:h-16 md:h-20 w-auto object-contain select-none shrink-0 drop-shadow-[0_10px_14px_rgba(2,132,199,0.35)]"
             draggable={false}
           />
 
-          {/* Título MESAS 3D artístico */}
-          <div className="min-w-0 flex flex-col items-center text-center">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/85 dark:bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.28em] text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur mb-2">
-              <Utensils className="h-3 w-3" /> Salón · Heladería Goloso
-            </div>
-            <h1
-              className="uppercase leading-[0.9] tracking-tight text-5xl sm:text-6xl md:text-7xl bg-clip-text text-transparent animate-fade-in select-none"
-              style={{
-                fontFamily: '"Titan One", "Fredoka", system-ui, sans-serif',
-                backgroundImage:
-                  "linear-gradient(180deg, #38bdf8 0%, #0ea5e9 45%, #0369a1 100%)",
-                filter:
-                  "drop-shadow(0 2px 0 rgba(255,255,255,0.9)) drop-shadow(0 6px 12px rgba(2,132,199,0.35))",
-              }}
-            >
-              Mesas
-            </h1>
-            <p className="mt-2 text-xs sm:text-sm font-semibold text-slate-600 dark:text-slate-300">
-              Toca una mesa para tomar el pedido
-            </p>
-          </div>
-
-          {/* Logo oficial */}
           <img
             src={golosoLogo}
             alt="Heladería Goloso"
             width={1200}
             height={960}
             loading="eager"
-            className="h-24 sm:h-36 md:h-44 w-auto object-contain select-none shrink-0 drop-shadow-[0_18px_22px_rgba(2,132,199,0.35)] animate-fade-in"
+            className="h-12 sm:h-14 md:h-16 w-auto object-contain select-none shrink-0 drop-shadow-[0_10px_14px_rgba(2,132,199,0.35)]"
             draggable={false}
           />
-        </div>
 
-        {/* Barra inferior: buscador + estados + usuario */}
-        <div className="relative flex flex-wrap items-center gap-3 px-4 pb-4 sm:px-8 sm:pb-6">
-          {/* Buscador premium */}
-          <div className="relative flex-1 min-w-[240px] order-1">
-            <div className="relative flex items-center gap-2 rounded-full bg-white dark:bg-white/5 pl-4 pr-1.5 py-2 ring-1 ring-slate-200 dark:ring-white/10 shadow-[0_10px_25px_-12px_rgba(15,23,42,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] focus-within:ring-sky-400/70 focus-within:shadow-[0_14px_30px_-12px_rgba(2,132,199,0.35)] transition">
+          <h1
+            className="uppercase leading-none tracking-tight text-4xl sm:text-5xl md:text-6xl bg-clip-text text-transparent select-none shrink-0"
+            style={{
+              fontFamily: '"Titan One", "Fredoka", system-ui, sans-serif',
+              backgroundImage:
+                "linear-gradient(180deg, #7dd3fc 0%, #0ea5e9 50%, #0369a1 100%)",
+              WebkitTextStroke: "1.5px #ffffff",
+              filter:
+                "drop-shadow(0 2px 0 rgba(255,255,255,0.9)) drop-shadow(0 6px 12px rgba(2,132,199,0.4))",
+            }}
+          >
+            Mesas
+          </h1>
+
+          <div className="relative flex-1 min-w-[220px]">
+            <div className="relative flex items-center gap-2 rounded-full bg-white dark:bg-white/5 pl-4 pr-1.5 py-1.5 ring-1 ring-slate-200 dark:ring-white/10 shadow-[0_8px_20px_-12px_rgba(15,23,42,0.15),inset_0_1px_0_rgba(255,255,255,0.9)] focus-within:ring-sky-400/70 transition">
               <Search className="h-4 w-4 text-slate-400 shrink-0" aria-hidden />
               <input
                 type="text"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Buscar mesa por número o nombre…"
-                className="flex-1 bg-transparent border-0 outline-none text-sm sm:text-base font-medium text-slate-700 dark:text-slate-100 placeholder:text-slate-400 min-w-0"
+                placeholder="Buscar mesa…"
+                className="flex-1 bg-transparent border-0 outline-none text-sm font-medium text-slate-700 dark:text-slate-100 placeholder:text-slate-400 min-w-0"
                 aria-label="Buscar mesa"
               />
               <span className="hidden sm:inline-flex items-center rounded-md bg-emerald-100 dark:bg-emerald-950/50 px-1.5 py-0.5 text-[10px] font-black text-emerald-700 dark:text-emerald-300 ring-1 ring-emerald-500/30 shrink-0">
@@ -416,109 +392,78 @@ function MesasPage() {
               <button
                 type="button"
                 onClick={() => toast.info("Búsqueda por voz próximamente")}
-                className="grid h-9 w-9 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-[0_8px_18px_-4px_rgba(2,132,199,0.65)] ring-1 ring-white/40 transition hover:scale-110 hover:from-sky-400 hover:to-blue-500 active:scale-95 shrink-0"
+                className="grid h-8 w-8 place-items-center rounded-full bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-[0_6px_14px_-4px_rgba(2,132,199,0.65)] ring-1 ring-white/40 transition hover:scale-110 active:scale-95 shrink-0"
                 aria-label="Búsqueda por voz"
               >
-                <Mic className="h-4 w-4" />
+                <Mic className="h-3.5 w-3.5" />
               </button>
             </div>
           </div>
 
-          {/* Estados */}
-          <div className="flex flex-wrap gap-2 order-3 sm:order-2">
+          <div className="hidden md:flex flex-wrap gap-1.5">
             <StatChip color="emerald" label="Libres" value={counts.free} />
             <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
             <StatChip color="amber" label="Reservadas" value={counts.reserved} />
           </div>
 
-          {/* Sede + usuario */}
-          <div className="flex items-center gap-2 ml-auto order-2 sm:order-3">
-            {activeBranch?.name && (
-              <span className="hidden md:inline-flex items-center gap-1.5 rounded-full bg-white/90 dark:bg-white/10 px-3 py-1.5 text-xs font-bold text-sky-700 dark:text-sky-300 ring-1 ring-sky-500/20 shadow-sm">
-                <Utensils className="h-3.5 w-3.5" /> {activeBranch.name}
-              </span>
-            )}
-            <button
-              type="button"
-              onClick={() => navigate({ to: "/ajustes" })}
-              className="grid h-11 w-11 place-items-center rounded-full bg-white dark:bg-white/10 text-emerald-600 ring-2 ring-emerald-400/70 shadow-[0_8px_18px_-6px_rgba(16,185,129,0.5)] transition hover:scale-110 active:scale-95 shrink-0"
-              aria-label="Perfil"
-            >
-              <User className="h-5 w-5" />
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/ajustes" })}
+            className="grid h-10 w-10 place-items-center rounded-full bg-white dark:bg-white/10 text-emerald-600 ring-2 ring-emerald-400/70 shadow-[0_6px_14px_-6px_rgba(16,185,129,0.5)] transition hover:scale-110 active:scale-95 shrink-0"
+            aria-label="Perfil"
+          >
+            <User className="h-5 w-5" />
+          </button>
         </div>
-      </div>
 
+        {/* Segunda línea: botones compactos Para llevar / A domicilio */}
+        <div className="relative grid grid-cols-2 gap-2.5 px-3 pb-3 sm:px-5 sm:pb-3.5">
+          <button
+            onClick={() => navigate({ to: "/llevar" })}
+            className="group relative overflow-hidden rounded-xl px-3 py-2 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-14px_rgba(249,115,22,0.55)] shadow-[0_8px_18px_-10px_rgba(249,115,22,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-orange-300/40"
+            style={{ background: "linear-gradient(135deg, #fb923c 0%, #f97316 45%, #ea580c 100%)" }}
+          >
+            <div className="pointer-events-none absolute -bottom-6 -right-4 h-20 w-20 rounded-full bg-white/15 blur-2xl" />
+            <div className="relative flex items-center gap-2.5">
+              <div className="grid h-9 w-9 place-items-center rounded-full bg-white/25 ring-1 ring-white/40 shrink-0">
+                <ShoppingBag className="h-4 w-4 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-sm sm:text-base font-black uppercase text-white leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">
+                  Para llevar
+                </div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/85">Rápido</div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-white shrink-0 transition group-hover:translate-x-0.5" />
+            </div>
+          </button>
 
+          <button
+            onClick={() => navigate({ to: "/domicilio" })}
+            className="group relative overflow-hidden rounded-xl px-3 py-2 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_28px_-14px_rgba(2,132,199,0.55)] shadow-[0_8px_18px_-10px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-sky-300/40"
+            style={{ background: "linear-gradient(135deg, #38bdf8 0%, #0284c7 45%, #0369a1 100%)" }}
+          >
+            <div className="pointer-events-none absolute -bottom-6 -right-4 h-20 w-20 rounded-full bg-white/15 blur-2xl" />
+            <div className="relative flex items-center gap-2.5">
+              <div className="grid h-9 w-9 place-items-center rounded-full bg-white/25 ring-1 ring-white/40 shrink-0">
+                <Bike className="h-4 w-4 text-white" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <div className="font-display text-sm sm:text-base font-black uppercase text-white leading-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.25)]">
+                  A domicilio
+                </div>
+                <div className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/85">Delivery</div>
+              </div>
+              <ArrowRight className="h-4 w-4 text-white shrink-0 transition group-hover:translate-x-0.5" />
+            </div>
+          </button>
+        </div>
 
-      {/* Accesos rápidos: Para llevar / A domicilio — tarjetas premium 3D */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <button
-          onClick={() => navigate({ to: "/llevar" })}
-          className="group relative overflow-hidden rounded-2xl p-3 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_35px_-15px_rgba(249,115,22,0.55)] shadow-[0_10px_25px_-10px_rgba(249,115,22,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-orange-300/40"
-          style={{ background: "linear-gradient(135deg, #fb923c 0%, #f97316 45%, #ea580c 100%)" }}
-        >
-          <div className="pointer-events-none absolute -bottom-8 -right-6 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
-          <div className="relative grid grid-cols-[1fr_auto] items-center gap-3">
-            <div className="min-w-0 space-y-1">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
-                <ShoppingBag className="h-2.5 w-2.5" />
-                Rápido
-              </div>
-              <div className="font-display text-xl sm:text-2xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
-                Para llevar
-              </div>
-              <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-orange-700 shadow-md transition group-hover:translate-x-1">
-                Continuar <ArrowRight className="h-3 w-3" />
-              </span>
-            </div>
-            <div className="relative shrink-0">
-              <img
-                src={takeawayImg}
-                alt="Bolsa para llevar Goloso"
-                width={1024}
-                height={1024}
-                loading="lazy"
-                className="relative h-16 sm:h-20 w-auto object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.3)] transition-transform duration-300 group-hover:-translate-y-0.5"
-                draggable={false}
-              />
-            </div>
-          </div>
-        </button>
-
-        <button
-          onClick={() => navigate({ to: "/domicilio" })}
-          className="group relative overflow-hidden rounded-2xl p-3 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_35px_-15px_rgba(2,132,199,0.55)] shadow-[0_10px_25px_-10px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-sky-300/40"
-          style={{ background: "linear-gradient(135deg, #38bdf8 0%, #0284c7 45%, #0369a1 100%)" }}
-        >
-          <div className="pointer-events-none absolute -bottom-8 -right-6 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
-          <div className="relative grid grid-cols-[1fr_auto] items-center gap-3">
-            <div className="min-w-0 space-y-1">
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
-                <Bike className="h-2.5 w-2.5" />
-                Delivery
-              </div>
-              <div className="font-display text-xl sm:text-2xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
-                A domicilio
-              </div>
-              <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-sky-700 shadow-md transition group-hover:translate-x-1">
-                Continuar <ArrowRight className="h-3 w-3" />
-              </span>
-            </div>
-            <div className="relative shrink-0">
-              <img
-                src={deliveryImg}
-                alt="Repartidor Goloso"
-                width={1024}
-                height={1024}
-                loading="lazy"
-                className="relative h-16 sm:h-20 w-auto object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.3)] transition-transform duration-300 group-hover:-translate-y-0.5"
-                draggable={false}
-              />
-            </div>
-          </div>
-        </button>
+        <div className="relative flex md:hidden flex-wrap gap-1.5 px-3 pb-3">
+          <StatChip color="emerald" label="Libres" value={counts.free} />
+          <StatChip color="rose" label="Ocupadas" value={counts.occupied} />
+          <StatChip color="amber" label="Reservadas" value={counts.reserved} />
+        </div>
       </div>
 
 
