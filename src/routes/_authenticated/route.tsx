@@ -4,6 +4,7 @@ import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/app-sidebar";
 import { useAuth } from "@/hooks/use-auth";
 import { OnlineOrdersNotifier } from "@/components/online-orders-notifier";
+import { PrintQueueWorker } from "@/components/print-queue-worker";
 import { WaiterCallsNotifier } from "@/components/waiter-calls-notifier";
 import { BranchProvider } from "@/contexts/branch-context";
 import { BranchSelector } from "@/components/branch-selector";
@@ -55,6 +56,7 @@ function AuthedLayout() {
             </main>
             <OnlineOrdersNotifier />
             <WaiterCallsNotifier />
+            <PrintQueueWorker />
           </div>
         </div>
       </SidebarProvider>
