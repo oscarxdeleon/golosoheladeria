@@ -62,7 +62,9 @@ function useTicker(intervalMs = 1000) {
 function KdsPage() {
   const qc = useQueryClient();
   const { activeBranchId } = useBranch();
+  const navigate = useNavigate();
   useTicker(1000);
+
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["kds-pending", activeBranchId],
