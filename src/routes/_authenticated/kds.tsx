@@ -11,9 +11,11 @@ import { useBranch } from "@/contexts/branch-context";
 import { notifyCustomerReady } from "@/lib/customer-ready-notify";
 import kdsImg from "@/assets/kds-goloso-3d.png";
 
+export const Route = createFileRoute("/_authenticated/kds")({
   head: () => ({ meta: [{ title: "KDS · Goloso POS" }] }),
   component: KdsPage,
 });
+
 
 interface SaleItem {
   id: string;
