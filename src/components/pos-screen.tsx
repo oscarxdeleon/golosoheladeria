@@ -639,7 +639,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   type SavedAddress = { id: string; label: string; address: string; neighborhood: string | null; reference: string | null; phone: string | null; is_default: boolean };
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
   // Para llevar: panel opcional para capturar Nombre + WhatsApp del cliente
-  const [showLlevarContact, setShowLlevarContact] = useState(false);
+  const [showLlevarContact, setShowLlevarContact] = useState(orderType === "llevar");
+  // Re-abrir automáticamente el panel al entrar/cambiar a "Para llevar"
+  useEffect(() => {
+    if (orderType === "llevar") setShowLlevarContact(true);
+    else setShowLlevarContact(false);
+  }, [orderType]);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState("");
