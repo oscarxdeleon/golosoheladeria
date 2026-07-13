@@ -82,5 +82,8 @@ export function useBranchCashSession(branchId: string | null | undefined) {
     session: query.data ?? null,
     isOpen: !!query.data,
     loading: query.isLoading,
+    verified: query.isSuccess,
+    error: query.error,
+    refetch: query.refetch,
   };
 }

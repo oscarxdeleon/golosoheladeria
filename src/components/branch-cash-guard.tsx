@@ -23,13 +23,40 @@ interface Props {
 export function BranchCashGuard({ children, allowLogout, extraMessage }: Props) {
   const navigate = useNavigate();
   const { activeBranchId, activeBranch } = useBranch();
-  const { isOpen, loading } = useBranchCashSession(activeBranchId);
+  const { isOpen, loading, verified, error, refetch } = useBranchCashSession(activeBranchId);
 
-  const showBlock = !!activeBranchId && !loading && !isOpen;
+  const showBlock = !!activeBranchId && !loading && verified && !isOpen;
+  const showVerifyError = !!activeBranchId && !loading && !!error && !isOpen;
 
   return (
     <>
       {children}
+      <Dialog open={showVerifyError}>
+        <DialogContent
+          className="max-w-md border-amber-300"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onEscapeKeyDown={(e) => e.preventDefault()}
+        >
+          <DialogHeader>
+            <div className="mx-auto mb-2 flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-700">
+              <AlertTriangle className="h-7 w-7" />
+            </div>
+            <DialogTitle className="text-center text-xl">Verificando caja</DialogTitle>
+            <DialogDescription className="text-center text-base leading-relaxed">
+              No se pudo confirmar el estado de la caja en este momento. Vuelve a intentar la sincronización antes de operar.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="rounded-lg border bg-muted/40 p-3 text-center text-sm">
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <AlertTriangle className="h-4 w-4" />
+              Sede:&nbsp;<span className="font-semibold text-foreground">{activeBranch?.name ?? "—"}</span>
+            </div>
+          </div>
+          <Button className="w-full" onClick={() => void refetch()}>
+            Reintentar sincronización
+          </Button>
+        </DialogContent>
+      </Dialog>
       <Dialog open={showBlock}>
         <DialogContent
           className="max-w-md border-amber-300"
