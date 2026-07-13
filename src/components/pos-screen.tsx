@@ -1139,6 +1139,38 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     return true;
   }
 
+  // Upsert opcional de cliente para pedidos "Para llevar" con WhatsApp.
+  // Si el número existe → asocia; si no existe → crea. Nunca bloquea el flujo.
+  async function upsertLlevarCustomerFromForm(saleId: string) {
+    if (orderType !== "llevar") return;
+    const digits = phone.replace(/[^0-9]/g, "");
+    if (!digits) return;
+    try {
+      const lookup = await supabase.rpc("get_customer_by_phone", { _phone: digits });
+      const payload = lookup.data as { found?: boolean; customer?: { id: string; name: string | null } } | null;
+      let custId: string | undefined = payload?.customer?.id;
+      const currentName = payload?.customer?.name ?? "";
+      if (custId) {
+        if (customer.trim() && !currentName.trim()) {
+          await supabase.from("customers").update({ name: customer.trim() }).eq("id", custId);
+        }
+      } else {
+        const ins = await supabase
+          .from("customers")
+          .insert({ name: customer.trim() || "Cliente WhatsApp", phone: digits, frequent_channel: "llevar" })
+          .select("id")
+          .maybeSingle();
+        if (ins.error) { console.warn("[llevar] upsert customer", ins.error); return; }
+        custId = ins.data?.id;
+      }
+      if (custId) {
+        await supabase.from("sales").update({ customer_id: custId }).eq("id", saleId);
+      }
+    } catch (e) {
+      console.warn("[llevar] upsert customer failed", e);
+    }
+  }
+
   // Handler del botón "Cobrar". En pedidos "para llevar" imprime la comanda
   // de cocina de inmediato (crea el pedido pendiente + envía a KDS + imprime)
   // y luego abre el diálogo de medio de pago sobre ese mismo pedido. Así la
