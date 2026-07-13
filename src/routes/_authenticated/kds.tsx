@@ -1,15 +1,17 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck } from "lucide-react";
+import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck, User } from "lucide-react";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { notifyCustomerReady } from "@/lib/customer-ready-notify";
 import kdsImg from "@/assets/kds-goloso-3d.png";
+import golosoLogo from "@/assets/goloso-logo-official.png";
+
 
 export const Route = createFileRoute("/_authenticated/kds")({
   head: () => ({ meta: [{ title: "KDS · Goloso POS" }] }),
@@ -60,7 +62,9 @@ function useTicker(intervalMs = 1000) {
 function KdsPage() {
   const qc = useQueryClient();
   const { activeBranchId } = useBranch();
+  const navigate = useNavigate();
   useTicker(1000);
+
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["kds-pending", activeBranchId],
@@ -148,53 +152,66 @@ function KdsPage() {
 
   return (
     <div className="space-y-4 premium-scope">
-      {/* Hero premium — título 3D degradado azul→verde + ilustración KDS 3D a la derecha */}
-      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-white via-sky-50/60 to-emerald-50/50 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.35),0_8px_24px_-12px_rgba(16,185,129,0.25),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-white/60 dark:ring-white/5">
+      {/* Header compacto premium — alineado como Mesas / Para Llevar */}
+      <div className="relative overflow-hidden rounded-[1.75rem] bg-gradient-to-br from-white via-sky-50/70 to-emerald-50/60 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_18px_45px_-20px_rgba(2,132,199,0.35),inset_0_1px_0_rgba(255,255,255,0.95)] ring-1 ring-white/70 dark:ring-white/5">
         <div
           className="pointer-events-none absolute inset-0"
           style={{
             backgroundImage:
-              "radial-gradient(700px 240px at 90% -10%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(600px 220px at -5% 110%, rgba(2,132,199,0.18), transparent 60%)",
+              "radial-gradient(600px 180px at 92% -10%, rgba(132,204,22,0.18), transparent 60%), radial-gradient(500px 160px at -5% 110%, rgba(14,165,233,0.20), transparent 60%)",
           }}
         />
-        <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-5 py-5 sm:px-10 sm:py-8">
-          <div className="min-w-0">
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 dark:bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur">
-              <Monitor className="h-3 w-3" /> Cocina · Goloso
-            </div>
-            <h1
-              className="font-display mt-2 text-5xl sm:text-7xl md:text-8xl font-black uppercase tracking-tight leading-[0.9] bg-clip-text text-transparent animate-fade-in"
-              style={{
-                backgroundImage:
-                  "linear-gradient(135deg, #0369a1 0%, #0284c7 35%, #10b981 75%, #84cc16 100%)",
-                WebkitTextStroke: "0.5px rgba(255,255,255,0.4)",
-                filter:
-                  "drop-shadow(0 2px 0 rgba(255,255,255,0.6)) drop-shadow(0 8px 20px rgba(2,132,199,0.35))",
-              }}
-            >
-              KDS
-            </h1>
-            <p className="mt-2 text-sm sm:text-base text-slate-700 dark:text-slate-200 font-semibold">
-              Comandas en tiempo real
-            </p>
-            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
-              Marca cada ítem como listo
-            </p>
-            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 dark:bg-white/10 px-3 py-1.5 text-sm font-bold text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur">
-              <Clock className="h-4 w-4" /> {data.length} en preparación
-            </div>
-          </div>
+        <div className="relative flex items-center gap-4 px-3 py-2.5 sm:px-5 sm:py-3">
           <img
-            src={kdsImg}
-            alt="KDS Cocina Goloso"
-            width={1024}
-            height={1024}
-            loading="lazy"
-            className="h-36 w-auto sm:h-56 md:h-64 object-contain select-none -mr-2 sm:-mr-4 drop-shadow-[0_20px_25px_rgba(2,132,199,0.35)] animate-fade-in"
+            src={golosoLogo}
+            alt="Heladería Goloso"
+            width={1200}
+            height={960}
+            loading="eager"
+            className="h-14 sm:h-16 md:h-20 w-auto object-contain select-none shrink-0 drop-shadow-[0_10px_14px_rgba(2,132,199,0.35)]"
             draggable={false}
           />
+
+          <h1
+            className="uppercase leading-[0.85] tracking-[-0.02em] text-4xl sm:text-5xl md:text-6xl bg-clip-text text-transparent select-none shrink-0"
+            style={{
+              fontFamily: '"Titan One", "Fredoka", system-ui, sans-serif',
+              backgroundImage:
+                "linear-gradient(180deg, #7dd3fc 0%, #0ea5e9 45%, #0369a1 100%)",
+              WebkitTextStroke: "2px #ffffff",
+              paintOrder: "stroke fill",
+              filter:
+                "drop-shadow(0 2px 0 rgba(255,255,255,0.95)) drop-shadow(0 8px 14px rgba(2,132,199,0.45))",
+            }}
+          >
+            KDS
+          </h1>
+
+          <div className="flex-1 flex justify-center">
+            <img
+              src={kdsImg}
+              alt="KDS Cocina Goloso"
+              loading="eager"
+              className="h-20 sm:h-24 md:h-28 w-auto object-contain select-none drop-shadow-[0_12px_18px_rgba(2,132,199,0.35)]"
+              draggable={false}
+            />
+          </div>
+
+          <Badge variant="secondary" className="text-xs px-2.5 py-1 shrink-0 gap-1">
+            <Clock className="h-3 w-3" /> {data.length} en preparación
+          </Badge>
+
+          <button
+            type="button"
+            onClick={() => navigate({ to: "/ajustes" })}
+            className="grid h-10 w-10 place-items-center rounded-full bg-white dark:bg-white/10 text-emerald-600 ring-2 ring-emerald-400/70 shadow-[0_6px_14px_-6px_rgba(16,185,129,0.5)] transition hover:scale-110 active:scale-95 shrink-0"
+            aria-label="Perfil"
+          >
+            <User className="h-5 w-5" />
+          </button>
         </div>
       </div>
+
 
 
       {isLoading && <p className="text-muted-foreground">Cargando…</p>}
