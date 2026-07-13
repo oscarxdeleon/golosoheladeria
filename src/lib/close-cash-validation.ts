@@ -225,7 +225,7 @@ export async function validateOperationBeforeClose(
 
   push(
     "llevar",
-    "Pedidos para llevar pendientes",
+    "Pendientes llevar",
     llevar.data?.length ?? 0,
     "/llevar-pendientes",
     "Pedidos para llevar sin cobrar, sin despachar o sin finalizar.",

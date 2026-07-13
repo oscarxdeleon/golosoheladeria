@@ -27,7 +27,7 @@ import takeawayImg from "@/assets/takeaway-goloso-3d.png";
 export const Route = createFileRoute("/_authenticated/llevar-pendientes")({
   head: () => ({
     meta: [
-      { title: "Pedidos p/ llevar pendientes · Goloso POS" },
+      { title: "Pendientes llevar · Goloso POS" },
       { name: "description", content: "Administra los pedidos para llevar pendientes de pago y entrega." },
     ],
   }),
@@ -249,7 +249,7 @@ function LlevarPendientesPage() {
                 "drop-shadow(0 2px 0 rgba(255,255,255,0.95)) drop-shadow(0 8px 14px rgba(2,132,199,0.45))",
             }}
           >
-            Pedidos Pendientes<br className="hidden sm:inline" /> Para Llevar
+            Pendientes llevar
           </h1>
 
           <div className="flex-1 flex justify-center">
