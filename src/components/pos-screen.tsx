@@ -2005,15 +2005,36 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   <span className="font-display text-lg text-primary tabular-nums leading-none">{formatMoney(total)}</span>
                 </div>
                 <div className={meseroMode ? "grid grid-cols-1 gap-2" : "grid grid-cols-3 gap-2"}>
-                  <Button
-                    size="sm"
-                    disabled={paying || cart.length === 0}
-                    onClick={() => saveComanda()}
-                    className="h-11 rounded-xl bg-gradient-to-b from-sky-400 to-sky-600 text-white font-extrabold uppercase tracking-wide text-xs border border-sky-300/50 shadow-[0_4px_0_0_hsl(210_90%_35%),0_8px_20px_-4px_hsl(210_90%_45%/0.5)] hover:from-sky-300 hover:to-sky-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(210_90%_35%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
-                  >
-                    <Save className="h-4 w-4 sm:mr-1.5" />
-                    <span className="hidden sm:inline">Guardar</span>
-                  </Button>
+                  {meseroMode ? (
+                    <Button
+                      disabled={paying || cart.length === 0}
+                      onClick={() => saveComanda()}
+                      aria-label="Guardar pedido"
+                      className="h-16 w-full rounded-2xl bg-gradient-to-b from-sky-400 via-sky-500 to-emerald-600 text-white font-black uppercase tracking-[0.14em] text-lg sm:text-xl border border-white/40 ring-1 ring-sky-300/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.55),0_6px_0_0_hsl(200_85%_28%),0_14px_28px_-6px_hsl(200_90%_45%/0.55)] hover:from-sky-300 hover:via-sky-400 hover:to-emerald-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[inset_0_1px_0_rgba(255,255,255,0.4),0_2px_0_0_hsl(200_85%_28%)] transition-all duration-150 disabled:opacity-60 disabled:cursor-not-allowed disabled:hover:translate-y-0"
+                    >
+                      {paying ? (
+                        <>
+                          <span className="mr-2 inline-block h-5 w-5 animate-spin rounded-full border-[3px] border-white/40 border-t-white" />
+                          Guardando…
+                        </>
+                      ) : (
+                        <>
+                          <Save className="h-6 w-6 mr-2.5 drop-shadow" />
+                          Guardar
+                        </>
+                      )}
+                    </Button>
+                  ) : (
+                    <Button
+                      size="sm"
+                      disabled={paying || cart.length === 0}
+                      onClick={() => saveComanda()}
+                      className="h-11 rounded-xl bg-gradient-to-b from-sky-400 to-sky-600 text-white font-extrabold uppercase tracking-wide text-xs border border-sky-300/50 shadow-[0_4px_0_0_hsl(210_90%_35%),0_8px_20px_-4px_hsl(210_90%_45%/0.5)] hover:from-sky-300 hover:to-sky-500 hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-[0_1px_0_0_hsl(210_90%_35%)] transition-all duration-150 disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none"
+                    >
+                      <Save className="h-4 w-4 sm:mr-1.5" />
+                      <span className="hidden sm:inline">Guardar</span>
+                    </Button>
+                  )}
                   {!meseroMode && (
                     <>
                       <Button
