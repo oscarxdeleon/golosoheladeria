@@ -573,9 +573,11 @@ interface Props {
   headerImage?: string;
   /** Texto alternativo de la imagen del encabezado. */
   headerImageAlt?: string;
+  /** Oculta el título/badge/imagen interna del encabezado (para permitir un hero personalizado). */
+  hideTitle?: boolean;
 }
 
-export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: meseroModeProp = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: meseroModeProp = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt, hideTitle = false }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile, primaryRole, isAdmin } = useAuth();
@@ -1744,15 +1746,17 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       )}
       <div className="space-y-4">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center sm:gap-4">
-          <div className={`flex min-w-0 items-center gap-2 ${orderType === "llevar" ? "justify-center sm:justify-start w-full sm:w-auto" : ""}`}>
-            {orderType !== "llevar" && (
-              <Badge className={`${meta.color} shrink-0`}>
-                <Icon className="h-3 w-3 mr-1" /> {meta.label}
-              </Badge>
-            )}
-            <h1 className={`font-display font-extrabold tracking-tight truncate ${orderType === "llevar" ? "text-3xl sm:text-4xl uppercase" : "text-2xl"}`}>{header}</h1>
-          </div>
-          {headerImage && (
+          {!hideTitle && (
+            <div className={`flex min-w-0 items-center gap-2 ${orderType === "llevar" ? "justify-center sm:justify-start w-full sm:w-auto" : ""}`}>
+              {orderType !== "llevar" && (
+                <Badge className={`${meta.color} shrink-0`}>
+                  <Icon className="h-3 w-3 mr-1" /> {meta.label}
+                </Badge>
+              )}
+              <h1 className={`font-display font-extrabold tracking-tight truncate ${orderType === "llevar" ? "text-3xl sm:text-4xl uppercase" : "text-2xl"}`}>{header}</h1>
+            </div>
+          )}
+          {!hideTitle && headerImage && (
             <img
               src={headerImage}
               alt={headerImageAlt ?? ""}
