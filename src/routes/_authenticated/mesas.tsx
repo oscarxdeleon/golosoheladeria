@@ -456,35 +456,31 @@ function MesasPage() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <button
           onClick={() => navigate({ to: "/llevar" })}
-          className="group relative overflow-hidden rounded-[1.75rem] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_25px_50px_-15px_rgba(249,115,22,0.55)] shadow-[0_15px_35px_-10px_rgba(249,115,22,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-orange-300/40"
+          className="group relative overflow-hidden rounded-2xl p-3 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_35px_-15px_rgba(249,115,22,0.55)] shadow-[0_10px_25px_-10px_rgba(249,115,22,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-orange-300/40"
           style={{ background: "linear-gradient(135deg, #fb923c 0%, #f97316 45%, #ea580c 100%)" }}
         >
-          <div className="pointer-events-none absolute -bottom-8 -right-6 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
+          <div className="pointer-events-none absolute -bottom-8 -right-6 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
           <div className="relative grid grid-cols-[1fr_auto] items-center gap-3">
-            <div className="min-w-0 space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-orange-600 shadow-sm">
-                  <ShoppingBag className="h-3 w-3" />
-                </span>
+            <div className="min-w-0 space-y-1">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
+                <ShoppingBag className="h-2.5 w-2.5" />
                 Rápido
               </div>
-              <div className="font-display text-3xl sm:text-4xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+              <div className="font-display text-xl sm:text-2xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
                 Para llevar
               </div>
-              <p className="text-xs sm:text-sm text-white/90 max-w-[220px]">Pedidos para recoger en tienda.</p>
-              <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-sky-700 shadow-md transition group-hover:translate-x-1">
-                Continuar <ArrowRight className="h-3.5 w-3.5" />
+              <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-orange-700 shadow-md transition group-hover:translate-x-1">
+                Continuar <ArrowRight className="h-3 w-3" />
               </span>
             </div>
             <div className="relative shrink-0">
-              <div className="absolute inset-x-0 -bottom-2 mx-auto h-3 w-24 rounded-full bg-black/20 blur-md" />
               <img
                 src={takeawayImg}
                 alt="Bolsa para llevar Goloso"
                 width={1024}
                 height={1024}
                 loading="lazy"
-                className="relative h-28 sm:h-36 w-auto object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:-translate-y-1"
+                className="relative h-16 sm:h-20 w-auto object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.3)] transition-transform duration-300 group-hover:-translate-y-0.5"
                 draggable={false}
               />
             </div>
@@ -493,41 +489,31 @@ function MesasPage() {
 
         <button
           onClick={() => navigate({ to: "/domicilio" })}
-          className="group relative overflow-hidden rounded-[1.75rem] p-5 text-left transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_25px_50px_-15px_rgba(2,132,199,0.55)] shadow-[0_15px_35px_-10px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-sky-300/40"
+          className="group relative overflow-hidden rounded-2xl p-3 text-left transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_18px_35px_-15px_rgba(2,132,199,0.55)] shadow-[0_10px_25px_-10px_rgba(2,132,199,0.4),inset_0_1px_0_rgba(255,255,255,0.4)] ring-1 ring-sky-300/40"
           style={{ background: "linear-gradient(135deg, #38bdf8 0%, #0284c7 45%, #0369a1 100%)" }}
         >
-          <div className="pointer-events-none absolute -bottom-8 -right-6 h-40 w-40 rounded-full bg-white/15 blur-2xl" />
-          {/* líneas de velocidad */}
-          <div className="pointer-events-none absolute right-24 top-6 space-y-1.5 opacity-70">
-            <div className="h-0.5 w-10 rounded-full bg-white/70" />
-            <div className="h-0.5 w-6 rounded-full bg-white/60" />
-            <div className="h-0.5 w-8 rounded-full bg-white/50" />
-          </div>
+          <div className="pointer-events-none absolute -bottom-8 -right-6 h-32 w-32 rounded-full bg-white/15 blur-2xl" />
           <div className="relative grid grid-cols-[1fr_auto] items-center gap-3">
-            <div className="min-w-0 space-y-2">
-              <div className="inline-flex items-center gap-2 rounded-full bg-white/25 px-3 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
-                <span className="grid h-5 w-5 place-items-center rounded-full bg-white text-sky-700 shadow-sm">
-                  <Bike className="h-3 w-3" />
-                </span>
+            <div className="min-w-0 space-y-1">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-white/25 px-2 py-0.5 text-[9px] font-black uppercase tracking-[0.18em] text-white ring-1 ring-white/40 backdrop-blur">
+                <Bike className="h-2.5 w-2.5" />
                 Delivery
               </div>
-              <div className="font-display text-3xl sm:text-4xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
+              <div className="font-display text-xl sm:text-2xl font-black uppercase text-white leading-none drop-shadow-[0_2px_6px_rgba(0,0,0,0.25)]">
                 A domicilio
               </div>
-              <p className="text-xs sm:text-sm text-white/90 max-w-[220px]">Envíos con seguimiento en tiempo real.</p>
-              <span className="mt-1 inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-xs font-bold text-sky-700 shadow-md transition group-hover:translate-x-1">
-                Continuar <ArrowRight className="h-3.5 w-3.5" />
+              <span className="mt-1 inline-flex items-center gap-1.5 rounded-full bg-white px-2.5 py-1 text-[11px] font-bold text-sky-700 shadow-md transition group-hover:translate-x-1">
+                Continuar <ArrowRight className="h-3 w-3" />
               </span>
             </div>
             <div className="relative shrink-0">
-              <div className="absolute inset-x-0 -bottom-2 mx-auto h-3 w-24 rounded-full bg-black/20 blur-md" />
               <img
                 src={deliveryImg}
                 alt="Repartidor Goloso"
                 width={1024}
                 height={1024}
                 loading="lazy"
-                className="relative h-28 sm:h-36 w-auto object-contain drop-shadow-[0_15px_20px_rgba(0,0,0,0.35)] transition-transform duration-300 group-hover:-translate-y-1"
+                className="relative h-16 sm:h-20 w-auto object-contain drop-shadow-[0_10px_15px_rgba(0,0,0,0.3)] transition-transform duration-300 group-hover:-translate-y-0.5"
                 draggable={false}
               />
             </div>
