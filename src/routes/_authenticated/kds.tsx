@@ -9,11 +9,13 @@ import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck } from "
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { notifyCustomerReady } from "@/lib/customer-ready-notify";
+import kdsImg from "@/assets/kds-goloso-3d.png";
 
 export const Route = createFileRoute("/_authenticated/kds")({
   head: () => ({ meta: [{ title: "KDS · Goloso POS" }] }),
   component: KdsPage,
 });
+
 
 interface SaleItem {
   id: string;
@@ -146,15 +148,54 @@ function KdsPage() {
 
   return (
     <div className="space-y-4 premium-scope">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-3xl">KDS</h1>
-          <p className="text-sm text-muted-foreground">Comandas en tiempo real · marca cada ítem como listo</p>
+      {/* Hero premium — título 3D degradado azul→verde + ilustración KDS 3D a la derecha */}
+      <div className="relative overflow-hidden rounded-[2rem] bg-gradient-to-br from-white via-sky-50/60 to-emerald-50/50 dark:from-slate-900 dark:via-sky-950/40 dark:to-emerald-950/30 shadow-[0_20px_60px_-20px_rgba(2,132,199,0.35),0_8px_24px_-12px_rgba(16,185,129,0.25),inset_0_1px_0_rgba(255,255,255,0.9)] ring-1 ring-white/60 dark:ring-white/5">
+        <div
+          className="pointer-events-none absolute inset-0"
+          style={{
+            backgroundImage:
+              "radial-gradient(700px 240px at 90% -10%, rgba(16,185,129,0.18), transparent 60%), radial-gradient(600px 220px at -5% 110%, rgba(2,132,199,0.18), transparent 60%)",
+          }}
+        />
+        <div className="relative grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 px-5 py-5 sm:px-10 sm:py-8">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-white/80 dark:bg-white/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur">
+              <Monitor className="h-3 w-3" /> Cocina · Goloso
+            </div>
+            <h1
+              className="font-display mt-2 text-5xl sm:text-7xl md:text-8xl font-black uppercase tracking-tight leading-[0.9] bg-clip-text text-transparent animate-fade-in"
+              style={{
+                backgroundImage:
+                  "linear-gradient(135deg, #0369a1 0%, #0284c7 35%, #10b981 75%, #84cc16 100%)",
+                WebkitTextStroke: "0.5px rgba(255,255,255,0.4)",
+                filter:
+                  "drop-shadow(0 2px 0 rgba(255,255,255,0.6)) drop-shadow(0 8px 20px rgba(2,132,199,0.35))",
+              }}
+            >
+              KDS
+            </h1>
+            <p className="mt-2 text-sm sm:text-base text-slate-700 dark:text-slate-200 font-semibold">
+              Comandas en tiempo real
+            </p>
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400">
+              Marca cada ítem como listo
+            </p>
+            <div className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-white/90 dark:bg-white/10 px-3 py-1.5 text-sm font-bold text-sky-700 dark:text-sky-300 shadow-sm ring-1 ring-sky-500/20 backdrop-blur">
+              <Clock className="h-4 w-4" /> {data.length} en preparación
+            </div>
+          </div>
+          <img
+            src={kdsImg}
+            alt="KDS Cocina Goloso"
+            width={1024}
+            height={1024}
+            loading="lazy"
+            className="h-36 w-auto sm:h-56 md:h-64 object-contain select-none -mr-2 sm:-mr-4 drop-shadow-[0_20px_25px_rgba(2,132,199,0.35)] animate-fade-in"
+            draggable={false}
+          />
         </div>
-        <Badge variant="secondary" className="text-base px-3 py-1">
-          <Clock className="h-4 w-4 mr-1" /> {data.length} en preparación
-        </Badge>
       </div>
+
 
       {isLoading && <p className="text-muted-foreground">Cargando…</p>}
 
