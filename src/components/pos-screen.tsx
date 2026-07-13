@@ -638,6 +638,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   // Direcciones guardadas del cliente (lookup por teléfono)
   type SavedAddress = { id: string; label: string; address: string; neighborhood: string | null; reference: string | null; phone: string | null; is_default: boolean };
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
+  // Para llevar: panel opcional para capturar Nombre + WhatsApp del cliente
+  const [showLlevarContact, setShowLlevarContact] = useState(false);
   const [selectedAddressId, setSelectedAddressId] = useState<string>("");
   const [saveNewAddress, setSaveNewAddress] = useState(false);
   const [newAddressLabel, setNewAddressLabel] = useState("");
