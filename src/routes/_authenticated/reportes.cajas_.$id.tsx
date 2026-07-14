@@ -103,7 +103,7 @@ function CajaDetailPage() {
   const summary = computeFinancialSummary(sales, expenses, [session]);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
-  const products = aggregateProducts(items);
+  const products = aggregateProducts(items, { modifierNames });
 
   const cashSales = payments["efectivo"]?.amount ?? 0;
   const entries = summary.entries;
