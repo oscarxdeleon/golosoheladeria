@@ -37,7 +37,7 @@ export const Route = createFileRoute("/tablet-pedidos")({
   component: TabletPage,
 });
 
-type TabKey = "mesas" | "llevar" | "domicilio";
+type TabKey = "mesas" | "llevar";
 
 interface Mesa {
   id: string;
