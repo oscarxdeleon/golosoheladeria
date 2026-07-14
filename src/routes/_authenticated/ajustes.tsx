@@ -696,6 +696,8 @@ interface Printer {
   platform: string;
   area: string;
   active: boolean;
+  branch_id?: string | null;
+  local_url?: string | null;
   open_drawer_on_print?: boolean;
   drawer_master_enabled?: boolean;
   drawer_on_cash_sale?: boolean;
@@ -741,6 +743,10 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     queryKey: ["printers"],
     queryFn: async () => (await supabase.from("printers").select("*").order("name")).data ?? [],
   });
+  const { data: allBranches = [] } = useQuery<{ id: string; name: string; is_main: boolean | null }[]>({
+    queryKey: ["branches-for-printers"],
+    queryFn: async () => (await supabase.from("branches").select("id,name,is_main").order("is_main", { ascending: false }).order("name")).data ?? [],
+  });
   async function save() {
     const name = edit?.name?.trim();
     if (!name) return toast.error("El nombre es obligatorio");
@@ -753,6 +759,8 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
       platform: edit?.platform ?? "Windows",
       area: edit?.area ?? "caja",
       active: edit?.active ?? true,
+      branch_id: edit?.branch_id ?? null,
+      local_url: edit?.local_url?.trim() || null,
       // Compatibilidad con la bandera antigua — se mantiene sincronizada
       // con la nueva "abrir cajón en ventas en efectivo".
       open_drawer_on_print: drawerOnCashSale,
@@ -890,6 +898,42 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
                     </Select>
                   </div>
                 </div>
+                <div className="rounded-md border p-3 space-y-3 bg-primary/5">
+                  <div>
+                    <Label className="font-medium">Sede asociada</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Vincula esta impresora a una sede. Las tablets detectarán automáticamente
+                      la sede sondeando la <b>URL local</b> del Print Server: si responde, la
+                      tablet asume que está físicamente en esa sede y las comandas se imprimen
+                      aquí.
+                    </p>
+                  </div>
+                  <Select
+                    value={edit?.branch_id ?? "__none__"}
+                    onValueChange={(v) => setEdit({ ...edit, branch_id: v === "__none__" ? null : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Sin sede" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin sede (no participa en auto-detección)</SelectItem>
+                      {allBranches.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div>
+                    <Label>URL local del Print Server (para auto-detección)</Label>
+                    <Input
+                      value={edit?.local_url ?? ""}
+                      onChange={(e) => setEdit({ ...edit, local_url: e.target.value })}
+                      placeholder="http://192.168.1.50:3001/print"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Dirección accesible desde la LAN de la sede. Las tablets probarán
+                      <code className="mx-1 rounded bg-background px-1">/health</code> en esta URL para saber en qué sede están.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="rounded-md bg-muted/50 border p-2 text-xs text-muted-foreground space-y-1">
                   <div className="font-medium text-foreground">Compatibilidad de impresión</div>
                   <div>• <b>Windows:</b> instala el driver de la térmica como impresora predeterminada del navegador y los tickets se envían por diálogo de impresión.</div>
@@ -973,20 +1017,24 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
         <CashierIpPrinterCard />
         <Table>
 
-          <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>IP:Puerto</TableHead><TableHead>Plataforma</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Sede</TableHead><TableHead>IP:Puerto</TableHead><TableHead>URL local</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {data.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>{p.name}</TableCell>
-                <TableCell className="font-mono text-sm">{p.ip}:{p.port}</TableCell>
-                <TableCell>{p.platform}</TableCell>
-                <TableCell className="capitalize">{p.area}</TableCell>
-                <TableCell className="text-right">
-                  {!disabled && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>}
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Sin impresoras</TableCell></TableRow>}
+            {data.map((p) => {
+              const branchName = allBranches.find((b) => b.id === p.branch_id)?.name ?? "—";
+              return (
+                <TableRow key={p.id} className="cursor-pointer" onClick={() => !disabled && setEdit(p)}>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>{branchName}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.ip ?? "—"}:{p.port}</TableCell>
+                  <TableCell className="font-mono text-[11px] max-w-[220px] truncate" title={p.local_url ?? ""}>{p.local_url ?? "—"}</TableCell>
+                  <TableCell className="capitalize">{p.area}</TableCell>
+                  <TableCell className="text-right">
+                    {!disabled && <Button size="icon" variant="ghost" className="text-destructive" onClick={(e) => { e.stopPropagation(); remove(p.id); }}><Trash2 className="h-4 w-4" /></Button>}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {data.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin impresoras</TableCell></TableRow>}
           </TableBody>
         </Table>
       </CardContent>
