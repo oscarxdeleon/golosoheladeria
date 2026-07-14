@@ -10,16 +10,14 @@ function hashPin(pin: string, salt: string): string {
   return createHash("sha256").update(`${salt}::${pin}`).digest("hex");
 }
 
-async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!data) throw new Error("Solo administradores");
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function assertAdmin(supabase: any, userId: string) {
+  const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (error || !data) throw new Error("Solo administradores");
 }
+
+
+
 
 function reqMeta() {
   const req = getRequest();
@@ -35,9 +33,8 @@ function reqMeta() {
 export const listSupervisorAccounts = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin
+    await assertAdmin(context.supabase, context.userId);
+    const { data, error } = await context.supabase
       .from("supervisor_accounts")
       .select("id,username,display_name,active,access_token,last_login_at,locked_until,created_at")
       .order("created_at", { ascending: false });
@@ -55,11 +52,10 @@ export const createSupervisorAccount = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertAdmin(context.supabase, context.userId);
     const salt = randomBytes(16).toString("hex");
     const pin_hash = `${salt}:${hashPin(data.pin, salt)}`;
-    const { data: row, error } = await supabaseAdmin
+    const { data: row, error } = await context.supabase
       .from("supervisor_accounts")
       .insert({
         username: data.username.toLowerCase(),
@@ -84,8 +80,7 @@ export const updateSupervisorAccount = createServerFn({ method: "POST" })
     }).parse(d),
   )
   .handler(async ({ context, data }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    await assertAdmin(context.supabase, context.userId);
     const patch: Record<string, unknown> = {};
     if (data.display_name !== undefined) patch.display_name = data.display_name;
     if (data.active !== undefined) patch.active = data.active;
@@ -98,10 +93,10 @@ export const updateSupervisorAccount = createServerFn({ method: "POST" })
     if (data.regenerate_token) {
       patch.access_token = randomBytes(18).toString("hex");
       // revoke existing sessions
-      await supabaseAdmin.from("supervisor_sessions").update({ revoked_at: new Date().toISOString() }).eq("account_id", data.id).is("revoked_at", null);
+      await context.supabase.from("supervisor_sessions").update({ revoked_at: new Date().toISOString() }).eq("account_id", data.id).is("revoked_at", null);
     }
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabaseAdmin
+    const { error } = await context.supabase
       .from("supervisor_accounts")
       .update(patch as never)
       .eq("id", data.id);
@@ -114,10 +109,10 @@ export const deleteSupervisorAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ id: z.string().uuid() }).parse(d))
   .handler(async ({ context, data }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.from("supervisor_accounts").delete().eq("id", data.id);
+    await assertAdmin(context.supabase, context.userId);
+    const { error } = await context.supabase.from("supervisor_accounts").delete().eq("id", data.id);
     if (error) throw new Error(error.message);
+
     return { ok: true };
   });
 
@@ -385,12 +380,12 @@ export const supervisorDashboard = createServerFn({ method: "POST" })
 export const listSupervisorAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    await assertAdmin(context.supabase, context.userId);
+    const { data } = await context.supabase
       .from("supervisor_audit_log")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
     return data ?? [];
   });
+
