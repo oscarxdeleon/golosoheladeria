@@ -62,16 +62,52 @@ function GastosPage() {
       ? `La descripción debe tener al menos ${MIN_DESCRIPTION_LEN} caracteres.`
       : "";
 
-  const { data: history = [] } = useQuery({
-    queryKey: ["gastos-history", activeBranchId],
+  // Turno/caja activa de la sede
+  const { data: activeSession } = useQuery({
+    queryKey: ["active-cash-session", activeBranchId],
     enabled: !!activeBranchId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_sessions")
+        .select("id, opened_at")
+        .eq("branch_id", activeBranchId!)
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const activeSessionId = activeSession?.id ?? null;
+
+  const { data: history = [] } = useQuery({
+    queryKey: ["gastos-history", activeBranchId, activeSessionId],
+    enabled: !!activeBranchId && !!activeSessionId,
     queryFn: async () => (await supabase
       .from("expenses")
       .select("*")
       .eq("branch_id", activeBranchId!)
+      .eq("cash_session_id", activeSessionId!)
       .order("created_at", { ascending: false })
-      .limit(30)).data ?? [],
+      .limit(50)).data ?? [],
   });
+
+  // Realtime: refresca cuando se registra/actualiza un gasto del turno
+  useEffect(() => {
+    if (!activeBranchId || !activeSessionId) return;
+    const channel = supabase
+      .channel(`expenses-shift-${activeSessionId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expenses", filter: `cash_session_id=eq.${activeSessionId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["gastos-history", activeBranchId, activeSessionId] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeBranchId, activeSessionId, qc]);
 
   async function save(overrideAmount?: number) {
     if (!user) return toast.error("Sin sesión");
