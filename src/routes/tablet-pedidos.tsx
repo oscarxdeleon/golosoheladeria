@@ -305,11 +305,12 @@ function QuickStart({
   orderType,
   onStart,
 }: {
-  orderType: "llevar" | "domicilio";
+  orderType: "llevar";
   onStart: () => void;
 }) {
-  const label = orderType === "llevar" ? "Para llevar" : "A domicilio";
-  const Icon = orderType === "llevar" ? ShoppingBag : Bike;
+  const label = "Para llevar";
+  const Icon = ShoppingBag;
+
   return (
     <Card className="mx-auto max-w-md">
       <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
