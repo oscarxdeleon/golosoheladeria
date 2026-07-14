@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
@@ -50,7 +50,7 @@ function normalizeService(k: string): keyof typeof SERVICE_STYLE {
 
 function CajaDetailPage() {
   const { id } = Route.useParams();
-  const router = useRouter();
+  
   const { branches } = useBranch();
   const [downloading, setDownloading] = useState(false);
 
