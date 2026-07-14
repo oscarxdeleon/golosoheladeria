@@ -171,7 +171,7 @@ function CajasPage() {
                     <TableCell className="text-right">{formatMoney(s.counted_amount ?? 0)}</TableCell>
                     <TableCell className={`text-right font-semibold flex items-center justify-end gap-1 ${diffColor}`}>
                       {diff !== 0 && <AlertTriangle className="h-3 w-3" />}
-                      {diff === 0 && <diffIcon className="h-3 w-3" />}
+                      {diff === 0 && <CheckCircle2 className="h-3 w-3" />}
                       {formatMoney(diff)}
                     </TableCell>
                   </TableRow>
