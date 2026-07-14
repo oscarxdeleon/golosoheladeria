@@ -378,35 +378,56 @@ function GastosPage() {
 
 
       <Card>
-        <CardHeader><CardTitle>Últimos gastos de esta sede</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Últimos gastos de esta sede</CardTitle>
+          {activeSession?.opened_at && (
+            <p className="text-xs text-muted-foreground">
+              Turno actual abierto el {new Date(activeSession.opened_at).toLocaleString()}
+            </p>
+          )}
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Fecha</TableHead>
+                <TableHead>Hora</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>Descripción</TableHead>
                 <TableHead>Pago</TableHead>
+                <TableHead>Usuario</TableHead>
                 <TableHead className="text-right">Monto</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((h: { id: string; created_at: string; category: string; description: string; payment_method: string; amount: number }) => (
-                <TableRow key={h.id}>
-                  <TableCell className="text-xs">{new Date(h.created_at).toLocaleString()}</TableCell>
-                  <TableCell>{h.category}</TableCell>
-                  <TableCell className="max-w-md truncate">{h.description}</TableCell>
-                  <TableCell className="capitalize">{h.payment_method}</TableCell>
-                  <TableCell className="text-right font-mono">{formatMoney(h.amount)}</TableCell>
-                </TableRow>
-              ))}
+              {history.map((h: { id: string; created_at: string; category: string; description: string; payment_method: string; amount: number; user_name: string | null }) => {
+                const d = new Date(h.created_at);
+                return (
+                  <TableRow key={h.id}>
+                    <TableCell className="text-xs whitespace-nowrap">{d.toLocaleDateString()}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{d.toLocaleTimeString()}</TableCell>
+                    <TableCell>{h.category}</TableCell>
+                    <TableCell className="max-w-md truncate">{h.description}</TableCell>
+                    <TableCell className="capitalize">{h.payment_method}</TableCell>
+                    <TableCell className="text-xs">{h.user_name ?? "—"}</TableCell>
+                    <TableCell className="text-right font-mono">{formatMoney(h.amount)}</TableCell>
+                  </TableRow>
+                );
+              })}
               {history.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Sin gastos registrados.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {activeSessionId
+                      ? "No hay gastos registrados en el turno actual."
+                      : "No hay una caja abierta en esta sede."}
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
     </div>
   );
 }
