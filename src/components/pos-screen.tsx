@@ -1505,6 +1505,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
 
       // ───────────────────────────────────────────────────────────────
+      // Apertura automática del cajón monedero (independiente de imprimir)
+      // Se dispara UNA sola vez por venta gracias al dedup por operationId
+      // = sale.id. Si el pago no involucra efectivo (o es cortesía), la
+      // función `isCashPaymentMethod` devuelve false y no abre.
+      // ───────────────────────────────────────────────────────────────
+      try {
+        const { openCashDrawer, isCashPaymentMethod } = await import("@/lib/cash-drawer");
+        const involvesCash = isCashPaymentMethod(sale.payment_method) || method === "Efectivo" || method === "Mixto";
+        if (involvesCash) {
+          const res = await openCashDrawer({ event: "cash_sale", operationId: sale.id });
+          if (!res.fired && res.reason === "error") {
+            toast.warning("La venta fue registrada correctamente, pero no fue posible abrir el cajón monedero. Verifique la impresora o el Print Server.");
+          }
+        }
+      } catch (drawerErr) {
+        console.warn("[pay] apertura de cajón falló", drawerErr);
+      }
+
+
+      // ───────────────────────────────────────────────────────────────
       // PASO 3: Mostrar modal de confirmación post-venta
       // (la impresión y la redirección quedan a cargo del cajero desde el modal)
       // ───────────────────────────────────────────────────────────────
