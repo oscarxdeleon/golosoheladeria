@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, type ReactNode } from "react";
+import { useState, useMemo, useEffect, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useBranch } from "@/contexts/branch-context";
@@ -62,16 +62,52 @@ function GastosPage() {
       ? `La descripción debe tener al menos ${MIN_DESCRIPTION_LEN} caracteres.`
       : "";
 
-  const { data: history = [] } = useQuery({
-    queryKey: ["gastos-history", activeBranchId],
+  // Turno/caja activa de la sede
+  const { data: activeSession } = useQuery({
+    queryKey: ["active-cash-session", activeBranchId],
     enabled: !!activeBranchId,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_sessions")
+        .select("id, opened_at")
+        .eq("branch_id", activeBranchId!)
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+  });
+  const activeSessionId = activeSession?.id ?? null;
+
+  const { data: history = [] } = useQuery({
+    queryKey: ["gastos-history", activeBranchId, activeSessionId],
+    enabled: !!activeBranchId && !!activeSessionId,
     queryFn: async () => (await supabase
       .from("expenses")
       .select("*")
       .eq("branch_id", activeBranchId!)
+      .eq("cash_session_id", activeSessionId!)
       .order("created_at", { ascending: false })
-      .limit(30)).data ?? [],
+      .limit(50)).data ?? [],
   });
+
+  // Realtime: refresca cuando se registra/actualiza un gasto del turno
+  useEffect(() => {
+    if (!activeBranchId || !activeSessionId) return;
+    const channel = supabase
+      .channel(`expenses-shift-${activeSessionId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expenses", filter: `cash_session_id=eq.${activeSessionId}` },
+        () => {
+          qc.invalidateQueries({ queryKey: ["gastos-history", activeBranchId, activeSessionId] });
+        },
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [activeBranchId, activeSessionId, qc]);
 
   async function save(overrideAmount?: number) {
     if (!user) return toast.error("Sin sesión");
@@ -88,17 +124,18 @@ function GastosPage() {
 
     setSaving(true);
     try {
-      let cashSessionId: string | null = null;
-      if (payment === "efectivo") {
+      // Siempre asociar al turno activo (independientemente del método de pago)
+      let cashSessionId: string | null = activeSessionId;
+      if (!cashSessionId) {
         const { data: cs } = await supabase.rpc("sync_active_cash_session", {
           _branch_id: activeBranchId,
           _user_name: profile?.full_name ?? user.email ?? "Usuario",
         });
         cashSessionId = (cs as { id?: string } | null)?.id ?? null;
-        if (!cashSessionId) {
-          setSaving(false);
-          return toast.error("Necesitas tener la caja abierta para pagar en efectivo");
-        }
+      }
+      if (!cashSessionId) {
+        setSaving(false);
+        return toast.error("Necesitas tener la caja abierta para registrar gastos");
       }
 
       let receiptUrl: string | null = null;
@@ -126,6 +163,7 @@ function GastosPage() {
       toast.success("Gasto registrado");
       setDescription(""); setAmount(""); setFile(null); setCategory(""); setShowErrors(false);
       qc.invalidateQueries({ queryKey: ["gastos-history"] });
+      qc.invalidateQueries({ queryKey: ["active-cash-session"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al guardar");
     } finally {
@@ -340,35 +378,56 @@ function GastosPage() {
 
 
       <Card>
-        <CardHeader><CardTitle>Últimos gastos de esta sede</CardTitle></CardHeader>
+        <CardHeader>
+          <CardTitle>Últimos gastos de esta sede</CardTitle>
+          {activeSession?.opened_at && (
+            <p className="text-xs text-muted-foreground">
+              Turno actual abierto el {new Date(activeSession.opened_at).toLocaleString()}
+            </p>
+          )}
+        </CardHeader>
         <CardContent className="p-0">
           <Table>
             <TableHeader>
               <TableRow>
                 <TableHead>Fecha</TableHead>
+                <TableHead>Hora</TableHead>
                 <TableHead>Categoría</TableHead>
                 <TableHead>Descripción</TableHead>
                 <TableHead>Pago</TableHead>
+                <TableHead>Usuario</TableHead>
                 <TableHead className="text-right">Monto</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {history.map((h: { id: string; created_at: string; category: string; description: string; payment_method: string; amount: number }) => (
-                <TableRow key={h.id}>
-                  <TableCell className="text-xs">{new Date(h.created_at).toLocaleString()}</TableCell>
-                  <TableCell>{h.category}</TableCell>
-                  <TableCell className="max-w-md truncate">{h.description}</TableCell>
-                  <TableCell className="capitalize">{h.payment_method}</TableCell>
-                  <TableCell className="text-right font-mono">{formatMoney(h.amount)}</TableCell>
-                </TableRow>
-              ))}
+              {history.map((h: { id: string; created_at: string; category: string; description: string; payment_method: string; amount: number; user_name: string | null }) => {
+                const d = new Date(h.created_at);
+                return (
+                  <TableRow key={h.id}>
+                    <TableCell className="text-xs whitespace-nowrap">{d.toLocaleDateString()}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">{d.toLocaleTimeString()}</TableCell>
+                    <TableCell>{h.category}</TableCell>
+                    <TableCell className="max-w-md truncate">{h.description}</TableCell>
+                    <TableCell className="capitalize">{h.payment_method}</TableCell>
+                    <TableCell className="text-xs">{h.user_name ?? "—"}</TableCell>
+                    <TableCell className="text-right font-mono">{formatMoney(h.amount)}</TableCell>
+                  </TableRow>
+                );
+              })}
               {history.length === 0 && (
-                <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Sin gastos registrados.</TableCell></TableRow>
+                <TableRow>
+                  <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
+                    {activeSessionId
+                      ? "No hay gastos registrados en el turno actual."
+                      : "No hay una caja abierta en esta sede."}
+                  </TableCell>
+                </TableRow>
               )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
+
     </div>
   );
 }
