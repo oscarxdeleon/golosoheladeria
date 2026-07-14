@@ -77,7 +77,14 @@ export async function downloadShiftPdf(input: ShiftPdfInput): Promise<void> {
   const summary = computeFinancialSummary(sales, expenses, [session]);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
-  const products = aggregateProducts(items);
+  // Cargar catálogo de modificadores para excluirlos del listado de productos
+  const { data: modRows } = await supabase.from("modifiers").select("name");
+  const modifierNames = new Set(
+    (modRows ?? [])
+      .map((m: { name: string | null }) => (m.name ?? "").trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const products = aggregateProducts(items, { modifierNames });
 
   // Resumen general
   autoTable(doc, {
