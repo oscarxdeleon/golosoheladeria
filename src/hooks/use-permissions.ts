@@ -50,7 +50,7 @@ export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
 export const ROLE_HOME: Record<AppRole, string> = {
   admin: "/",
   cajero: "/mesas",
-  mesero: "/mesas",
+  mesero: "/tablet-pedidos",
   domiciliario: "/domicilios",
 };
 
