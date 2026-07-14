@@ -1868,7 +1868,10 @@ function CashierIpPrinterCard() {
 
   return (
     <div className="border-b p-4 space-y-3 bg-muted/10">
-      <div className="font-medium text-sm">Impresora de Caja (Red IP)</div>
+      <div className="font-medium text-sm flex items-center gap-2">
+        Impresora de Caja (Red IP)
+        <span className="text-xs font-normal text-muted-foreground">— sede: <b>{activeBranch?.name ?? "—"}</b></span>
+      </div>
       <p className="text-xs text-muted-foreground">
         Segunda impresora térmica de red para imprimir el <b>comprobante de pago</b> de los pedidos del Autopedido.
         Cuando un cliente envía un pedido desde la tablet, se imprime aquí un ticket con el detalle y el mensaje
