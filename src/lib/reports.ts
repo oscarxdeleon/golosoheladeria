@@ -301,17 +301,10 @@ export function aggregateProducts(
     const baseName = stripModifiers(rawName);
     const key = it.product_id ?? `name:${baseName.toLowerCase()}`;
     const qty = Number(it.qty) || 0;
-    let total = Number(it.subtotal) || 0;
-    // Incluir el precio de los modificadores dentro del total del producto principal
-    const mods = Array.isArray(it.modifiers) ? (it.modifiers as Array<{ price?: unknown; qty?: unknown }>) : [];
-    for (const m of mods) {
-      const price = Number((m as { price?: unknown })?.price ?? 0) || 0;
-      const mQty = Number((m as { qty?: unknown })?.qty ?? 1) || 1;
-      // Si el subtotal ya incluye extras (unit_price alto), no duplicamos;
-      // detectamos comparando unit_price*qty con subtotal.
-      // Nada que hacer aquí: si `subtotal` ya lo trae, la suma anterior lo cubre.
-      void price; void mQty;
-    }
+    // El subtotal de la fila ya incluye el precio de los modificadores
+    // (pos-screen suma el extra al unit_price, y el RPC create_public_order
+    // recalcula subtotal = (base + Σ modifiers) * qty).
+    const total = Number(it.subtotal) || 0;
     const prev = map.get(key);
     if (prev) {
       prev.qty += qty;
