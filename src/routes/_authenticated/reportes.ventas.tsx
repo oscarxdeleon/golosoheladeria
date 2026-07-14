@@ -15,6 +15,7 @@ import { formatMoney } from "@/lib/format";
 import {
   aggregateProducts, fetchSaleItemsForSales, fetchSales, paymentBreakdown, serviceBreakdown,
 } from "@/lib/reports";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/reportes/ventas")({
   head: () => ({ meta: [{ title: "Ventas y Analíticas · Reportes" }] }),
