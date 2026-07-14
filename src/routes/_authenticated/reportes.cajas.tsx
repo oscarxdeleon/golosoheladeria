@@ -2,16 +2,24 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { Search, CheckCircle2, AlertTriangle } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { es } from "date-fns/locale";
+import {
+  Search, History, FileText, Clock, User, Download, ChevronRight,
+  TrendingUp, TrendingDown, CheckCircle2,
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
-import { fetchCashSessions, fetchSales } from "@/lib/reports";
+import {
+  fetchCashSessions, fetchSales, fetchExpenses, fetchSaleItemsForSales,
+  type CashSessionRow,
+} from "@/lib/reports";
 import { useAuth } from "@/hooks/use-auth";
+import { downloadShiftPdf } from "@/lib/shift-pdf";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/reportes/cajas")({
   head: () => ({ meta: [{ title: "Historial de Cajas · Reportes" }] }),
@@ -39,12 +47,10 @@ function CajasPage() {
     queryFn: () => fetchCashSessions(filters),
   });
 
-  // Ventas por sesión para mostrar totales
-  const sessionIds = useMemo(() => sessions.map((s) => s.id), [sessions]);
   const { data: allSales = [] } = useQuery({
-    queryKey: ["reportes.cajas.sales", sessionIds.length, sessionIds[0]],
+    queryKey: ["reportes.cajas.sales", filters],
     queryFn: () => fetchSales({ branchId: filters.branchId, from: filters.from, to: filters.to }),
-    enabled: sessionIds.length > 0,
+    enabled: sessions.length > 0,
   });
   const salesBySession = useMemo(() => {
     const map = new Map<string, number>();
@@ -69,118 +75,196 @@ function CajasPage() {
   }, [sessions, status, search, branches]);
 
   return (
-    <div className="space-y-5">
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Filtros</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-5">
-          <div>
-            <label className="text-xs text-muted-foreground">Buscar</label>
-            <div className="relative">
-              <Search className="pointer-events-none absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input className="pl-8" placeholder="Usuario o sede" value={search} onChange={(e) => setSearch(e.target.value)} />
-            </div>
+    <div className="mx-auto max-w-2xl space-y-5 pb-10">
+      {/* Header */}
+      <div className="space-y-2">
+        <div className="flex items-center gap-3">
+          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary/10 text-primary">
+            <History className="h-5 w-5" />
           </div>
           <div>
-            <label className="text-xs text-muted-foreground">Sede</label>
-            <Select value={branchId} onValueChange={setBranchId}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todas</SelectItem>
-                {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
-              </SelectContent>
-            </Select>
+            <h1 className="font-display text-2xl font-extrabold leading-tight">Historial de Cierres</h1>
+            <p className="text-sm text-muted-foreground">Consulta y descarga los reportes de arqueos anteriores.</p>
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Estado</label>
-            <Select value={status} onValueChange={setStatus}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Todos</SelectItem>
-                <SelectItem value="open">Abiertos</SelectItem>
-                <SelectItem value="closed">Cerrados</SelectItem>
-              </SelectContent>
-            </Select>
+        </div>
+      </div>
+
+      {/* Filtros compactos */}
+      <Card className="rounded-2xl">
+        <CardContent className="p-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="relative sm:col-span-2 lg:col-span-1">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input className="pl-9 rounded-xl" placeholder="Buscar cajero o sede" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Desde</label>
-            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-xs text-muted-foreground">Hasta</label>
-            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} />
+          <Select value={branchId} onValueChange={setBranchId}>
+            <SelectTrigger className="rounded-xl"><SelectValue placeholder="Sede" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las sedes</SelectItem>
+              {branches.map((b) => <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <Select value={status} onValueChange={setStatus}>
+            <SelectTrigger className="rounded-xl"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todos</SelectItem>
+              <SelectItem value="open">Abiertos</SelectItem>
+              <SelectItem value="closed">Cerrados</SelectItem>
+            </SelectContent>
+          </Select>
+          <div className="grid grid-cols-2 gap-2">
+            <Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} className="rounded-xl" />
+            <Input type="date" value={to} onChange={(e) => setTo(e.target.value)} className="rounded-xl" />
           </div>
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader><CardTitle>{filtered.length} cierres</CardTitle></CardHeader>
-        <CardContent className="p-0 overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Sede</TableHead>
-                <TableHead>Turno</TableHead>
-                <TableHead>Apertura</TableHead>
-                <TableHead>Cierre</TableHead>
-                <TableHead>Estado</TableHead>
-                <TableHead className="text-right">Inicial</TableHead>
-                <TableHead className="text-right">Ventas</TableHead>
-                <TableHead className="text-right">Declarado</TableHead>
-                <TableHead className="text-right">Diferencia</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading && <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Cargando…</TableCell></TableRow>}
-              {!isLoading && filtered.length === 0 && (
-                <TableRow><TableCell colSpan={9} className="text-center py-6 text-muted-foreground">Sin cierres para los filtros.</TableCell></TableRow>
-              )}
-              {filtered.map((s, i) => {
-                const salesTotal = salesBySession.get(s.id) ?? 0;
-                const diff = Number(s.difference ?? 0);
-                const diffColor = diff === 0 ? "text-emerald-600" : diff > 0 ? "text-amber-600" : "text-rose-600";
-                const turnNumber = filtered.length - i;
-                return (
-                  <TableRow key={s.id} className="hover:bg-muted/40">
-                    <TableCell>{branchName(s.branch_id)}</TableCell>
-                    <TableCell>
-                      <Link to="/reportes/cajas/$id" params={{ id: s.id }} className="font-semibold text-primary hover:underline">
-                        #{turnNumber}
-                      </Link>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      <div className="font-medium">{s.user_name ?? "—"}</div>
-                      <div className="text-muted-foreground">{format(new Date(s.opened_at), "dd/MM/yyyy HH:mm")}</div>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {s.closed_at ? (
-                        <>
-                          <div className="font-medium">{s.user_name ?? "—"}</div>
-                          <div className="text-muted-foreground">{format(new Date(s.closed_at), "dd/MM/yyyy HH:mm")}</div>
-                        </>
-                      ) : <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={s.status === "open" ? "outline" : "secondary"}>
-                        {s.status === "open" ? "Abierto" : "Cerrado"}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">{formatMoney(s.opening_amount)}</TableCell>
-                    <TableCell className="text-right font-medium">{formatMoney(salesTotal)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(s.counted_amount ?? 0)}</TableCell>
-                    <TableCell className={`text-right font-semibold flex items-center justify-end gap-1 ${diffColor}`}>
-                      {diff !== 0 && <AlertTriangle className="h-3 w-3" />}
-                      {diff === 0 && <CheckCircle2 className="h-3 w-3" />}
-                      {formatMoney(diff)}
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
+      {/* Título registros */}
+      <Card className="rounded-2xl bg-muted/30 border-dashed">
+        <CardContent className="p-4 flex items-start gap-3">
+          <div className="grid h-9 w-9 place-items-center rounded-xl bg-primary/10 text-primary">
+            <FileText className="h-4 w-4" />
+          </div>
+          <div>
+            <div className="font-bold text-base">Registros de Cierre</div>
+            <div className="text-sm text-muted-foreground">Lista de todas las sesiones de caja finalizadas.</div>
+          </div>
         </CardContent>
       </Card>
+
+      {/* Lista */}
+      <div className="space-y-4">
+        {isLoading && <Card><CardContent className="py-8 text-center text-muted-foreground">Cargando…</CardContent></Card>}
+        {!isLoading && filtered.length === 0 && (
+          <Card><CardContent className="py-8 text-center text-muted-foreground">Sin cierres para los filtros.</CardContent></Card>
+        )}
+        {filtered.map((s) => (
+          <SessionCard
+            key={s.id}
+            session={s}
+            branchName={branchName(s.branch_id)}
+            salesTotal={salesBySession.get(s.id) ?? 0}
+          />
+        ))}
+      </div>
     </div>
+  );
+}
+
+function SessionCard({
+  session, branchName, salesTotal,
+}: { session: CashSessionRow; branchName: string; salesTotal: number }) {
+  const [downloading, setDownloading] = useState(false);
+  const diff = Number(session.difference ?? 0);
+  const finalAmount = Number(session.counted_amount ?? 0);
+
+  async function handlePdf() {
+    setDownloading(true);
+    try {
+      // Cargar datos on-demand para PDF
+      const [sales, expenses] = await Promise.all([
+        fetchSales({ cashSessionId: session.id }),
+        fetchExpenses({ cashSessionId: session.id }),
+      ]);
+      const ids = sales.filter((x) => x.status !== "cancelled").map((x) => x.id);
+      const items = ids.length ? await fetchSaleItemsForSales(ids) : [];
+      await downloadShiftPdf({
+        session, branchName,
+        turnNumber: session.id.slice(0, 3).toUpperCase(),
+        sales, items, expenses,
+      });
+      toast.success("PDF generado");
+    } catch (e) {
+      toast.error("No se pudo generar el PDF", { description: (e as Error).message });
+    } finally {
+      setDownloading(false);
+    }
+  }
+
+  const diffBadge = diff === 0 ? {
+    icon: <CheckCircle2 className="h-3.5 w-3.5" />,
+    text: "Cuadró",
+    className: "bg-emerald-50 border-emerald-200 text-emerald-700",
+  } : diff > 0 ? {
+    icon: <TrendingUp className="h-3.5 w-3.5" />,
+    text: `+${formatMoney(diff)}`,
+    className: "bg-amber-50 border-amber-200 text-amber-700",
+  } : {
+    icon: <TrendingDown className="h-3.5 w-3.5" />,
+    text: formatMoney(diff),
+    className: "bg-rose-50 border-rose-200 text-rose-700",
+  };
+
+  return (
+    <Card className="rounded-2xl shadow-sm overflow-hidden">
+      <CardContent className="p-4 space-y-3">
+        {/* Fechas */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              <Clock className="h-3 w-3" /> Apertura
+            </div>
+            <div className="mt-1 font-display font-bold text-base leading-tight">
+              {format(new Date(session.opened_at), "d MMM yyyy, HH:mm", { locale: es })}
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="flex items-center justify-end gap-1.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+              Cierre
+            </div>
+            <div className="mt-1 font-display font-bold text-base leading-tight">
+              {session.closed_at
+                ? format(new Date(session.closed_at), "d MMM yyyy, HH:mm", { locale: es })
+                : <span className="text-emerald-600">— abierto —</span>}
+            </div>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+          <User className="h-3.5 w-3.5" /> {session.user_name ?? "—"}
+          <span className="mx-1">·</span>
+          <span className="truncate">{branchName}</span>
+        </div>
+
+        {/* Panel de montos */}
+        <div className="rounded-2xl bg-muted/30 p-4 space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Monto Inicial</div>
+              <div className="mt-1 font-display text-lg font-bold">{formatMoney(session.opening_amount)}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Ventas</div>
+              <div className="mt-1 font-display text-lg font-extrabold text-emerald-700">{formatMoney(salesTotal)}</div>
+            </div>
+          </div>
+          <div className="border-t border-dashed" />
+          <div className="flex items-center justify-between">
+            <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Monto Final</div>
+            <div className="font-display text-xl font-extrabold text-primary">{formatMoney(finalAmount)}</div>
+          </div>
+        </div>
+
+        {/* Acciones */}
+        <div className="flex flex-wrap items-center gap-2">
+          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${diffBadge.className}`}>
+            {diffBadge.icon}{diffBadge.text}
+          </span>
+          <Button
+            onClick={handlePdf}
+            disabled={downloading}
+            variant="outline"
+            size="sm"
+            className="rounded-xl border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 gap-1.5 font-semibold"
+          >
+            <Download className="h-4 w-4" />{downloading ? "…" : "PDF"}
+          </Button>
+          <Link to="/reportes/cajas/$id" params={{ id: session.id }} className="ml-auto">
+            <Button size="sm" className="rounded-xl bg-primary/10 text-primary hover:bg-primary/20 gap-1 font-semibold shadow-none">
+              Ver Detalles <ChevronRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </CardContent>
+    </Card>
   );
 }

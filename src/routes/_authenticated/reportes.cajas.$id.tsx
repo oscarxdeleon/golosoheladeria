@@ -2,33 +2,55 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
-import {
-  ArrowLeft, Download, CheckCircle2, AlertTriangle, TrendingUp, TrendingDown,
-} from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp } from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
 import {
   aggregateProducts, computeFinancialSummary, fetchExpenses, fetchSaleItemsForSales,
-  fetchSales, paymentBreakdown, serviceBreakdown, courtesiesFromItems,
+  fetchSales, paymentBreakdown, serviceBreakdown,
   CATEGORY_INCOME, CATEGORY_WITHDRAWAL, CATEGORY_REFUND,
-  type CashSessionRow,
+  type CashSessionRow, type ExpenseRow,
 } from "@/lib/reports";
 import { downloadShiftPdf } from "@/lib/shift-pdf";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/_authenticated/reportes/cajas/$id")({
-  head: () => ({ meta: [{ title: "Detalle de cierre · Reportes" }] }),
+  head: () => ({ meta: [{ title: "Detalle de arqueo · Reportes" }] }),
   component: CajaDetailPage,
 });
 
+const METHOD_DOT: Record<string, string> = {
+  efectivo: "bg-blue-500",
+  nequi: "bg-slate-400",
+  bancolombia: "bg-slate-400",
+  tarjeta: "bg-violet-500",
+  transferencia: "bg-emerald-500",
+  otros: "bg-slate-400",
+};
+
+const SERVICE_STYLE: Record<string, { emoji: string; label: string; bg: string; text: string; badgeBg: string; badgeText: string }> = {
+  mesa:      { emoji: "🪑", label: "Mesa",       bg: "bg-blue-50 border-blue-100",       text: "text-blue-700",     badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
+  domicilio: { emoji: "🛵", label: "Domicilio",  bg: "bg-orange-50 border-orange-100",   text: "text-orange-700",   badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
+  llevar:    { emoji: "🥡", label: "Para Llevar",bg: "bg-purple-50 border-purple-100",   text: "text-purple-700",   badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
+  kiosko:    { emoji: "🖥️", label: "Kiosko",     bg: "bg-teal-50 border-teal-100",       text: "text-teal-700",     badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
+};
+
+function normalizeService(k: string): keyof typeof SERVICE_STYLE {
+  const s = k.toLowerCase();
+  if (s.includes("mesa") || s === "dine_in") return "mesa";
+  if (s.includes("domic") || s === "delivery") return "domicilio";
+  if (s.includes("llevar") || s === "takeaway" || s === "to_go") return "llevar";
+  if (s.includes("kiosko") || s.includes("kiosk")) return "kiosko";
+  return "mesa";
+}
+
 function CajaDetailPage() {
   const { id } = Route.useParams();
+  
   const { branches } = useBranch();
   const [downloading, setDownloading] = useState(false);
 
@@ -41,10 +63,7 @@ function CajaDetailPage() {
     },
   });
 
-  const filters = useMemo(() => session ? {
-    cashSessionId: session.id,
-    branchId: session.branch_id,
-  } : null, [session]);
+  const filters = useMemo(() => session ? { cashSessionId: session.id, branchId: session.branch_id } : null, [session]);
 
   const { data: sales = [] } = useQuery({
     queryKey: ["reportes.session.sales", id],
@@ -65,56 +84,52 @@ function CajaDetailPage() {
 
   const branchName = branches.find((b) => b.id === session?.branch_id)?.name ?? "—";
 
-  if (isLoading) return <Card><CardContent className="py-10 text-center text-muted-foreground">Cargando…</CardContent></Card>;
-  if (!session) return <Card><CardContent className="py-10 text-center text-muted-foreground">Cierre no encontrado.</CardContent></Card>;
+  if (isLoading || !session) {
+    return (
+      <div className="mx-auto max-w-2xl">
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
+      </div>
+    );
+  }
 
   const summary = computeFinancialSummary(sales, expenses, [session]);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
   const products = aggregateProducts(items);
-  const courtesies = courtesiesFromItems(items);
-
-  const durationMin = session.closed_at
-    ? Math.round((new Date(session.closed_at).getTime() - new Date(session.opened_at).getTime()) / 60000)
-    : Math.round((Date.now() - new Date(session.opened_at).getTime()) / 60000);
 
   const cashSales = payments["efectivo"]?.amount ?? 0;
   const entries = summary.entries;
-  const exits = summary.exits;
-  const expensesAmt = summary.expenses;
-  const refunds = summary.refunds;
+  const exits = summary.exits + summary.expenses + summary.refunds;
   const apertura = Number(session.opening_amount) || 0;
-  const efectivoEsperado = apertura + cashSales + entries - exits - expensesAmt - refunds;
+  const efectivoEsperado = apertura + cashSales + entries - exits;
 
   const declared = Number(session.counted_amount) || 0;
   const expected = Number(session.expected_amount) || efectivoEsperado;
   const diff = declared - expected;
 
-  const entradas = expenses.filter((e) => CATEGORY_INCOME.has((e.category ?? "").toLowerCase()));
-  const salidas = expenses.filter((e) => CATEGORY_WITHDRAWAL.has((e.category ?? "").toLowerCase()));
-  const devoluciones = expenses.filter((e) => CATEGORY_REFUND.has((e.category ?? "").toLowerCase()));
-  const gastos = expenses.filter((e) => {
-    const c = (e.category ?? "").toLowerCase();
-    return !CATEGORY_INCOME.has(c) && !CATEGORY_WITHDRAWAL.has(c) && !CATEGORY_REFUND.has(c);
-  });
+  // Declared por medio no-efectivo
+  const declaredNonCash: { key: string; label: string; amount: number }[] = [];
+  const nequi = Number(session.nequi_counted ?? 0);
+  const banco = Number(session.bancolombia_counted ?? 0);
+  if (nequi > 0) declaredNonCash.push({ key: "nequi", label: "NEQUI", amount: nequi });
+  if (banco > 0) declaredNonCash.push({ key: "bcol", label: "BCOLOMBIA", amount: banco });
+  const totalDeclarado = declaredNonCash.reduce((a, x) => a + x.amount, 0);
 
-  const declaredByMethod: { key: string; declared: number; expected: number }[] = [
-    { key: "efectivo", declared: Number(session.cash_counted ?? 0), expected: Number(session.cash_expected ?? 0) },
-    { key: "nequi", declared: Number(session.nequi_counted ?? 0), expected: Number(session.nequi_expected ?? 0) },
-    { key: "bancolombia", declared: Number(session.bancolombia_counted ?? 0), expected: Number(session.bancolombia_expected ?? 0) },
-  ];
+  const entradas = expenses.filter((e) => CATEGORY_INCOME.has((e.category ?? "").toLowerCase()));
+  const salidas = expenses.filter((e) => {
+    const c = (e.category ?? "").toLowerCase();
+    return CATEGORY_WITHDRAWAL.has(c) || (!CATEGORY_INCOME.has(c) && !CATEGORY_REFUND.has(c));
+  });
+  const devoluciones = expenses.filter((e) => CATEGORY_REFUND.has((e.category ?? "").toLowerCase()));
+
+  const totalSalesByPayments = Object.values(payments).reduce((a, v) => a + v.amount, 0);
+  const totalTx = Object.values(payments).reduce((a, v) => a + v.count, 0);
+  const turnNumber = session.id.slice(0, 3).toUpperCase();
 
   async function handlePdf() {
     setDownloading(true);
     try {
-      await downloadShiftPdf({
-        session: session!,
-        branchName,
-        turnNumber: session!.id.slice(0, 8),
-        sales,
-        items,
-        expenses,
-      });
+      await downloadShiftPdf({ session: session!, branchName, turnNumber, sales, items, expenses });
       toast.success("PDF generado");
     } catch (e) {
       toast.error("No se pudo generar el PDF", { description: (e as Error).message });
@@ -124,274 +139,280 @@ function CajaDetailPage() {
   }
 
   return (
-    <div className="space-y-5">
-      {/* Header */}
+    <div className="mx-auto max-w-2xl space-y-5 pb-10">
+      {/* Header sheet */}
       <Card className="overflow-hidden">
-        <div className="bg-gradient-to-r from-primary/15 via-background to-secondary/10 p-5">
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Link to="/reportes/cajas"><Button variant="ghost" size="icon"><ArrowLeft className="h-4 w-4" /></Button></Link>
+        <div className="relative bg-gradient-to-b from-primary/5 to-background p-5">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="grid h-11 w-11 place-items-center rounded-2xl bg-primary/10 text-primary">
+                <FileText className="h-5 w-5" />
+              </div>
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wider text-primary">Cierre de caja</div>
-                <h2 className="font-display text-2xl font-extrabold">{branchName}</h2>
-                <div className="text-sm text-muted-foreground">
-                  {format(new Date(session.opened_at), "dd/MM/yyyy HH:mm")} — {session.closed_at ? format(new Date(session.closed_at), "dd/MM/yyyy HH:mm") : "Turno abierto"}
-                </div>
+                <h2 className="font-display text-2xl font-extrabold leading-tight">Detalle de Arqueo <span className="text-primary">#{turnNumber}</span></h2>
+                <p className="text-sm text-muted-foreground">Sesión de {session.user_name ?? "—"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{branchName} · {format(new Date(session.opened_at), "dd/MM/yyyy HH:mm")}{session.closed_at ? ` – ${format(new Date(session.closed_at), "HH:mm")}` : " · abierto"}</p>
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <Badge variant={session.status === "open" ? "outline" : "secondary"}>{session.status === "open" ? "Abierto" : "Cerrado"}</Badge>
-              <Button onClick={handlePdf} disabled={downloading} className="gap-2">
-                <Download className="h-4 w-4" />{downloading ? "Generando…" : "Descargar PDF"}
+            <Link to="/reportes/cajas">
+              <Button variant="ghost" size="icon" className="rounded-full bg-muted/60 hover:bg-muted">
+                <ArrowLeft className="h-4 w-4" />
               </Button>
-            </div>
+            </Link>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button onClick={handlePdf} disabled={downloading} variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 gap-2 font-semibold">
+              <Download className="h-4 w-4" />{downloading ? "Generando…" : "PDF"}
+            </Button>
+            <Button onClick={() => window.print()} variant="outline" className="border-primary/40 text-primary hover:bg-primary/5 gap-2 font-semibold flex-1">
+              <Printer className="h-4 w-4" /> Imprimir Reporte
+            </Button>
           </div>
         </div>
       </Card>
 
-      {/* Tabs */}
-      <Tabs defaultValue="resumen" className="space-y-4">
-        <TabsList className="flex flex-wrap h-auto">
-          <TabsTrigger value="resumen">Resumen</TabsTrigger>
-          <TabsTrigger value="pagos">Medios de pago</TabsTrigger>
-          <TabsTrigger value="declarado">Declarado</TabsTrigger>
-          <TabsTrigger value="servicio">Tipo de servicio</TabsTrigger>
-          <TabsTrigger value="balance">Balance efectivo</TabsTrigger>
-          <TabsTrigger value="productos">Productos</TabsTrigger>
-          <TabsTrigger value="ajustes">Ajustes</TabsTrigger>
+      <Tabs defaultValue="resumen" className="space-y-5">
+        <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/50 p-1 h-auto">
+          <TabsTrigger value="resumen" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Resumen</TabsTrigger>
+          <TabsTrigger value="productos" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Productos</TabsTrigger>
+          <TabsTrigger value="ajustes" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Ajustes</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="resumen">
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-            <KPI label="N° pedidos" value={String(summary.transactions)} />
-            <KPI label="Ventas totales" value={formatMoney(summary.salesTotal)} />
-            <KPI label="Ticket promedio" value={formatMoney(summary.averageTicket)} />
-            <KPI label="Pedidos cancelados" value={`${summary.cancelled} (${formatMoney(summary.cancelledValue)})`} />
-            <KPI label="Cortesías" value={`${courtesies.count} items`} />
-            <KPI label="Propinas" value={formatMoney(summary.tips)} />
-            <KPI label="Duración del turno" value={`${Math.floor(durationMin / 60)}h ${durationMin % 60}m`} />
-            <KPI label="Usuario apertura / cierre" value={session.user_name ?? "—"} />
+        {/* -------- RESUMEN -------- */}
+        <TabsContent value="resumen" className="space-y-6">
+          {/* KPI 2x2 */}
+          <div className="grid grid-cols-2 gap-3">
+            <KpiTile label="Pedidos" value={String(summary.transactions)} tone="slate" />
+            <KpiTile label="Ventas totales" value={formatMoney(summary.salesTotal)} tone="emerald" />
+            <KpiTile label="Ticket promedio" value={formatMoney(summary.averageTicket)} tone="blue" />
+            <KpiTile label="Cancelados" value={String(summary.cancelled)} tone="amber" />
+          </div>
+
+          {/* Ventas por método de pago */}
+          <Section emoji="💳" title="VENTAS POR MÉTODO DE PAGO">
+            <div className="space-y-2">
+              {Object.entries(payments).map(([k, v]) => (
+                <div key={k} className="flex items-center justify-between rounded-2xl bg-muted/40 px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <span className={`h-2.5 w-2.5 rounded-full ${METHOD_DOT[k] ?? "bg-slate-400"}`} />
+                    <span className="font-bold uppercase tracking-wide text-sm">{k}</span>
+                    <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{v.count} ventas</span>
+                  </div>
+                  <div className="font-display text-lg font-extrabold text-emerald-700">{formatMoney(v.amount)}</div>
+                </div>
+              ))}
+              {Object.keys(payments).length === 0 && <EmptyRow label="Sin ventas registradas." />}
+              <div className="flex items-center justify-between border-t border-dashed pt-3 mt-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold">Total Ventas</span>
+                  <span className="rounded-full bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">{totalTx} transacciones</span>
+                </div>
+                <div className="font-display text-lg font-extrabold text-emerald-700">{formatMoney(totalSalesByPayments)}</div>
+              </div>
+            </div>
+          </Section>
+
+          {/* Declarado por el cajero */}
+          <Section emoji="🧾" title="DECLARADO POR EL CAJERO (POR MEDIO)">
+            <div className="space-y-2">
+              {declaredNonCash.map((m) => (
+                <div key={m.key} className="flex items-center justify-between rounded-2xl bg-muted/40 px-4 py-3">
+                  <span className="font-bold tracking-wide">{m.label}</span>
+                  <span className="font-display text-lg font-extrabold">{formatMoney(m.amount)}</span>
+                </div>
+              ))}
+              {declaredNonCash.length === 0 && <EmptyRow label="Sin declaraciones adicionales." />}
+              <div className="flex items-center justify-between border-t border-dashed pt-3 mt-1">
+                <span className="font-bold">Total declarado</span>
+                <span className="font-display text-lg font-extrabold">{formatMoney(totalDeclarado)}</span>
+              </div>
+            </div>
+          </Section>
+
+          {/* Ventas por tipo de servicio */}
+          <Section emoji="🍽️" title="VENTAS POR TIPO DE SERVICIO">
+            <div className="space-y-3">
+              {Object.entries(services).map(([k, v]) => {
+                const s = SERVICE_STYLE[normalizeService(k)];
+                return (
+                  <div key={k} className={`rounded-2xl border px-4 py-3 ${s.bg}`}>
+                    <div className="flex items-center justify-between">
+                      <div className={`flex items-center gap-2 font-bold text-base ${s.text}`}>
+                        <span className="text-xl leading-none">{s.emoji}</span>{s.label}
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.badgeBg} ${s.badgeText}`}>{v.count} pedidos</span>
+                    </div>
+                    <div className={`mt-1 font-display text-2xl font-extrabold ${s.text}`}>{formatMoney(v.amount)}</div>
+                  </div>
+                );
+              })}
+              {Object.keys(services).length === 0 && <EmptyRow label="Sin ventas por servicio." />}
+            </div>
+          </Section>
+
+          {/* Balance efectivo */}
+          <Section emoji="💵" title="BALANCE DE EFECTIVO EN CAJA">
+            <div className="space-y-2.5 px-1 text-[15px]">
+              <BalanceLine label="Apertura de caja" value={formatMoney(apertura)} />
+              <BalanceLine label="+ Ventas en efectivo" value={formatMoney(cashSales)} tone="blue" />
+              <BalanceLine label="+ Entradas de efectivo" value={formatMoney(entries)} tone="emerald" />
+              <BalanceLine label="- Salidas / Retiros" value={`-${formatMoney(exits)}`} tone="rose" />
+              <div className="my-2 border-t border-dashed" />
+              <div className="flex items-center justify-between font-bold">
+                <span>= Efectivo Esperado</span>
+                <span className="font-display text-xl text-primary">{formatMoney(efectivoEsperado)}</span>
+              </div>
+            </div>
+          </Section>
+
+          {/* Comparación final */}
+          <div className={`rounded-2xl border p-4 ${diff === 0 ? "bg-emerald-50 border-emerald-200" : diff > 0 ? "bg-amber-50 border-amber-200" : "bg-rose-50 border-rose-200"}`}>
+            <div className="grid grid-cols-3 gap-2 text-center">
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Esperado</div>
+                <div className="mt-1 font-display text-lg font-extrabold text-primary">{formatMoney(expected)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Declarado</div>
+                <div className="mt-1 font-display text-lg font-extrabold">{formatMoney(declared)}</div>
+              </div>
+              <div>
+                <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Diferencia</div>
+                <div className={`mt-1 font-display text-lg font-extrabold ${diff === 0 ? "text-emerald-700" : diff > 0 ? "text-amber-700" : "text-rose-700"}`}>{formatMoney(diff)}</div>
+              </div>
+            </div>
+            <div className="mt-2 flex justify-end">
+              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${diff === 0 ? "bg-emerald-100 text-emerald-700" : diff > 0 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>
+                {diff === 0 ? "✅ Cuadró" : diff > 0 ? (<><TrendingUp className="h-3 w-3" /> Sobrante</>) : (<><TrendingDown className="h-3 w-3" /> Faltante</>)}
+              </span>
+            </div>
           </div>
         </TabsContent>
 
-        <TabsContent value="pagos">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow><TableHead>Medio de pago</TableHead><TableHead className="text-right">Valor</TableHead><TableHead className="text-right"># transacciones</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {Object.entries(payments).map(([k, v]) => (
-                    <TableRow key={k}><TableCell className="uppercase font-medium">{k}</TableCell><TableCell className="text-right">{formatMoney(v.amount)}</TableCell><TableCell className="text-right">{v.count}</TableCell></TableRow>
-                  ))}
-                  {Object.keys(payments).length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Sin ventas.</TableCell></TableRow>}
-                  <TableRow className="bg-muted/40 font-semibold">
-                    <TableCell>TOTAL</TableCell>
-                    <TableCell className="text-right">{formatMoney(Object.values(payments).reduce((a, v) => a + v.amount, 0))}</TableCell>
-                    <TableCell className="text-right">{Object.values(payments).reduce((a, v) => a + v.count, 0)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="declarado">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow><TableHead>Medio</TableHead><TableHead className="text-right">Esperado</TableHead><TableHead className="text-right">Declarado</TableHead><TableHead className="text-right">Diferencia</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {declaredByMethod.map((m) => {
-                    const d = m.declared - m.expected;
-                    return (
-                      <TableRow key={m.key}>
-                        <TableCell className="uppercase font-medium">{m.key}</TableCell>
-                        <TableCell className="text-right">{formatMoney(m.expected)}</TableCell>
-                        <TableCell className="text-right">{formatMoney(m.declared)}</TableCell>
-                        <TableCell className={`text-right font-semibold ${d === 0 ? "text-emerald-600" : d > 0 ? "text-amber-600" : "text-rose-600"}`}>{formatMoney(d)}</TableCell>
-                      </TableRow>
-                    );
-                  })}
-                  <TableRow className="bg-muted/40 font-semibold">
-                    <TableCell>TOTAL</TableCell>
-                    <TableCell className="text-right">{formatMoney(expected)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(declared)}</TableCell>
-                    <TableCell className={`text-right ${diff === 0 ? "text-emerald-600" : diff > 0 ? "text-amber-600" : "text-rose-600"}`}>{formatMoney(diff)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="servicio">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableHeader><TableRow><TableHead>Tipo de servicio</TableHead><TableHead className="text-right"># pedidos</TableHead><TableHead className="text-right">Valor</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {Object.entries(services).map(([k, v]) => (
-                    <TableRow key={k}><TableCell className="capitalize font-medium">{k}</TableCell><TableCell className="text-right">{v.count}</TableCell><TableCell className="text-right">{formatMoney(v.amount)}</TableCell></TableRow>
-                  ))}
-                  {Object.keys(services).length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Sin datos.</TableCell></TableRow>}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="balance">
-          <Card>
-            <CardContent className="p-0">
-              <Table>
-                <TableBody>
-                  <TableRow><TableCell>Apertura</TableCell><TableCell className="text-right">{formatMoney(apertura)}</TableCell></TableRow>
-                  <TableRow><TableCell>+ Ventas en efectivo</TableCell><TableCell className="text-right text-emerald-600">{formatMoney(cashSales)}</TableCell></TableRow>
-                  <TableRow><TableCell>+ Entradas</TableCell><TableCell className="text-right text-emerald-600">{formatMoney(entries)}</TableCell></TableRow>
-                  <TableRow><TableCell>− Salidas</TableCell><TableCell className="text-right text-rose-600">{formatMoney(exits)}</TableCell></TableRow>
-                  <TableRow><TableCell>− Gastos</TableCell><TableCell className="text-right text-rose-600">{formatMoney(expensesAmt)}</TableCell></TableRow>
-                  <TableRow><TableCell>− Devoluciones/Reembolsos</TableCell><TableCell className="text-right text-rose-600">{formatMoney(refunds)}</TableCell></TableRow>
-                  <TableRow className="bg-primary/10 font-semibold text-lg">
-                    <TableCell>= Efectivo esperado</TableCell>
-                    <TableCell className="text-right">{formatMoney(efectivoEsperado)}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
-        </TabsContent>
-
+        {/* -------- PRODUCTOS -------- */}
         <TabsContent value="productos">
-          <Card>
-            <CardContent className="p-0 overflow-x-auto">
-              <Table>
-                <TableHeader><TableRow><TableHead>Producto</TableHead><TableHead className="text-right">Cantidad</TableHead><TableHead className="text-right">Total</TableHead></TableRow></TableHeader>
-                <TableBody>
-                  {products.map((p) => (
-                    <TableRow key={p.name}><TableCell>{p.name}</TableCell><TableCell className="text-right font-semibold">{p.qty}</TableCell><TableCell className="text-right">{formatMoney(p.total)}</TableCell></TableRow>
-                  ))}
-                  {products.length === 0 && <TableRow><TableCell colSpan={3} className="text-center py-6 text-muted-foreground">Sin productos vendidos.</TableCell></TableRow>}
-                  <TableRow className="bg-muted/40 font-semibold">
-                    <TableCell>TOTAL</TableCell>
-                    <TableCell className="text-right">{products.reduce((a, p) => a + p.qty, 0)}</TableCell>
-                    <TableCell className="text-right">{formatMoney(products.reduce((a, p) => a + p.total, 0))}</TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
+          <Card className="rounded-2xl">
+            <CardContent className="p-4">
+              <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-3 items-center">
+                <div className="text-sm font-semibold text-muted-foreground">Producto</div>
+                <div className="text-sm font-semibold text-muted-foreground text-right">Cant.</div>
+                <div className="text-sm font-semibold text-muted-foreground text-right">Total</div>
+                {products.map((p, i) => (
+                  <div key={p.name + i} className="contents">
+                    <div className="col-span-3 border-t" />
+                    <div className="flex items-start gap-2 py-2">
+                      <span className="mt-0.5 text-muted-foreground">📦</span>
+                      <span className="font-medium uppercase text-sm leading-snug">{p.name}</span>
+                    </div>
+                    <div className="text-right py-2 font-medium">{p.qty}</div>
+                    <div className="text-right py-2 font-display font-bold text-emerald-700 whitespace-nowrap">{formatMoney(p.total)}</div>
+                  </div>
+                ))}
+                {products.length === 0 && (
+                  <div className="col-span-3 py-6 text-center text-sm text-muted-foreground">Sin productos vendidos.</div>
+                )}
+              </div>
             </CardContent>
           </Card>
         </TabsContent>
 
-        <TabsContent value="ajustes" className="space-y-4">
-          <AjusteBlock title="Entradas" rows={entradas} totalLabel="Total entradas" tone="emerald" />
-          <AjusteBlock title="Salidas" rows={salidas} totalLabel="Total salidas" tone="orange" />
-          <AjusteBlock title="Gastos" rows={gastos} totalLabel="Total gastos" tone="rose" showCategory showDescription />
-          <AjusteBlock title="Devoluciones / Reembolsos" rows={devoluciones} totalLabel="Total devoluciones" tone="slate" />
+        {/* -------- AJUSTES -------- */}
+        <TabsContent value="ajustes" className="space-y-6">
+          <AjusteBlock title="ENTRADAS EXTRAS" tone="emerald" rows={entradas} sign="+" />
+          <AjusteBlock title="SALIDAS / GASTOS" tone="rose" rows={salidas} sign="-" />
+          <AjusteBlock title="DEVOLUCIONES / REEMBOLSOS" tone="amber" rows={devoluciones} sign="-" />
         </TabsContent>
       </Tabs>
-
-      {/* Comparación final */}
-      <div className="grid gap-3 md:grid-cols-3">
-        <BigCard label="Valor esperado" value={formatMoney(expected)} tone="blue" icon={TrendingUp} />
-        <BigCard label="Valor declarado" value={formatMoney(declared)} tone="violet" icon={TrendingDown} />
-        <BigCard
-          label="Diferencia"
-          value={formatMoney(diff)}
-          tone={diff === 0 ? "emerald" : diff > 0 ? "amber" : "rose"}
-          icon={diff === 0 ? CheckCircle2 : AlertTriangle}
-          note={diff === 0 ? "🟢 Cuadró correctamente" : diff > 0 ? "🟠 Sobrante" : "🔴 Faltante"}
-        />
-      </div>
     </div>
   );
 }
 
-function KPI({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{label}</div>
-        <div className="mt-1 font-display text-xl font-extrabold">{value}</div>
-      </CardContent>
-    </Card>
-  );
-}
+/* ---------------- Sub-components ---------------- */
 
-const TONE_GRAD: Record<string, string> = {
-  blue: "from-blue-500 to-indigo-600",
-  violet: "from-violet-500 to-purple-600",
-  emerald: "from-emerald-500 to-green-600",
-  amber: "from-amber-500 to-orange-500",
-  rose: "from-rose-500 to-red-600",
-  orange: "from-orange-500 to-red-500",
-  slate: "from-slate-500 to-slate-700",
+const KPI_TONE: Record<string, { bg: string; label: string; value: string }> = {
+  slate:   { bg: "bg-muted/40 border-muted",         label: "text-muted-foreground", value: "text-foreground" },
+  emerald: { bg: "bg-emerald-50 border-emerald-100", label: "text-emerald-800/70",   value: "text-emerald-700" },
+  blue:    { bg: "bg-blue-50 border-blue-100",       label: "text-blue-800/70",      value: "text-blue-700" },
+  amber:   { bg: "bg-amber-50 border-amber-100",     label: "text-amber-800/70",     value: "text-amber-700" },
 };
 
-function BigCard({ label, value, tone, icon: Icon, note }: { label: string; value: string; tone: string; icon: React.ElementType; note?: string }) {
+function KpiTile({ label, value, tone }: { label: string; value: string; tone: keyof typeof KPI_TONE }) {
+  const t = KPI_TONE[tone];
   return (
-    <div className={`rounded-2xl bg-gradient-to-br ${TONE_GRAD[tone]} p-[1.5px] shadow-elegant`}>
-      <div className="rounded-2xl bg-background/95 p-5 h-full">
-        <div className="flex items-center justify-between">
-          <div className="text-xs font-bold uppercase tracking-widest text-muted-foreground">{label}</div>
-          <div className={`grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br ${TONE_GRAD[tone]} text-white shadow`}>
-            <Icon className="h-5 w-5" />
-          </div>
-        </div>
-        <div className="mt-2 font-display text-3xl font-extrabold tracking-tight">{value}</div>
-        {note && <div className="mt-1 text-sm font-medium">{note}</div>}
-      </div>
+    <div className={`rounded-2xl border px-4 py-4 text-center ${t.bg}`}>
+      <div className={`text-[11px] font-bold uppercase tracking-widest ${t.label}`}>{label}</div>
+      <div className={`mt-1.5 font-display text-2xl font-extrabold ${t.value}`}>{value}</div>
     </div>
   );
 }
 
-interface AjusteRow {
-  id: string;
-  created_at: string;
-  user_name: string | null;
-  category: string;
-  description: string | null;
-  amount: number;
-}
-
-function AjusteBlock({
-  title, rows, totalLabel, tone, showCategory, showDescription,
-}: {
-  title: string; rows: AjusteRow[]; totalLabel: string; tone: string;
-  showCategory?: boolean; showDescription?: boolean;
-}) {
-  const total = rows.reduce((a, r) => a + Number(r.amount ?? 0), 0);
+function Section({ emoji, title, children }: { emoji: string; title: string; children: React.ReactNode }) {
   return (
-    <Card>
-      <CardHeader className="pb-2"><CardTitle className={`text-base bg-gradient-to-r ${TONE_GRAD[tone]} bg-clip-text text-transparent`}>{title}</CardTitle></CardHeader>
-      <CardContent className="p-0">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Fecha</TableHead>
-              <TableHead>Usuario</TableHead>
-              {showCategory && <TableHead>Categoría</TableHead>}
-              <TableHead>{showDescription ? "Descripción" : "Motivo"}</TableHead>
-              <TableHead className="text-right">Valor</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell className="text-xs whitespace-nowrap">{format(new Date(r.created_at), "dd/MM HH:mm")}</TableCell>
-                <TableCell className="text-sm">{r.user_name ?? "—"}</TableCell>
-                {showCategory && <TableCell className="capitalize">{r.category}</TableCell>}
-                <TableCell className="text-sm">{r.description ?? r.category}</TableCell>
-                <TableCell className="text-right font-medium">{formatMoney(r.amount)}</TableCell>
-              </TableRow>
-            ))}
-            {rows.length === 0 && <TableRow><TableCell colSpan={showCategory ? 5 : 4} className="text-center py-4 text-muted-foreground text-sm">Sin movimientos.</TableCell></TableRow>}
-            <TableRow className="bg-muted/40 font-semibold">
-              <TableCell colSpan={showCategory ? 4 : 3}>{totalLabel}</TableCell>
-              <TableCell className="text-right">{formatMoney(total)}</TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </CardContent>
-    </Card>
+    <div className="space-y-3">
+      <div className="flex items-center gap-2 text-sm font-bold uppercase tracking-wider text-muted-foreground">
+        <span className="text-base">{emoji}</span>{title}
+      </div>
+      {children}
+    </div>
   );
 }
+
+function BalanceLine({ label, value, tone }: { label: string; value: string; tone?: "blue" | "emerald" | "rose" }) {
+  const c = tone === "blue" ? "text-blue-700" : tone === "emerald" ? "text-emerald-700" : tone === "rose" ? "text-rose-600" : "text-foreground";
+  return (
+    <div className="flex items-center justify-between">
+      <span className="text-muted-foreground">{label}</span>
+      <span className={`font-display font-bold ${c}`}>{value}</span>
+    </div>
+  );
+}
+
+function EmptyRow({ label }: { label: string }) {
+  return <div className="rounded-2xl bg-muted/30 px-4 py-4 text-center text-sm text-muted-foreground">{label}</div>;
+}
+
+const TONE_HEADING: Record<string, string> = {
+  emerald: "text-emerald-700",
+  rose: "text-rose-600",
+  amber: "text-amber-600",
+};
+
+function AjusteBlock({ title, rows, tone, sign }: { title: string; rows: ExpenseRow[]; tone: keyof typeof TONE_HEADING; sign: "+" | "-" }) {
+  const total = rows.reduce((a, r) => a + Number(r.amount ?? 0), 0);
+  return (
+    <div className="space-y-2">
+      <div className={`text-sm font-extrabold uppercase tracking-wider ${TONE_HEADING[tone]}`}>{title}</div>
+      <Card className="rounded-2xl">
+        <CardContent className="p-4">
+          <div className="grid grid-cols-[1fr_auto] gap-x-4 gap-y-2">
+            <div className="text-sm font-semibold text-muted-foreground">Descripción</div>
+            <div className="text-sm font-semibold text-muted-foreground text-right">Monto</div>
+            {rows.map((r) => (
+              <div key={r.id} className="contents">
+                <div className="col-span-2 border-t" />
+                <div className="py-2 text-sm">{r.description || r.category}</div>
+                <div className={`py-2 text-right font-display font-bold whitespace-nowrap ${sign === "+" ? "text-emerald-700" : "text-rose-600"}`}>
+                  {sign}{formatMoney(Math.abs(Number(r.amount ?? 0)))}
+                </div>
+              </div>
+            ))}
+            {rows.length === 0 && (
+              <div className="col-span-2 py-4 text-center text-sm text-muted-foreground">Sin movimientos.</div>
+            )}
+            {rows.length > 0 && (
+              <>
+                <div className="col-span-2 border-t border-dashed" />
+                <div className="py-2 text-sm font-bold">Total</div>
+                <div className={`py-2 text-right font-display font-extrabold ${sign === "+" ? "text-emerald-700" : "text-rose-600"}`}>
+                  {sign}{formatMoney(total)}
+                </div>
+              </>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
+
