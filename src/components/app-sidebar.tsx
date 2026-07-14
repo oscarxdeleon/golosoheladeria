@@ -60,6 +60,7 @@ const main = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, key: "dashboard" },
   { to: "/pos", label: "Punto de venta", icon: ShoppingCart, key: "pos" },
   { to: "/caja", label: "Caja", icon: Banknote, key: "caja" },
+  { to: "/depositos", label: "Depósitos", icon: ArrowDownToLine, key: "depositos" },
   { to: "/ventas", label: "Ventas", icon: Receipt, key: "ventas" },
   { to: "/historial", label: "Historial de pedidos", icon: ReceiptIcon, key: "__admin_only__" },
   { to: "/estadisticas", label: "Estadísticas", icon: LayoutDashboard, key: "__admin_only__" },
