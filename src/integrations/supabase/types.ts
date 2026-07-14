@@ -240,6 +240,7 @@ export type Database = {
           address: string | null
           city: string | null
           created_at: string
+          delivery_fee: number | null
           email: string | null
           id: string
           inherits_main_catalog: boolean
@@ -260,6 +261,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          delivery_fee?: number | null
           email?: string | null
           id?: string
           inherits_main_catalog?: boolean
@@ -280,6 +282,7 @@ export type Database = {
           address?: string | null
           city?: string | null
           created_at?: string
+          delivery_fee?: number | null
           email?: string | null
           id?: string
           inherits_main_catalog?: boolean
