@@ -716,6 +716,30 @@ function MesasPage() {
         </DialogContent>
       </Dialog>
 
+      {/* Confirmar adición de productos a mesa ocupada */}
+      <Dialog open={!!addToOccupied} onOpenChange={(o) => { if (!o) setAddToOccupied(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mesa {addToOccupied?.number} ya tiene un pedido activo</DialogTitle>
+            <DialogDescription>
+              ¿Desea agregar nuevos productos a este pedido? Los productos anteriores se conservan y solo se imprimirá una comanda con los productos recién agregados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddToOccupied(null)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const m = addToOccupied;
+                setAddToOccupied(null);
+                if (m) navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
+              }}
+            >
+              Sí, agregar productos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Move table */}
       <Dialog open={!!moveFrom} onOpenChange={(o) => { if (!o) { setMoveFrom(null); setMoveTarget(null); } }}>
         <DialogContent className="max-w-2xl">
