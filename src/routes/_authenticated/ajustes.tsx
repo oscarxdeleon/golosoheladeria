@@ -1011,7 +1011,7 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
                 </div>
 
               </div>
-              <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
+              <DialogFooter className="shrink-0 border-t bg-background px-6 py-3"><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
 
             </DialogContent>
           </Dialog>
