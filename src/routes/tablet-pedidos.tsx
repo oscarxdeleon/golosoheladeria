@@ -9,7 +9,7 @@ import { PosScreen, type OrderType } from "@/components/pos-screen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Utensils, ShoppingBag, Bike, Users, ArrowLeft, LogOut } from "lucide-react";
+import { Utensils, ShoppingBag, ArrowLeft, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
@@ -37,7 +37,7 @@ export const Route = createFileRoute("/tablet-pedidos")({
   component: TabletPage,
 });
 
-type TabKey = "mesas" | "llevar" | "domicilio";
+type TabKey = "mesas" | "llevar";
 
 interface Mesa {
   id: string;
@@ -99,7 +99,7 @@ function TabletShell() {
         </div>
       </header>
 
-      {/* Tabs principales (Mesas / Para llevar / A domicilio) */}
+      {/* Tabs principales — Mesero solo puede Mesas y Para llevar */}
       {!selected && (
         <nav className="sticky top-16 z-10 flex gap-1 border-b bg-background/95 px-3 py-2 backdrop-blur">
           <TabButton active={tab === "mesas"} onClick={() => setTab("mesas")} icon={<Utensils className="h-4 w-4" />}>
@@ -107,9 +107,6 @@ function TabletShell() {
           </TabButton>
           <TabButton active={tab === "llevar"} onClick={() => setTab("llevar")} icon={<ShoppingBag className="h-4 w-4" />}>
             Para llevar
-          </TabButton>
-          <TabButton active={tab === "domicilio"} onClick={() => setTab("domicilio")} icon={<Bike className="h-4 w-4" />}>
-            A domicilio
           </TabButton>
         </nav>
       )}
@@ -131,15 +128,16 @@ function TabletShell() {
             />
           ) : (
             <QuickStart
-              orderType={tab}
+              orderType="llevar"
               onStart={() =>
                 setSelected({
-                  orderType: tab,
-                  title: tab === "llevar" ? "Para llevar" : "A domicilio",
+                  orderType: "llevar",
+                  title: "Para llevar",
                 })
               }
             />
           )
+
         ) : (
           <PosScreen
             orderType={selected.orderType}
@@ -307,11 +305,12 @@ function QuickStart({
   orderType,
   onStart,
 }: {
-  orderType: "llevar" | "domicilio";
+  orderType: "llevar";
   onStart: () => void;
 }) {
-  const label = orderType === "llevar" ? "Para llevar" : "A domicilio";
-  const Icon = orderType === "llevar" ? ShoppingBag : Bike;
+  const label = "Para llevar";
+  const Icon = ShoppingBag;
+
   return (
     <Card className="mx-auto max-w-md">
       <CardContent className="flex flex-col items-center gap-4 p-8 text-center">
