@@ -52,16 +52,6 @@ function GastosPage() {
   });
   const categoryOptions = useMemo(() => categories.map((c) => c.name), [categories]);
 
-  const categoryError = !category ? "Debe seleccionar el tipo de gasto." : "";
-
-  const [description, setDescription] = useState("");
-  const [amount, setAmount] = useState("");
-  const [payment, setPayment] = useState("efectivo");
-  const [file, setFile] = useState<File | null>(null);
-  const [saving, setSaving] = useState(false);
-  const [showErrors, setShowErrors] = useState(false);
-
-  const categoryError = !category ? "Debe seleccionar el tipo de gasto." : "";
   const descriptionError = !description.trim()
     ? "Debe escribir la descripción del gasto."
     : description.trim().length < MIN_DESCRIPTION_LEN
