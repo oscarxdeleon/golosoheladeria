@@ -159,6 +159,7 @@ export function AppSidebar() {
   const fMenu = filter(menu);
   const fEgresos = filter(egresos);
   const fAdmin = filter(admin);
+  const fReportes = filter(reportes);
   
 
   return (
