@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { sendCashReport } from "@/lib/cash-report.functions";
-import { kickCashDrawer } from "@/lib/print-client";
+import { openCashDrawer } from "@/lib/cash-drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -229,9 +229,13 @@ function CajaPage() {
       qc.setQueryData(["branch-cash-session-open", activeBranchId], session);
       if (session.user_id === user.id) {
         toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
+        // Opcional (por bandera): abrir cajón al iniciar apertura de caja
+        // para contar el efectivo disponible. Por defecto está desactivado.
+        void openCashDrawer({ event: "cash_open", operationId: session.id });
       } else {
         toast.info(`La caja ya estaba abierta por ${session.user_name}. Ingresa directamente a la operación.`);
       }
+
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
@@ -329,17 +333,20 @@ function CajaPage() {
               {canCloseSession && (
                 <Button
                   onClick={() => {
-                    // Abre el cajón monedero automáticamente al iniciar el cierre.
-                    // Si el Print Server local no responde, no bloquea el arqueo.
-                    kickCashDrawer().catch((e) =>
-                      console.warn("[caja] no se pudo abrir el cajón:", e),
-                    );
+                    // Apertura automática del cajón al iniciar el cierre.
+                    // Respeta las banderas de administración por impresora
+                    // y no bloquea el arqueo si el Print Server no responde.
+                    void openCashDrawer({
+                      event: "cash_close",
+                      operationId: current.id,
+                    });
                     setCloseDialog(true);
                   }}
                   variant="destructive"
                 >
                   <LockKeyhole className="h-4 w-4" />Cerrar caja
                 </Button>
+
               )}
             </div>
           </CardHeader>

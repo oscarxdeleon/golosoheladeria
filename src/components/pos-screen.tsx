@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users, XCircle, Pencil } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, sendToLocalPrinter, kickCashDrawer, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
@@ -474,11 +474,10 @@ export async function printComanda(
 }
 
 
-export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Promise<void> {
+export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { saleId?: string | null }): Promise<void> {
   const cajaCfg = await fetchCajaPrinter();
   const printerIp = cajaCfg.ip;
   const printerPort = cajaCfg.port;
-  const openDrawer = !!cajaCfg.open_drawer_on_print;
 
   const b = o.branding ?? DEFAULT_BRANDING;
   const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
@@ -506,6 +505,13 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
   const displayItems = isCourtesy
     ? (o.items ?? []).map((it) => ({ ...it, unit_price: 0 }))
     : o.items;
+
+  // El cajón sólo debe abrirse cuando el pago involucre efectivo real
+  // (Efectivo o pago mixto que incluya efectivo). Los pagos exclusivamente
+  // digitales (Nequi, Bancolombia, tarjeta, transferencia) y las cortesías
+  // no deben disparar la gaveta.
+  const { isCashPaymentMethod } = await import("@/lib/cash-drawer");
+  const shouldOpenDrawer = !isCourtesy && isCashPaymentMethod(o.payment_method);
 
   const payload: PrintPayload = {
     type: "ticket",
@@ -538,12 +544,13 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
     ticket_template: "goloso_personalizado",
     printer_ip: printerIp,
     printer_port: printerPort,
-    open_drawer: isCourtesy ? false : openDrawer,
+    // La bandera `open_drawer` del ticket ya no se activa desde aquí:
+    // la apertura se dispara aparte por `openCashDrawer` que respeta
+    // las banderas configuradas por el administrador y deduplica pulsos.
+    open_drawer: false,
   };
 
   // Impresión SIEMPRE silenciosa vía servidor de impresión local (ESC/POS).
-  // No abrimos NUNCA el diálogo del navegador — el cajero no debe ser
-  // interrumpido con ventanas emergentes ni selección de impresora.
   const ok = await sendToLocalPrinter(payload);
   if (!ok) {
     console.warn(
@@ -551,10 +558,15 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0]): Pro
         'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
     );
   }
-  if (openDrawer && printerIp) {
-    void kickCashDrawer({ printer_ip: printerIp, printer_port: printerPort });
+  if (shouldOpenDrawer) {
+    const { openCashDrawer } = await import("@/lib/cash-drawer");
+    void openCashDrawer({
+      event: "cash_sale",
+      operationId: o.saleId ?? String(o.ticket ?? ""),
+    });
   }
 }
+
 
 
 function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {

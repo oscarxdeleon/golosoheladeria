@@ -688,7 +688,23 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   );
 }
 
-interface Printer { id: string; name: string; ip: string | null; port: number; platform: string; area: string; active: boolean; open_drawer_on_print?: boolean; }
+interface Printer {
+  id: string;
+  name: string;
+  ip: string | null;
+  port: number;
+  platform: string;
+  area: string;
+  active: boolean;
+  open_drawer_on_print?: boolean;
+  drawer_master_enabled?: boolean;
+  drawer_on_cash_sale?: boolean;
+  drawer_on_cash_deposit?: boolean;
+  drawer_on_cash_expense?: boolean;
+  drawer_on_cash_close?: boolean;
+  drawer_on_cash_open?: boolean;
+}
+
 function ImpresorasTab({ disabled }: { disabled: boolean }) {
   const [subtab, setSubtab] = useState<"impresoras" | "comandas">("impresoras");
   return (
@@ -729,6 +745,7 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     const name = edit?.name?.trim();
     if (!name) return toast.error("El nombre es obligatorio");
     const ip = edit?.ip?.trim() || null;
+    const drawerOnCashSale = edit?.drawer_on_cash_sale ?? edit?.open_drawer_on_print ?? false;
     const payload = {
       name,
       ip,
@@ -736,8 +753,17 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
       platform: edit?.platform ?? "Windows",
       area: edit?.area ?? "caja",
       active: edit?.active ?? true,
-      open_drawer_on_print: edit?.open_drawer_on_print ?? false,
+      // Compatibilidad con la bandera antigua — se mantiene sincronizada
+      // con la nueva "abrir cajón en ventas en efectivo".
+      open_drawer_on_print: drawerOnCashSale,
+      drawer_master_enabled: edit?.drawer_master_enabled ?? true,
+      drawer_on_cash_sale: drawerOnCashSale,
+      drawer_on_cash_deposit: edit?.drawer_on_cash_deposit ?? true,
+      drawer_on_cash_expense: edit?.drawer_on_cash_expense ?? true,
+      drawer_on_cash_close: edit?.drawer_on_cash_close ?? true,
+      drawer_on_cash_open: edit?.drawer_on_cash_open ?? false,
     };
+
 
     try {
       const res = edit?.id
@@ -874,19 +900,43 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
                   <Switch checked={edit?.active ?? true} onCheckedChange={(v) => setEdit({ ...edit, active: v })} />
                   <Label>Activa</Label>
                 </div>
-                <div className="rounded-md border p-3 flex items-start justify-between gap-3">
-                  <div>
-                    <Label className="font-medium">Activar Apertura de Cajón Monedero</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Al imprimir un ticket de venta en esta impresora, se enviará el pulso ESC/POS para abrir la gaveta.
-                      Las comandas de cocina <b>nunca</b> abrirán el cajón.
-                    </p>
+                <div className="rounded-md border p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <Label className="font-medium">Apertura de cajón monedero</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Si habilitas esta opción, el cajón monedero se abrirá automáticamente
+                        únicamente en pagos, entradas, salidas, apertura y cierre de caja que
+                        involucren dinero en efectivo. Las comandas de cocina <b>nunca</b>
+                        abren el cajón, y los pagos digitales (Nequi, Bancolombia, tarjeta,
+                        transferencia) o cortesías tampoco.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={edit?.drawer_master_enabled ?? true}
+                      onCheckedChange={(v) => setEdit({ ...edit, drawer_master_enabled: v })}
+                    />
                   </div>
-                  <Switch
-                    checked={edit?.open_drawer_on_print ?? false}
-                    onCheckedChange={(v) => setEdit({ ...edit, open_drawer_on_print: v })}
-                  />
+
+                  <div className={`space-y-2 pl-1 ${(edit?.drawer_master_enabled ?? true) ? "" : "opacity-50 pointer-events-none"}`}>
+                    {[
+                      { key: "drawer_on_cash_sale" as const, label: "Abrir cajón en ventas pagadas en efectivo", def: true },
+                      { key: "drawer_on_cash_deposit" as const, label: "Abrir cajón en entradas o depósitos en efectivo", def: true },
+                      { key: "drawer_on_cash_expense" as const, label: "Abrir cajón en salidas, gastos o retiros en efectivo", def: true },
+                      { key: "drawer_on_cash_close" as const, label: "Abrir cajón al iniciar cierre de caja", def: true },
+                      { key: "drawer_on_cash_open" as const, label: "Abrir cajón al iniciar apertura de caja (para contar el efectivo disponible)", def: false },
+                    ].map((row) => (
+                      <div key={row.key} className="flex items-start justify-between gap-3 rounded border bg-muted/30 p-2">
+                        <Label className="text-sm font-normal leading-snug">{row.label}</Label>
+                        <Switch
+                          checked={(edit?.[row.key] ?? row.def) as boolean}
+                          onCheckedChange={(v) => setEdit({ ...edit, [row.key]: v })}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
               </div>
               <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
 
