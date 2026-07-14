@@ -1636,7 +1636,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           sale = ins.data;
         } else {
           sale = data;
-          await supabase.from("sale_items").delete().eq("sale_id", pendingSaleId);
+          // NO borramos items aquí — el reemplazo se hace de forma atómica
+          // más abajo vía RPC `replace_sale_items` para evitar que la venta
+          // quede momentáneamente vacía (lo que antes disparaba una
+          // cancelación automática y liberaba la mesa).
         }
       } else {
         const { data, error } = await supabase
@@ -1686,10 +1689,31 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         notes: l.notes?.trim() ? l.notes.trim() : null,
       }));
 
-      const { error: e2 } = await supabase.from("sale_items").insert(items);
-      if (e2) {
-        console.error("save items error", e2);
-        throw new Error(e2.message || "No se pudieron guardar los productos");
+      // Reemplazo atómico para pedidos existentes (evita ventana con 0 items
+      // que antes disparaba la auto-cancelación y liberación de mesa).
+      if (!isFirstSave) {
+        const { error: eRpc } = await supabase.rpc("replace_sale_items", {
+          _sale_id: sale.id,
+          _items: items.map((i) => ({
+            product_id: i.product_id,
+            product_name: i.product_name,
+            qty: i.qty,
+            unit_price: i.unit_price,
+            subtotal: i.subtotal,
+            modifiers: i.modifiers,
+            notes: i.notes,
+          })) as unknown as never,
+        });
+        if (eRpc) {
+          console.error("replace_sale_items error", eRpc);
+          throw new Error(eRpc.message || "No se pudieron actualizar los productos del pedido");
+        }
+      } else {
+        const { error: e2 } = await supabase.from("sale_items").insert(items);
+        if (e2) {
+          console.error("save items error", e2);
+          throw new Error(e2.message || "No se pudieron guardar los productos");
+        }
       }
 
       // Upsert opcional cliente CRM (Para llevar con WhatsApp) — no bloquea
