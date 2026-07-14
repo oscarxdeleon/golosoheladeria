@@ -1017,20 +1017,24 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
         <CashierIpPrinterCard />
         <Table>
 
-          <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>IP:Puerto</TableHead><TableHead>Plataforma</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
+          <TableHeader><TableRow><TableHead>Nombre</TableHead><TableHead>Sede</TableHead><TableHead>IP:Puerto</TableHead><TableHead>URL local</TableHead><TableHead>Área</TableHead><TableHead></TableHead></TableRow></TableHeader>
           <TableBody>
-            {data.map((p) => (
-              <TableRow key={p.id}>
-                <TableCell>{p.name}</TableCell>
-                <TableCell className="font-mono text-sm">{p.ip}:{p.port}</TableCell>
-                <TableCell>{p.platform}</TableCell>
-                <TableCell className="capitalize">{p.area}</TableCell>
-                <TableCell className="text-right">
-                  {!disabled && <Button size="icon" variant="ghost" className="text-destructive" onClick={() => remove(p.id)}><Trash2 className="h-4 w-4" /></Button>}
-                </TableCell>
-              </TableRow>
-            ))}
-            {data.length === 0 && <TableRow><TableCell colSpan={5} className="text-center py-8 text-muted-foreground">Sin impresoras</TableCell></TableRow>}
+            {data.map((p) => {
+              const branchName = allBranches.find((b) => b.id === p.branch_id)?.name ?? "—";
+              return (
+                <TableRow key={p.id} className="cursor-pointer" onClick={() => !disabled && setEdit(p)}>
+                  <TableCell className="font-medium">{p.name}</TableCell>
+                  <TableCell>{branchName}</TableCell>
+                  <TableCell className="font-mono text-xs">{p.ip ?? "—"}:{p.port}</TableCell>
+                  <TableCell className="font-mono text-[11px] max-w-[220px] truncate" title={p.local_url ?? ""}>{p.local_url ?? "—"}</TableCell>
+                  <TableCell className="capitalize">{p.area}</TableCell>
+                  <TableCell className="text-right">
+                    {!disabled && <Button size="icon" variant="ghost" className="text-destructive" onClick={(e) => { e.stopPropagation(); remove(p.id); }}><Trash2 className="h-4 w-4" /></Button>}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+            {data.length === 0 && <TableRow><TableCell colSpan={6} className="text-center py-8 text-muted-foreground">Sin impresoras</TableCell></TableRow>}
           </TableBody>
         </Table>
       </CardContent>
