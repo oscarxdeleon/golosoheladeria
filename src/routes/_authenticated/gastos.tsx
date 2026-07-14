@@ -119,7 +119,7 @@ function GastosPage() {
       if (error) throw error;
 
       toast.success("Gasto registrado");
-      setDescription(""); setAmount(""); setFile(null);
+      setDescription(""); setAmount(""); setFile(null); setCategory(""); setShowErrors(false);
       qc.invalidateQueries({ queryKey: ["gastos-history"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al guardar");
