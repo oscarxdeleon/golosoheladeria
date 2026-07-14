@@ -3296,9 +3296,25 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 }
 
 // -----------------------------------------------------------------------------
-// Panel superior "Para llevar": captura opcional de Nombre + WhatsApp.
-// Se muestra automáticamente al entrar a Para llevar, arriba del catálogo.
+// Panel superior "Para llevar": captura opcional de Nombre + WhatsApp con
+// autocompletado en tiempo real contra la base de Clientes/CRM. Al escribir
+// en cualquiera de los dos campos se sugieren coincidencias por nombre o
+// teléfono (parcial, sin distinguir mayúsculas, normalizando +57/espacios/
+// guiones). Al seleccionar un cliente, ambos campos se completan y el
+// pedido queda asociado. La captura sigue siendo opcional.
 // -----------------------------------------------------------------------------
+type CustomerHit = {
+  id: string;
+  name: string | null;
+  phone: string | null;
+  last_order_at: string | null;
+  total_orders: number | null;
+};
+
+function normalizeDigits(input: string): string {
+  return input.replace(/[^0-9]/g, "").replace(/^57(?=\d{10}$)/, "");
+}
+
 function LlevarContactPanel({
   customer,
   setCustomer,
@@ -3314,20 +3330,134 @@ function LlevarContactPanel({
 }) {
   const [saving, setSaving] = useState(false);
   const [savedSnapshot, setSavedSnapshot] = useState<{ name: string; phone: string } | null>(null);
-  const [foundName, setFoundName] = useState<string | null>(null);
+  const [selected, setSelected] = useState<CustomerHit | null>(null);
 
-  const digits = phone.replace(/[^0-9]/g, "").replace(/^57/, "");
+  // Autocomplete state
+  const [focusField, setFocusField] = useState<null | "name" | "phone">(null);
+  const [results, setResults] = useState<CustomerHit[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [highlight, setHighlight] = useState(0);
+  const abortRef = useRef<AbortController | null>(null);
+  const nameWrapRef = useRef<HTMLDivElement>(null);
+  const phoneWrapRef = useRef<HTMLDivElement>(null);
+
+  const digits = normalizeDigits(phone);
   const phoneWarn = phone.trim().length > 0 && digits.length !== 10;
   const hasAnyData = customer.trim().length > 0 || phone.trim().length > 0;
 
   useEffect(() => {
     if (!hasAnyData && savedSnapshot) setSavedSnapshot(null);
-  }, [hasAnyData, savedSnapshot]);
+    if (!hasAnyData && selected) setSelected(null);
+  }, [hasAnyData, savedSnapshot, selected]);
+
+  // Si el usuario edita nombre o teléfono y ya no coincide con el cliente
+  // seleccionado, quitamos la asociación.
+  useEffect(() => {
+    if (!selected) return;
+    const sameName = (selected.name ?? "").trim().toLowerCase() === customer.trim().toLowerCase();
+    const samePhone = normalizeDigits(selected.phone ?? "") === digits;
+    if (!sameName && !samePhone) setSelected(null);
+  }, [customer, digits, selected]);
 
   const isSaved =
     !!savedSnapshot &&
     savedSnapshot.name === customer.trim() &&
     savedSnapshot.phone === digits;
+
+  // Búsqueda con debounce (250 ms), cancelando la anterior.
+  useEffect(() => {
+    if (!focusField) return;
+    const raw = focusField === "name" ? customer : phone;
+    const q = raw.trim();
+    if (q.length < 2) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    const t = setTimeout(async () => {
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      setSearching(true);
+      try {
+        const qDigits = normalizeDigits(q);
+        const isPhoneSearch = focusField === "phone" || (qDigits.length >= 3 && qDigits.length >= q.replace(/[\s+\-()]/g, "").length - 1);
+        let query = supabase
+          .from("customers")
+          .select("id,name,phone,last_order_at,total_orders")
+          .order("last_order_at", { ascending: false, nullsFirst: false })
+          .limit(8)
+          .abortSignal(ctrl.signal);
+        if (isPhoneSearch && qDigits.length >= 3) {
+          query = query.ilike("phone", `%${qDigits}%`);
+        } else {
+          const safe = q.replace(/[%_,]/g, "");
+          query = query.ilike("name", `%${safe}%`);
+        }
+        const { data, error } = await query;
+        if (ctrl.signal.aborted) return;
+        if (error) {
+          console.warn("[llevar] búsqueda clientes", error);
+          setResults([]);
+        } else {
+          setResults((data ?? []) as CustomerHit[]);
+        }
+        setSearched(true);
+        setHighlight(0);
+      } catch (e) {
+        if ((e as { name?: string })?.name !== "AbortError") {
+          console.warn("[llevar] búsqueda clientes", e);
+        }
+      } finally {
+        if (!ctrl.signal.aborted) setSearching(false);
+      }
+    }, 250);
+    return () => clearTimeout(t);
+  }, [focusField, customer, phone]);
+
+  // Cerrar dropdown al hacer clic fuera.
+  useEffect(() => {
+    if (!focusField) return;
+    const onDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (nameWrapRef.current?.contains(target) || phoneWrapRef.current?.contains(target)) return;
+      setFocusField(null);
+    };
+    document.addEventListener("mousedown", onDown);
+    document.addEventListener("touchstart", onDown, { passive: true });
+    return () => {
+      document.removeEventListener("mousedown", onDown);
+      document.removeEventListener("touchstart", onDown);
+    };
+  }, [focusField]);
+
+  function pickCustomer(c: CustomerHit) {
+    setCustomer((c.name ?? "").trim());
+    setPhone(c.phone ?? "");
+    setSelected(c);
+    setSavedSnapshot({ name: (c.name ?? "").trim(), phone: normalizeDigits(c.phone ?? "") });
+    setFocusField(null);
+    setResults([]);
+    toast.success(`Cliente asociado: ${c.name ?? c.phone ?? ""}`);
+  }
+
+  function clearSelection() {
+    setSelected(null);
+    setCustomer("");
+    setPhone("");
+    setSavedSnapshot(null);
+    setResults([]);
+    setSearched(false);
+  }
+
+  function handleKey(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (!focusField || results.length === 0) return;
+    if (e.key === "ArrowDown") { e.preventDefault(); setHighlight((h) => (h + 1) % results.length); }
+    else if (e.key === "ArrowUp") { e.preventDefault(); setHighlight((h) => (h - 1 + results.length) % results.length); }
+    else if (e.key === "Enter") { e.preventDefault(); const hit = results[highlight]; if (hit) pickCustomer(hit); }
+    else if (e.key === "Escape") { e.preventDefault(); setFocusField(null); }
+  }
 
   async function handleGuardar() {
     if (!hasAnyData) return;
@@ -3338,19 +3468,22 @@ function LlevarContactPanel({
     setSaving(true);
     try {
       if (digits.length === 10) {
+        // Validación final anti-duplicados: buscamos por teléfono normalizado.
         const { data: existing } = await supabase
           .from("customers")
-          .select("id, name")
+          .select("id, name, phone, last_order_at, total_orders")
           .eq("phone", digits)
           .maybeSingle();
         if (existing) {
-          setFoundName(existing.name ?? null);
           if (!customer.trim() && existing.name) setCustomer(existing.name);
+          setSelected(existing as CustomerHit);
         } else {
-          await supabase.from("customers").insert({
-            phone: digits,
-            name: customer.trim() || "Cliente",
-          });
+          const ins = await supabase
+            .from("customers")
+            .insert({ phone: digits, name: customer.trim() || "Cliente", frequent_channel: "llevar" })
+            .select("id, name, phone, last_order_at, total_orders")
+            .maybeSingle();
+          if (ins.data) setSelected(ins.data as CustomerHit);
         }
       }
       setSavedSnapshot({ name: customer.trim(), phone: digits });
@@ -3363,28 +3496,75 @@ function LlevarContactPanel({
     }
   }
 
+  const activeResults = focusField ? results : [];
+  const showEmptyState = focusField && searched && !searching && activeResults.length === 0
+    && ((focusField === "name" ? customer : phone).trim().length >= 2);
+
   return (
     <div className="rounded-2xl border border-sky-200 dark:border-sky-900/50 bg-gradient-to-br from-sky-50/80 via-white to-emerald-50/70 dark:from-sky-950/25 dark:via-slate-900 dark:to-emerald-950/15 px-3 py-2.5 sm:px-4 sm:py-3 shadow-sm">
       <div className="mb-2 flex items-center gap-2 text-xs sm:text-sm font-bold uppercase tracking-wide text-sky-800 dark:text-sky-300">
         <Users className="h-4 w-4" /> Datos del cliente
         <span className="rounded-full bg-white/70 dark:bg-white/10 px-2 py-0.5 text-[10px] font-bold text-emerald-700 dark:text-emerald-300">Opcional</span>
+        {selected && (
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-emerald-100 dark:bg-emerald-900/40 px-2 py-0.5 text-[10px] font-bold text-emerald-800 dark:text-emerald-200">
+            <Check className="h-3 w-3" /> Cliente asociado
+            <button
+              type="button"
+              onClick={clearSelection}
+              className="ml-1 rounded-full p-0.5 hover:bg-emerald-200/70 dark:hover:bg-emerald-800/60"
+              aria-label="Quitar cliente"
+            >
+              <X className="h-3 w-3" />
+            </button>
+          </span>
+        )}
       </div>
       <div className="grid gap-2 sm:grid-cols-[1fr_1fr_auto] sm:items-start">
-        <Input
-          placeholder="Nombre"
-          value={customer}
-          maxLength={100}
-          onChange={(e) => setCustomer(e.target.value)}
-          className="h-10 bg-white/90 dark:bg-slate-900/60"
-        />
-        <Input
-          placeholder="WhatsApp (ej. 3001234567)"
-          value={phone}
-          inputMode="tel"
-          maxLength={15}
-          onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ -]/g, ""))}
-          className="h-10 bg-white/90 dark:bg-slate-900/60"
-        />
+        <div ref={nameWrapRef} className="relative">
+          <Input
+            placeholder="Nombre"
+            value={customer}
+            maxLength={100}
+            onFocus={() => setFocusField("name")}
+            onChange={(e) => setCustomer(e.target.value)}
+            onKeyDown={handleKey}
+            className="h-10 bg-white/90 dark:bg-slate-900/60"
+            autoComplete="off"
+          />
+          {focusField === "name" && (activeResults.length > 0 || showEmptyState || searching) && (
+            <ResultsDropdown
+              results={activeResults}
+              highlight={highlight}
+              onPick={pickCustomer}
+              onHover={setHighlight}
+              searching={searching}
+              empty={!!showEmptyState}
+            />
+          )}
+        </div>
+        <div ref={phoneWrapRef} className="relative">
+          <Input
+            placeholder="WhatsApp (ej. 3001234567)"
+            value={phone}
+            inputMode="tel"
+            maxLength={18}
+            onFocus={() => setFocusField("phone")}
+            onChange={(e) => setPhone(e.target.value.replace(/[^0-9+ \-()]/g, ""))}
+            onKeyDown={handleKey}
+            className="h-10 bg-white/90 dark:bg-slate-900/60"
+            autoComplete="off"
+          />
+          {focusField === "phone" && (activeResults.length > 0 || showEmptyState || searching) && (
+            <ResultsDropdown
+              results={activeResults}
+              highlight={highlight}
+              onPick={pickCustomer}
+              onHover={setHighlight}
+              searching={searching}
+              empty={!!showEmptyState}
+            />
+          )}
+        </div>
         <Button
           size="sm"
           onClick={handleGuardar}
@@ -3394,16 +3574,66 @@ function LlevarContactPanel({
           {saving ? "Guardando…" : isSaved ? "Actualizar" : "Guardar"}
         </Button>
       </div>
-      {phoneWarn && (
+      {phoneWarn && !selected && (
         <p className="mt-1.5 text-[11px] text-amber-700 dark:text-amber-300">
           Sugerencia: un celular colombiano tiene 10 dígitos.
         </p>
       )}
-      {foundName && isSaved && (
+      {selected && (
         <p className="mt-1.5 text-[11px] text-emerald-700 dark:text-emerald-300">
-          Cliente encontrado en el CRM: <strong>{foundName}</strong>
+          {(selected.total_orders ?? 0) > 0
+            ? `Cliente recurrente: ${selected.total_orders} pedido(s)${selected.last_order_at ? ` · último ${new Date(selected.last_order_at).toLocaleDateString("es-CO")}` : ""}.`
+            : "Cliente registrado en el CRM."}
         </p>
       )}
     </div>
   );
+}
+
+function ResultsDropdown({
+  results, highlight, onPick, onHover, searching, empty,
+}: {
+  results: CustomerHit[];
+  highlight: number;
+  onPick: (c: CustomerHit) => void;
+  onHover: (i: number) => void;
+  searching: boolean;
+  empty: boolean;
+}) {
+  return (
+    <div className="absolute left-0 right-0 top-full z-30 mt-1 max-h-72 overflow-auto rounded-xl border border-sky-200 dark:border-sky-900/60 bg-white dark:bg-slate-900 shadow-lg">
+      {searching && results.length === 0 && (
+        <div className="px-3 py-2 text-xs text-muted-foreground">Buscando…</div>
+      )}
+      {!searching && empty && (
+        <div className="px-3 py-2 text-xs text-muted-foreground">
+          No se encontraron clientes. Puedes registrar uno nuevo.
+        </div>
+      )}
+      {results.map((c, i) => (
+        <button
+          type="button"
+          key={c.id}
+          onMouseEnter={() => onHover(i)}
+          onMouseDown={(e) => { e.preventDefault(); onPick(c); }}
+          className={`flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition ${
+            i === highlight ? "bg-sky-50 dark:bg-sky-950/40" : "hover:bg-sky-50/60 dark:hover:bg-sky-950/25"
+          }`}
+        >
+          <div className="min-w-0 flex-1">
+            <div className="truncate font-semibold text-slate-900 dark:text-slate-100">
+              {c.name?.trim() || "Sin nombre"}
+            </div>
+            <div className="truncate text-xs text-muted-foreground">
+              {c.phone || "Sin WhatsApp"}
+              {(c.total_orders ?? 0) > 0 && (
+                <> · {c.total_orders} pedido(s){c.last_order_at ? ` · último ${new Date(c.last_order_at).toLocaleDateString("es-CO")}` : ""}</>
+              )}
+            </div>
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}
 }
