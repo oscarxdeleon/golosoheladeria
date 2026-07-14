@@ -61,6 +61,7 @@ import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.
 import { Route as AuthenticatedReportesVentasRouteImport } from './routes/_authenticated/reportes.ventas'
 import { Route as AuthenticatedReportesResumenRouteImport } from './routes/_authenticated/reportes.resumen'
 import { Route as AuthenticatedReportesCajasRouteImport } from './routes/_authenticated/reportes.cajas'
+import { Route as AuthenticatedReportesAuditoriaRouteImport } from './routes/_authenticated/reportes.auditoria'
 import { Route as AuthenticatedMenuRecetasRouteImport } from './routes/_authenticated/menu/recetas'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
 import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_authenticated/menu/modificadores'
@@ -339,6 +340,12 @@ const AuthenticatedReportesCajasRoute =
     path: '/cajas',
     getParentRoute: () => AuthenticatedReportesRoute,
   } as any)
+const AuthenticatedReportesAuditoriaRoute =
+  AuthenticatedReportesAuditoriaRouteImport.update({
+    id: '/auditoria',
+    path: '/auditoria',
+    getParentRoute: () => AuthenticatedReportesRoute,
+  } as any)
 const AuthenticatedMenuRecetasRoute =
   AuthenticatedMenuRecetasRouteImport.update({
     id: '/menu/recetas',
@@ -429,6 +436,7 @@ export interface FileRoutesByFullPath {
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
+  '/reportes/auditoria': typeof AuthenticatedReportesAuditoriaRoute
   '/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
@@ -487,6 +495,7 @@ export interface FileRoutesByTo {
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
+  '/reportes/auditoria': typeof AuthenticatedReportesAuditoriaRoute
   '/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
@@ -549,6 +558,7 @@ export interface FileRoutesById {
   '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/_authenticated/menu/recetas': typeof AuthenticatedMenuRecetasRoute
+  '/_authenticated/reportes/auditoria': typeof AuthenticatedReportesAuditoriaRoute
   '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
   '/_authenticated/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/_authenticated/reportes/ventas': typeof AuthenticatedReportesVentasRoute
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/menu/modificadores'
     | '/menu/productos'
     | '/menu/recetas'
+    | '/reportes/auditoria'
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
@@ -669,6 +680,7 @@ export interface FileRouteTypes {
     | '/menu/modificadores'
     | '/menu/productos'
     | '/menu/recetas'
+    | '/reportes/auditoria'
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
@@ -730,6 +742,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu/modificadores'
     | '/_authenticated/menu/productos'
     | '/_authenticated/menu/recetas'
+    | '/_authenticated/reportes/auditoria'
     | '/_authenticated/reportes/cajas'
     | '/_authenticated/reportes/resumen'
     | '/_authenticated/reportes/ventas'
@@ -1123,6 +1136,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedReportesCajasRouteImport
       parentRoute: typeof AuthenticatedReportesRoute
     }
+    '/_authenticated/reportes/auditoria': {
+      id: '/_authenticated/reportes/auditoria'
+      path: '/auditoria'
+      fullPath: '/reportes/auditoria'
+      preLoaderRoute: typeof AuthenticatedReportesAuditoriaRouteImport
+      parentRoute: typeof AuthenticatedReportesRoute
+    }
     '/_authenticated/menu/recetas': {
       id: '/_authenticated/menu/recetas'
       path: '/menu/recetas'
@@ -1190,6 +1210,7 @@ const AuthenticatedReportesCajasRouteWithChildren =
   )
 
 interface AuthenticatedReportesRouteChildren {
+  AuthenticatedReportesAuditoriaRoute: typeof AuthenticatedReportesAuditoriaRoute
   AuthenticatedReportesCajasRoute: typeof AuthenticatedReportesCajasRouteWithChildren
   AuthenticatedReportesResumenRoute: typeof AuthenticatedReportesResumenRoute
   AuthenticatedReportesVentasRoute: typeof AuthenticatedReportesVentasRoute
@@ -1197,6 +1218,7 @@ interface AuthenticatedReportesRouteChildren {
 }
 
 const AuthenticatedReportesRouteChildren: AuthenticatedReportesRouteChildren = {
+  AuthenticatedReportesAuditoriaRoute: AuthenticatedReportesAuditoriaRoute,
   AuthenticatedReportesCajasRoute: AuthenticatedReportesCajasRouteWithChildren,
   AuthenticatedReportesResumenRoute: AuthenticatedReportesResumenRoute,
   AuthenticatedReportesVentasRoute: AuthenticatedReportesVentasRoute,
