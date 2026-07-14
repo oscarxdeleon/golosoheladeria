@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard, Users, Bike, Utensils, ChefHat, ShieldCheck, Eye } from "lucide-react";
 import { toast } from "sonner";
-import { formatCurrency } from "@/lib/format";
+import { formatMoney as formatCurrency } from "@/lib/format";
 
 const SESSION_KEY = "goloso.supervisor.session";
 
