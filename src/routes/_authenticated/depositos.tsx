@@ -134,9 +134,15 @@ function DepositosPage() {
         meta: { amount: value, method, description: descTrim, cash_session_id: cashSession.id },
       } as never);
       toast.success("Depósito registrado correctamente.");
+      // Sólo abrir el cajón cuando el depósito sea en efectivo real.
+      if (method === "efectivo") {
+        const { openCashDrawer } = await import("@/lib/cash-drawer");
+        void openCashDrawer({ event: "cash_deposit", operationId: cashSession.id });
+      }
       setAmount(""); setDescription(""); setMethod("");
       setConfirmOpen(false);
       qc.invalidateQueries({ queryKey: ["deposits-shift"] });
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo registrar el depósito.");
     } finally {
