@@ -79,7 +79,7 @@ export function ResetDataTab() {
   const backupM = useMutation({
     mutationFn: async () => backupFn({ data: scope }),
     onSuccess: (d) => {
-      const blob = new Blob([JSON.stringify(d, null, 2)], { type: "application/json" });
+      const blob = new Blob([d.json], { type: "application/json" });
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       const stamp = new Date().toISOString().replace(/[:.]/g, "-");
