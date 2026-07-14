@@ -1019,7 +1019,27 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
       </CardHeader>
       <CardContent className="p-0">
         <div className="border-b p-4 space-y-3 bg-muted/30">
+          <div className="rounded border border-amber-300 bg-amber-50 text-amber-900 text-xs p-3 space-y-2">
+            <div className="font-semibold">Configuración exclusiva de esta sede y de este equipo</div>
+            <div>Los cambios <b>NO</b> afectan a ninguna otra sede ni a otro terminal.</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 pt-1">
+              <div><span className="opacity-70">Sede activa:</span> <b>{activeBranch?.name ?? "—"}</b></div>
+              <div className="truncate"><span className="opacity-70">ID sede:</span> <code className="text-[10px]">{activeBranchId ?? "—"}</code></div>
+              <div className="truncate"><span className="opacity-70">ID equipo:</span> <code className="text-[10px]">{terminalId}</code></div>
+              <div className="flex items-center gap-1">
+                <span className="opacity-70">Nombre equipo:</span>
+                <Input
+                  className="h-6 text-xs"
+                  value={terminalName}
+                  onChange={(e) => setTerminalNameState(e.target.value)}
+                  placeholder="Ej: Caja 1"
+                  onBlur={saveTerminalName}
+                />
+              </div>
+            </div>
+          </div>
           <div className="font-medium text-sm">Impresión silenciosa (sin diálogo del navegador)</div>
+
           <p className="text-xs text-muted-foreground">
             Para evitar que aparezca la ventana de impresión de Chrome, ejecuta el servidor local <code className="bg-background px-1 rounded">print-server</code> en la PC con la térmica e ingresa su URL aquí. Si lo dejas vacío, el sistema usa el diálogo del navegador como respaldo.
           </p>
