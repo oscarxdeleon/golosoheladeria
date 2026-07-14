@@ -73,7 +73,13 @@ function GastosPage() {
     if (!activeBranchId) return toast.error("Selecciona una sede activa");
     const value = overrideAmount ?? Number(amount);
     if (!Number.isFinite(value) || value <= 0) return toast.error("Monto inválido");
-    if (!description.trim()) return toast.error("Agrega una descripción");
+
+    // Validación obligatoria de tipo y descripción
+    if (categoryError || descriptionError) {
+      setShowErrors(true);
+      toast.error(categoryError || descriptionError);
+      return;
+    }
 
     setSaving(true);
     try {
