@@ -185,39 +185,61 @@ function GastosPage() {
       <Card className="rounded-3xl shadow-sm">
         <CardContent className="p-4 md:p-5 space-y-4">
           {/* Tipo de gasto */}
-          <div className="space-y-1.5">
+          <div className="space-y-2">
             <div className="flex items-center justify-between gap-3">
-              <Label className="text-base font-medium shrink-0">
+              <Label className="text-base font-medium">
                 Tipo de gasto <span className="text-rose-600">*</span>
               </Label>
-              <div className="flex items-center gap-2 max-w-[65%] flex-1 justify-end">
-                <Select value={category} onValueChange={(v) => { setCategory(v); setShowErrors(true); }}>
-                  <SelectTrigger
-                    aria-invalid={showErrors && !!categoryError}
-                    className={`h-12 rounded-xl flex-1 ${showErrors && categoryError ? "border-rose-500 ring-1 ring-rose-500 focus:ring-rose-500" : ""}`}
-                  >
-                    <SelectValue placeholder={categoryOptions.length ? "Selecciona una categoría…" : "Sin categorías activas"} />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {categoryOptions.length === 0 && (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">No hay categorías activas. Pídele al administrador que cree una.</div>
-                    )}
-                    {categoryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                {isAdmin && (
-                  <Link to="/tipos-gasto">
-                    <Button type="button" variant="outline" size="icon" className="h-12 w-12 rounded-xl shrink-0" title="Administrar tipos de gasto">
-                      <Settings2 className="h-4 w-4" />
-                    </Button>
-                  </Link>
-                )}
-              </div>
+              {isAdmin && (
+                <Link to="/tipos-gasto">
+                  <Button type="button" variant="outline" size="sm" className="h-9 gap-1.5 rounded-xl" title="Administrar tipos de gasto">
+                    <Settings2 className="h-3.5 w-3.5" />
+                    <span className="text-xs">Administrar</span>
+                  </Button>
+                </Link>
+              )}
             </div>
+
+            {categoryOptions.length === 0 ? (
+              <div className={`rounded-xl border-2 border-dashed px-4 py-6 text-center text-sm text-muted-foreground ${showErrors && categoryError ? "border-rose-400 bg-rose-50" : "border-gray-200"}`}>
+                No hay categorías activas. Pídele al administrador que cree una.
+              </div>
+            ) : (
+              <RadioGroup
+                value={category}
+                onValueChange={(v) => { setCategory(v); setShowErrors(true); }}
+                className={`grid grid-cols-2 sm:grid-cols-3 gap-2 rounded-2xl p-2 border ${showErrors && categoryError ? "border-rose-400 bg-rose-50/40" : "border-gray-100 bg-gray-50/60"}`}
+                aria-invalid={showErrors && !!categoryError}
+              >
+                {categoryOptions.map((c) => {
+                  const selected = category === c;
+                  return (
+                    <label
+                      key={c}
+                      htmlFor={`cat-${c}`}
+                      className={`group cursor-pointer select-none flex items-center gap-2.5 rounded-xl px-3 py-3 border transition active:scale-[0.98] ${
+                        selected
+                          ? "bg-[#0F5A68] text-white border-[#0F5A68] shadow-md"
+                          : "bg-white text-foreground border-gray-200 hover:border-[#0F5A68]/50 hover:bg-[#EAF4F6]"
+                      }`}
+                    >
+                      <RadioGroupItem
+                        id={`cat-${c}`}
+                        value={c}
+                        className={selected ? "border-white text-white" : "border-gray-400"}
+                      />
+                      <span className="text-sm font-medium leading-tight">{c}</span>
+                    </label>
+                  );
+                })}
+              </RadioGroup>
+            )}
+
             {showErrors && categoryError && (
-              <p className="text-xs font-medium text-rose-600 text-right">{categoryError}</p>
+              <p className="text-xs font-medium text-rose-600">Debe seleccionar una categoría para registrar el gasto.</p>
             )}
           </div>
+
 
 
           {/* Descripción */}
