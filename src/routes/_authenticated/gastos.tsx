@@ -187,22 +187,35 @@ function GastosPage() {
               <Label className="text-base font-medium shrink-0">
                 Tipo de gasto <span className="text-rose-600">*</span>
               </Label>
-              <Select value={category} onValueChange={(v) => { setCategory(v); setShowErrors(true); }}>
-                <SelectTrigger
-                  aria-invalid={showErrors && !!categoryError}
-                  className={`h-12 rounded-xl max-w-[60%] ${showErrors && categoryError ? "border-rose-500 ring-1 ring-rose-500 focus:ring-rose-500" : ""}`}
-                >
-                  <SelectValue placeholder="Selecciona una categoría…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2 max-w-[65%] flex-1 justify-end">
+                <Select value={category} onValueChange={(v) => { setCategory(v); setShowErrors(true); }}>
+                  <SelectTrigger
+                    aria-invalid={showErrors && !!categoryError}
+                    className={`h-12 rounded-xl flex-1 ${showErrors && categoryError ? "border-rose-500 ring-1 ring-rose-500 focus:ring-rose-500" : ""}`}
+                  >
+                    <SelectValue placeholder={categoryOptions.length ? "Selecciona una categoría…" : "Sin categorías activas"} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryOptions.length === 0 && (
+                      <div className="px-3 py-2 text-xs text-muted-foreground">No hay categorías activas. Pídele al administrador que cree una.</div>
+                    )}
+                    {categoryOptions.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {isAdmin && (
+                  <Link to="/tipos-gasto">
+                    <Button type="button" variant="outline" size="icon" className="h-12 w-12 rounded-xl shrink-0" title="Administrar tipos de gasto">
+                      <Settings2 className="h-4 w-4" />
+                    </Button>
+                  </Link>
+                )}
+              </div>
             </div>
             {showErrors && categoryError && (
               <p className="text-xs font-medium text-rose-600 text-right">{categoryError}</p>
             )}
           </div>
+
 
           {/* Descripción */}
           <div className="space-y-1.5">
