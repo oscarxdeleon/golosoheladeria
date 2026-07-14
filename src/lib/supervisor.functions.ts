@@ -10,16 +10,11 @@ function hashPin(pin: string, salt: string): string {
   return createHash("sha256").update(`${salt}::${pin}`).digest("hex");
 }
 
-async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (!data) throw new Error("Solo administradores");
+async function assertAdmin(supabase: { rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }> }, userId: string) {
+  const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
+  if (error || !data) throw new Error("Solo administradores");
 }
+
 
 function reqMeta() {
   const req = getRequest();
