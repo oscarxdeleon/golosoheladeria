@@ -743,6 +743,10 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     queryKey: ["printers"],
     queryFn: async () => (await supabase.from("printers").select("*").order("name")).data ?? [],
   });
+  const { data: allBranches = [] } = useQuery<{ id: string; name: string; is_main: boolean | null }[]>({
+    queryKey: ["branches-for-printers"],
+    queryFn: async () => (await supabase.from("branches").select("id,name,is_main").order("is_main", { ascending: false }).order("name")).data ?? [],
+  });
   async function save() {
     const name = edit?.name?.trim();
     if (!name) return toast.error("El nombre es obligatorio");
@@ -755,6 +759,8 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
       platform: edit?.platform ?? "Windows",
       area: edit?.area ?? "caja",
       active: edit?.active ?? true,
+      branch_id: edit?.branch_id ?? null,
+      local_url: edit?.local_url?.trim() || null,
       // Compatibilidad con la bandera antigua — se mantiene sincronizada
       // con la nueva "abrir cajón en ventas en efectivo".
       open_drawer_on_print: drawerOnCashSale,
