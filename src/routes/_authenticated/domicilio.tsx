@@ -89,6 +89,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
   const [mode, setMode] = useState<"search" | "new">("search");
   const [form, setForm] = useState<Selected>({ name: "", phone: "", address: "", neighborhood: "" });
   const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["customers-picker"],
@@ -123,26 +124,58 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
 
   async function saveNewAndContinue() {
     const name = form.name.trim();
-    if (!name) return toast.error("Nombre requerido");
-    if (!form.address.trim()) return toast.error("Dirección requerida");
-    if (!form.phone.trim()) return toast.error("Teléfono requerido");
+    const phone = form.phone.trim();
+    const address = form.address.trim();
+    const neighborhood = form.neighborhood.trim();
+    if (!name) return toast.error("Debe ingresar el nombre del cliente.");
+    if (!phone) return toast.error("Debe ingresar el número de teléfono.");
+    if (!address) return toast.error("Debe ingresar la dirección.");
+    if (!neighborhood) return toast.error("Debe seleccionar o escribir el barrio.");
+
     setSaving(true);
-    const { error } = await supabase.from("customers").insert({
-      name,
-      phone: form.phone.trim() || null,
-      address: form.address.trim() || null,
-      neighborhood: form.neighborhood.trim() || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Cliente guardado");
-    onSelect({
-      name,
-      phone: form.phone.trim(),
-      address: form.address.trim(),
-      neighborhood: form.neighborhood.trim(),
-    });
+    try {
+      // Duplicidad por teléfono: si existe, reutilizar y actualizar dirección si cambió.
+      const { data: existing, error: findErr } = await supabase
+        .from("customers")
+        .select("id,name,phone,address,neighborhood")
+        .eq("phone", phone)
+        .maybeSingle();
+      if (findErr) throw findErr;
+
+      if (existing) {
+        const needsUpdate =
+          (existing.address ?? "") !== address ||
+          (existing.neighborhood ?? "") !== neighborhood ||
+          (existing.name ?? "") !== name;
+        if (needsUpdate) {
+          const { error: updErr } = await supabase
+            .from("customers")
+            .update({ name, address, neighborhood })
+            .eq("id", existing.id);
+          if (updErr) throw updErr;
+        }
+        toast.info("Cliente ya existía. Se reutilizó su registro.");
+      } else {
+        const { error: insErr } = await supabase.from("customers").insert({
+          name,
+          phone,
+          address,
+          neighborhood,
+        });
+        if (insErr) throw insErr;
+        toast.success("Cliente guardado");
+      }
+
+      await qc.invalidateQueries({ queryKey: ["customers-picker"] });
+      onSelect({ name, phone, address, neighborhood });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo guardar el cliente";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
   }
+
 
   const navigate = useNavigate();
   return (
