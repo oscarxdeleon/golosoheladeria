@@ -408,15 +408,19 @@ async function fetchPrinterByArea(areas: string[]): Promise<PrinterCfg> {
 
   if (!ip && areas.includes("caja")) {
     try {
-      const { data: settingsPrinter } = await supabase
-        .from("settings")
-        .select("cashier_printer_ip,cashier_printer_port")
-        .limit(1)
-        .maybeSingle();
-      ip = (settingsPrinter as { cashier_printer_ip?: string | null } | null)?.cashier_printer_ip?.trim() || undefined;
-      port = (settingsPrinter as { cashier_printer_port?: number | null } | null)?.cashier_printer_port ?? port;
+      const { getActivePrintBranchId } = await import("@/lib/print-client");
+      const branchId = getActivePrintBranchId();
+      if (branchId) {
+        const { data: bps } = await supabase
+          .from("branch_print_settings")
+          .select("cashier_printer_ip,cashier_printer_port")
+          .eq("branch_id", branchId)
+          .maybeSingle();
+        ip = (bps as { cashier_printer_ip?: string | null } | null)?.cashier_printer_ip?.trim() || undefined;
+        port = (bps as { cashier_printer_port?: number | null } | null)?.cashier_printer_port ?? port;
+      }
     } catch (e) {
-      console.warn("[print] no se pudo consultar impresora de caja en ajustes", e);
+      console.warn("[print] no se pudo consultar impresora de caja de la sede activa", e);
     }
   }
 
