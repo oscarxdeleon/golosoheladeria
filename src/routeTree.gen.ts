@@ -68,7 +68,7 @@ import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_au
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
 import { Route as AuthenticatedMenuCategoriasRouteImport } from './routes/_authenticated/menu/categorias'
 import { Route as SSlugTTableNumberRouteImport } from './routes/s.$slug.t.$tableNumber'
-import { Route as AuthenticatedReportesCajasIdRouteImport } from './routes/_authenticated/reportes.cajas.$id'
+import { Route as AuthenticatedReportesCajasIdRouteImport } from './routes/_authenticated/reportes.cajas_.$id'
 
 const TabletPedidosRoute = TabletPedidosRouteImport.update({
   id: '/tablet-pedidos',
@@ -383,9 +383,9 @@ const SSlugTTableNumberRoute = SSlugTTableNumberRouteImport.update({
 } as any)
 const AuthenticatedReportesCajasIdRoute =
   AuthenticatedReportesCajasIdRouteImport.update({
-    id: '/$id',
-    path: '/$id',
-    getParentRoute: () => AuthenticatedReportesCajasRoute,
+    id: '/cajas_/$id',
+    path: '/cajas/$id',
+    getParentRoute: () => AuthenticatedReportesRoute,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -437,7 +437,7 @@ export interface FileRoutesByFullPath {
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/reportes/auditoria': typeof AuthenticatedReportesAuditoriaRoute
-  '/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
+  '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -496,7 +496,7 @@ export interface FileRoutesByTo {
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/reportes/auditoria': typeof AuthenticatedReportesAuditoriaRoute
-  '/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
+  '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -559,7 +559,7 @@ export interface FileRoutesById {
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/_authenticated/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/_authenticated/reportes/auditoria': typeof AuthenticatedReportesAuditoriaRoute
-  '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
+  '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/_authenticated/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/_authenticated/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -568,7 +568,7 @@ export interface FileRoutesById {
   '/s/$slug/menu': typeof SSlugMenuRoute
   '/_authenticated/reportes/': typeof AuthenticatedReportesIndexRoute
   '/s/$slug/': typeof SSlugIndexRoute
-  '/_authenticated/reportes/cajas/$id': typeof AuthenticatedReportesCajasIdRoute
+  '/_authenticated/reportes/cajas_/$id': typeof AuthenticatedReportesCajasIdRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRouteTypes {
@@ -752,7 +752,7 @@ export interface FileRouteTypes {
     | '/s/$slug/menu'
     | '/_authenticated/reportes/'
     | '/s/$slug/'
-    | '/_authenticated/reportes/cajas/$id'
+    | '/_authenticated/reportes/cajas_/$id'
     | '/s/$slug/t/$tableNumber'
   fileRoutesById: FileRoutesById
 }
@@ -1185,44 +1185,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SSlugTTableNumberRouteImport
       parentRoute: typeof SSlugRoute
     }
-    '/_authenticated/reportes/cajas/$id': {
-      id: '/_authenticated/reportes/cajas/$id'
-      path: '/$id'
+    '/_authenticated/reportes/cajas_/$id': {
+      id: '/_authenticated/reportes/cajas_/$id'
+      path: '/cajas/$id'
       fullPath: '/reportes/cajas/$id'
       preLoaderRoute: typeof AuthenticatedReportesCajasIdRouteImport
-      parentRoute: typeof AuthenticatedReportesCajasRoute
+      parentRoute: typeof AuthenticatedReportesRoute
     }
   }
 }
 
-interface AuthenticatedReportesCajasRouteChildren {
-  AuthenticatedReportesCajasIdRoute: typeof AuthenticatedReportesCajasIdRoute
-}
-
-const AuthenticatedReportesCajasRouteChildren: AuthenticatedReportesCajasRouteChildren =
-  {
-    AuthenticatedReportesCajasIdRoute: AuthenticatedReportesCajasIdRoute,
-  }
-
-const AuthenticatedReportesCajasRouteWithChildren =
-  AuthenticatedReportesCajasRoute._addFileChildren(
-    AuthenticatedReportesCajasRouteChildren,
-  )
-
 interface AuthenticatedReportesRouteChildren {
   AuthenticatedReportesAuditoriaRoute: typeof AuthenticatedReportesAuditoriaRoute
-  AuthenticatedReportesCajasRoute: typeof AuthenticatedReportesCajasRouteWithChildren
+  AuthenticatedReportesCajasRoute: typeof AuthenticatedReportesCajasRoute
   AuthenticatedReportesResumenRoute: typeof AuthenticatedReportesResumenRoute
   AuthenticatedReportesVentasRoute: typeof AuthenticatedReportesVentasRoute
   AuthenticatedReportesIndexRoute: typeof AuthenticatedReportesIndexRoute
+  AuthenticatedReportesCajasIdRoute: typeof AuthenticatedReportesCajasIdRoute
 }
 
 const AuthenticatedReportesRouteChildren: AuthenticatedReportesRouteChildren = {
   AuthenticatedReportesAuditoriaRoute: AuthenticatedReportesAuditoriaRoute,
-  AuthenticatedReportesCajasRoute: AuthenticatedReportesCajasRouteWithChildren,
+  AuthenticatedReportesCajasRoute: AuthenticatedReportesCajasRoute,
   AuthenticatedReportesResumenRoute: AuthenticatedReportesResumenRoute,
   AuthenticatedReportesVentasRoute: AuthenticatedReportesVentasRoute,
   AuthenticatedReportesIndexRoute: AuthenticatedReportesIndexRoute,
+  AuthenticatedReportesCajasIdRoute: AuthenticatedReportesCajasIdRoute,
 }
 
 const AuthenticatedReportesRouteWithChildren =

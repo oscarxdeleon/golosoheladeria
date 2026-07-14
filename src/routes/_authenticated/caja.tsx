@@ -74,6 +74,8 @@ function CajaPage() {
   const navigate = useNavigate();
   const [openingAmount, setOpeningAmount] = useState("");
   const [openingNotes, setOpeningNotes] = useState("");
+  const [openerName, setOpenerName] = useState("");
+  const [openerNameTouched, setOpenerNameTouched] = useState(false);
   const [cashCounted, setCashCounted] = useState("");
   const [nequiCounted, setNequiCounted] = useState("");
   const [bancoCounted, setBancoCounted] = useState("");
@@ -206,6 +208,11 @@ function CajaPage() {
   async function openSession() {
     if (!user) return toast.error("Esperando sesión de usuario…");
     if (!activeBranchId) return toast.error("Selecciona una sede antes de abrir caja");
+    const trimmedOpener = openerName.trim();
+    if (trimmedOpener.length < 2) {
+      setOpenerNameTouched(true);
+      return toast.error("Debe ingresar el nombre de la persona que realiza la apertura de caja.");
+    }
     const amount = parseAmount(openingAmount);
     if (!Number.isFinite(amount) || amount < 0) return toast.error("Monto inicial inválido");
     setSaving(true);
@@ -213,7 +220,7 @@ function CajaPage() {
       const { data, error } = await supabase.rpc("open_cash_session", {
         _opening_amount: amount,
         _opening_notes: openingNotes || undefined,
-        _user_name: profile?.full_name ?? user.email ?? "Cajero",
+        _user_name: trimmedOpener,
         _branch_id: activeBranchId,
       });
       if (error) throw error;
@@ -228,6 +235,8 @@ function CajaPage() {
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
+      setOpenerName("");
+      setOpenerNameTouched(false);
       await qc.invalidateQueries({ queryKey: ["cash-sessions-history"] });
       await qc.invalidateQueries({ queryKey: ["branch-cash-session-open", activeBranchId] });
     } catch (e) {
@@ -439,7 +448,25 @@ function CajaPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium">Monto inicial en efectivo</label>
+              <label className="text-sm font-medium">
+                Nombre de la persona que realiza la apertura <span className="text-rose-600">*</span>
+              </label>
+              <Input
+                type="text"
+                placeholder="Ej.: Laura Martínez"
+                value={openerName}
+                onChange={(e) => setOpenerName(e.target.value)}
+                onBlur={() => setOpenerNameTouched(true)}
+                aria-invalid={openerNameTouched && openerName.trim().length < 2}
+                className={openerNameTouched && openerName.trim().length < 2 ? "border-rose-500 ring-1 ring-rose-500" : ""}
+                autoFocus
+              />
+              {openerNameTouched && openerName.trim().length < 2 && (
+                <p className="mt-1 text-xs text-rose-600">Debe ingresar el nombre de la persona que realiza la apertura de caja.</p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium">Valor de apertura <span className="text-rose-600">*</span></label>
               <Input type="text" inputMode="numeric" placeholder="0" value={openingAmount} onChange={handleAmount(setOpeningAmount)} />
             </div>
             <div>
@@ -449,7 +476,12 @@ function CajaPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-            <Button onClick={openSession} disabled={saving || authLoading || !user}>{saving ? "Abriendo…" : "Abrir caja"}</Button>
+            <Button
+              onClick={openSession}
+              disabled={saving || authLoading || !user || openerName.trim().length < 2 || !openingAmount}
+            >
+              {saving ? "Abriendo…" : "Abrir Caja"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
