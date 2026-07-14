@@ -13,6 +13,7 @@ import { Utensils, ShoppingBag, Bike, Users, ArrowLeft, LogOut } from "lucide-re
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
+import { BranchAutoDetectBadge } from "@/components/branch-auto-detect-badge";
 
 import logoUrl from "@/assets/logo-goloso.png";
 import tableFree from "@/assets/mesa_libre.png";
@@ -76,8 +77,9 @@ function TabletShell() {
           <div className="font-display text-lg">Goloso · Meseros</div>
           <div className="text-xs text-muted-foreground">Tablet de pedidos</div>
         </div>
-        <div className="ml-3">
+        <div className="ml-3 flex items-center gap-2">
           <BranchSelector />
+          <BranchAutoDetectBadge />
         </div>
         <div className="ml-auto flex items-center gap-3 text-sm">
           <div className="text-right leading-tight">

@@ -696,6 +696,8 @@ interface Printer {
   platform: string;
   area: string;
   active: boolean;
+  branch_id?: string | null;
+  local_url?: string | null;
   open_drawer_on_print?: boolean;
   drawer_master_enabled?: boolean;
   drawer_on_cash_sale?: boolean;
