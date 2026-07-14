@@ -15,7 +15,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Minus, Plus, Trash2, Search, ShoppingCart, Utensils, ShoppingBag, Bike, Monitor, Save, Banknote, Check, Printer, Star, ChefHat, StickyNote, Users, XCircle, Pencil } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, sendToLocalPrinter, kickCashDrawer, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
+import { printSilent, sendToLocalPrinter, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
