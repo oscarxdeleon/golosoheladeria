@@ -13,6 +13,7 @@ export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
   { key: "dashboard", label: "Dashboard", group: "Operación" },
   { key: "pos", label: "Punto de venta", group: "Operación" },
   { key: "caja", label: "Caja (cierre)", group: "Operación" },
+  { key: "depositos", label: "Depósitos", group: "Operación" },
   { key: "ventas", label: "Historial de ventas", group: "Operación" },
   { key: "mesas", label: "Mesas", group: "Pedidos" },
   { key: "llevar", label: "Para llevar", group: "Pedidos" },
