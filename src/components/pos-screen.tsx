@@ -533,12 +533,11 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
     ? (o.items ?? []).map((it) => ({ ...it, unit_price: 0 }))
     : o.items;
 
-  // El cajón sólo debe abrirse cuando el pago involucre efectivo real
-  // (Efectivo o pago mixto que incluya efectivo). Los pagos exclusivamente
-  // digitales (Nequi, Bancolombia, tarjeta, transferencia) y las cortesías
-  // no deben disparar la gaveta.
-  const { isCashPaymentMethod } = await import("@/lib/cash-drawer");
-  const shouldOpenDrawer = !isCourtesy && isCashPaymentMethod(o.payment_method);
+  // NOTA: la apertura del cajón NO se dispara desde la impresión del ticket.
+  // Se dispara al confirmarse el pago (ver flujo de cobro) para que también
+  // funcione cuando el cajero decide no imprimir el ticket. Aquí sólo se
+  // arma el payload de impresión.
+
 
   const payload: PrintPayload = {
     type: "ticket",
