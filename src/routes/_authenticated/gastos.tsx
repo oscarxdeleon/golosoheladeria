@@ -124,17 +124,18 @@ function GastosPage() {
 
     setSaving(true);
     try {
-      let cashSessionId: string | null = null;
-      if (payment === "efectivo") {
+      // Siempre asociar al turno activo (independientemente del método de pago)
+      let cashSessionId: string | null = activeSessionId;
+      if (!cashSessionId) {
         const { data: cs } = await supabase.rpc("sync_active_cash_session", {
           _branch_id: activeBranchId,
           _user_name: profile?.full_name ?? user.email ?? "Usuario",
         });
         cashSessionId = (cs as { id?: string } | null)?.id ?? null;
-        if (!cashSessionId) {
-          setSaving(false);
-          return toast.error("Necesitas tener la caja abierta para pagar en efectivo");
-        }
+      }
+      if (!cashSessionId) {
+        setSaving(false);
+        return toast.error("Necesitas tener la caja abierta para registrar gastos");
       }
 
       let receiptUrl: string | null = null;
@@ -162,6 +163,7 @@ function GastosPage() {
       toast.success("Gasto registrado");
       setDescription(""); setAmount(""); setFile(null); setCategory(""); setShowErrors(false);
       qc.invalidateQueries({ queryKey: ["gastos-history"] });
+      qc.invalidateQueries({ queryKey: ["active-cash-session"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al guardar");
     } finally {
