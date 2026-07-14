@@ -20,25 +20,42 @@ export const Route = createFileRoute("/_authenticated/gastos")({
 });
 
 const CATEGORIES = [
+  "Insumos",
+  "Papelería",
+  "Transporte",
   "Servicios Públicos",
-  "Nómina / Salarios",
-  "Arriendo",
   "Mantenimiento",
+  "Aseo",
+  "Nómina",
+  "Compra Menor",
+  "Reembolso",
+  "Caja Menor",
+  "Arriendo",
   "Publicidad",
-  "Gastos Generales / Otros",
+  "Otros",
 ];
+
+const MIN_DESCRIPTION_LEN = 5;
 
 function GastosPage() {
   const qc = useQueryClient();
   const { user, profile } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
 
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState("efectivo");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
+
+  const categoryError = !category ? "Debe seleccionar el tipo de gasto." : "";
+  const descriptionError = !description.trim()
+    ? "Debe escribir la descripción del gasto."
+    : description.trim().length < MIN_DESCRIPTION_LEN
+      ? `La descripción debe tener al menos ${MIN_DESCRIPTION_LEN} caracteres.`
+      : "";
 
   const { data: history = [] } = useQuery({
     queryKey: ["gastos-history", activeBranchId],
@@ -56,7 +73,13 @@ function GastosPage() {
     if (!activeBranchId) return toast.error("Selecciona una sede activa");
     const value = overrideAmount ?? Number(amount);
     if (!Number.isFinite(value) || value <= 0) return toast.error("Monto inválido");
-    if (!description.trim()) return toast.error("Agrega una descripción");
+
+    // Validación obligatoria de tipo y descripción
+    if (categoryError || descriptionError) {
+      setShowErrors(true);
+      toast.error(categoryError || descriptionError);
+      return;
+    }
 
     setSaving(true);
     try {
@@ -96,7 +119,7 @@ function GastosPage() {
       if (error) throw error;
 
       toast.success("Gasto registrado");
-      setDescription(""); setAmount(""); setFile(null);
+      setDescription(""); setAmount(""); setFile(null); setCategory(""); setShowErrors(false);
       qc.invalidateQueries({ queryKey: ["gastos-history"] });
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al guardar");
@@ -157,25 +180,49 @@ function GastosPage() {
       <Card className="rounded-3xl shadow-sm">
         <CardContent className="p-4 md:p-5 space-y-4">
           {/* Tipo de gasto */}
-          <div className="flex items-center justify-between gap-3">
-            <Label className="text-base font-medium shrink-0">Tipo de gasto</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger className="h-12 rounded-xl max-w-[60%]"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between gap-3">
+              <Label className="text-base font-medium shrink-0">
+                Tipo de gasto <span className="text-rose-600">*</span>
+              </Label>
+              <Select value={category} onValueChange={(v) => { setCategory(v); setShowErrors(true); }}>
+                <SelectTrigger
+                  aria-invalid={showErrors && !!categoryError}
+                  className={`h-12 rounded-xl max-w-[60%] ${showErrors && categoryError ? "border-rose-500 ring-1 ring-rose-500 focus:ring-rose-500" : ""}`}
+                >
+                  <SelectValue placeholder="Selecciona una categoría…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            {showErrors && categoryError && (
+              <p className="text-xs font-medium text-rose-600 text-right">{categoryError}</p>
+            )}
           </div>
 
           {/* Descripción */}
-          <div className="relative">
-            <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descripción (opcional)"
-              className="h-12 rounded-xl pl-10 text-base"
-            />
+          <div className="space-y-1.5">
+            <Label className="text-base font-medium">
+              Descripción del gasto <span className="text-rose-600">*</span>
+            </Label>
+            <div className="relative">
+              <Receipt className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                onBlur={() => setShowErrors(true)}
+                placeholder="Ej.: Compra de vasos desechables, pago de transporte…"
+                aria-invalid={showErrors && !!descriptionError}
+                className={`h-12 rounded-xl pl-10 text-base ${showErrors && descriptionError ? "border-rose-500 ring-1 ring-rose-500 focus-visible:ring-rose-500" : ""}`}
+              />
+            </div>
+            {showErrors && descriptionError ? (
+              <p className="text-xs font-medium text-rose-600">{descriptionError}</p>
+            ) : (
+              <p className="text-xs text-muted-foreground">Mínimo {MIN_DESCRIPTION_LEN} caracteres. Este motivo aparecerá en reportes, cierre de caja y auditoría.</p>
+            )}
           </div>
 
           {/* Display valor */}
