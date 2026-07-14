@@ -49,7 +49,10 @@ function GastosPage() {
       return data ?? [];
     },
   });
-  const categoryOptions = useMemo(() => categories.map((c) => c.name), [categories]);
+  const categoryOptions = useMemo(
+    () => categories.map((c) => c.name).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
+    [categories],
+  );
 
   const categoryError = !category ? "Debe seleccionar el tipo de gasto." : "";
   const descriptionError = !description.trim()
