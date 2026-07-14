@@ -448,7 +448,25 @@ function CajaPage() {
           </DialogHeader>
           <div className="space-y-3">
             <div>
-              <label className="text-sm font-medium">Monto inicial en efectivo</label>
+              <label className="text-sm font-medium">
+                Nombre de la persona que realiza la apertura <span className="text-rose-600">*</span>
+              </label>
+              <Input
+                type="text"
+                placeholder="Ej.: Laura Martínez"
+                value={openerName}
+                onChange={(e) => setOpenerName(e.target.value)}
+                onBlur={() => setOpenerNameTouched(true)}
+                aria-invalid={openerNameTouched && openerName.trim().length < 2}
+                className={openerNameTouched && openerName.trim().length < 2 ? "border-rose-500 ring-1 ring-rose-500" : ""}
+                autoFocus
+              />
+              {openerNameTouched && openerName.trim().length < 2 && (
+                <p className="mt-1 text-xs text-rose-600">Debe ingresar el nombre de la persona que realiza la apertura de caja.</p>
+              )}
+            </div>
+            <div>
+              <label className="text-sm font-medium">Valor de apertura <span className="text-rose-600">*</span></label>
               <Input type="text" inputMode="numeric" placeholder="0" value={openingAmount} onChange={handleAmount(setOpeningAmount)} />
             </div>
             <div>
@@ -458,7 +476,12 @@ function CajaPage() {
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpenDialog(false)}>Cancelar</Button>
-            <Button onClick={openSession} disabled={saving || authLoading || !user}>{saving ? "Abriendo…" : "Abrir caja"}</Button>
+            <Button
+              onClick={openSession}
+              disabled={saving || authLoading || !user || openerName.trim().length < 2 || !openingAmount}
+            >
+              {saving ? "Abriendo…" : "Abrir Caja"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
