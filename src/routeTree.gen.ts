@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as TabletPedidosRouteImport } from './routes/tablet-pedidos'
+import { Route as SupervisorRouteImport } from './routes/supervisor'
 import { Route as MisPuntosRouteImport } from './routes/mis-puntos'
 import { Route as MenuRouteImport } from './routes/menu'
 import { Route as KioskRouteImport } from './routes/kiosk'
@@ -75,6 +76,11 @@ import { Route as AuthenticatedReportesCajasIdRouteImport } from './routes/_auth
 const TabletPedidosRoute = TabletPedidosRouteImport.update({
   id: '/tablet-pedidos',
   path: '/tablet-pedidos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SupervisorRoute = SupervisorRouteImport.update({
+  id: '/supervisor',
+  path: '/supervisor',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MisPuntosRoute = MisPuntosRouteImport.update({
@@ -407,6 +413,7 @@ export interface FileRoutesByFullPath {
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
   '/mis-puntos': typeof MisPuntosRoute
+  '/supervisor': typeof SupervisorRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/asistencia': typeof AuthenticatedAsistenciaRoute
@@ -470,6 +477,7 @@ export interface FileRoutesByTo {
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
   '/mis-puntos': typeof MisPuntosRoute
+  '/supervisor': typeof SupervisorRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/ajustes': typeof AuthenticatedAjustesRoute
   '/asistencia': typeof AuthenticatedAsistenciaRoute
@@ -533,6 +541,7 @@ export interface FileRoutesById {
   '/kiosk': typeof KioskRoute
   '/menu': typeof MenuRoute
   '/mis-puntos': typeof MisPuntosRoute
+  '/supervisor': typeof SupervisorRoute
   '/tablet-pedidos': typeof TabletPedidosRoute
   '/_authenticated/ajustes': typeof AuthenticatedAjustesRoute
   '/_authenticated/asistencia': typeof AuthenticatedAsistenciaRoute
@@ -598,6 +607,7 @@ export interface FileRouteTypes {
     | '/kiosk'
     | '/menu'
     | '/mis-puntos'
+    | '/supervisor'
     | '/tablet-pedidos'
     | '/ajustes'
     | '/asistencia'
@@ -661,6 +671,7 @@ export interface FileRouteTypes {
     | '/kiosk'
     | '/menu'
     | '/mis-puntos'
+    | '/supervisor'
     | '/tablet-pedidos'
     | '/ajustes'
     | '/asistencia'
@@ -723,6 +734,7 @@ export interface FileRouteTypes {
     | '/kiosk'
     | '/menu'
     | '/mis-puntos'
+    | '/supervisor'
     | '/tablet-pedidos'
     | '/_authenticated/ajustes'
     | '/_authenticated/asistencia'
@@ -788,6 +800,7 @@ export interface RootRouteChildren {
   KioskRoute: typeof KioskRoute
   MenuRoute: typeof MenuRoute
   MisPuntosRoute: typeof MisPuntosRoute
+  SupervisorRoute: typeof SupervisorRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
@@ -801,6 +814,13 @@ declare module '@tanstack/react-router' {
       path: '/tablet-pedidos'
       fullPath: '/tablet-pedidos'
       preLoaderRoute: typeof TabletPedidosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/supervisor': {
+      id: '/supervisor'
+      path: '/supervisor'
+      fullPath: '/supervisor'
+      preLoaderRoute: typeof SupervisorRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/mis-puntos': {
@@ -1371,6 +1391,7 @@ const rootRouteChildren: RootRouteChildren = {
   KioskRoute: KioskRoute,
   MenuRoute: MenuRoute,
   MisPuntosRoute: MisPuntosRoute,
+  SupervisorRoute: SupervisorRoute,
   TabletPedidosRoute: TabletPedidosRoute,
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
