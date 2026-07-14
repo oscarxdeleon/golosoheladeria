@@ -195,13 +195,15 @@ export const backupReset = createServerFn({ method: "POST" })
         backup[s.table] = await fetchTableRows(s, r);
       }
     }
-    return {
+    const payload = {
       generated_at: new Date().toISOString(),
       generated_by: context.userId,
       scope: { branchIds: data.branchIds ?? null, from: data.from ?? null, to: data.to ?? null },
       categories: data.categories,
       tables: backup,
     };
+    // Serializamos a JSON en servidor: la capa RPC no admite `unknown` en resultados tipados.
+    return { json: JSON.stringify(payload, null, 2) };
   });
 
 export const executeReset = createServerFn({ method: "POST" })
