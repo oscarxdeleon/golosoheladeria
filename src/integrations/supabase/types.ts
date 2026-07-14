@@ -235,6 +235,53 @@ export type Database = {
         }
         Relationships: []
       }
+      branch_detection_log: {
+        Row: {
+          created_at: string
+          detected_branch_id: string | null
+          detection_method: string
+          device_fingerprint: string | null
+          error_message: string | null
+          id: string
+          probe_url: string | null
+          success: boolean
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          detected_branch_id?: string | null
+          detection_method: string
+          device_fingerprint?: string | null
+          error_message?: string | null
+          id?: string
+          probe_url?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          detected_branch_id?: string | null
+          detection_method?: string
+          device_fingerprint?: string | null
+          error_message?: string | null
+          id?: string
+          probe_url?: string | null
+          success?: boolean
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_detection_log_detected_branch_id_fkey"
+            columns: ["detected_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branches: {
         Row: {
           address: string | null
@@ -1185,6 +1232,7 @@ export type Database = {
         Row: {
           active: boolean
           area: string
+          branch_id: string | null
           created_at: string
           drawer_master_enabled: boolean
           drawer_on_cash_close: boolean
@@ -1194,6 +1242,7 @@ export type Database = {
           drawer_on_cash_sale: boolean
           id: string
           ip: string | null
+          local_url: string | null
           name: string
           open_drawer_on_print: boolean
           platform: string
@@ -1202,6 +1251,7 @@ export type Database = {
         Insert: {
           active?: boolean
           area?: string
+          branch_id?: string | null
           created_at?: string
           drawer_master_enabled?: boolean
           drawer_on_cash_close?: boolean
@@ -1211,6 +1261,7 @@ export type Database = {
           drawer_on_cash_sale?: boolean
           id?: string
           ip?: string | null
+          local_url?: string | null
           name: string
           open_drawer_on_print?: boolean
           platform?: string
@@ -1219,6 +1270,7 @@ export type Database = {
         Update: {
           active?: boolean
           area?: string
+          branch_id?: string | null
           created_at?: string
           drawer_master_enabled?: boolean
           drawer_on_cash_close?: boolean
@@ -1228,12 +1280,21 @@ export type Database = {
           drawer_on_cash_sale?: boolean
           id?: string
           ip?: string | null
+          local_url?: string | null
           name?: string
           open_drawer_on_print?: boolean
           platform?: string
           port?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "printers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       products: {
         Row: {
