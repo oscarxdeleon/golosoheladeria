@@ -44,7 +44,6 @@ function GastosPage() {
         .eq("active", true)
         .is("deleted_at", null)
         .or(activeBranchId ? `branch_id.is.null,branch_id.eq.${activeBranchId}` : "branch_id.is.null")
-        .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
       if (error) throw error;
       return data ?? [];
