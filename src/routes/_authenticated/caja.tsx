@@ -229,9 +229,13 @@ function CajaPage() {
       qc.setQueryData(["branch-cash-session-open", activeBranchId], session);
       if (session.user_id === user.id) {
         toast.success(`Caja abierta con ${formatMoney(session.opening_amount)}`);
+        // Opcional (por bandera): abrir cajón al iniciar apertura de caja
+        // para contar el efectivo disponible. Por defecto está desactivado.
+        void openCashDrawer({ event: "cash_open", operationId: session.id });
       } else {
         toast.info(`La caja ya estaba abierta por ${session.user_name}. Ingresa directamente a la operación.`);
       }
+
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
