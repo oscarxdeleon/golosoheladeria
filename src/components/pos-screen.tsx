@@ -3271,6 +3271,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   setCancelReason("");
                   setPendingSaleId(null);
                   setCart([]);
+                  clearDraft();
                   qc.invalidateQueries({ queryKey: ["pending-sale"] });
                   qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
                   qc.invalidateQueries({ queryKey: ["sales"] });
