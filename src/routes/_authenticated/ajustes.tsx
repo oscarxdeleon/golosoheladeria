@@ -14,7 +14,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight, ShieldAlert } from "lucide-react";
 import printServerPkg from "../../../print-server/package.json";
 const PRINT_SERVER_VERSION = (printServerPkg as { version: string }).version;
 import { QRCodeCanvas } from "qrcode.react";
@@ -23,6 +23,7 @@ import { RolesTab } from "@/components/ajustes/roles-tab";
 import { FidelizacionTab } from "@/components/ajustes/fidelizacion-tab";
 import { ComandasFormatTab } from "@/components/ajustes/comandas-format-tab";
 import { DescargasTab } from "@/components/ajustes/descargas-tab";
+import { ResetDataTab } from "@/components/ajustes/reset-data-tab";
 import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
@@ -113,6 +114,7 @@ const TABS: TabDef[] = [
   { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
   { value: "extras",      label: "Configuraciones adicionales", icon: Sparkles, hint: "Opciones extra del POS (propina y otros)",     group: "ventas",      accent: "from-yellow-400 to-amber-500" },
   { value: "descargas",   label: "Descargas e Instaladores", icon: Download,  hint: "Instaladores POS, apps de mesero, quiosco y Print Server", group: "sistema", accent: "from-cyan-500 to-blue-600", adminOnly: true },
+  { value: "reset-data",  label: "Reiniciar datos", icon: ShieldAlert, hint: "Eliminar datos operativos para iniciar un nuevo periodo (crítico)", group: "sistema", accent: "from-red-500 to-rose-600", adminOnly: true },
 ];
 
 const GROUPS: Array<{ id: TabDef["group"]; label: string; description: string }> = [
@@ -152,6 +154,7 @@ function AjustesPage() {
           {tab === "roles"       && <SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary>}
           {tab === "extras"      && <SectionErrorBoundary label="Configuraciones adicionales"><ExtrasTab /></SectionErrorBoundary>}
           {tab === "descargas"   && isAdmin && <SectionErrorBoundary label="Descargas"><DescargasTab /></SectionErrorBoundary>}
+          {tab === "reset-data"  && isAdmin && <SectionErrorBoundary label="Reiniciar datos"><ResetDataTab /></SectionErrorBoundary>}
         </SectionView>
       ) : (
         <HubView query={query} setQuery={setQuery} filtered={filtered} allTabs={visibleTabs} onSelect={setTab} />
