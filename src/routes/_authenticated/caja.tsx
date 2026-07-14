@@ -74,6 +74,8 @@ function CajaPage() {
   const navigate = useNavigate();
   const [openingAmount, setOpeningAmount] = useState("");
   const [openingNotes, setOpeningNotes] = useState("");
+  const [openerName, setOpenerName] = useState("");
+  const [openerNameTouched, setOpenerNameTouched] = useState(false);
   const [cashCounted, setCashCounted] = useState("");
   const [nequiCounted, setNequiCounted] = useState("");
   const [bancoCounted, setBancoCounted] = useState("");

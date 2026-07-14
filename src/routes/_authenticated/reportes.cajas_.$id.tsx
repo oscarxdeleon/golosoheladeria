@@ -18,7 +18,7 @@ import {
 import { downloadShiftPdf } from "@/lib/shift-pdf";
 import { toast } from "sonner";
 
-export const Route = createFileRoute("/_authenticated/reportes/cajas/$id")({
+export const Route = createFileRoute("/_authenticated/reportes/cajas_/$id")({
   head: () => ({ meta: [{ title: "Detalle de arqueo · Reportes" }] }),
   component: CajaDetailPage,
 });
