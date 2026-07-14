@@ -345,15 +345,16 @@ export const supervisorDashboard = createServerFn({ method: "POST" })
     // Orders state
     let ordersQ = supabaseAdmin
       .from("sales")
-      .select("id,order_type,status,table_number,created_at")
+      .select("id,order_type,status,table_id,created_at")
       .in("status", ["open", "pending", "in_progress", "ready", "preparing"]);
     if (branchId) ordersQ = ordersQ.eq("branch_id", branchId);
     const { data: openOrders } = await ordersQ;
-    const orders = openOrders ?? [];
-    const tablesOccupied = new Set(orders.filter((o) => o.order_type === "mesa" && o.table_number != null).map((o) => o.table_number)).size;
+    const orders = (openOrders ?? []) as Array<{ order_type: string | null; status: string | null; table_id: string | null }>;
+    const tablesOccupied = new Set(orders.filter((o) => o.order_type === "mesa" && o.table_id != null).map((o) => o.table_id)).size;
     const pendingLlevar = orders.filter((o) => o.order_type === "llevar").length;
     const pendingDomicilio = orders.filter((o) => o.order_type === "domicilio").length;
     const preparing = orders.filter((o) => ["preparing", "in_progress"].includes(o.status ?? "")).length;
+
 
     return {
       supervisor: { username: account.username, display_name: account.display_name },
