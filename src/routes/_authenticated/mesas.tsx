@@ -145,6 +145,7 @@ function MesasPage() {
   const [merging, setMerging] = useState(false);
   const [splitTarget, setSplitTarget] = useState<Mesa | null>(null);
   const [search, setSearch] = useState("");
+  const [addToOccupied, setAddToOccupied] = useState<Mesa | null>(null);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   useRealtimeBranchSync(activeBranchId);
