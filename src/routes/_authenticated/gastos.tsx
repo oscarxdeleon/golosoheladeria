@@ -44,13 +44,15 @@ function GastosPage() {
         .eq("active", true)
         .is("deleted_at", null)
         .or(activeBranchId ? `branch_id.is.null,branch_id.eq.${activeBranchId}` : "branch_id.is.null")
-        .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
       if (error) throw error;
       return data ?? [];
     },
   });
-  const categoryOptions = useMemo(() => categories.map((c) => c.name), [categories]);
+  const categoryOptions = useMemo(
+    () => categories.map((c) => c.name).sort((a, b) => a.localeCompare(b, "es", { sensitivity: "base" })),
+    [categories],
+  );
 
   const categoryError = !category ? "Debe seleccionar el tipo de gasto." : "";
   const descriptionError = !description.trim()
