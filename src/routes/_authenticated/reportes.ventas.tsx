@@ -80,7 +80,15 @@ function VentasPage() {
 
   const payments = useMemo(() => paymentBreakdown(activeSales), [activeSales]);
   const services = useMemo(() => serviceBreakdown(activeSales), [activeSales]);
-  const products = useMemo(() => aggregateProducts(items), [items]);
+  const { data: modifierNames } = useQuery({
+    queryKey: ["reportes.modifier-names"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("modifiers").select("name");
+      return new Set((data ?? []).map((m: { name: string | null }) => (m.name ?? "").trim().toLowerCase()).filter(Boolean));
+    },
+  });
+  const products = useMemo(() => aggregateProducts(items, { modifierNames }), [items, modifierNames]);
 
   const paymentData = Object.entries(payments).map(([k, v]) => ({ name: k, value: v.amount }));
   const serviceData = Object.entries(services).map(([k, v]) => ({ name: k, value: v.amount }));
