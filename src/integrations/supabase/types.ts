@@ -298,6 +298,75 @@ export type Database = {
         }
         Relationships: []
       }
+      cash_deposits: {
+        Row: {
+          amount: number
+          branch_id: string | null
+          cash_session_id: string
+          created_at: string
+          description: string
+          device: string | null
+          id: string
+          method: string
+          status: string
+          updated_at: string
+          user_id: string
+          user_name: string | null
+          void_reason: string | null
+          voided_at: string | null
+          voided_by: string | null
+        }
+        Insert: {
+          amount: number
+          branch_id?: string | null
+          cash_session_id: string
+          created_at?: string
+          description: string
+          device?: string | null
+          id?: string
+          method: string
+          status?: string
+          updated_at?: string
+          user_id: string
+          user_name?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Update: {
+          amount?: number
+          branch_id?: string | null
+          cash_session_id?: string
+          created_at?: string
+          description?: string
+          device?: string | null
+          id?: string
+          method?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string | null
+          void_reason?: string | null
+          voided_at?: string | null
+          voided_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "cash_deposits_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "cash_deposits_cash_session_id_fkey"
+            columns: ["cash_session_id"]
+            isOneToOne: false
+            referencedRelation: "cash_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       cash_sessions: {
         Row: {
           bancolombia_counted: number | null
