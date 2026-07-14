@@ -14,6 +14,7 @@ import {
   serviceBreakdown,
 } from "@/lib/reports";
 import logoUrl from "@/assets/logo-goloso.png";
+import { supabase } from "@/integrations/supabase/client";
 
 async function loadLogo(): Promise<string | null> {
   try {
