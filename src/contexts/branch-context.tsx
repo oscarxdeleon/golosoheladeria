@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { setActivePrintBranchId, refreshPrinterTargetCache } from "@/lib/print-client";
 
 export interface Branch {
   id: string;
@@ -111,6 +112,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   };
 
   const activeBranch = branches.find((b) => b.id === activeBranchId) ?? null;
+
+  // Notifica al módulo de impresión cuál es la sede activa para que su
+  // configuración (URL Print Server + IP impresora) nunca se cruce entre
+  // sedes distintas.
+  useEffect(() => {
+    setActivePrintBranchId(activeBranchId);
+    if (activeBranchId) refreshPrinterTargetCache(activeBranchId);
+  }, [activeBranchId]);
   // No-admin: ocultar otras sedes del listado expuesto al resto de la app.
   const visibleBranches = lockedToBranch && profileBranchId
     ? branches.filter((b) => b.id === profileBranchId)

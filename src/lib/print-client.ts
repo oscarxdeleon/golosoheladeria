@@ -317,10 +317,33 @@ export function setLocalPrintUrl(url: string | null) {
 }
 
 let _bootstrapPromise: Promise<string | null> | null = null;
-let _printerTargetPromise: Promise<Pick<PrintPayload, "printer_ip" | "printer_port"> | null> | null = null;
+// Cache del target de impresora por sede — evita que la sede A
+// contamine la lectura de la sede B (causa raíz del bug reportado:
+// una sola fila global en `settings` compartida entre sedes).
+const _printerTargetByBranch = new Map<string, Promise<Pick<PrintPayload, "printer_ip" | "printer_port"> | null>>();
+// Sede activa a nivel de módulo. La setea el BranchProvider vía
+// `setActivePrintBranchId` para que las lecturas/escrituras siempre
+// se scopeen a la sede correcta.
+let _activeBranchId: string | null = null;
+
+export function setActivePrintBranchId(branchId: string | null): void {
+  if (_activeBranchId === branchId) return;
+  _activeBranchId = branchId;
+  // Al cambiar de sede invalidamos caches locales para forzar una
+  // lectura fresca desde `branch_print_settings` de la nueva sede.
+  _bootstrapPromise = null;
+  _healthCache.clear();
+}
+
+export function getActivePrintBranchId(): string | null {
+  return _activeBranchId;
+}
+
 /**
- * Si no hay URL en localStorage, la lee UNA VEZ desde la tabla `settings`
- * (columna `local_print_url`) y la persiste en localStorage.
+ * Si no hay URL en localStorage, la lee UNA VEZ desde
+ * `branch_print_settings` de la sede activa y la persiste en localStorage.
+ * NUNCA lee la configuración de otra sede — cada equipo mantiene su URL
+ * local y, si no la tiene, hereda sólo la de SU sede.
  */
 export async function bootstrapLocalPrintUrl(): Promise<string | null> {
   if (typeof window === "undefined") return null;
@@ -330,10 +353,11 @@ export async function bootstrapLocalPrintUrl(): Promise<string | null> {
   _bootstrapPromise = (async () => {
     try {
       const { supabase } = await import("@/integrations/supabase/client");
+      if (!_activeBranchId) return null;
       const { data } = await supabase
-        .from("settings")
+        .from("branch_print_settings")
         .select("local_print_url")
-        .limit(1)
+        .eq("branch_id", _activeBranchId)
         .maybeSingle();
       const url = normalizePrintUrl((data as { local_print_url?: string | null } | null)?.local_print_url ?? null);
       if (url) setLocalPrintUrl(url);
@@ -346,14 +370,17 @@ export async function bootstrapLocalPrintUrl(): Promise<string | null> {
 }
 
 async function getDefaultPrinterTarget(): Promise<Pick<PrintPayload, "printer_ip" | "printer_port"> | null> {
-  if (_printerTargetPromise) return _printerTargetPromise;
-  _printerTargetPromise = (async () => {
+  const branchId = _activeBranchId;
+  if (!branchId) return null;
+  const cached = _printerTargetByBranch.get(branchId);
+  if (cached) return cached;
+  const promise = (async () => {
     try {
       const { supabase } = await import("@/integrations/supabase/client");
       const { data } = await supabase
-        .from("settings")
+        .from("branch_print_settings")
         .select("cashier_printer_ip,cashier_printer_port")
-        .limit(1)
+        .eq("branch_id", branchId)
         .maybeSingle();
       const row = data as { cashier_printer_ip?: string | null; cashier_printer_port?: number | null } | null;
       const printer_ip = row?.cashier_printer_ip?.trim();
@@ -362,7 +389,14 @@ async function getDefaultPrinterTarget(): Promise<Pick<PrintPayload, "printer_ip
       return null;
     }
   })();
-  return _printerTargetPromise;
+  _printerTargetByBranch.set(branchId, promise);
+  return promise;
+}
+
+/** Invalida caches de target de impresora (útil tras Guardar en Ajustes). */
+export function refreshPrinterTargetCache(branchId?: string | null): void {
+  if (branchId) _printerTargetByBranch.delete(branchId);
+  else _printerTargetByBranch.clear();
 }
 
 async function withDefaultPrinterTarget(payload: PrintPayload): Promise<PrintPayload> {

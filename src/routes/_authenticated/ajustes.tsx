@@ -3,6 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useBranch } from "@/contexts/branch-context";
+import { getTerminalId, getTerminalName, setTerminalName } from "@/lib/terminal-id";
+import { refreshPrinterTargetCache } from "@/lib/print-client";
 // Tabs UI no longer used at page level (redesigned with cards + section view).
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -791,50 +794,76 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     }
   }
   async function remove(id: string) { await supabase.from("printers").delete().eq("id", id); qc.invalidateQueries({ queryKey: ["printers"] }); }
+  const { activeBranch, activeBranchId } = useBranch();
   const [localUrl, setLocalUrl] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     try { return window.localStorage.getItem("LOCAL_PRINT_URL") ?? ""; } catch { return ""; }
   });
-  // Carga la URL persistida en la BD (settings.local_print_url) al montar,
-  // así sobrevive a que se borre localStorage o se abra en otro navegador.
+  const [terminalName, setTerminalNameState] = useState<string>(() => getTerminalName());
+  const terminalId = typeof window !== "undefined" ? getTerminalId() : "";
+  // Carga la URL persistida en `branch_print_settings` para la SEDE ACTIVA.
+  // Nunca lee la configuración de otra sede — así un cambio en GOLOSO SANTA
+  // jamás sobrescribe la URL local mostrada al operar GOLOSO PARQUE.
   useEffect(() => {
     let cancelled = false;
+    if (!activeBranchId) return;
     (async () => {
       const { data } = await supabase
-        .from("settings")
-        .select("id, local_print_url")
-        .limit(1)
+        .from("branch_print_settings")
+        .select("local_print_url")
+        .eq("branch_id", activeBranchId)
         .maybeSingle();
       if (cancelled) return;
       const url = (data as { local_print_url?: string | null } | null)?.local_print_url ?? "";
-      if (url) {
+      // Solo pisamos el input si el equipo NO tiene ya una URL propia guardada
+      // en localStorage — la configuración local del terminal manda.
+      const own = (typeof window !== "undefined" && window.localStorage.getItem("LOCAL_PRINT_URL")) || "";
+      if (!own && url) {
         setLocalUrl(url);
         try { window.localStorage.setItem("LOCAL_PRINT_URL", url); } catch { /* noop */ }
+      } else if (own) {
+        setLocalUrl(own);
+      } else {
+        setLocalUrl("");
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [activeBranchId]);
   async function saveLocalUrl() {
     const value = localUrl.trim();
+    // 1) Guardar localmente (por equipo). El terminal manda sobre la BD.
     try {
       if (value) window.localStorage.setItem("LOCAL_PRINT_URL", value);
       else window.localStorage.removeItem("LOCAL_PRINT_URL");
     } catch { /* noop */ }
-    // Persistimos también en la BD para que no se pierda al cerrar el navegador.
+    // 2) Persistir en `branch_print_settings` **solo** para la sede activa.
+    //    Otras sedes conservan intacta su propia configuración.
+    if (!activeBranchId) {
+      toast.error("Selecciona primero una sede activa");
+      return;
+    }
     try {
-      const { data: row } = await supabase.from("settings").select("id").limit(1).maybeSingle();
-      if (row?.id) {
-        const { error } = await supabase.from("settings").update({ local_print_url: value || null }).eq("id", row.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("settings").insert({ local_print_url: value || null });
-        if (error) throw error;
-      }
-      toast.success(value ? "Impresión silenciosa guardada" : "Impresión silenciosa desactivada");
+      const { error } = await supabase
+        .from("branch_print_settings")
+        .upsert(
+          { branch_id: activeBranchId, local_print_url: value || null },
+          { onConflict: "branch_id" },
+        );
+      if (error) throw error;
+      refreshPrinterTargetCache(activeBranchId);
+      toast.success(
+        value
+          ? `Print Server guardado para ${activeBranch?.name ?? "esta sede"}`
+          : "Impresión silenciosa desactivada en esta sede",
+      );
     } catch (e) {
       console.error(e);
       toast.error("Guardado local, pero no se pudo sincronizar con la base de datos");
     }
+  }
+  function saveTerminalName() {
+    setTerminalName(terminalName);
+    toast.success("Nombre del equipo guardado en este terminal");
   }
 
   async function testLocal() {
@@ -990,7 +1019,27 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
       </CardHeader>
       <CardContent className="p-0">
         <div className="border-b p-4 space-y-3 bg-muted/30">
+          <div className="rounded border border-amber-300 bg-amber-50 text-amber-900 text-xs p-3 space-y-2">
+            <div className="font-semibold">Configuración exclusiva de esta sede y de este equipo</div>
+            <div>Los cambios <b>NO</b> afectan a ninguna otra sede ni a otro terminal.</div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 pt-1">
+              <div><span className="opacity-70">Sede activa:</span> <b>{activeBranch?.name ?? "—"}</b></div>
+              <div className="truncate"><span className="opacity-70">ID sede:</span> <code className="text-[10px]">{activeBranchId ?? "—"}</code></div>
+              <div className="truncate"><span className="opacity-70">ID equipo:</span> <code className="text-[10px]">{terminalId}</code></div>
+              <div className="flex items-center gap-1">
+                <span className="opacity-70">Nombre equipo:</span>
+                <Input
+                  className="h-6 text-xs"
+                  value={terminalName}
+                  onChange={(e) => setTerminalNameState(e.target.value)}
+                  placeholder="Ej: Caja 1"
+                  onBlur={saveTerminalName}
+                />
+              </div>
+            </div>
+          </div>
           <div className="font-medium text-sm">Impresión silenciosa (sin diálogo del navegador)</div>
+
           <p className="text-xs text-muted-foreground">
             Para evitar que aparezca la ventana de impresión de Chrome, ejecuta el servidor local <code className="bg-background px-1 rounded">print-server</code> en la PC con la térmica e ingresa su URL aquí. Si lo dejas vacío, el sistema usa el diálogo del navegador como respaldo.
           </p>
@@ -1743,10 +1792,16 @@ function EditarSedeTab({ initialBranchId }: { initialBranchId?: string | null } 
 
 function CashierIpPrinterCard() {
   const qc = useQueryClient();
+  const { activeBranch, activeBranchId } = useBranch();
   const { data } = useQuery({
-    queryKey: ["settings-cashier-printer"],
+    queryKey: ["branch-print-settings", activeBranchId],
+    enabled: !!activeBranchId,
     queryFn: async () =>
-      (await supabase.from("settings").select("cashier_printer_ip, cashier_printer_port").eq("id", 1).maybeSingle()).data as
+      (await supabase
+        .from("branch_print_settings")
+        .select("cashier_printer_ip, cashier_printer_port")
+        .eq("branch_id", activeBranchId!)
+        .maybeSingle()).data as
         | { cashier_printer_ip: string | null; cashier_printer_port: number | null }
         | null,
   });
@@ -1754,20 +1809,28 @@ function CashierIpPrinterCard() {
   const [port, setPort] = useState<number>(9100);
   const [testing, setTesting] = useState(false);
   useEffect(() => {
-    if (data) {
-      setIp(data.cashier_printer_ip ?? "");
-      setPort(Number(data.cashier_printer_port ?? 9100));
-    }
-  }, [data]);
+    // Al cambiar de sede o refrescar la config, siempre reflejar EXACTAMENTE
+    // los valores de la sede activa (aunque sean null → limpia inputs).
+    setIp(data?.cashier_printer_ip ?? "");
+    setPort(Number(data?.cashier_printer_port ?? 9100));
+  }, [data, activeBranchId]);
 
   async function save() {
+    if (!activeBranchId) return toast.error("Selecciona primero una sede activa");
     const { error } = await supabase
-      .from("settings")
-      .update({ cashier_printer_ip: ip.trim() || null, cashier_printer_port: Number(port) || 9100 } as never)
-      .eq("id", 1);
+      .from("branch_print_settings")
+      .upsert(
+        {
+          branch_id: activeBranchId,
+          cashier_printer_ip: ip.trim() || null,
+          cashier_printer_port: Number(port) || 9100,
+        },
+        { onConflict: "branch_id" },
+      );
     if (error) return toast.error(error.message);
-    toast.success("Impresora de caja guardada");
-    qc.invalidateQueries({ queryKey: ["settings-cashier-printer"] });
+    refreshPrinterTargetCache(activeBranchId);
+    toast.success(`Impresora de caja guardada para ${activeBranch?.name ?? "esta sede"}`);
+    qc.invalidateQueries({ queryKey: ["branch-print-settings", activeBranchId] });
   }
 
   async function testPrint() {
@@ -1805,7 +1868,10 @@ function CashierIpPrinterCard() {
 
   return (
     <div className="border-b p-4 space-y-3 bg-muted/10">
-      <div className="font-medium text-sm">Impresora de Caja (Red IP)</div>
+      <div className="font-medium text-sm flex items-center gap-2">
+        Impresora de Caja (Red IP)
+        <span className="text-xs font-normal text-muted-foreground">— sede: <b>{activeBranch?.name ?? "—"}</b></span>
+      </div>
       <p className="text-xs text-muted-foreground">
         Segunda impresora térmica de red para imprimir el <b>comprobante de pago</b> de los pedidos del Autopedido.
         Cuando un cliente envía un pedido desde la tablet, se imprime aquí un ticket con el detalle y el mensaje
