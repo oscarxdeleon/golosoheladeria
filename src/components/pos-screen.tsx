@@ -3103,24 +3103,61 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               <div className="flex justify-between"><span className="text-muted-foreground">Total obsequiado</span><span className="font-extrabold">{formatMoney(total)}</span></div>
               <div className="flex justify-between"><span className="text-muted-foreground">Autoriza</span><span className="font-semibold">{profile?.full_name ?? user?.email ?? "—"}</span></div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="courtesy-reason">Motivo de la cortesía <span className="text-rose-600">*</span></Label>
-              <Textarea
-                id="courtesy-reason"
-                placeholder="Ej: Cumpleaños del cliente, reposición por error, invitación gerencia…"
-                value={courtesyReason}
-                onChange={(e) => setCourtesyReason(e.target.value)}
-                rows={3}
-              />
+            <div className="space-y-2">
+              <Label>Motivo de la cortesía <span className="text-rose-600">*</span></Label>
+              <div className="grid gap-2" role="radiogroup" aria-label="Motivo de la cortesía">
+                {[
+                  "Autorizado por Administrador",
+                  "Cumpleaños del Cliente",
+                  "Reposición por Error",
+                  "Cortesía Gerencia",
+                ].map((opt) => {
+                  const selected = courtesyReason === opt;
+                  return (
+                    <button
+                      key={opt}
+                      type="button"
+                      role="radio"
+                      aria-checked={selected}
+                      onClick={() => setCourtesyReason(opt)}
+                      className={`flex items-center gap-3 rounded-xl border-2 px-4 py-3 text-left text-sm font-medium transition-all ${
+                        selected
+                          ? "border-rose-500 bg-rose-50 text-rose-900 shadow-sm dark:bg-rose-950/30 dark:text-rose-100"
+                          : "border-border bg-background hover:border-rose-300 hover:bg-rose-50/40"
+                      }`}
+                    >
+                      <span
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 ${
+                          selected ? "border-rose-600" : "border-muted-foreground/40"
+                        }`}
+                      >
+                        {selected && <span className="h-2.5 w-2.5 rounded-full bg-rose-600" />}
+                      </span>
+                      <span className="flex-1">{opt}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {courtesyReason === "Autorizado por Administrador" && !isAdmin && (
+                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+                  Este motivo requiere autorización de un Administrador. Inicia sesión con una cuenta de Administrador para confirmar.
+                </p>
+              )}
             </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setCourtesyDialogOpen(false)} disabled={paying}>Cancelar</Button>
             <Button
               className="bg-rose-600 hover:bg-rose-700 text-white"
-              disabled={paying || courtesyReason.trim().length < 3}
+              disabled={
+                paying ||
+                !courtesyReason ||
+                (courtesyReason === "Autorizado por Administrador" && !isAdmin)
+              }
               onClick={() => {
-                const reason = courtesyReason.trim();
+                const reason = courtesyReason;
+                if (!reason) return;
+                if (reason === "Autorizado por Administrador" && !isAdmin) return;
                 setCourtesyDialogOpen(false);
                 void pay("Cortesía", {
                   courtesy: true,
