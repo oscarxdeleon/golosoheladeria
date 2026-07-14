@@ -312,6 +312,29 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!addToOccupied} onOpenChange={(o) => { if (!o) setAddToOccupied(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mesa {addToOccupied?.number} ya tiene un pedido activo</DialogTitle>
+            <DialogDescription>
+              ¿Desea agregar nuevos productos a este pedido? Los productos anteriores se conservan y solo se imprimirá una comanda con los productos recién agregados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddToOccupied(null)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const m = addToOccupied;
+                setAddToOccupied(null);
+                if (m) onSelect(m);
+              }}
+            >
+              Sí, agregar productos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
