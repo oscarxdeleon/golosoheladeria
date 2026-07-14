@@ -11,7 +11,14 @@ const searchSchema = z.object({
 });
 
 export const Route = createFileRoute("/_authenticated/pos")({
-  head: () => ({ meta: [{ title: "Punto de venta · Goloso POS" }] }),
+  head: () => ({
+    meta: [
+      { title: "Punto de venta · Goloso POS" },
+      { name: "apple-mobile-web-app-title", content: "Goloso POS" },
+      { name: "application-name", content: "Goloso POS" },
+    ],
+    links: [{ rel: "manifest", href: "/manifest-pos.webmanifest" }],
+  }),
   validateSearch: searchSchema,
   component: POSRoute,
   errorComponent: PosErrorFallback,

@@ -2,7 +2,7 @@
   "name": "Goloso Mesero",
   "short_name": "Mesero",
   "description": "App para meseros de Heladería Goloso: mesas, pedidos y comandas.",
-  "start_url": "/mesas?src=pwa",
+  "start_url": "/tablet-pedidos?src=pwa",
   "scope": "/",
   "id": "/goloso-mesero",
   "display": "standalone",

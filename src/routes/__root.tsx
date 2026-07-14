@@ -106,7 +106,10 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     ],
     links: [
       { rel: "stylesheet", href: appCss },
-      { rel: "manifest", href: "/manifest.webmanifest" },
+      // El <link rel="manifest"> se declara por ruta (menú, mesero, quiosco,
+      // POS) para que cada PWA instalada abra su propio módulo. No agregar
+      // aquí un manifest global: haría que todas las instalaciones abran el
+      // menú en línea del cliente.
       { rel: "icon", type: "image/png", href: "/favicon.png" },
       { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
