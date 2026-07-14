@@ -53,6 +53,7 @@ import { Route as AuthenticatedAuditoriaRouteImport } from './routes/_authentica
 import { Route as AuthenticatedAsistenciaRouteImport } from './routes/_authenticated/asistencia'
 import { Route as AuthenticatedAjustesRouteImport } from './routes/_authenticated/ajustes'
 import { Route as SSlugIndexRouteImport } from './routes/s.$slug.index'
+import { Route as AuthenticatedReportesIndexRouteImport } from './routes/_authenticated/reportes.index'
 import { Route as SSlugMenuRouteImport } from './routes/s.$slug.menu'
 import { Route as SSlugManifestDotwebmanifestRouteImport } from './routes/s.$slug.manifest[.]webmanifest'
 import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
@@ -289,6 +290,12 @@ const SSlugIndexRoute = SSlugIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SSlugRoute,
 } as any)
+const AuthenticatedReportesIndexRoute =
+  AuthenticatedReportesIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AuthenticatedReportesRoute,
+  } as any)
 const SSlugMenuRoute = SSlugMenuRouteImport.update({
   id: '/menu',
   path: '/menu',
@@ -382,7 +389,7 @@ export interface FileRoutesByFullPath {
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/repartidores': typeof AuthenticatedRepartidoresRoute
-  '/reportes': typeof AuthenticatedReportesRoute
+  '/reportes': typeof AuthenticatedReportesRouteWithChildren
   '/sugerencias-compra': typeof AuthenticatedSugerenciasCompraRoute
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -398,6 +405,7 @@ export interface FileRoutesByFullPath {
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
   '/s/$slug/menu': typeof SSlugMenuRoute
+  '/reportes/': typeof AuthenticatedReportesIndexRoute
   '/s/$slug/': typeof SSlugIndexRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
@@ -437,7 +445,6 @@ export interface FileRoutesByTo {
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/repartidores': typeof AuthenticatedRepartidoresRoute
-  '/reportes': typeof AuthenticatedReportesRoute
   '/sugerencias-compra': typeof AuthenticatedSugerenciasCompraRoute
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
@@ -452,6 +459,7 @@ export interface FileRoutesByTo {
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
   '/s/$slug/menu': typeof SSlugMenuRoute
+  '/reportes': typeof AuthenticatedReportesIndexRoute
   '/s/$slug': typeof SSlugIndexRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
@@ -493,7 +501,7 @@ export interface FileRoutesById {
   '/_authenticated/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/repartidores': typeof AuthenticatedRepartidoresRoute
-  '/_authenticated/reportes': typeof AuthenticatedReportesRoute
+  '/_authenticated/reportes': typeof AuthenticatedReportesRouteWithChildren
   '/_authenticated/sugerencias-compra': typeof AuthenticatedSugerenciasCompraRoute
   '/_authenticated/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
@@ -509,6 +517,7 @@ export interface FileRoutesById {
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
   '/s/$slug/menu': typeof SSlugMenuRoute
+  '/_authenticated/reportes/': typeof AuthenticatedReportesIndexRoute
   '/s/$slug/': typeof SSlugIndexRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
@@ -566,6 +575,7 @@ export interface FileRouteTypes {
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
     | '/s/$slug/menu'
+    | '/reportes/'
     | '/s/$slug/'
     | '/s/$slug/t/$tableNumber'
   fileRoutesByTo: FileRoutesByTo
@@ -605,7 +615,6 @@ export interface FileRouteTypes {
     | '/pedidos-online'
     | '/pos'
     | '/repartidores'
-    | '/reportes'
     | '/sugerencias-compra'
     | '/todos-pedidos'
     | '/usuarios'
@@ -620,6 +629,7 @@ export interface FileRouteTypes {
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
     | '/s/$slug/menu'
+    | '/reportes'
     | '/s/$slug'
     | '/s/$slug/t/$tableNumber'
   id:
@@ -676,6 +686,7 @@ export interface FileRouteTypes {
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
     | '/s/$slug/menu'
+    | '/_authenticated/reportes/'
     | '/s/$slug/'
     | '/s/$slug/t/$tableNumber'
   fileRoutesById: FileRoutesById
@@ -1004,6 +1015,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SSlugIndexRouteImport
       parentRoute: typeof SSlugRoute
     }
+    '/_authenticated/reportes/': {
+      id: '/_authenticated/reportes/'
+      path: '/'
+      fullPath: '/reportes/'
+      preLoaderRoute: typeof AuthenticatedReportesIndexRouteImport
+      parentRoute: typeof AuthenticatedReportesRoute
+    }
     '/s/$slug/menu': {
       id: '/s/$slug/menu'
       path: '/menu'
@@ -1077,6 +1095,19 @@ declare module '@tanstack/react-router' {
   }
 }
 
+interface AuthenticatedReportesRouteChildren {
+  AuthenticatedReportesIndexRoute: typeof AuthenticatedReportesIndexRoute
+}
+
+const AuthenticatedReportesRouteChildren: AuthenticatedReportesRouteChildren = {
+  AuthenticatedReportesIndexRoute: AuthenticatedReportesIndexRoute,
+}
+
+const AuthenticatedReportesRouteWithChildren =
+  AuthenticatedReportesRoute._addFileChildren(
+    AuthenticatedReportesRouteChildren,
+  )
+
 interface AuthenticatedRouteRouteChildren {
   AuthenticatedAjustesRoute: typeof AuthenticatedAjustesRoute
   AuthenticatedAsistenciaRoute: typeof AuthenticatedAsistenciaRoute
@@ -1106,7 +1137,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedPedidosOnlineRoute: typeof AuthenticatedPedidosOnlineRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedRepartidoresRoute: typeof AuthenticatedRepartidoresRoute
-  AuthenticatedReportesRoute: typeof AuthenticatedReportesRoute
+  AuthenticatedReportesRoute: typeof AuthenticatedReportesRouteWithChildren
   AuthenticatedSugerenciasCompraRoute: typeof AuthenticatedSugerenciasCompraRoute
   AuthenticatedTodosPedidosRoute: typeof AuthenticatedTodosPedidosRoute
   AuthenticatedUsuariosRoute: typeof AuthenticatedUsuariosRoute
@@ -1147,7 +1178,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedPedidosOnlineRoute: AuthenticatedPedidosOnlineRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedRepartidoresRoute: AuthenticatedRepartidoresRoute,
-  AuthenticatedReportesRoute: AuthenticatedReportesRoute,
+  AuthenticatedReportesRoute: AuthenticatedReportesRouteWithChildren,
   AuthenticatedSugerenciasCompraRoute: AuthenticatedSugerenciasCompraRoute,
   AuthenticatedTodosPedidosRoute: AuthenticatedTodosPedidosRoute,
   AuthenticatedUsuariosRoute: AuthenticatedUsuariosRoute,
