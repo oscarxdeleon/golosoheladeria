@@ -112,6 +112,14 @@ export function BranchProvider({ children }: { children: ReactNode }) {
   };
 
   const activeBranch = branches.find((b) => b.id === activeBranchId) ?? null;
+
+  // Notifica al módulo de impresión cuál es la sede activa para que su
+  // configuración (URL Print Server + IP impresora) nunca se cruce entre
+  // sedes distintas.
+  useEffect(() => {
+    setActivePrintBranchId(activeBranchId);
+    if (activeBranchId) refreshPrinterTargetCache(activeBranchId);
+  }, [activeBranchId]);
   // No-admin: ocultar otras sedes del listado expuesto al resto de la app.
   const visibleBranches = lockedToBranch && profileBranchId
     ? branches.filter((b) => b.id === profileBranchId)
