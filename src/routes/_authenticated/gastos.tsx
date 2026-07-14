@@ -20,13 +20,22 @@ export const Route = createFileRoute("/_authenticated/gastos")({
 });
 
 const CATEGORIES = [
+  "Insumos",
+  "Papelería",
+  "Transporte",
   "Servicios Públicos",
-  "Nómina / Salarios",
-  "Arriendo",
   "Mantenimiento",
+  "Aseo",
+  "Nómina",
+  "Compra Menor",
+  "Reembolso",
+  "Caja Menor",
+  "Arriendo",
   "Publicidad",
-  "Gastos Generales / Otros",
+  "Otros",
 ];
+
+const MIN_DESCRIPTION_LEN = 5;
 
 function GastosPage() {
   const qc = useQueryClient();
