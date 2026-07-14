@@ -900,19 +900,43 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
                   <Switch checked={edit?.active ?? true} onCheckedChange={(v) => setEdit({ ...edit, active: v })} />
                   <Label>Activa</Label>
                 </div>
-                <div className="rounded-md border p-3 flex items-start justify-between gap-3">
-                  <div>
-                    <Label className="font-medium">Activar Apertura de Cajón Monedero</Label>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Al imprimir un ticket de venta en esta impresora, se enviará el pulso ESC/POS para abrir la gaveta.
-                      Las comandas de cocina <b>nunca</b> abrirán el cajón.
-                    </p>
+                <div className="rounded-md border p-3 space-y-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <Label className="font-medium">Apertura de cajón monedero</Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Si habilitas esta opción, el cajón monedero se abrirá automáticamente
+                        únicamente en pagos, entradas, salidas, apertura y cierre de caja que
+                        involucren dinero en efectivo. Las comandas de cocina <b>nunca</b>
+                        abren el cajón, y los pagos digitales (Nequi, Bancolombia, tarjeta,
+                        transferencia) o cortesías tampoco.
+                      </p>
+                    </div>
+                    <Switch
+                      checked={edit?.drawer_master_enabled ?? true}
+                      onCheckedChange={(v) => setEdit({ ...edit, drawer_master_enabled: v })}
+                    />
                   </div>
-                  <Switch
-                    checked={edit?.open_drawer_on_print ?? false}
-                    onCheckedChange={(v) => setEdit({ ...edit, open_drawer_on_print: v })}
-                  />
+
+                  <div className={`space-y-2 pl-1 ${(edit?.drawer_master_enabled ?? true) ? "" : "opacity-50 pointer-events-none"}`}>
+                    {[
+                      { key: "drawer_on_cash_sale" as const, label: "Abrir cajón en ventas pagadas en efectivo", def: true },
+                      { key: "drawer_on_cash_deposit" as const, label: "Abrir cajón en entradas o depósitos en efectivo", def: true },
+                      { key: "drawer_on_cash_expense" as const, label: "Abrir cajón en salidas, gastos o retiros en efectivo", def: true },
+                      { key: "drawer_on_cash_close" as const, label: "Abrir cajón al iniciar cierre de caja", def: true },
+                      { key: "drawer_on_cash_open" as const, label: "Abrir cajón al iniciar apertura de caja (para contar el efectivo disponible)", def: false },
+                    ].map((row) => (
+                      <div key={row.key} className="flex items-start justify-between gap-3 rounded border bg-muted/30 p-2">
+                        <Label className="text-sm font-normal leading-snug">{row.label}</Label>
+                        <Switch
+                          checked={(edit?.[row.key] ?? row.def) as boolean}
+                          onCheckedChange={(v) => setEdit({ ...edit, [row.key]: v })}
+                        />
+                      </div>
+                    ))}
+                  </div>
                 </div>
+
               </div>
               <DialogFooter><Button variant="outline" onClick={() => setEdit(null)}>Cancelar</Button><Button onClick={save}>Guardar</Button></DialogFooter>
 
