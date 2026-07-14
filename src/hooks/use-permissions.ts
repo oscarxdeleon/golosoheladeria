@@ -39,6 +39,11 @@ export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
   { key: "usuarios", label: "Usuarios", group: "Administración" },
   { key: "ajustes", label: "Ajustes", group: "Administración" },
   { key: "ayuda", label: "Ayuda", group: "Administración" },
+  { key: "reportes", label: "Reportes (raíz)", group: "Reportes" },
+  { key: "reportes/resumen", label: "Resumen Financiero", group: "Reportes" },
+  { key: "reportes/ventas", label: "Ventas y Analíticas", group: "Reportes" },
+  { key: "reportes/cajas", label: "Historial y Cajas", group: "Reportes" },
+  { key: "reportes/auditoria", label: "Auditorías", group: "Reportes" },
 ];
 
 export const ROLE_HOME: Record<AppRole, string> = {
