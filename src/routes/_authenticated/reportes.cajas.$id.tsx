@@ -25,7 +25,7 @@ export const Route = createFileRoute("/_authenticated/reportes/cajas/$id")({
 
 const METHOD_DOT: Record<string, string> = {
   efectivo: "bg-blue-500",
-  nequi: "bg-slate-400",
+  nequi: "bg-fuchsia-500",
   bancolombia: "bg-slate-400",
   tarjeta: "bg-violet-500",
   transferencia: "bg-emerald-500",
