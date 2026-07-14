@@ -329,17 +329,20 @@ function CajaPage() {
               {canCloseSession && (
                 <Button
                   onClick={() => {
-                    // Abre el cajón monedero automáticamente al iniciar el cierre.
-                    // Si el Print Server local no responde, no bloquea el arqueo.
-                    kickCashDrawer().catch((e) =>
-                      console.warn("[caja] no se pudo abrir el cajón:", e),
-                    );
+                    // Apertura automática del cajón al iniciar el cierre.
+                    // Respeta las banderas de administración por impresora
+                    // y no bloquea el arqueo si el Print Server no responde.
+                    void openCashDrawer({
+                      event: "cash_close",
+                      operationId: current.id,
+                    });
                     setCloseDialog(true);
                   }}
                   variant="destructive"
                 >
                   <LockKeyhole className="h-4 w-4" />Cerrar caja
                 </Button>
+
               )}
             </div>
           </CardHeader>
