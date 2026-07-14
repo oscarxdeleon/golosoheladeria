@@ -199,7 +199,7 @@ function CajaDetailPage() {
                     <span className="font-bold uppercase tracking-wide text-sm">{k}</span>
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{v.count} ventas</span>
                   </div>
-                  <div className="font-display text-lg font-extrabold text-emerald-700">{formatMoney(v.amount)}</div>
+                  <div className={`font-display text-lg font-extrabold ${v.amount > 0 ? "text-emerald-700" : "text-muted-foreground"}`}>{formatMoney(v.amount)}</div>
                 </div>
               ))}
               {Object.keys(payments).length === 0 && <EmptyRow label="Sin ventas registradas." />}
