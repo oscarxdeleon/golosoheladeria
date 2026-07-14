@@ -231,12 +231,19 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
     { free: 0, occupied: 0, reserved: 0 } as Record<Mesa["status"], number>,
   );
 
+  const [addToOccupied, setAddToOccupied] = useState<Mesa | null>(null);
+
   async function handleOpen(m: Mesa) {
     // No marcamos la mesa como ocupada al abrirla. La mesa cambia a
     // "ocupada" únicamente cuando se guarda un pedido con al menos un
     // producto (trigger DB `auto_occupy_table_on_sale_item`). Así, si el
     // mesero abre una mesa por error y sale sin agregar nada, la mesa
-    // sigue mostrándose como Libre.
+    // sigue mostrándose como Libre. Si ya está ocupada, pedimos
+    // confirmación antes de agregar productos al pedido existente.
+    if (m.status === "occupied") {
+      setAddToOccupied(m);
+      return;
+    }
     onSelect(m);
   }
 
