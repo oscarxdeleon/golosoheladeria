@@ -161,9 +161,15 @@ function GastosPage() {
       if (error) throw error;
 
       toast.success("Gasto registrado");
+      // Sólo abrir el cajón cuando el gasto se pague en efectivo real.
+      if (payment === "efectivo") {
+        const { openCashDrawer } = await import("@/lib/cash-drawer");
+        void openCashDrawer({ event: "cash_expense", operationId: cashSessionId ?? undefined });
+      }
       setDescription(""); setAmount(""); setFile(null); setCategory(""); setShowErrors(false);
       qc.invalidateQueries({ queryKey: ["gastos-history"] });
       qc.invalidateQueries({ queryKey: ["active-cash-session"] });
+
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "Error al guardar");
     } finally {
