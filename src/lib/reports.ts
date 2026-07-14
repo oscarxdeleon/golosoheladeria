@@ -293,7 +293,10 @@ export function aggregateProducts(
     // Filtrar modificadores registrados como filas independientes
     if (isModifierName(rawName)) continue;
     if (modIds && it.product_id && modIds.has(it.product_id)) continue;
-    if (!it.product_id && modNames && modNames.has(nameKey)) continue;
+    // Cualquier fila cuyo nombre coincida con un modificador del catálogo se
+    // excluye (tenga o no product_id), para que salidas, adiciones y toppings
+    // no aparezcan como productos independientes.
+    if (modNames && modNames.has(nameKey)) continue;
 
     const baseName = stripModifiers(rawName);
     const key = it.product_id ?? `name:${baseName.toLowerCase()}`;
