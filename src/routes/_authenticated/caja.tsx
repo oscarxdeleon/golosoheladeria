@@ -99,11 +99,15 @@ function CajaPage() {
   const [detail, setDetail] = useState<CashSession | null>(null);
 
   // Caja abierta para la SEDE activa (compartida entre cajeros de la misma sede)
-  const { data: current } = useQuery({
+  const { data: rawCurrent } = useQuery({
     queryKey: ["cash-session-open-branch", activeBranchId],
     enabled: !!activeBranchId,
     refetchOnWindowFocus: true,
+    refetchOnMount: "always",
+    refetchOnReconnect: true,
     refetchInterval: 15_000,
+    staleTime: 0,
+    gcTime: 0,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("sync_active_cash_session", {
         _branch_id: activeBranchId!,
@@ -114,8 +118,35 @@ function CajaPage() {
     },
   });
 
+  // Guardia contra falsos positivos: sólo consideramos que existe una caja
+  // abierta cuando el registro devuelto tiene id, estado 'open' y una fecha
+  // de apertura real. Un registro huérfano/corrupto (opened_at nulo o 0, o
+  // status distinto) NO debe bloquear al Cajero como "abierta por otro".
+  const isValidOpenSession = (s: CashSession | null | undefined): s is CashSession => {
+    if (!s || !s.id || s.status !== "open") return false;
+    if (!s.opened_at) return false;
+    const t = new Date(s.opened_at).getTime();
+    return Number.isFinite(t) && t > 0;
+  };
+  const current = isValidOpenSession(rawCurrent) ? rawCurrent : null;
+
+  // Purga cualquier valor cacheado/persistido inválido de versiones previas
+  // (p. ej. dehydrate antiguo antes de la allowlist) al montar o cambiar de
+  // sede. Sin esto, un `opened_at` nulo persistido en IndexedDB sobrevive al
+  // refresco y sigue mostrando "Caja abierta por otro cajero" con 31/12/69.
+  useEffect(() => {
+    if (!activeBranchId) return;
+    if (rawCurrent && !isValidOpenSession(rawCurrent)) {
+      qc.setQueryData(["cash-session-open-branch", activeBranchId], null);
+      qc.setQueryData(["branch-cash-session-open", activeBranchId], null);
+      void qc.invalidateQueries({ queryKey: ["cash-session-open-branch", activeBranchId] });
+      void qc.invalidateQueries({ queryKey: ["branch-cash-session-open", activeBranchId] });
+    }
+  }, [activeBranchId, rawCurrent, qc]);
+
   const isOwner = !!current && !!user && current.user_id === user.id;
-  const canCloseSession = isOwner || isAdmin;
+  const canCloseSession = !!current && (isOwner || isAdmin);
+
 
   const { data: history = [] } = useQuery({
     queryKey: ["cash-sessions-history", activeBranchId],
