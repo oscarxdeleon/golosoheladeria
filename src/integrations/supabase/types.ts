@@ -1183,6 +1183,12 @@ export type Database = {
           active: boolean
           area: string
           created_at: string
+          drawer_master_enabled: boolean
+          drawer_on_cash_close: boolean
+          drawer_on_cash_deposit: boolean
+          drawer_on_cash_expense: boolean
+          drawer_on_cash_open: boolean
+          drawer_on_cash_sale: boolean
           id: string
           ip: string | null
           name: string
@@ -1194,6 +1200,12 @@ export type Database = {
           active?: boolean
           area?: string
           created_at?: string
+          drawer_master_enabled?: boolean
+          drawer_on_cash_close?: boolean
+          drawer_on_cash_deposit?: boolean
+          drawer_on_cash_expense?: boolean
+          drawer_on_cash_open?: boolean
+          drawer_on_cash_sale?: boolean
           id?: string
           ip?: string | null
           name: string
@@ -1205,6 +1217,12 @@ export type Database = {
           active?: boolean
           area?: string
           created_at?: string
+          drawer_master_enabled?: boolean
+          drawer_on_cash_close?: boolean
+          drawer_on_cash_deposit?: boolean
+          drawer_on_cash_expense?: boolean
+          drawer_on_cash_open?: boolean
+          drawer_on_cash_sale?: boolean
           id?: string
           ip?: string | null
           name?: string
