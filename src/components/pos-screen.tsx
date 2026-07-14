@@ -1730,6 +1730,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // pantalla para seleccionar el medio de pago sobre este pedido pendiente.
       if (!stayForPayment) {
         setCart([]);
+        clearDraft();
         setCustomer("");
         setNotes("");
         setAddress("");
