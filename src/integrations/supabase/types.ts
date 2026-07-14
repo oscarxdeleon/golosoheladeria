@@ -282,6 +282,47 @@ export type Database = {
           },
         ]
       }
+      branch_print_settings: {
+        Row: {
+          branch_id: string
+          cashier_printer_ip: string | null
+          cashier_printer_port: number | null
+          created_at: string
+          id: string
+          local_print_url: string | null
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          branch_id: string
+          cashier_printer_ip?: string | null
+          cashier_printer_port?: number | null
+          created_at?: string
+          id?: string
+          local_print_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          branch_id?: string
+          cashier_printer_ip?: string | null
+          cashier_printer_port?: number | null
+          created_at?: string
+          id?: string
+          local_print_url?: string | null
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "branch_print_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       branches: {
         Row: {
           address: string | null
