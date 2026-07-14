@@ -232,7 +232,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
                         <Badge className={data.active_cash.status === "open" ? "bg-emerald-600" : "bg-muted text-muted-foreground"}>
                           {data.active_cash.status === "open" ? "Abierta" : "Cerrada"}
                         </Badge>
-                        {data.active_cash.cashier_name && <span className="text-muted-foreground">Cajero: <b className="text-foreground">{data.active_cash.cashier_name}</b></span>}
+                        {data.active_cash.user_name && <span className="text-muted-foreground">Cajero: <b className="text-foreground">{data.active_cash.user_name}</b></span>}
                       </div>
                       <div className="text-xs text-muted-foreground">Apertura: {data.active_cash.opened_at ? new Date(data.active_cash.opened_at).toLocaleString() : "—"}</div>
                       <div className="text-xs text-muted-foreground">Monto inicial: {formatCurrency(Number(data.active_cash.opening_amount ?? 0))}</div>
