@@ -94,6 +94,13 @@ const egresos = [
   { to: "/deudas", label: "Deudas", icon: Wallet, key: "deudas" },
 ];
 
+const reportes = [
+  { to: "/reportes/resumen", label: "Resumen Financiero", icon: BarChart3, key: "reportes/resumen" },
+  { to: "/reportes/ventas", label: "Ventas y Analíticas", icon: LineChart, key: "reportes/ventas" },
+  { to: "/reportes/cajas", label: "Historial y Cajas", icon: ClipboardList, key: "reportes/cajas" },
+  { to: "/reportes/auditoria", label: "Auditorías", icon: History, key: "reportes/auditoria" },
+];
+
 const admin = [
   { to: "/todos-pedidos", label: "Todos los pedidos", icon: ReceiptIcon, key: "todos-pedidos" },
   { to: "/mesas-admin", label: "Gestión de mesas", icon: LayoutGrid, key: "mesas-admin" },
@@ -101,7 +108,6 @@ const admin = [
   { to: "/repartidores", label: "Repartidores", icon: Bike, key: "usuarios" },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace, key: "asistencia" },
   { to: "/usuarios", label: "Usuarios", icon: Users, key: "usuarios" },
-  { to: "/auditoria", label: "Auditoría", icon: History, key: "__admin_only__" },
   { to: "/monitoreo", label: "Monitoreo", icon: Activity, key: "__admin_only__" },
   { to: "/ajustes", label: "Ajustes", icon: Settings, key: "ajustes" },
   { to: "/ayuda", label: "Ayuda", icon: HelpCircle, key: "ayuda" },
