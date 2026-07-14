@@ -688,7 +688,23 @@ function EstablecimientoTab({ disabled }: { disabled: boolean }) {
   );
 }
 
-interface Printer { id: string; name: string; ip: string | null; port: number; platform: string; area: string; active: boolean; open_drawer_on_print?: boolean; }
+interface Printer {
+  id: string;
+  name: string;
+  ip: string | null;
+  port: number;
+  platform: string;
+  area: string;
+  active: boolean;
+  open_drawer_on_print?: boolean;
+  drawer_master_enabled?: boolean;
+  drawer_on_cash_sale?: boolean;
+  drawer_on_cash_deposit?: boolean;
+  drawer_on_cash_expense?: boolean;
+  drawer_on_cash_close?: boolean;
+  drawer_on_cash_open?: boolean;
+}
+
 function ImpresorasTab({ disabled }: { disabled: boolean }) {
   const [subtab, setSubtab] = useState<"impresoras" | "comandas">("impresoras");
   return (
