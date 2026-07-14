@@ -411,12 +411,7 @@ function AjusteBlock({ title, rows, tone, sign }: { title: string; rows: Expense
             )}
           </div>
         </CardContent>
-      </Card>
-      {/* silence unused router */}
-      <span className="hidden">{router ? "" : ""}</span>
     </div>
   );
 }
 
-// keep import used
-const router = { current: null };
