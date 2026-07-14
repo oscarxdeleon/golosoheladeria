@@ -224,9 +224,12 @@ function UsuariosPage() {
           </Table>
         </CardContent>
       </Card>
+
+      <SupervisorAccessSection />
     </div>
   );
 }
+
 
 interface FormPayload {
   full_name: string;
