@@ -118,8 +118,14 @@ function CajaDetailPage() {
   const services = serviceBreakdown(sales);
   const products = aggregateProducts(items, { modifierNames });
 
+  const activeDeposits = deposits.filter((d) => d.status === "active");
+  const depByMethod = activeDeposits.reduce<Record<string, number>>((a, d) => {
+    const k = (d.method || "").toLowerCase();
+    a[k] = (a[k] ?? 0) + Number(d.amount || 0);
+    return a;
+  }, {});
   const cashSales = payments["efectivo"]?.amount ?? 0;
-  const entries = summary.entries;
+  const entries = summary.entries + (depByMethod.efectivo ?? 0);
   const exits = summary.exits + summary.expenses + summary.refunds;
   const apertura = Number(session.opening_amount) || 0;
   const efectivoEsperado = apertura + cashSales + entries - exits;
