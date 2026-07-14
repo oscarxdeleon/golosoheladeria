@@ -20,7 +20,14 @@ import tableOccupied from "@/assets/mesa_ocupada.png";
 
 export const Route = createFileRoute("/tablet-pedidos")({
   ssr: false,
-  head: () => ({ meta: [{ title: "Tablet Meseros · Goloso POS" }] }),
+  head: () => ({
+    meta: [
+      { title: "Tablet Meseros · Goloso POS" },
+      { name: "apple-mobile-web-app-title", content: "Goloso Mesero" },
+      { name: "application-name", content: "Goloso Mesero" },
+    ],
+    links: [{ rel: "manifest", href: "/manifest-mesero.webmanifest" }],
+  }),
   beforeLoad: async () => {
     const { data, error } = await supabase.auth.getUser();
     if (error || !data.user) throw redirect({ to: "/auth" });
