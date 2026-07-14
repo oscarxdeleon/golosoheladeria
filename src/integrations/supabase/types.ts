@@ -2354,6 +2354,8 @@ export type Database = {
         Args: { _child_id: string }
         Returns: undefined
       }
+      show_limit: { Args: never; Returns: number }
+      show_trgm: { Args: { "": string }; Returns: string[] }
       split_merged_tables: {
         Args: { _principal_id: string; _reason?: string }
         Returns: Json
