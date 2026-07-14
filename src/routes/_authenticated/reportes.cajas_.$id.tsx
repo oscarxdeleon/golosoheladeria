@@ -75,6 +75,19 @@ function CajaDetailPage() {
     enabled: !!filters,
     queryFn: () => fetchExpenses(filters!),
   });
+  const { data: deposits = [] } = useQuery({
+    queryKey: ["reportes.session.deposits", id],
+    enabled: !!session?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_deposits")
+        .select("id, amount, description, method, status, user_name, created_at")
+        .eq("cash_session_id", session!.id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; amount: number; description: string; method: string; status: string; user_name: string | null; created_at: string }>;
+    },
+  });
   const saleIds = useMemo(() => sales.filter((s) => s.status !== "cancelled").map((s) => s.id), [sales]);
   const { data: items = [] } = useQuery({
     queryKey: ["reportes.session.items", id, saleIds.length],
