@@ -794,50 +794,76 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     }
   }
   async function remove(id: string) { await supabase.from("printers").delete().eq("id", id); qc.invalidateQueries({ queryKey: ["printers"] }); }
+  const { activeBranch, activeBranchId } = useBranch();
   const [localUrl, setLocalUrl] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     try { return window.localStorage.getItem("LOCAL_PRINT_URL") ?? ""; } catch { return ""; }
   });
-  // Carga la URL persistida en la BD (settings.local_print_url) al montar,
-  // así sobrevive a que se borre localStorage o se abra en otro navegador.
+  const [terminalName, setTerminalNameState] = useState<string>(() => getTerminalName());
+  const terminalId = typeof window !== "undefined" ? getTerminalId() : "";
+  // Carga la URL persistida en `branch_print_settings` para la SEDE ACTIVA.
+  // Nunca lee la configuración de otra sede — así un cambio en GOLOSO SANTA
+  // jamás sobrescribe la URL local mostrada al operar GOLOSO PARQUE.
   useEffect(() => {
     let cancelled = false;
+    if (!activeBranchId) return;
     (async () => {
       const { data } = await supabase
-        .from("settings")
-        .select("id, local_print_url")
-        .limit(1)
+        .from("branch_print_settings")
+        .select("local_print_url")
+        .eq("branch_id", activeBranchId)
         .maybeSingle();
       if (cancelled) return;
       const url = (data as { local_print_url?: string | null } | null)?.local_print_url ?? "";
-      if (url) {
+      // Solo pisamos el input si el equipo NO tiene ya una URL propia guardada
+      // en localStorage — la configuración local del terminal manda.
+      const own = (typeof window !== "undefined" && window.localStorage.getItem("LOCAL_PRINT_URL")) || "";
+      if (!own && url) {
         setLocalUrl(url);
         try { window.localStorage.setItem("LOCAL_PRINT_URL", url); } catch { /* noop */ }
+      } else if (own) {
+        setLocalUrl(own);
+      } else {
+        setLocalUrl("");
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [activeBranchId]);
   async function saveLocalUrl() {
     const value = localUrl.trim();
+    // 1) Guardar localmente (por equipo). El terminal manda sobre la BD.
     try {
       if (value) window.localStorage.setItem("LOCAL_PRINT_URL", value);
       else window.localStorage.removeItem("LOCAL_PRINT_URL");
     } catch { /* noop */ }
-    // Persistimos también en la BD para que no se pierda al cerrar el navegador.
+    // 2) Persistir en `branch_print_settings` **solo** para la sede activa.
+    //    Otras sedes conservan intacta su propia configuración.
+    if (!activeBranchId) {
+      toast.error("Selecciona primero una sede activa");
+      return;
+    }
     try {
-      const { data: row } = await supabase.from("settings").select("id").limit(1).maybeSingle();
-      if (row?.id) {
-        const { error } = await supabase.from("settings").update({ local_print_url: value || null }).eq("id", row.id);
-        if (error) throw error;
-      } else {
-        const { error } = await supabase.from("settings").insert({ local_print_url: value || null });
-        if (error) throw error;
-      }
-      toast.success(value ? "Impresión silenciosa guardada" : "Impresión silenciosa desactivada");
+      const { error } = await supabase
+        .from("branch_print_settings")
+        .upsert(
+          { branch_id: activeBranchId, local_print_url: value || null },
+          { onConflict: "branch_id" },
+        );
+      if (error) throw error;
+      refreshPrinterTargetCache(activeBranchId);
+      toast.success(
+        value
+          ? `Print Server guardado para ${activeBranch?.name ?? "esta sede"}`
+          : "Impresión silenciosa desactivada en esta sede",
+      );
     } catch (e) {
       console.error(e);
       toast.error("Guardado local, pero no se pudo sincronizar con la base de datos");
     }
+  }
+  function saveTerminalName() {
+    setTerminalName(terminalName);
+    toast.success("Nombre del equipo guardado en este terminal");
   }
 
   async function testLocal() {
