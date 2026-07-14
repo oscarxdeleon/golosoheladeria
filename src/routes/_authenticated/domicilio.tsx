@@ -339,30 +339,28 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
                 <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
               </div>
               <div className="space-y-1 md:col-span-2">
-                <Label>Barrio</Label>
+                <Label>Barrio *</Label>
                 <Input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setMode("search")}>Cancelar</Button>
-              <Button
-                onClick={() =>
-                  onSelect({
-                    name: form.name.trim(),
-                    phone: form.phone.trim(),
-                    address: form.address.trim(),
-                    neighborhood: form.neighborhood.trim(),
-                  })
-                }
-                variant="secondary"
-                disabled={!form.name.trim() || !form.address.trim() || !form.phone.trim()}
-              >
-                Continuar sin guardar
+              <Button variant="outline" onClick={() => setMode("search")} disabled={saving}>
+                Cancelar
               </Button>
-              <Button onClick={saveNewAndContinue} disabled={saving}>
+              <Button
+                onClick={saveNewAndContinue}
+                disabled={
+                  saving ||
+                  !form.name.trim() ||
+                  !form.phone.trim() ||
+                  !form.address.trim() ||
+                  !form.neighborhood.trim()
+                }
+              >
                 {saving ? "Guardando…" : "Guardar y continuar"}
               </Button>
             </div>
+
           </CardContent>
         </Card>
       )}
