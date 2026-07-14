@@ -745,6 +745,7 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     const name = edit?.name?.trim();
     if (!name) return toast.error("El nombre es obligatorio");
     const ip = edit?.ip?.trim() || null;
+    const drawerOnCashSale = edit?.drawer_on_cash_sale ?? edit?.open_drawer_on_print ?? false;
     const payload = {
       name,
       ip,
@@ -752,8 +753,17 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
       platform: edit?.platform ?? "Windows",
       area: edit?.area ?? "caja",
       active: edit?.active ?? true,
-      open_drawer_on_print: edit?.open_drawer_on_print ?? false,
+      // Compatibilidad con la bandera antigua — se mantiene sincronizada
+      // con la nueva "abrir cajón en ventas en efectivo".
+      open_drawer_on_print: drawerOnCashSale,
+      drawer_master_enabled: edit?.drawer_master_enabled ?? true,
+      drawer_on_cash_sale: drawerOnCashSale,
+      drawer_on_cash_deposit: edit?.drawer_on_cash_deposit ?? true,
+      drawer_on_cash_expense: edit?.drawer_on_cash_expense ?? true,
+      drawer_on_cash_close: edit?.drawer_on_cash_close ?? true,
+      drawer_on_cash_open: edit?.drawer_on_cash_open ?? false,
     };
+
 
     try {
       const res = edit?.id
