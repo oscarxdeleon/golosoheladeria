@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PosScreen } from "@/components/pos-screen";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { Button } from "@/components/ui/button";
