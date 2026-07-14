@@ -905,9 +905,9 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
 
           <Dialog open={!!edit} onOpenChange={(o) => !o && setEdit(null)}>
             <DialogTrigger asChild><Button onClick={() => setEdit({ port: 9100, platform: "Windows", area: "caja", active: true })}><Plus className="h-4 w-4 mr-1" /> Agregar</Button></DialogTrigger>
-            <DialogContent>
-              <DialogHeader><DialogTitle>{edit?.id ? "Editar" : "Nueva"} impresora</DialogTitle></DialogHeader>
-              <div className="space-y-3">
+            <DialogContent className="flex max-h-[90vh] flex-col p-0 sm:max-w-lg">
+              <DialogHeader className="shrink-0 border-b px-6 py-4"><DialogTitle>{edit?.id ? "Editar" : "Nueva"} impresora</DialogTitle></DialogHeader>
+              <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
                 <div><Label>Nombre</Label><Input value={edit?.name ?? ""} onChange={(e) => setEdit({ ...edit, name: e.target.value })} /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><Label>IP</Label><Input value={edit?.ip ?? ""} onChange={(e) => setEdit({ ...edit, ip: e.target.value })} placeholder="192.168.1.50" /></div>
