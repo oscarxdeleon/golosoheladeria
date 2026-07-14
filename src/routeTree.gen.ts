@@ -58,6 +58,7 @@ import { Route as SSlugMenuRouteImport } from './routes/s.$slug.menu'
 import { Route as SSlugManifestDotwebmanifestRouteImport } from './routes/s.$slug.manifest[.]webmanifest'
 import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
 import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
+import { Route as AuthenticatedReportesVentasRouteImport } from './routes/_authenticated/reportes.ventas'
 import { Route as AuthenticatedReportesResumenRouteImport } from './routes/_authenticated/reportes.resumen'
 import { Route as AuthenticatedMenuRecetasRouteImport } from './routes/_authenticated/menu/recetas'
 import { Route as AuthenticatedMenuProductosRouteImport } from './routes/_authenticated/menu/productos'
@@ -318,6 +319,12 @@ const AsistenciaTerminalSlugRoute = AsistenciaTerminalSlugRouteImport.update({
   path: '/asistencia/terminal/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthenticatedReportesVentasRoute =
+  AuthenticatedReportesVentasRouteImport.update({
+    id: '/ventas',
+    path: '/ventas',
+    getParentRoute: () => AuthenticatedReportesRoute,
+  } as any)
 const AuthenticatedReportesResumenRoute =
   AuthenticatedReportesResumenRouteImport.update({
     id: '/resumen',
@@ -409,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
+  '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -464,6 +472,7 @@ export interface FileRoutesByTo {
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
+  '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -523,6 +532,7 @@ export interface FileRoutesById {
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/_authenticated/menu/recetas': typeof AuthenticatedMenuRecetasRoute
   '/_authenticated/reportes/resumen': typeof AuthenticatedReportesResumenRoute
+  '/_authenticated/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -582,6 +592,7 @@ export interface FileRouteTypes {
     | '/menu/productos'
     | '/menu/recetas'
     | '/reportes/resumen'
+    | '/reportes/ventas'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -637,6 +648,7 @@ export interface FileRouteTypes {
     | '/menu/productos'
     | '/menu/recetas'
     | '/reportes/resumen'
+    | '/reportes/ventas'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -695,6 +707,7 @@ export interface FileRouteTypes {
     | '/_authenticated/menu/productos'
     | '/_authenticated/menu/recetas'
     | '/_authenticated/reportes/resumen'
+    | '/_authenticated/reportes/ventas'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -1063,6 +1076,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AsistenciaTerminalSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_authenticated/reportes/ventas': {
+      id: '/_authenticated/reportes/ventas'
+      path: '/ventas'
+      fullPath: '/reportes/ventas'
+      preLoaderRoute: typeof AuthenticatedReportesVentasRouteImport
+      parentRoute: typeof AuthenticatedReportesRoute
+    }
     '/_authenticated/reportes/resumen': {
       id: '/_authenticated/reportes/resumen'
       path: '/resumen'
@@ -1117,11 +1137,13 @@ declare module '@tanstack/react-router' {
 
 interface AuthenticatedReportesRouteChildren {
   AuthenticatedReportesResumenRoute: typeof AuthenticatedReportesResumenRoute
+  AuthenticatedReportesVentasRoute: typeof AuthenticatedReportesVentasRoute
   AuthenticatedReportesIndexRoute: typeof AuthenticatedReportesIndexRoute
 }
 
 const AuthenticatedReportesRouteChildren: AuthenticatedReportesRouteChildren = {
   AuthenticatedReportesResumenRoute: AuthenticatedReportesResumenRoute,
+  AuthenticatedReportesVentasRoute: AuthenticatedReportesVentasRoute,
   AuthenticatedReportesIndexRoute: AuthenticatedReportesIndexRoute,
 }
 
