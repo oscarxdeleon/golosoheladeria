@@ -3,6 +3,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useBranch } from "@/contexts/branch-context";
+import { getTerminalId, getTerminalName, setTerminalName } from "@/lib/terminal-id";
+import { refreshPrinterTargetCache } from "@/lib/print-client";
 // Tabs UI no longer used at page level (redesigned with cards + section view).
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
