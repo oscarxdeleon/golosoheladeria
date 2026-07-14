@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from "
 import { useQuery } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { setActivePrintBranchId, refreshPrinterTargetCache } from "@/lib/print-client";
 
 export interface Branch {
   id: string;
