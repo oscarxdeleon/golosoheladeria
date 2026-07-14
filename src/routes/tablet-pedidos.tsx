@@ -9,7 +9,7 @@ import { PosScreen, type OrderType } from "@/components/pos-screen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Utensils, ShoppingBag, Bike, Users, ArrowLeft, LogOut } from "lucide-react";
+import { Utensils, ShoppingBag, ArrowLeft, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
