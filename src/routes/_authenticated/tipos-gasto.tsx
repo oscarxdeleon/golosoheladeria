@@ -25,11 +25,6 @@ import { toast } from "sonner";
 export const Route = createFileRoute("/_authenticated/tipos-gasto")({
   head: () => ({ meta: [{ title: "Administrar tipos de gasto · Goloso POS" }] }),
   component: TiposGastoPage,
-  beforeLoad: () => {
-    // El gate de auth ya está en _authenticated; validación de rol en cliente
-    // se hace en el componente porque `has_role` solo se resuelve tras hidratar.
-    return {};
-  },
 });
 
 type Cat = {
