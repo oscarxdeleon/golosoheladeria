@@ -81,6 +81,14 @@ function CajaDetailPage() {
     enabled: saleIds.length > 0,
     queryFn: () => fetchSaleItemsForSales(saleIds),
   });
+  const { data: modifierNames } = useQuery({
+    queryKey: ["reportes.modifier-names"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("modifiers").select("name");
+      return new Set((data ?? []).map((m: { name: string | null }) => (m.name ?? "").trim().toLowerCase()).filter(Boolean));
+    },
+  });
 
   const branchName = branches.find((b) => b.id === session?.branch_id)?.name ?? "—";
 
@@ -95,7 +103,7 @@ function CajaDetailPage() {
   const summary = computeFinancialSummary(sales, expenses, [session]);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
-  const products = aggregateProducts(items);
+  const products = aggregateProducts(items, { modifierNames });
 
   const cashSales = payments["efectivo"]?.amount ?? 0;
   const entries = summary.entries;

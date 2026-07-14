@@ -273,28 +273,55 @@ export interface ProductAggregate {
 }
 
 /**
- * Agrupa productos vendidos por product_id, tomando solo el producto principal
- * y excluyendo modificadores (heurística por nombre + product_id nulo).
+ * Agrupa productos vendidos por producto principal, excluyendo modificadores
+ * (por heurística de nombre, por catálogo de modificadores, y por IDs de
+ * productos que en el catálogo del negocio se usan como modificadores).
+ * También incorpora el precio de los modificadores (columna jsonb `modifiers`)
+ * al total del producto principal en el que fueron seleccionados.
  */
-export function aggregateProducts(items: SaleItemRow[]): ProductAggregate[] {
+export function aggregateProducts(
+  items: SaleItemRow[],
+  opts?: { modifierNames?: Set<string>; modifierProductIds?: Set<string> },
+): ProductAggregate[] {
+  const modNames = opts?.modifierNames;
+  const modIds = opts?.modifierProductIds;
+  const stripModifiers = (n: string) => (n ?? "").split(/\s*[+(]/)[0].trim() || n;
   const map = new Map<string, ProductAggregate>();
   for (const it of items) {
-    if (!it.product_id && isModifierName(it.product_name)) continue;
-    const key = it.product_id ?? `name:${it.product_name}`;
+    const rawName = (it.product_name ?? "").toString();
+    const nameKey = rawName.trim().toLowerCase();
+    // Filtrar modificadores registrados como filas independientes
+    if (isModifierName(rawName)) continue;
+    if (modIds && it.product_id && modIds.has(it.product_id)) continue;
+    // Cualquier fila cuyo nombre coincida con un modificador del catálogo se
+    // excluye (tenga o no product_id), para que salidas, adiciones y toppings
+    // no aparezcan como productos independientes.
+    if (modNames && modNames.has(nameKey)) continue;
+
+    const baseName = stripModifiers(rawName);
+    const key = it.product_id ?? `name:${baseName.toLowerCase()}`;
+    const qty = Number(it.qty) || 0;
+    // El subtotal de la fila ya incluye el precio de los modificadores
+    // (pos-screen suma el extra al unit_price, y el RPC create_public_order
+    // recalcula subtotal = (base + Σ modifiers) * qty).
+    const total = Number(it.subtotal) || 0;
     const prev = map.get(key);
     if (prev) {
-      prev.qty += Number(it.qty) || 0;
-      prev.total += Number(it.subtotal) || 0;
+      prev.qty += qty;
+      prev.total += total;
     } else {
       map.set(key, {
         productId: it.product_id,
-        name: it.product_name,
-        qty: Number(it.qty) || 0,
-        total: Number(it.subtotal) || 0,
+        name: baseName,
+        qty,
+        total,
       });
     }
   }
-  return Array.from(map.values()).sort((a, b) => b.qty - a.qty);
+  return Array.from(map.values()).sort((a, b) => {
+    if (b.qty !== a.qty) return b.qty - a.qty;
+    return a.name.localeCompare(b.name, "es", { sensitivity: "base" });
+  });
 }
 
 export function courtesiesFromItems(items: SaleItemRow[]): { qty: number; count: number } {
