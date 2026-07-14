@@ -335,12 +335,13 @@ export const supervisorDashboard = createServerFn({ method: "POST" })
     // Active cash session
     let cashQ = supabaseAdmin
       .from("cash_sessions")
-      .select("id,status,opened_at,closed_at,opening_amount,cashier_name,cashier_id")
+      .select("id,status,opened_at,closed_at,opening_amount,user_name,user_id")
       .order("opened_at", { ascending: false })
       .limit(1);
     if (branchId) cashQ = cashQ.eq("branch_id", branchId);
     const { data: cs } = await cashQ;
     const activeCash = cs?.[0] ?? null;
+
 
     // Orders state
     let ordersQ = supabaseAdmin
