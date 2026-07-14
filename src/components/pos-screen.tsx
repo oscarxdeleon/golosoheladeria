@@ -966,15 +966,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     queryKey: ["pending-sale", orderType, tableId],
     enabled: orderType === "mesa" && !!tableId,
     refetchOnWindowFocus: true,
+    // La BD es la fuente de verdad. Mantener el último dato válido hasta
+    // la próxima respuesta para no colapsar el carrito por respuestas
+    // transitorias vacías.
+    placeholderData: (prev) => prev,
     queryFn: async () => {
-      const { data } = await supabase
+      // Un pedido de mesa sigue "activo" mientras no esté pagado,
+      // cancelado o fusionado. El trigger `auto_mark_sale_ready`
+      // transiciona pending → ready cuando la cocina termina todos los
+      // ítems; si aquí sólo buscáramos 'pending' el POS mostraría
+      // "0 productos" en una mesa que sigue ocupada esperando cobro.
+      // Incluimos también 'confirmed' por el mismo motivo.
+      const { data, error } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,notes,created_at,printed_at,sale_items(product_id,product_name,qty,unit_price)")
+        .select("id,ticket_number,customer_name,notes,created_at,printed_at,status,sale_items(product_id,product_name,qty,unit_price)")
         .eq("table_id", tableId!)
-        .eq("status", "pending")
+        .in("status", ["pending", "confirmed", "ready"])
         .order("created_at", { ascending: false })
         .limit(1)
         .maybeSingle();
+      if (error) throw error;
       return data as null | {
         id: string;
         ticket_number: number;
@@ -982,6 +993,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         notes: string | null;
         created_at: string;
         printed_at: string | null;
+        status: string | null;
         sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
       };
     },
