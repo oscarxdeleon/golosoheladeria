@@ -42,7 +42,7 @@ export function enableOfflineQueryPersistence(queryClient: QueryClient): void {
       setItem: (key, value) => set(key, value),
       removeItem: (key) => del(key),
     },
-    key: "goloso-rq-cache-v1",
+    key: "goloso-rq-cache-v2",
     throttleTime: 1500,
   });
 
