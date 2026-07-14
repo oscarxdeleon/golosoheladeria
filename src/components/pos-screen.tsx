@@ -1405,6 +1405,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
       setCart([]);
+      clearDraft();
       setCustomer("");
       setNotes("");
       setAddress("");
