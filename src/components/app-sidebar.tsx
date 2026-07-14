@@ -262,6 +262,23 @@ export function AppSidebar() {
           </SidebarGroup>
         )}
 
+        {fReportes.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Reportes</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {fReportes.map((i) => (
+                  <SidebarMenuItem key={i.to}>
+                    <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                      <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
         {fAdmin.length > 0 && (
           <SidebarGroup>
             <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Administración</SidebarGroupLabel>
