@@ -101,10 +101,14 @@ export const updateSupervisorAccount = createServerFn({ method: "POST" })
       await supabaseAdmin.from("supervisor_sessions").update({ revoked_at: new Date().toISOString() }).eq("account_id", data.id).is("revoked_at", null);
     }
     if (Object.keys(patch).length === 0) return { ok: true };
-    const { error } = await supabaseAdmin.from("supervisor_accounts").update(patch).eq("id", data.id);
+    const { error } = await supabaseAdmin
+      .from("supervisor_accounts")
+      .update(patch as never)
+      .eq("id", data.id);
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+
 
 export const deleteSupervisorAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
