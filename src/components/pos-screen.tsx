@@ -435,7 +435,7 @@ export type PrintComandaResult = { ok: boolean; queued: boolean; jobId?: string 
 
 export async function printComanda(
   o: Parameters<typeof comandaHTML>[0],
-  opts: { branchId?: string | null; saleId?: string | null } = {},
+  opts: { branchId?: string | null; saleId?: string | null; alwaysEnqueue?: boolean } = {},
 ): Promise<PrintComandaResult> {
   const { ip, port } = await fetchComandaPrinter();
   const b = o.branding ?? DEFAULT_BRANDING;
@@ -454,24 +454,38 @@ export async function printComanda(
     is_addition: o.is_addition,
     printer_ip: ip, printer_port: port,
   };
+
+  // Helper: encolar en print_jobs (procesa el worker de la PC del POS).
+  const enqueue = async (): Promise<PrintComandaResult> => {
+    const { enqueuePrintJob } = await import("@/lib/print-queue");
+    const jobId = await enqueuePrintJob(payload, {
+      branchId: opts.branchId ?? null,
+      saleId: opts.saleId ?? null,
+      kind: "comanda",
+    });
+    if (jobId) {
+      console.info("[print] comanda encolada", jobId);
+      return { ok: false, queued: true, jobId };
+    }
+    console.warn("[print] comanda no enviada ni encolada");
+    return { ok: false, queued: false };
+  };
+
+  // Tablet de mesero (u otro caller que exige cola): saltarse el intento local
+  // — la tablet no tiene Print Server. El worker del POS de la sede lo procesa
+  // instantáneamente por realtime.
+  if (opts.alwaysEnqueue) {
+    return enqueue();
+  }
+
   const ok = await sendToLocalPrinter(payload);
   if (ok) return { ok: true, queued: false };
   // Servidor local no disponible en esta máquina (tablet de mesero, o Print
   // Server caído). Encolamos en la cola compartida — otra PC de la misma
   // sede con Print Server activo procesará el trabajo por realtime.
-  const { enqueuePrintJob } = await import("@/lib/print-queue");
-  const jobId = await enqueuePrintJob(payload, {
-    branchId: opts.branchId ?? null,
-    saleId: opts.saleId ?? null,
-    kind: "comanda",
-  });
-  if (jobId) {
-    console.info("[print] comanda encolada", jobId);
-    return { ok: false, queued: true, jobId };
-  }
-  console.warn("[print] comanda no enviada ni encolada");
-  return { ok: false, queued: false };
+  return enqueue();
 }
+
 
 
 export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { saleId?: string | null }): Promise<void> {
