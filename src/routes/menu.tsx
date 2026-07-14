@@ -9,7 +9,14 @@ const menuSearch = z.object({
 
 export const Route = createFileRoute("/menu")({
   validateSearch: zodValidator(menuSearch),
-  head: () => ({ meta: [{ title: "Menú en línea · Goloso" }] }),
+  head: () => ({
+    meta: [
+      { title: "Menú en línea · Goloso" },
+      { name: "apple-mobile-web-app-title", content: "Goloso" },
+      { name: "application-name", content: "Goloso" },
+    ],
+    links: [{ rel: "manifest", href: "/manifest.webmanifest" }],
+  }),
   component: MenuPage,
 });
 
