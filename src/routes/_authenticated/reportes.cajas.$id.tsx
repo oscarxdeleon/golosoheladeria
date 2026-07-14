@@ -162,10 +162,10 @@ function CajaDetailPage() {
           </div>
 
           <div className="mt-4 flex flex-wrap gap-2">
-            <Button onClick={handlePdf} disabled={downloading} variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 gap-2 font-semibold">
+            <Button onClick={handlePdf} disabled={downloading} variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 gap-2 font-bold">
               <Download className="h-4 w-4" />{downloading ? "Generando…" : "PDF"}
             </Button>
-            <Button onClick={() => window.print()} variant="outline" className="border-primary/40 text-primary hover:bg-primary/5 gap-2 font-semibold flex-1">
+            <Button onClick={() => window.print()} variant="outline" className="border-rose-300 bg-white text-rose-600 hover:bg-rose-50 hover:text-rose-700 gap-2 font-bold flex-1">
               <Printer className="h-4 w-4" /> Imprimir Reporte
             </Button>
           </div>
