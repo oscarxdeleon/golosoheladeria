@@ -81,6 +81,14 @@ function CajaDetailPage() {
     enabled: saleIds.length > 0,
     queryFn: () => fetchSaleItemsForSales(saleIds),
   });
+  const { data: modifierNames } = useQuery({
+    queryKey: ["reportes.modifier-names"],
+    staleTime: 5 * 60_000,
+    queryFn: async () => {
+      const { data } = await supabase.from("modifiers").select("name");
+      return new Set((data ?? []).map((m: { name: string | null }) => (m.name ?? "").trim().toLowerCase()).filter(Boolean));
+    },
+  });
 
   const branchName = branches.find((b) => b.id === session?.branch_id)?.name ?? "—";
 
