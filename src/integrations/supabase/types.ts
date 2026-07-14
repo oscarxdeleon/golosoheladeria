@@ -1993,6 +1993,130 @@ export type Database = {
         }
         Relationships: []
       }
+      supervisor_accounts: {
+        Row: {
+          access_token: string
+          active: boolean
+          created_at: string
+          display_name: string
+          failed_attempts: number
+          id: string
+          last_login_at: string | null
+          locked_until: string | null
+          pin_hash: string
+          updated_at: string
+          username: string
+        }
+        Insert: {
+          access_token?: string
+          active?: boolean
+          created_at?: string
+          display_name: string
+          failed_attempts?: number
+          id?: string
+          last_login_at?: string | null
+          locked_until?: string | null
+          pin_hash: string
+          updated_at?: string
+          username: string
+        }
+        Update: {
+          access_token?: string
+          active?: boolean
+          created_at?: string
+          display_name?: string
+          failed_attempts?: number
+          id?: string
+          last_login_at?: string | null
+          locked_until?: string | null
+          pin_hash?: string
+          updated_at?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      supervisor_audit_log: {
+        Row: {
+          account_id: string | null
+          created_at: string
+          detail: Json | null
+          event: string
+          id: string
+          ip: string | null
+          user_agent: string | null
+          username: string | null
+        }
+        Insert: {
+          account_id?: string | null
+          created_at?: string
+          detail?: Json | null
+          event: string
+          id?: string
+          ip?: string | null
+          user_agent?: string | null
+          username?: string | null
+        }
+        Update: {
+          account_id?: string | null
+          created_at?: string
+          detail?: Json | null
+          event?: string
+          id?: string
+          ip?: string | null
+          user_agent?: string | null
+          username?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supervisor_audit_log_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "supervisor_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      supervisor_sessions: {
+        Row: {
+          account_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          ip: string | null
+          revoked_at: string | null
+          session_token: string
+          user_agent: string | null
+        }
+        Insert: {
+          account_id: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          revoked_at?: string | null
+          session_token?: string
+          user_agent?: string | null
+        }
+        Update: {
+          account_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip?: string | null
+          revoked_at?: string | null
+          session_token?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supervisor_sessions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "supervisor_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supplier_credit_payments: {
         Row: {
           amount: number
