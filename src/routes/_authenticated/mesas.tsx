@@ -722,20 +722,32 @@ function MesasPage() {
           <DialogHeader>
             <DialogTitle>Mesa {addToOccupied?.number} ya tiene un pedido activo</DialogTitle>
             <DialogDescription>
-              ¿Desea agregar nuevos productos a este pedido? Los productos anteriores se conservan y solo se imprimirá una comanda con los productos recién agregados.
+              ¿Qué desea hacer? Puede agregar nuevos productos al pedido existente (solo se imprimirá una comanda con los productos recién agregados) o ir directamente a cobrar la mesa.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:justify-between">
             <Button variant="outline" onClick={() => setAddToOccupied(null)}>Cancelar</Button>
-            <Button
-              onClick={() => {
-                const m = addToOccupied;
-                setAddToOccupied(null);
-                if (m) navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
-              }}
-            >
-              Sí, agregar productos
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Button
+                variant="secondary"
+                onClick={() => {
+                  const m = addToOccupied;
+                  setAddToOccupied(null);
+                  if (m) navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
+                }}
+              >
+                Agregar productos
+              </Button>
+              <Button
+                onClick={() => {
+                  const m = addToOccupied;
+                  setAddToOccupied(null);
+                  if (m) navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
+                }}
+              >
+                Cobrar
+              </Button>
+            </div>
           </DialogFooter>
         </DialogContent>
       </Dialog>
