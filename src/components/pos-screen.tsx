@@ -584,14 +584,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
         'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
     );
   }
-  if (shouldOpenDrawer) {
-    const { openCashDrawer } = await import("@/lib/cash-drawer");
-    void openCashDrawer({
-      event: "cash_sale",
-      operationId: o.saleId ?? String(o.ticket ?? ""),
-    });
-  }
-}
+
 
 
 
