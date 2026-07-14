@@ -79,6 +79,11 @@ export function usePermissions() {
     if (isAdmin) return true;
     const clean = pathname.replace(/^\//, "");
     if (!clean || clean === "") return can("dashboard");
+    // El panel de tablet para meseros no está gobernado por role_permissions
+    // (es la ruta home del rol mesero). Permitirla siempre para meseros.
+    if ((clean === "tablet-pedidos" || clean.startsWith("tablet-pedidos/")) && primaryRole === "mesero") {
+      return true;
+    }
     // longest match
     const keys = Array.from(allowedKeys).sort((a, b) => b.length - a.length);
     for (const k of keys) {
