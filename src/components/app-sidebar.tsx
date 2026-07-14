@@ -52,7 +52,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { LayoutGrid, MessageSquareHeart, Activity } from "lucide-react";
+import { LayoutGrid, MessageSquareHeart, Activity, BarChart3, LineChart, ClipboardList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const main = [
@@ -94,6 +94,13 @@ const egresos = [
   { to: "/deudas", label: "Deudas", icon: Wallet, key: "deudas" },
 ];
 
+const reportes = [
+  { to: "/reportes/resumen", label: "Resumen Financiero", icon: BarChart3, key: "reportes/resumen" },
+  { to: "/reportes/ventas", label: "Ventas y Analíticas", icon: LineChart, key: "reportes/ventas" },
+  { to: "/reportes/cajas", label: "Historial y Cajas", icon: ClipboardList, key: "reportes/cajas" },
+  { to: "/reportes/auditoria", label: "Auditorías", icon: History, key: "reportes/auditoria" },
+];
+
 const admin = [
   { to: "/todos-pedidos", label: "Todos los pedidos", icon: ReceiptIcon, key: "todos-pedidos" },
   { to: "/mesas-admin", label: "Gestión de mesas", icon: LayoutGrid, key: "mesas-admin" },
@@ -101,7 +108,6 @@ const admin = [
   { to: "/repartidores", label: "Repartidores", icon: Bike, key: "usuarios" },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace, key: "asistencia" },
   { to: "/usuarios", label: "Usuarios", icon: Users, key: "usuarios" },
-  { to: "/auditoria", label: "Auditoría", icon: History, key: "__admin_only__" },
   { to: "/monitoreo", label: "Monitoreo", icon: Activity, key: "__admin_only__" },
   { to: "/ajustes", label: "Ajustes", icon: Settings, key: "ajustes" },
   { to: "/ayuda", label: "Ayuda", icon: HelpCircle, key: "ayuda" },
@@ -153,6 +159,7 @@ export function AppSidebar() {
   const fMenu = filter(menu);
   const fEgresos = filter(egresos);
   const fAdmin = filter(admin);
+  const fReportes = filter(reportes);
   
 
   return (
@@ -244,6 +251,23 @@ export function AppSidebar() {
             <SidebarGroupContent>
               <SidebarMenu>
                 {fEgresos.map((i) => (
+                  <SidebarMenuItem key={i.to}>
+                    <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
+                      <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>
+                    </SidebarMenuButton>
+                  </SidebarMenuItem>
+                ))}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        )}
+
+        {fReportes.length > 0 && (
+          <SidebarGroup>
+            <SidebarGroupLabel className="font-display font-bold uppercase tracking-widest text-primary/80">Reportes</SidebarGroupLabel>
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {fReportes.map((i) => (
                   <SidebarMenuItem key={i.to}>
                     <SidebarMenuButton asChild isActive={isActive(i.to)} tooltip={i.label}>
                       <Link to={i.to}><i.icon /><span className="font-display font-bold tracking-wide text-[15px]">{i.label}</span></Link>

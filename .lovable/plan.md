@@ -1,69 +1,95 @@
-# Fase 3 – Modo Offline
 
-Un POS que "funciona sin internet" tiene tres niveles de complejidad muy distintos. Antes de escribir código, conviene fijar qué nivel implementar. Recomiendo hacerlos por etapas separadas, en este orden, y no todo en una sola tanda.
+# Módulo REPORTES — Heladería Goloso
 
-## Etapa A — Cascarón instalable + catálogo offline (bajo riesgo)
+Un nuevo centro unificado de consulta financiera, comercial, operativa y de auditoría. Se integra con las tablas existentes (`sales`, `sale_items`, `cash_sessions`, `expenses`, `audit_log`, `branches`, `profiles`, `products`) sin modificar la lógica actual de ventas, caja, inventario ni pedidos.
 
-**Qué logra:** si se cae internet, la app abre, muestra el menú/productos/precios/mesas cacheados, y el cajero puede navegar. Ventas nuevas siguen requiriendo red.
+## 1. Estructura de navegación
 
-**Cambios:**
-- Añadir `vite-plugin-pwa` con `generateSW`, `registerType: "autoUpdate"`, `NetworkFirst` para HTML, `CacheFirst` para assets hasheados.
-- Registrar el service worker desde un wrapper con las guardas obligatorias de Lovable (no registrar en preview / iframe / dev / `?sw=off`).
-- Manifest + iconos para "Agregar a pantalla de inicio".
-- Persistir en IndexedDB (React Query persister) las queries clave: `products`, `categories`, `modifier_groups`, `branches`, `restaurant_tables`, `role_permissions`.
-- Al perder conexión: mostrar el catálogo cacheado en modo "solo lectura" (banner "Sin conexión — no puedes cobrar ni enviar comandas").
-- Kill-switch listo por si algo sale mal en producción.
+En el sidebar aparece un nuevo grupo **REPORTES** (icono BarChart3) con:
 
-**Riesgo:** bajo. No toca lógica de negocio.
+- Resumen Financiero → `/reportes/resumen`
+- Ventas y Analíticas → `/reportes/ventas`
+- Historial y Cajas → `/reportes/cajas`
+- Auditorías → `/reportes/auditoria` (ruta actual `/auditoria` se reexporta aquí, manteniendo el archivo original por compatibilidad y agregando alias en el menú).
 
-## Etapa B — Cola offline de ventas (riesgo alto, mucho testing)
+Permisos (`role_permissions.route_key`):
+- `reportes` (raíz), `reportes/resumen`, `reportes/ventas`, `reportes/cajas`, `reportes/auditoria`.
+- Admin: acceso total. Cajero: solo sus propios cierres (filtrado por `cash_sessions.opened_by/closed_by = auth.uid()`). Otros roles: sin acceso salvo que el admin lo habilite.
 
-**Qué logra:** el cajero puede cobrar en efectivo y guardar comandas sin red. Cuando vuelve la conexión, la cola sincroniza al backend.
+## 2. Resumen Financiero (`/reportes/resumen`)
 
-**Retos serios:**
-- **Numeración de tickets**: el `ticket_number` lo asigna el backend. Offline hay que usar un ID temporal y mostrar "Ticket local #L-42" hasta sincronizar.
-- **Inventario**: descontar stock offline crea desfases. Hay que decidir: ¿bloqueamos productos con stock crítico? ¿o permitimos y reconciliamos?
-- **Caja**: apertura/cierre de caja no debería hacerse offline (afecta arqueo y auditoría).
-- **Conflictos**: si dos terminales venden el mismo producto offline y se sincronizan, hay que resolver duplicados y stock negativo.
-- **Impresión**: la comanda a cocina no llega si el KDS depende del backend. Se imprime en la impresora local (ya funciona con print-client), pero el KDS no verá el pedido hasta la sincronización.
-- **Auditoría**: cada operación offline necesita marca de tiempo del dispositivo + del servidor al sincronizar.
-- **Seguridad**: las políticas RLS deben validar la venta al sincronizarla; una venta offline manipulada localmente no debe pasar validación.
+Panel con KPIs consolidados por sede/rango/usuario/caja/turno:
 
-**Alcance mínimo recomendado:**
-- Solo ventas de **efectivo** en modo **para llevar** (evita mesas/domicilios/tarjeta).
-- Requiere caja abierta ANTES de perder red.
-- Sync con reintentos exponenciales y UI de "pendientes por sincronizar".
-- Botón manual "reintentar sincronización" en el header.
+- Ventas totales, # transacciones, ticket promedio.
+- Ingresos, Gastos, Entradas, Salidas, Retiros.
+- Propinas (`sales.tip_amount`), Cortesías (items con `is_courtesy` o `discount = total`).
+- Saldo neto = Ventas − Gastos − Devoluciones − Reembolsos + Entradas − Salidas.
+- Efectivo esperado, Valor declarado, Diferencia (agregados desde `cash_sessions`).
 
-**Riesgo:** alto. Requiere pruebas exhaustivas en cada módulo integrado.
+Filtros: rango de fechas (con presets Hoy / Ayer / 7d / Mes), sede, usuario, caja/turno.
+Tarjetas modernas con gradient sky→emerald, iconografía Lucide y contadores animados.
 
-## Etapa C — Realtime resiliente y multi-terminal (opcional)
+## 3. Ventas y Analíticas (`/reportes/ventas`)
 
-**Qué logra:** cuando vuelve la conexión, se resuelven conflictos entre lo que ocurrió offline en Terminal A y las ventas que sí llegaron desde Terminal B.
+- Ventas por día (line), por hora (bar).
+- Ventas por sede, usuario, producto, categoría, tipo de servicio, medio de pago (bar/pie).
+- Top y bottom productos, ticket promedio, tendencias, comparativo periodo vs periodo anterior (delta %).
+- Regla clave: usar `sale_items.product_name` únicamente para el producto principal, **excluyendo modificadores**. Se filtra por `parent_item_id IS NULL` (o `is_modifier = false`) y se agrupa por `product_id` para no fragmentar variantes.
 
-Requiere:
-- Merge de sesiones de caja
-- Detección de tickets duplicados por fingerprint
-- Reconstrucción de inventario post-sync
+Charts con `recharts` (ya instalado). Filtros globales de sede + rango.
 
-**Riesgo:** muy alto. Solo recomiendo abordarlo tras varias semanas con la Etapa B estable.
+## 4. Historial y Cajas (`/reportes/cajas`)
 
-## Recomendación
+Tabla con columnas: Sede, Caja, Turno #, Usuario apertura, Fecha/hora apertura, Usuario cierre, Fecha/hora cierre, Estado, Monto inicial, Ventas totales, Valor declarado, Diferencia.
 
-Implementar **solo la Etapa A** en este turno. Es útil por sí sola (la app deja de dar pantalla en blanco cuando hay microcortes de red), no toca negocio, y sienta la base técnica (SW + persister de queries) para las etapas B/C.
+Buscar (texto libre en usuarios/sede), filtros (sede, estado, rango, usuario) y orden por cualquier columna.
 
-La Etapa B merece su propio proyecto con tests dedicados y probablemente un piloto en una sede antes de activarla globalmente. Meterla ahora dentro del mismo prompt haría muy difícil revisar y validar los cambios.
+Clic en un cierre → `/reportes/cajas/$id` (detalle).
 
-## Detalle técnico – Etapa A
+## 5. Detalle de cierre (`/reportes/cajas/$id`)
 
-- `bun add vite-plugin-pwa workbox-window @tanstack/query-sync-storage-persister @tanstack/react-query-persist-client idb-keyval`
-- `vite.config.ts`: registrar `VitePWA` con `injectRegister: null`, `devOptions.enabled: false`, `workbox.navigateFallbackDenylist: [/^\/~oauth/]`.
-- `src/lib/pwa-register.ts`: wrapper con guardas Lovable (iframe, `id-preview--*`, `preview--*`, `*.lovableproject.com`, `*.lovableproject-dev.com`, `*.beta.lovable.dev`, `?sw=off`, `!import.meta.env.PROD`). Unregister en contextos rechazados.
-- `public/manifest.webmanifest` + iconos 192/512 (usar el logo existente si hay).
-- `src/main.tsx`: crear persister IDB para React Query y envolver `QueryClientProvider` en `PersistQueryClientProvider` con `maxAge: 24h`, `buster` según build id, y whitelist de query keys seguras.
-- Nuevo hook `useOnlineStatus()` (ya existe `useConnectionStatus`, reutilizarlo) que dispare un banner global con `sonner` cuando `online === false`.
-- En `pos-screen.tsx` y `caja.tsx`: si `!online`, deshabilitar botones de cobrar/imprimir comanda/abrir caja con tooltip "Requiere conexión".
+Componente con pestañas (`Tabs` shadcn):
 
-## Decisión pendiente
+1. **Resumen** — # pedidos, ventas totales, ticket promedio, cancelados, cortesías, propinas, duración, usuarios apertura/cierre.
+2. **Medios de pago** — Efectivo / Nequi / Bancolombia / Tarjeta / Transferencia / Otros. Valor + # transacciones + totales.
+3. **Declarado** — declarado por método vs esperado, con delta por método.
+4. **Tipo de servicio** — Mesa / Llevar / Domicilio / Online / Kiosko: # pedidos y valor.
+5. **Balance efectivo** — Apertura + Ventas efectivo + Entradas − Salidas − Gastos − Retiros − Devoluciones = **Efectivo esperado**.
+6. **Productos** — nombre, cantidad, total. Solo producto principal, agrupado por `product_id`, ordenado desc por cantidad. Totales al pie.
+7. **Ajustes** — Entradas, Salidas, Gastos, Devoluciones, Reembolsos con fecha/hora/usuario/motivo/valor + subtotales.
 
-¿Confirmas que quieres solo la Etapa A ahora, o prefieres arrancar directamente con la Etapa B (ventas offline)? La Etapa B duplica el alcance del cambio y requiere reservar tiempo para pruebas en cada módulo (caja, KDS, inventario, historial, auditoría).
+Al final del detalle: tres tarjetas grandes → **Valor esperado / Valor declarado / Diferencia** con semáforo (🟢 cuadró | 🟠 sobrante | 🔴 faltante).
+
+Botón **Descargar PDF** (icono Download) que genera vía `jsPDF + jspdf-autotable` un PDF con: logo Goloso, sede, turno #, usuarios, fecha/hora, resumen, ventas, medios de pago, productos, balance, ajustes, valores esperado/declarado/diferencia. Diseño limpio, A4, listo para impresión.
+
+## 6. Auditorías
+
+La ruta `/auditoria` existente se mantiene funcional; se agrega ruta espejo `/reportes/auditoria` que renderiza el mismo componente `AuditoriaPage`. El sidebar solo expone la nueva ubicación dentro de REPORTES.
+
+## 7. Fuente única de datos
+
+Todos los cálculos se derivan de un helper compartido `src/lib/reports.ts` que:
+- Consulta `sales`, `sale_items`, `cash_sessions`, `expenses` de forma consistente.
+- Aplica el filtro anti-modificadores en un solo lugar.
+- Exporta funciones `getShiftSummary(sessionId)`, `getFinancialSummary(filters)`, `getSalesAnalytics(filters)` reutilizadas por Dashboard/Caja/Ventas/Reportes para garantizar coincidencia entre módulos.
+
+## 8. Diseño
+
+Tarjetas rounded-2xl, sombras suaves (`shadow-elegant`), gradients corporativos ya definidos, tipografía `font-display` para titulares, responsive grid (`md:grid-cols-2 lg:grid-cols-4`), tablas con `Table` shadcn, gráficos `recharts` con tokens semánticos.
+
+## Detalles técnicos
+
+- Rutas nuevas: `src/routes/_authenticated/reportes/route.tsx` (layout con `<Outlet/>`), `resumen.tsx`, `ventas.tsx`, `cajas.tsx`, `cajas.$id.tsx`, `auditoria.tsx`.
+- Sidebar: editar `src/components/app-sidebar.tsx` — nuevo grupo REPORTES; ocultar el enlace suelto a "Auditoría" dentro de Administración.
+- Permisos: migración SQL agregando `route_key` `reportes*` a `role_permissions` (admin habilitado por defecto).
+- Helper: `src/lib/reports.ts` con tipos + queries.
+- PDF: `src/lib/shift-pdf.ts` usando `jspdf` y `jspdf-autotable` (verificar/instalar).
+- Charts: `recharts` (ya en `package.json`).
+- Data: no se cambian esquemas de negocio; solo se consultan tablas existentes. Si falta alguna columna (p.ej. `is_courtesy`), se derivará (`discount >= subtotal`).
+
+## Fuera de alcance
+
+- No se rediseña Caja ni Dashboard actuales (solo se opcionalmente pueden migrar a usar `reports.ts` en un paso posterior).
+- No se toca el flujo de cierre en `caja.tsx`; solo se lee histórico.
+
+¿Apruebas para implementar?

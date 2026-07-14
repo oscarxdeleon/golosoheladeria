@@ -73,7 +73,7 @@ function diffFields(before: Record<string, unknown> | null, after: Record<string
   return out;
 }
 
-function AuditoriaPage() {
+export function AuditoriaPage() {
   const { activeBranchId, activeBranch } = useBranch();
   const [entity, setEntity] = useState("all");
   const [action, setAction] = useState("all");
