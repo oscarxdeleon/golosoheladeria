@@ -411,6 +411,7 @@ function AjusteBlock({ title, rows, tone, sign }: { title: string; rows: Expense
             )}
           </div>
         </CardContent>
+      </Card>
     </div>
   );
 }
