@@ -1004,10 +1004,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     // No hidrates el carrito mientras el usuario está en pleno guardado —
     // podría reintroducir ítems recién guardados sobre un cart ya limpio.
     if (paying) return;
+    const incoming = pendingSale.sale_items ?? [];
+    // Guardia anti-vaciado: si ya tenemos el mismo pedido cargado con
+    // ítems y la respuesta llega vacía (respuesta tardía, error de red
+    // parcial, RLS transitoria), NO sobrescribir con lista vacía. La
+    // única forma legítima de vaciar el pedido es una acción explícita
+    // del usuario (cobrar, cancelar, mover, fusionar) que ya invalida
+    // esta query con datos frescos.
+    if (
+      pendingSaleId === pendingSale.id &&
+      cart.length > 0 &&
+      incoming.length === 0
+    ) {
+      return;
+    }
     setPendingSaleId(pendingSale.id);
     setCustomer(pendingSale.customer_name ?? "");
     setNotes(pendingSale.notes ?? "");
-    const hydrated = (pendingSale.sale_items ?? []).map((i) => ({
+    const hydrated = incoming.map((i) => ({
       key: i.product_id,
       product_id: i.product_id,
       name: i.product_name,
@@ -1023,7 +1037,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       for (const l of hydrated) printed[l.key] = (printed[l.key] ?? 0) + l.qty;
     }
     printedQtyRef.current = printed;
-  }, [pendingSale, paying]);
+  }, [pendingSale, paying, pendingSaleId, cart.length]);
 
 
   // Cargar pedido pendiente del Autopedido (al ser seleccionado desde el panel)
