@@ -5,7 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { sendCashReport } from "@/lib/cash-report.functions";
-import { kickCashDrawer } from "@/lib/print-client";
+import { openCashDrawer } from "@/lib/cash-drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
