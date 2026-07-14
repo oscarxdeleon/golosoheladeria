@@ -188,7 +188,7 @@ export const backupReset = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     await assertAdmin(context.userId);
     const r: Range = { from: data.from, to: data.to, branchIds: data.branchIds ?? null };
-    const backup: Record<string, unknown[]> = {};
+    const backup: Record<string, Record<string, unknown>[]> = {};
     for (const cat of data.categories) {
       for (const s of CATEGORY_TABLES[cat]) {
         if (backup[s.table]) continue;
