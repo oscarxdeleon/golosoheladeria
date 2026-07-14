@@ -42,12 +42,20 @@ function GastosPage() {
   const { user, profile } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
 
-  const [category, setCategory] = useState(CATEGORIES[0]);
+  const [category, setCategory] = useState<string>("");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState("efectivo");
   const [file, setFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
+
+  const categoryError = !category ? "Debe seleccionar el tipo de gasto." : "";
+  const descriptionError = !description.trim()
+    ? "Debe escribir la descripción del gasto."
+    : description.trim().length < MIN_DESCRIPTION_LEN
+      ? `La descripción debe tener al menos ${MIN_DESCRIPTION_LEN} caracteres.`
+      : "";
 
   const { data: history = [] } = useQuery({
     queryKey: ["gastos-history", activeBranchId],
