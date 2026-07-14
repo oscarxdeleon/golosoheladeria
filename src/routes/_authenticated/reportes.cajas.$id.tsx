@@ -261,30 +261,32 @@ function CajaDetailPage() {
               <div className="my-2 border-t border-dashed" />
               <div className="flex items-center justify-between font-bold">
                 <span>= Efectivo Esperado</span>
-                <span className="font-display text-xl text-primary">{formatMoney(efectivoEsperado)}</span>
+                <span className="font-display text-2xl text-rose-600">{formatMoney(efectivoEsperado)}</span>
               </div>
             </div>
           </Section>
 
           {/* Comparación final */}
-          <div className={`rounded-2xl border p-4 ${diff === 0 ? "bg-emerald-50 border-emerald-200" : diff > 0 ? "bg-amber-50 border-amber-200" : "bg-rose-50 border-rose-200"}`}>
-            <div className="grid grid-cols-3 gap-2 text-center">
+          <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
+            <div className="grid grid-cols-3 gap-3 text-center">
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Esperado</div>
-                <div className="mt-1 font-display text-lg font-extrabold text-primary">{formatMoney(expected)}</div>
+                <div className="mt-1 font-display text-xl font-extrabold text-rose-600 whitespace-nowrap">{formatMoney(expected)}</div>
               </div>
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Declarado</div>
-                <div className="mt-1 font-display text-lg font-extrabold">{formatMoney(declared)}</div>
+                <div className="mt-1 font-display text-xl font-extrabold text-foreground whitespace-nowrap">{formatMoney(declared)}</div>
               </div>
               <div>
                 <div className="text-[11px] font-bold uppercase tracking-widest text-muted-foreground">Diferencia</div>
-                <div className={`mt-1 font-display text-lg font-extrabold ${diff === 0 ? "text-emerald-700" : diff > 0 ? "text-amber-700" : "text-rose-700"}`}>{formatMoney(diff)}</div>
+                <div className={`mt-1 font-display text-xl font-extrabold whitespace-nowrap ${diff === 0 ? "text-emerald-700" : diff > 0 ? "text-blue-600" : "text-rose-600"}`}>
+                  {diff > 0 ? "+" : ""}{formatMoney(diff)}
+                </div>
               </div>
             </div>
-            <div className="mt-2 flex justify-end">
-              <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${diff === 0 ? "bg-emerald-100 text-emerald-700" : diff > 0 ? "bg-amber-100 text-amber-700" : "bg-rose-100 text-rose-700"}`}>
-                {diff === 0 ? "✅ Cuadró" : diff > 0 ? (<><TrendingUp className="h-3 w-3" /> Sobrante</>) : (<><TrendingDown className="h-3 w-3" /> Faltante</>)}
+            <div className="mt-3 flex justify-end">
+              <span className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-bold ${diff === 0 ? "bg-emerald-100 text-emerald-700" : diff > 0 ? "bg-white text-blue-600 ring-1 ring-blue-200" : "bg-white text-rose-600 ring-1 ring-rose-200"}`}>
+                {diff === 0 ? "✅ Cuadró" : diff > 0 ? (<><TrendingUp className="h-3.5 w-3.5" /> Sobrante</>) : (<><TrendingDown className="h-3.5 w-3.5" /> Faltante</>)}
               </span>
             </div>
           </div>
