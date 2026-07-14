@@ -37,6 +37,7 @@ import {
   Wallet,
   Clock,
   History,
+  ArrowDownToLine,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import {
