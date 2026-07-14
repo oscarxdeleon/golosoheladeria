@@ -365,7 +365,7 @@ function precuentaHTML(o: {
 // Cache en memoria de las impresoras por área. Evita hacer un round-trip
 // a Supabase por cada impresión (comanda + ticket = 2 queries).
 type PrinterCfg = { ip?: string; port?: number; open_drawer_on_print?: boolean };
-type PrintersRow = { name: string | null; ip: string | null; port: number | null; open_drawer_on_print: boolean | null; area: string | null; active: boolean | null };
+type PrintersRow = { name: string | null; ip: string | null; port: number | null; open_drawer_on_print: boolean | null; area: string | null; active: boolean | null; branch_id: string | null };
 let _printersCache: PrintersRow[] | null = null;
 let _printersFetchedAt = 0;
 const PRINTERS_TTL_MS = 60_000;
@@ -379,7 +379,7 @@ async function loadPrinters(): Promise<PrintersRow[]> {
     try {
       const { data } = await supabase
         .from("printers")
-        .select("name,ip,port,open_drawer_on_print,active,area")
+        .select("name,ip,port,open_drawer_on_print,active,area,branch_id")
         .eq("active", true);
       _printersCache = (data as PrintersRow[] | null) ?? [];
       _printersFetchedAt = Date.now();
@@ -400,32 +400,41 @@ export function invalidatePrintersCache() {
 }
 
 async function fetchPrinterByArea(areas: string[]): Promise<PrinterCfg> {
-  const data = await loadPrinters();
-  const p = areas.map((area) => data.find((printer) => printer.area === area)).find(Boolean);
+  const { getActivePrintBranchId } = await import("@/lib/print-client");
+  const branchId = getActivePrintBranchId();
   const looksLikeIp = (value?: string | null) => /^\d{1,3}(?:\.\d{1,3}){3}$/.test(String(value ?? "").trim());
-  let ip = p?.ip?.trim() || (looksLikeIp(p?.name) ? String(p?.name).trim() : undefined);
-  let port = p?.port ?? undefined;
 
-  if (!ip && areas.includes("caja")) {
+  // Fuente de verdad por sede: branch_print_settings. Prioridad máxima
+  // para 'caja' — evita que la IP registrada globalmente en `printers`
+  // (típicamente de la sede principal) se use en otra sede.
+  if (branchId && areas.includes("caja")) {
     try {
-      const { getActivePrintBranchId } = await import("@/lib/print-client");
-      const branchId = getActivePrintBranchId();
-      if (branchId) {
-        const { data: bps } = await supabase
-          .from("branch_print_settings")
-          .select("cashier_printer_ip,cashier_printer_port")
-          .eq("branch_id", branchId)
-          .maybeSingle();
-        ip = (bps as { cashier_printer_ip?: string | null } | null)?.cashier_printer_ip?.trim() || undefined;
-        port = (bps as { cashier_printer_port?: number | null } | null)?.cashier_printer_port ?? port;
+      const { data: bps } = await supabase
+        .from("branch_print_settings")
+        .select("cashier_printer_ip,cashier_printer_port")
+        .eq("branch_id", branchId)
+        .maybeSingle();
+      const bpsIp = (bps as { cashier_printer_ip?: string | null } | null)?.cashier_printer_ip?.trim();
+      if (bpsIp) {
+        return {
+          ip: bpsIp,
+          port: (bps as { cashier_printer_port?: number | null } | null)?.cashier_printer_port ?? 9100,
+        };
       }
     } catch (e) {
-      console.warn("[print] no se pudo consultar impresora de caja de la sede activa", e);
+      console.warn("[print] no se pudo leer branch_print_settings", e);
     }
   }
 
+  // Fallback: tabla `printers` filtrada por la sede activa (o sin sede asignada).
+  const data = await loadPrinters();
+  const scoped = data.filter((p) => !branchId || p.branch_id === branchId || p.branch_id == null);
+  const p = areas.map((area) => scoped.find((printer) => printer.area === area)).find(Boolean);
+  const ip = p?.ip?.trim() || (looksLikeIp(p?.name) ? String(p?.name).trim() : undefined);
+  const port = p?.port ?? undefined;
   return { ip, port, open_drawer_on_print: p?.open_drawer_on_print ?? undefined };
 }
+
 
 async function fetchCajaPrinter(): Promise<PrinterCfg> {
   return fetchPrinterByArea(["caja"]);
