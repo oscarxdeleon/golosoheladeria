@@ -3636,4 +3636,3 @@ function ResultsDropdown({
     </div>
   );
 }
-}
