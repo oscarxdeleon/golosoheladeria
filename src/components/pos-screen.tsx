@@ -584,6 +584,9 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
         'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
     );
   }
+}
+
+
 
 
 
