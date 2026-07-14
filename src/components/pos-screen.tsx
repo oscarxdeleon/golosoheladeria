@@ -1119,7 +1119,19 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   }, [products, cats, activeCat, search, activeBranchId]);
 
 
-  const deliveryFee = orderType === "domicilio" ? Number(settings?.delivery_fee ?? 0) : 0;
+  // Tarifa de domicilio: se prefiere la de la sede activa (Ajustes → Domicilios
+  // por sede). Si la sede no tiene tarifa propia configurada, se usa la
+  // tarifa global de Ajustes → Domicilios como respaldo.
+  const branchDeliveryFee =
+    activeBranch?.delivery_fee != null ? Number(activeBranch.delivery_fee) : null;
+  const globalDeliveryFee = Number(settings?.delivery_fee ?? 0);
+  const deliveryFee =
+    orderType === "domicilio"
+      ? branchDeliveryFee != null
+        ? branchDeliveryFee
+        : globalDeliveryFee
+      : 0;
+
   const subtotal = cart.reduce((s, l) => s + l.unit_price * l.qty, 0);
   const taxRate = Number(settings?.tax_rate ?? 0);
   const tax = Math.round((subtotal * taxRate) / 100);

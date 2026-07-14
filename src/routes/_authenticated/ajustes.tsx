@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 // Tabs UI no longer used at page level (redesigned with cards + section view).
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
@@ -1101,29 +1101,138 @@ function PagosTab({ disabled }: { disabled: boolean }) {
 
 function DomicilioTab({ disabled }: { disabled: boolean }) {
   const qc = useQueryClient();
-  const { data } = useQuery<Settings>({
+  const { data: settingsData } = useQuery<Settings>({
     queryKey: ["settings"],
     queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data as unknown as Settings,
   });
-  const [fee, setFee] = useState<number>(0);
-  useEffect(() => { if (data) setFee(Number(data.delivery_fee)); }, [data]);
+
+  type BranchFeeRow = { id: string; name: string; is_main: boolean | null; delivery_fee: number | null };
+  const { data: branches = [] } = useQuery<BranchFeeRow[]>({
+    queryKey: ["branches-delivery-fees"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("branches")
+        .select("id,name,is_main,delivery_fee")
+        .order("is_main", { ascending: false })
+        .order("name");
+      return (data as BranchFeeRow[] | null) ?? [];
+    },
+  });
+
+  const [globalFee, setGlobalFee] = useState<number>(0);
+  useEffect(() => { if (settingsData) setGlobalFee(Number(settingsData.delivery_fee)); }, [settingsData]);
+
+  // Estado local por sede: string vacío = "usar tarifa global"
+  const [branchFees, setBranchFees] = useState<Record<string, string>>({});
+  useEffect(() => {
+    if (!branches.length) return;
+    setBranchFees((prev) => {
+      const next = { ...prev };
+      for (const b of branches) {
+        if (next[b.id] === undefined) {
+          next[b.id] = b.delivery_fee == null ? "" : String(b.delivery_fee);
+        }
+      }
+      return next;
+    });
+  }, [branches]);
+
+  const [saving, setSaving] = useState(false);
+
   async function save() {
-    const { error } = await supabase.from("settings").update({ delivery_fee: fee }).eq("id", 1);
-    if (error) return toast.error(error.message);
-    toast.success("Guardado");
-    qc.invalidateQueries({ queryKey: ["settings"] });
+    setSaving(true);
+    try {
+      const { error: sErr } = await supabase.from("settings").update({ delivery_fee: globalFee }).eq("id", 1);
+      if (sErr) throw sErr;
+
+      for (const b of branches) {
+        const raw = (branchFees[b.id] ?? "").trim();
+        const value = raw === "" ? null : Number(raw);
+        if (value !== null && (!Number.isFinite(value) || value < 0)) {
+          throw new Error(`Tarifa inválida para ${b.name}`);
+        }
+        const current = b.delivery_fee == null ? null : Number(b.delivery_fee);
+        if (current === value) continue;
+        const { error } = await supabase.from("branches").update({ delivery_fee: value }).eq("id", b.id);
+        if (error) throw error;
+      }
+
+      toast.success("Tarifas de domicilio guardadas");
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["branches-delivery-fees"] });
+      qc.invalidateQueries({ queryKey: ["branches-all"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo guardar");
+    } finally {
+      setSaving(false);
+    }
   }
+
   return (
-    <Card>
-      <CardHeader><CardTitle>Tarifa de domicilio</CardTitle></CardHeader>
-      <CardContent className="space-y-3 max-w-md">
-        <Label>Tarifa fija (COP)</Label>
-        <Input type="number" disabled={false} value={fee} onChange={(e) => setFee(Number(e.target.value))} />
-        {!disabled && <Button onClick={save}>Guardar</Button>}
-      </CardContent>
-    </Card>
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle>Tarifa global de domicilio</CardTitle>
+          <CardDescription>
+            Se usa como respaldo cuando una sede no tenga su propia tarifa configurada.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3 max-w-md">
+          <Label>Tarifa fija (COP)</Label>
+          <Input
+            type="number"
+            min={0}
+            value={globalFee}
+            onChange={(e) => setGlobalFee(Number(e.target.value))}
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Tarifa por sede</CardTitle>
+          <CardDescription>
+            Cada sede puede tener su propia tarifa. Deja el campo vacío para usar la
+            tarifa global. Un valor de <b>0</b> se cobra como domicilio gratuito y
+            se muestra explícitamente en el ticket.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {branches.length === 0 && (
+            <p className="text-sm text-muted-foreground">No hay sedes registradas.</p>
+          )}
+          {branches.map((b) => (
+            <div key={b.id} className="grid grid-cols-[1fr,180px] items-center gap-3 border rounded-md p-3">
+              <div>
+                <div className="font-medium">{b.name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {b.is_main ? "Sede principal" : "Sede sucursal"} ·{" "}
+                  {branchFees[b.id]?.trim() === ""
+                    ? `Usa tarifa global (${new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(globalFee)})`
+                    : "Tarifa propia"}
+                </div>
+              </div>
+              <Input
+                type="number"
+                min={0}
+                placeholder="(usa global)"
+                value={branchFees[b.id] ?? ""}
+                onChange={(e) => setBranchFees((prev) => ({ ...prev, [b.id]: e.target.value }))}
+              />
+            </div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {!disabled && (
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar cambios"}</Button>
+        </div>
+      )}
+    </div>
   );
 }
+
 
 function ExtrasTab() {
   const qc = useQueryClient();
