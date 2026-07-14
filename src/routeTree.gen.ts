@@ -67,6 +67,7 @@ import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_au
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
 import { Route as AuthenticatedMenuCategoriasRouteImport } from './routes/_authenticated/menu/categorias'
 import { Route as SSlugTTableNumberRouteImport } from './routes/s.$slug.t.$tableNumber'
+import { Route as AuthenticatedReportesCajasIdRouteImport } from './routes/_authenticated/reportes.cajas.$id'
 
 const TabletPedidosRoute = TabletPedidosRouteImport.update({
   id: '/tablet-pedidos',
@@ -373,6 +374,12 @@ const SSlugTTableNumberRoute = SSlugTTableNumberRouteImport.update({
   path: '/t/$tableNumber',
   getParentRoute: () => SSlugRoute,
 } as any)
+const AuthenticatedReportesCajasIdRoute =
+  AuthenticatedReportesCajasIdRouteImport.update({
+    id: '/$id',
+    path: '/$id',
+    getParentRoute: () => AuthenticatedReportesCajasRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -422,7 +429,7 @@ export interface FileRoutesByFullPath {
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
-  '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
+  '/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -431,6 +438,7 @@ export interface FileRoutesByFullPath {
   '/s/$slug/menu': typeof SSlugMenuRoute
   '/reportes/': typeof AuthenticatedReportesIndexRoute
   '/s/$slug/': typeof SSlugIndexRoute
+  '/reportes/cajas/$id': typeof AuthenticatedReportesCajasIdRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRoutesByTo {
@@ -479,7 +487,7 @@ export interface FileRoutesByTo {
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/menu/recetas': typeof AuthenticatedMenuRecetasRoute
-  '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
+  '/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -488,6 +496,7 @@ export interface FileRoutesByTo {
   '/s/$slug/menu': typeof SSlugMenuRoute
   '/reportes': typeof AuthenticatedReportesIndexRoute
   '/s/$slug': typeof SSlugIndexRoute
+  '/reportes/cajas/$id': typeof AuthenticatedReportesCajasIdRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRoutesById {
@@ -540,7 +549,7 @@ export interface FileRoutesById {
   '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
   '/_authenticated/menu/productos': typeof AuthenticatedMenuProductosRoute
   '/_authenticated/menu/recetas': typeof AuthenticatedMenuRecetasRoute
-  '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRoute
+  '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRouteWithChildren
   '/_authenticated/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/_authenticated/reportes/ventas': typeof AuthenticatedReportesVentasRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -549,6 +558,7 @@ export interface FileRoutesById {
   '/s/$slug/menu': typeof SSlugMenuRoute
   '/_authenticated/reportes/': typeof AuthenticatedReportesIndexRoute
   '/s/$slug/': typeof SSlugIndexRoute
+  '/_authenticated/reportes/cajas/$id': typeof AuthenticatedReportesCajasIdRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRouteTypes {
@@ -610,6 +620,7 @@ export interface FileRouteTypes {
     | '/s/$slug/menu'
     | '/reportes/'
     | '/s/$slug/'
+    | '/reportes/cajas/$id'
     | '/s/$slug/t/$tableNumber'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -667,6 +678,7 @@ export interface FileRouteTypes {
     | '/s/$slug/menu'
     | '/reportes'
     | '/s/$slug'
+    | '/reportes/cajas/$id'
     | '/s/$slug/t/$tableNumber'
   id:
     | '__root__'
@@ -727,6 +739,7 @@ export interface FileRouteTypes {
     | '/s/$slug/menu'
     | '/_authenticated/reportes/'
     | '/s/$slug/'
+    | '/_authenticated/reportes/cajas/$id'
     | '/s/$slug/t/$tableNumber'
   fileRoutesById: FileRoutesById
 }
@@ -1152,18 +1165,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SSlugTTableNumberRouteImport
       parentRoute: typeof SSlugRoute
     }
+    '/_authenticated/reportes/cajas/$id': {
+      id: '/_authenticated/reportes/cajas/$id'
+      path: '/$id'
+      fullPath: '/reportes/cajas/$id'
+      preLoaderRoute: typeof AuthenticatedReportesCajasIdRouteImport
+      parentRoute: typeof AuthenticatedReportesCajasRoute
+    }
   }
 }
 
+interface AuthenticatedReportesCajasRouteChildren {
+  AuthenticatedReportesCajasIdRoute: typeof AuthenticatedReportesCajasIdRoute
+}
+
+const AuthenticatedReportesCajasRouteChildren: AuthenticatedReportesCajasRouteChildren =
+  {
+    AuthenticatedReportesCajasIdRoute: AuthenticatedReportesCajasIdRoute,
+  }
+
+const AuthenticatedReportesCajasRouteWithChildren =
+  AuthenticatedReportesCajasRoute._addFileChildren(
+    AuthenticatedReportesCajasRouteChildren,
+  )
+
 interface AuthenticatedReportesRouteChildren {
-  AuthenticatedReportesCajasRoute: typeof AuthenticatedReportesCajasRoute
+  AuthenticatedReportesCajasRoute: typeof AuthenticatedReportesCajasRouteWithChildren
   AuthenticatedReportesResumenRoute: typeof AuthenticatedReportesResumenRoute
   AuthenticatedReportesVentasRoute: typeof AuthenticatedReportesVentasRoute
   AuthenticatedReportesIndexRoute: typeof AuthenticatedReportesIndexRoute
 }
 
 const AuthenticatedReportesRouteChildren: AuthenticatedReportesRouteChildren = {
-  AuthenticatedReportesCajasRoute: AuthenticatedReportesCajasRoute,
+  AuthenticatedReportesCajasRoute: AuthenticatedReportesCajasRouteWithChildren,
   AuthenticatedReportesResumenRoute: AuthenticatedReportesResumenRoute,
   AuthenticatedReportesVentasRoute: AuthenticatedReportesVentasRoute,
   AuthenticatedReportesIndexRoute: AuthenticatedReportesIndexRoute,
