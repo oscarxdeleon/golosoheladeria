@@ -139,7 +139,6 @@ function CajasPage() {
               {filtered.map((s, i) => {
                 const salesTotal = salesBySession.get(s.id) ?? 0;
                 const diff = Number(s.difference ?? 0);
-                const diffIcon = diff === 0 ? CheckCircle2 : Circle;
                 const diffColor = diff === 0 ? "text-emerald-600" : diff > 0 ? "text-amber-600" : "text-rose-600";
                 const turnNumber = filtered.length - i;
                 return (
