@@ -2675,6 +2675,10 @@ export type Database = {
         Args: { _reason?: string; _sale_id?: string; _table_id: string }
         Returns: boolean
       }
+      replace_sale_items: {
+        Args: { _items: Json; _sale_id: string }
+        Returns: Json
+      }
       resync_product_from_parent: {
         Args: { _child_id: string }
         Returns: undefined
