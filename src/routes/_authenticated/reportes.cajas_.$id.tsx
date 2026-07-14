@@ -75,6 +75,19 @@ function CajaDetailPage() {
     enabled: !!filters,
     queryFn: () => fetchExpenses(filters!),
   });
+  const { data: deposits = [] } = useQuery({
+    queryKey: ["reportes.session.deposits", id],
+    enabled: !!session?.id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("cash_deposits")
+        .select("id, amount, description, method, status, user_name, created_at")
+        .eq("cash_session_id", session!.id)
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as Array<{ id: string; amount: number; description: string; method: string; status: string; user_name: string | null; created_at: string }>;
+    },
+  });
   const saleIds = useMemo(() => sales.filter((s) => s.status !== "cancelled").map((s) => s.id), [sales]);
   const { data: items = [] } = useQuery({
     queryKey: ["reportes.session.items", id, saleIds.length],
@@ -105,8 +118,14 @@ function CajaDetailPage() {
   const services = serviceBreakdown(sales);
   const products = aggregateProducts(items, { modifierNames });
 
+  const activeDeposits = deposits.filter((d) => d.status === "active");
+  const depByMethod = activeDeposits.reduce<Record<string, number>>((a, d) => {
+    const k = (d.method || "").toLowerCase();
+    a[k] = (a[k] ?? 0) + Number(d.amount || 0);
+    return a;
+  }, {});
   const cashSales = payments["efectivo"]?.amount ?? 0;
-  const entries = summary.entries;
+  const entries = summary.entries + (depByMethod.efectivo ?? 0);
   const exits = summary.exits + summary.expenses + summary.refunds;
   const apertura = Number(session.opening_amount) || 0;
   const efectivoEsperado = apertura + cashSales + entries - exits;
@@ -329,7 +348,33 @@ function CajaDetailPage() {
 
         {/* -------- AJUSTES -------- */}
         <TabsContent value="ajustes" className="space-y-6">
-          <AjusteBlock title="ENTRADAS EXTRAS" tone="emerald" rows={entradas} sign="+" />
+          <div className="space-y-2">
+            <div className="text-sm font-extrabold uppercase tracking-wider text-emerald-700">ENTRADAS O DEPÓSITOS</div>
+            <Card className="rounded-2xl">
+              <CardContent className="p-4">
+                <div className="grid grid-cols-[1fr_auto_auto] gap-x-4 gap-y-2">
+                  <div className="text-sm font-semibold text-muted-foreground">Descripción</div>
+                  <div className="text-sm font-semibold text-muted-foreground text-right">Medio</div>
+                  <div className="text-sm font-semibold text-muted-foreground text-right">Monto</div>
+                  {activeDeposits.map((d) => (
+                    <div key={d.id} className="contents">
+                      <div className="col-span-3 border-t" />
+                      <div className="py-2 text-sm">
+                        <div className="font-medium">{d.description}</div>
+                        <div className="text-[11px] text-muted-foreground">{format(new Date(d.created_at), "dd/MM HH:mm")} · {d.user_name ?? "—"}</div>
+                      </div>
+                      <div className="py-2 text-right text-xs capitalize text-muted-foreground">{d.method}</div>
+                      <div className="py-2 text-right font-display font-bold text-emerald-700 whitespace-nowrap">+{formatMoney(d.amount)}</div>
+                    </div>
+                  ))}
+                  {activeDeposits.length === 0 && (
+                    <div className="col-span-3 py-4 text-center text-sm text-muted-foreground">Sin depósitos en el turno.</div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+          <AjusteBlock title="ENTRADAS EXTRAS (por categoría de gasto)" tone="emerald" rows={entradas} sign="+" />
           <AjusteBlock title="SALIDAS / GASTOS" tone="rose" rows={salidas} sign="-" />
           <AjusteBlock title="DEVOLUCIONES / REEMBOLSOS" tone="amber" rows={devoluciones} sign="-" />
         </TabsContent>

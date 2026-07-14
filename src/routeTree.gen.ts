@@ -44,6 +44,7 @@ import { Route as AuthenticatedEgresosRouteImport } from './routes/_authenticate
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
 import { Route as AuthenticatedDomicilioRouteImport } from './routes/_authenticated/domicilio'
 import { Route as AuthenticatedDeudasRouteImport } from './routes/_authenticated/deudas'
+import { Route as AuthenticatedDepositosRouteImport } from './routes/_authenticated/depositos'
 import { Route as AuthenticatedDashboardRouteImport } from './routes/_authenticated/dashboard'
 import { Route as AuthenticatedCrmRouteImport } from './routes/_authenticated/crm'
 import { Route as AuthenticatedComprasRouteImport } from './routes/_authenticated/compras'
@@ -251,6 +252,11 @@ const AuthenticatedDeudasRoute = AuthenticatedDeudasRouteImport.update({
   path: '/deudas',
   getParentRoute: () => AuthenticatedRouteRoute,
 } as any)
+const AuthenticatedDepositosRoute = AuthenticatedDepositosRouteImport.update({
+  id: '/depositos',
+  path: '/depositos',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedDashboardRoute = AuthenticatedDashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
@@ -411,6 +417,7 @@ export interface FileRoutesByFullPath {
   '/compras': typeof AuthenticatedComprasRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/depositos': typeof AuthenticatedDepositosRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -473,6 +480,7 @@ export interface FileRoutesByTo {
   '/compras': typeof AuthenticatedComprasRoute
   '/crm': typeof AuthenticatedCrmRoute
   '/dashboard': typeof AuthenticatedDashboardRoute
+  '/depositos': typeof AuthenticatedDepositosRoute
   '/deudas': typeof AuthenticatedDeudasRoute
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -535,6 +543,7 @@ export interface FileRoutesById {
   '/_authenticated/compras': typeof AuthenticatedComprasRoute
   '/_authenticated/crm': typeof AuthenticatedCrmRoute
   '/_authenticated/dashboard': typeof AuthenticatedDashboardRoute
+  '/_authenticated/depositos': typeof AuthenticatedDepositosRoute
   '/_authenticated/deudas': typeof AuthenticatedDeudasRoute
   '/_authenticated/domicilio': typeof AuthenticatedDomicilioRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
@@ -599,6 +608,7 @@ export interface FileRouteTypes {
     | '/compras'
     | '/crm'
     | '/dashboard'
+    | '/depositos'
     | '/deudas'
     | '/domicilio'
     | '/domicilios'
@@ -661,6 +671,7 @@ export interface FileRouteTypes {
     | '/compras'
     | '/crm'
     | '/dashboard'
+    | '/depositos'
     | '/deudas'
     | '/domicilio'
     | '/domicilios'
@@ -722,6 +733,7 @@ export interface FileRouteTypes {
     | '/_authenticated/compras'
     | '/_authenticated/crm'
     | '/_authenticated/dashboard'
+    | '/_authenticated/depositos'
     | '/_authenticated/deudas'
     | '/_authenticated/domicilio'
     | '/_authenticated/domicilios'
@@ -1029,6 +1041,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedDeudasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/depositos': {
+      id: '/_authenticated/depositos'
+      path: '/depositos'
+      fullPath: '/depositos'
+      preLoaderRoute: typeof AuthenticatedDepositosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/dashboard': {
       id: '/_authenticated/dashboard'
       path: '/dashboard'
@@ -1247,6 +1266,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedComprasRoute: typeof AuthenticatedComprasRoute
   AuthenticatedCrmRoute: typeof AuthenticatedCrmRoute
   AuthenticatedDashboardRoute: typeof AuthenticatedDashboardRoute
+  AuthenticatedDepositosRoute: typeof AuthenticatedDepositosRoute
   AuthenticatedDeudasRoute: typeof AuthenticatedDeudasRoute
   AuthenticatedDomicilioRoute: typeof AuthenticatedDomicilioRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
@@ -1289,6 +1309,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedComprasRoute: AuthenticatedComprasRoute,
   AuthenticatedCrmRoute: AuthenticatedCrmRoute,
   AuthenticatedDashboardRoute: AuthenticatedDashboardRoute,
+  AuthenticatedDepositosRoute: AuthenticatedDepositosRoute,
   AuthenticatedDeudasRoute: AuthenticatedDeudasRoute,
   AuthenticatedDomicilioRoute: AuthenticatedDomicilioRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
