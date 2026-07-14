@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, type ReactNode } from "react";
+import { useState, useMemo, type ReactNode } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useBranch } from "@/contexts/branch-context";
@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Receipt, Upload, Delete } from "lucide-react";
+import { Receipt, Upload, Delete, Settings2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
 
@@ -19,30 +19,41 @@ export const Route = createFileRoute("/_authenticated/gastos")({
   component: GastosPage,
 });
 
-const CATEGORIES = [
-  "Insumos",
-  "Papelería",
-  "Transporte",
-  "Servicios Públicos",
-  "Mantenimiento",
-  "Aseo",
-  "Nómina",
-  "Compra Menor",
-  "Reembolso",
-  "Caja Menor",
-  "Arriendo",
-  "Publicidad",
-  "Otros",
-];
-
 const MIN_DESCRIPTION_LEN = 5;
 
 function GastosPage() {
   const qc = useQueryClient();
-  const { user, profile } = useAuth();
+  const { user, profile, isAdmin } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
 
   const [category, setCategory] = useState<string>("");
+  const [description, setDescription] = useState("");
+  const [amount, setAmount] = useState("");
+  const [payment, setPayment] = useState("efectivo");
+  const [file, setFile] = useState<File | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [showErrors, setShowErrors] = useState(false);
+
+  // Categorías dinámicas administradas por el admin
+  const { data: categories = [] } = useQuery({
+    queryKey: ["expense-categories", "active", activeBranchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("expense_categories")
+        .select("id,name,sort_order,branch_id")
+        .eq("active", true)
+        .is("deleted_at", null)
+        .or(activeBranchId ? `branch_id.is.null,branch_id.eq.${activeBranchId}` : "branch_id.is.null")
+        .order("sort_order", { ascending: true })
+        .order("name", { ascending: true });
+      if (error) throw error;
+      return data ?? [];
+    },
+  });
+  const categoryOptions = useMemo(() => categories.map((c) => c.name), [categories]);
+
+  const categoryError = !category ? "Debe seleccionar el tipo de gasto." : "";
+
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState("efectivo");
