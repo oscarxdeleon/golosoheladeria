@@ -2425,10 +2425,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   branding,
                 };
                 const t = toast.loading("Reimprimiendo comanda…");
-                const result = await printComanda(snap, { branchId: activeBranchId });
+                const result = await printComanda(snap, { branchId: activeBranchId, alwaysEnqueue: meseroMode });
                 if (result.ok) toast.success("Comanda reimpresa", { id: t });
                 else if (result.queued) toast.info("Reimpresión en cola — se procesará en el POS", { id: t });
                 else toast.warning("No se pudo reimprimir: revisa el servidor local de impresión", { id: t });
+
               }}
             >
               <ChefHat className="h-4 w-4 mr-1" /> Reimprimir comanda
