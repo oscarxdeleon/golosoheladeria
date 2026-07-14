@@ -1792,10 +1792,16 @@ function EditarSedeTab({ initialBranchId }: { initialBranchId?: string | null } 
 
 function CashierIpPrinterCard() {
   const qc = useQueryClient();
+  const { activeBranch, activeBranchId } = useBranch();
   const { data } = useQuery({
-    queryKey: ["settings-cashier-printer"],
+    queryKey: ["branch-print-settings", activeBranchId],
+    enabled: !!activeBranchId,
     queryFn: async () =>
-      (await supabase.from("settings").select("cashier_printer_ip, cashier_printer_port").eq("id", 1).maybeSingle()).data as
+      (await supabase
+        .from("branch_print_settings")
+        .select("cashier_printer_ip, cashier_printer_port")
+        .eq("branch_id", activeBranchId!)
+        .maybeSingle()).data as
         | { cashier_printer_ip: string | null; cashier_printer_port: number | null }
         | null,
   });
@@ -1803,20 +1809,28 @@ function CashierIpPrinterCard() {
   const [port, setPort] = useState<number>(9100);
   const [testing, setTesting] = useState(false);
   useEffect(() => {
-    if (data) {
-      setIp(data.cashier_printer_ip ?? "");
-      setPort(Number(data.cashier_printer_port ?? 9100));
-    }
-  }, [data]);
+    // Al cambiar de sede o refrescar la config, siempre reflejar EXACTAMENTE
+    // los valores de la sede activa (aunque sean null → limpia inputs).
+    setIp(data?.cashier_printer_ip ?? "");
+    setPort(Number(data?.cashier_printer_port ?? 9100));
+  }, [data, activeBranchId]);
 
   async function save() {
+    if (!activeBranchId) return toast.error("Selecciona primero una sede activa");
     const { error } = await supabase
-      .from("settings")
-      .update({ cashier_printer_ip: ip.trim() || null, cashier_printer_port: Number(port) || 9100 } as never)
-      .eq("id", 1);
+      .from("branch_print_settings")
+      .upsert(
+        {
+          branch_id: activeBranchId,
+          cashier_printer_ip: ip.trim() || null,
+          cashier_printer_port: Number(port) || 9100,
+        },
+        { onConflict: "branch_id" },
+      );
     if (error) return toast.error(error.message);
-    toast.success("Impresora de caja guardada");
-    qc.invalidateQueries({ queryKey: ["settings-cashier-printer"] });
+    refreshPrinterTargetCache(activeBranchId);
+    toast.success(`Impresora de caja guardada para ${activeBranch?.name ?? "esta sede"}`);
+    qc.invalidateQueries({ queryKey: ["branch-print-settings", activeBranchId] });
   }
 
   async function testPrint() {
