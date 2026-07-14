@@ -1,6 +1,6 @@
 import { createFileRoute, useRouter, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { PosScreen } from "@/components/pos-screen";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { Button } from "@/components/ui/button";
@@ -89,6 +89,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
   const [mode, setMode] = useState<"search" | "new">("search");
   const [form, setForm] = useState<Selected>({ name: "", phone: "", address: "", neighborhood: "" });
   const [saving, setSaving] = useState(false);
+  const qc = useQueryClient();
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["customers-picker"],
@@ -123,26 +124,58 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
 
   async function saveNewAndContinue() {
     const name = form.name.trim();
-    if (!name) return toast.error("Nombre requerido");
-    if (!form.address.trim()) return toast.error("Dirección requerida");
-    if (!form.phone.trim()) return toast.error("Teléfono requerido");
+    const phone = form.phone.trim();
+    const address = form.address.trim();
+    const neighborhood = form.neighborhood.trim();
+    if (!name) return toast.error("Debe ingresar el nombre del cliente.");
+    if (!phone) return toast.error("Debe ingresar el número de teléfono.");
+    if (!address) return toast.error("Debe ingresar la dirección.");
+    if (!neighborhood) return toast.error("Debe seleccionar o escribir el barrio.");
+
     setSaving(true);
-    const { error } = await supabase.from("customers").insert({
-      name,
-      phone: form.phone.trim() || null,
-      address: form.address.trim() || null,
-      neighborhood: form.neighborhood.trim() || null,
-    });
-    setSaving(false);
-    if (error) return toast.error(error.message);
-    toast.success("Cliente guardado");
-    onSelect({
-      name,
-      phone: form.phone.trim(),
-      address: form.address.trim(),
-      neighborhood: form.neighborhood.trim(),
-    });
+    try {
+      // Duplicidad por teléfono: si existe, reutilizar y actualizar dirección si cambió.
+      const { data: existing, error: findErr } = await supabase
+        .from("customers")
+        .select("id,name,phone,address,neighborhood")
+        .eq("phone", phone)
+        .maybeSingle();
+      if (findErr) throw findErr;
+
+      if (existing) {
+        const needsUpdate =
+          (existing.address ?? "") !== address ||
+          (existing.neighborhood ?? "") !== neighborhood ||
+          (existing.name ?? "") !== name;
+        if (needsUpdate) {
+          const { error: updErr } = await supabase
+            .from("customers")
+            .update({ name, address, neighborhood })
+            .eq("id", existing.id);
+          if (updErr) throw updErr;
+        }
+        toast.info("Cliente ya existía. Se reutilizó su registro.");
+      } else {
+        const { error: insErr } = await supabase.from("customers").insert({
+          name,
+          phone,
+          address,
+          neighborhood,
+        });
+        if (insErr) throw insErr;
+        toast.success("Cliente guardado");
+      }
+
+      await qc.invalidateQueries({ queryKey: ["customers-picker"] });
+      onSelect({ name, phone, address, neighborhood });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo guardar el cliente";
+      toast.error(msg);
+    } finally {
+      setSaving(false);
+    }
   }
+
 
   const navigate = useNavigate();
   return (
@@ -306,30 +339,28 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
                 <Input value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
               </div>
               <div className="space-y-1 md:col-span-2">
-                <Label>Barrio</Label>
+                <Label>Barrio *</Label>
                 <Input value={form.neighborhood} onChange={(e) => setForm({ ...form, neighborhood: e.target.value })} />
               </div>
             </div>
             <div className="flex justify-end gap-2 pt-2">
-              <Button variant="outline" onClick={() => setMode("search")}>Cancelar</Button>
-              <Button
-                onClick={() =>
-                  onSelect({
-                    name: form.name.trim(),
-                    phone: form.phone.trim(),
-                    address: form.address.trim(),
-                    neighborhood: form.neighborhood.trim(),
-                  })
-                }
-                variant="secondary"
-                disabled={!form.name.trim() || !form.address.trim() || !form.phone.trim()}
-              >
-                Continuar sin guardar
+              <Button variant="outline" onClick={() => setMode("search")} disabled={saving}>
+                Cancelar
               </Button>
-              <Button onClick={saveNewAndContinue} disabled={saving}>
+              <Button
+                onClick={saveNewAndContinue}
+                disabled={
+                  saving ||
+                  !form.name.trim() ||
+                  !form.phone.trim() ||
+                  !form.address.trim() ||
+                  !form.neighborhood.trim()
+                }
+              >
                 {saving ? "Guardando…" : "Guardar y continuar"}
               </Button>
             </div>
+
           </CardContent>
         </Card>
       )}
