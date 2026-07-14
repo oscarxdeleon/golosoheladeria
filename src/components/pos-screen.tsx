@@ -669,12 +669,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const printedQtyRef = useRef<Record<string, number>>({});
 
   // Clave estable para persistir un borrador del carrito por usuario/modo/mesa.
-  // Permite recuperar la venta si el navegador se cierra o pierde la corriente.
+  // Sólo se usa como red de seguridad para llevar/domicilio: los modos con
+  // respaldo en servidor (mesa, kiosko) NO deben generar borradores locales,
+  // porque su fuente de verdad es la venta `pending` en Supabase y hacerlo
+  // provocaba el falso "Borrador encontrado" al reabrir la mesa.
   const draftKey = useMemo(
     () => (user?.id ? `pos:draft:${user.id}:${orderType}:${tableId ?? "-"}` : null),
     [user?.id, orderType, tableId],
   );
+  const draftEligible = orderType === "llevar" || orderType === "domicilio";
   const draftLoadedRef = useRef(false);
+  const DRAFT_VERSION = 2;
+
+  const clearDraft = useCallback(() => {
+    if (!draftKey) return;
+    try { localStorage.removeItem(draftKey); } catch { /* noop */ }
+  }, [draftKey]);
 
   useEffect(() => {
     setCart([]);
@@ -695,10 +705,19 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   useEffect(() => {
     if (!draftKey || draftLoadedRef.current) return;
     draftLoadedRef.current = true;
+
+    // Modos con respaldo en servidor: nunca mostramos toast de borrador.
+    // Si existiera basura de versiones anteriores, la limpiamos silenciosamente.
+    if (!draftEligible) {
+      try { localStorage.removeItem(draftKey); } catch { /* noop */ }
+      return;
+    }
+
     try {
       const raw = localStorage.getItem(draftKey);
       if (!raw) return;
       const draft = JSON.parse(raw) as {
+        version?: number;
         cart?: CartLine[];
         customer?: string;
         notes?: string;
@@ -707,18 +726,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         neighborhood?: string;
         savedAt?: number;
       };
-      if (!draft?.cart?.length) return;
-      if (draft.savedAt && Date.now() - draft.savedAt > 24 * 60 * 60 * 1000) {
-        localStorage.removeItem(draftKey);
+
+      // Validaciones: sólo borradores íntegros, recientes y con ítems reales.
+      const validCart = Array.isArray(draft?.cart)
+        ? draft.cart.filter((l) => l && typeof l.product_id === "string" && (l.qty ?? 0) > 0)
+        : [];
+      const isFresh = draft?.savedAt ? Date.now() - draft.savedAt <= 12 * 60 * 60 * 1000 : false;
+      if (draft?.version !== DRAFT_VERSION || validCart.length === 0 || !isFresh) {
+        try { localStorage.removeItem(draftKey); } catch { /* noop */ }
         return;
       }
-      const totalQty = draft.cart.reduce((a, l) => a + (l.qty || 0), 0);
+
+      const totalQty = validCart.reduce((a, l) => a + (l.qty || 0), 0);
       toast.info(`Borrador encontrado: ${totalQty} ítem(s)`, {
         duration: 15000,
         action: {
           label: "Restaurar",
           onClick: () => {
-            setCart(draft.cart ?? []);
+            setCart(validCart);
             if (draft.customer) setCustomer(draft.customer);
             if (draft.notes) setNotes(draft.notes);
             if (draft.address) setAddress(draft.address);
@@ -736,12 +761,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       });
     } catch (err) {
       console.warn("[pos] no se pudo leer borrador", err);
+      try { localStorage.removeItem(draftKey); } catch { /* noop */ }
     }
-  }, [draftKey]);
+  }, [draftKey, draftEligible]);
 
   // Persistir borrador cuando cambia el carrito o datos del cliente.
+  // Reglas: sólo modos sin respaldo en servidor, sin venta pendiente en curso,
+  // y nunca durante el cobro (para no re-crear el borrador que acabamos de
+  // vaciar al finalizar la venta).
   useEffect(() => {
     if (!draftKey) return;
+    if (!draftEligible) return;
+    if (pendingSaleId) return;
     if (paying) return;
     if (cart.length === 0) {
       try { localStorage.removeItem(draftKey); } catch { /* noop */ }
@@ -751,14 +782,23 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       try {
         localStorage.setItem(
           draftKey,
-          JSON.stringify({ cart, customer, notes, address, phone, neighborhood, savedAt: Date.now() }),
+          JSON.stringify({
+            version: DRAFT_VERSION,
+            cart,
+            customer,
+            notes,
+            address,
+            phone,
+            neighborhood,
+            savedAt: Date.now(),
+          }),
         );
       } catch (err) {
         console.warn("[pos] no se pudo guardar borrador", err);
       }
     }, 400);
     return () => clearTimeout(t);
-  }, [draftKey, cart, customer, notes, address, phone, neighborhood, paying]);
+  }, [draftKey, draftEligible, pendingSaleId, cart, customer, notes, address, phone, neighborhood, paying]);
 
   // Enfocar buscador al entrar al POS (sidebar queda como el usuario lo tenga)
   useEffect(() => {
