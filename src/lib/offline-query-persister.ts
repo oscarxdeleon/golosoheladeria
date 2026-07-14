@@ -42,7 +42,7 @@ export function enableOfflineQueryPersistence(queryClient: QueryClient): void {
       setItem: (key, value) => set(key, value),
       removeItem: (key) => del(key),
     },
-    key: "goloso-rq-cache-v1",
+    key: "goloso-rq-cache-v2",
     throttleTime: 1500,
   });
 
@@ -50,7 +50,7 @@ export function enableOfflineQueryPersistence(queryClient: QueryClient): void {
     queryClient,
     persister,
     maxAge: 1000 * 60 * 60 * 24, // 24h — datos más viejos se descartan
-    buster: import.meta.env.VITE_BUILD_ID ?? "v1",
+    buster: import.meta.env.VITE_BUILD_ID ?? "v2-cash-session-guard",
     dehydrateOptions: {
       shouldDehydrateQuery: (query) => {
         if (query.state.status !== "success") return false;

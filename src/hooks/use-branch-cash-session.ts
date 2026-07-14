@@ -28,17 +28,28 @@ export function useBranchCashSession(branchId: string | null | undefined) {
     queryKey,
     enabled: !!branchId,
     refetchOnWindowFocus: true,
+    refetchOnMount: "always",
     refetchOnReconnect: true,
     refetchInterval: 10_000,
+    staleTime: 0,
+    gcTime: 0,
     retry: 2,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("sync_active_cash_session", {
         _branch_id: branchId!,
       });
       if (error) throw error;
-      return (data as BranchCashSession | null) ?? null;
+      const raw = (data as BranchCashSession | null) ?? null;
+      // Rechaza sesiones huérfanas/corruptas (sin id, sin opened_at o con
+      // timestamp 0/inválido). Sin esta guardia el POS podría creer que hay
+      // caja abierta y bloquear al Cajero con un falso positivo.
+      if (!raw || !raw.id || raw.status !== "open") return null;
+      const t = raw.opened_at ? new Date(raw.opened_at).getTime() : NaN;
+      if (!Number.isFinite(t) || t <= 0) return null;
+      return raw;
     },
   });
+
 
   useEffect(() => {
     if (!branchId) return;
