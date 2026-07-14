@@ -208,6 +208,11 @@ function CajaPage() {
   async function openSession() {
     if (!user) return toast.error("Esperando sesión de usuario…");
     if (!activeBranchId) return toast.error("Selecciona una sede antes de abrir caja");
+    const trimmedOpener = openerName.trim();
+    if (trimmedOpener.length < 2) {
+      setOpenerNameTouched(true);
+      return toast.error("Debe ingresar el nombre de la persona que realiza la apertura de caja.");
+    }
     const amount = parseAmount(openingAmount);
     if (!Number.isFinite(amount) || amount < 0) return toast.error("Monto inicial inválido");
     setSaving(true);
@@ -215,7 +220,7 @@ function CajaPage() {
       const { data, error } = await supabase.rpc("open_cash_session", {
         _opening_amount: amount,
         _opening_notes: openingNotes || undefined,
-        _user_name: profile?.full_name ?? user.email ?? "Cajero",
+        _user_name: trimmedOpener,
         _branch_id: activeBranchId,
       });
       if (error) throw error;
@@ -230,6 +235,8 @@ function CajaPage() {
       setOpenDialog(false);
       setOpeningAmount("");
       setOpeningNotes("");
+      setOpenerName("");
+      setOpenerNameTouched(false);
       await qc.invalidateQueries({ queryKey: ["cash-sessions-history"] });
       await qc.invalidateQueries({ queryKey: ["branch-cash-session-open", activeBranchId] });
     } catch (e) {
