@@ -380,12 +380,12 @@ export const supervisorDashboard = createServerFn({ method: "POST" })
 export const listSupervisorAudit = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data } = await supabaseAdmin
+    await assertAdmin(context.supabase, context.userId);
+    const { data } = await context.supabase
       .from("supervisor_audit_log")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(200);
     return data ?? [];
   });
+
