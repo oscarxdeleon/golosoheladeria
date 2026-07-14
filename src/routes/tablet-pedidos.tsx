@@ -99,7 +99,7 @@ function TabletShell() {
         </div>
       </header>
 
-      {/* Tabs principales (Mesas / Para llevar / A domicilio) */}
+      {/* Tabs principales — Mesero solo puede Mesas y Para llevar */}
       {!selected && (
         <nav className="sticky top-16 z-10 flex gap-1 border-b bg-background/95 px-3 py-2 backdrop-blur">
           <TabButton active={tab === "mesas"} onClick={() => setTab("mesas")} icon={<Utensils className="h-4 w-4" />}>
@@ -107,9 +107,6 @@ function TabletShell() {
           </TabButton>
           <TabButton active={tab === "llevar"} onClick={() => setTab("llevar")} icon={<ShoppingBag className="h-4 w-4" />}>
             Para llevar
-          </TabButton>
-          <TabButton active={tab === "domicilio"} onClick={() => setTab("domicilio")} icon={<Bike className="h-4 w-4" />}>
-            A domicilio
           </TabButton>
         </nav>
       )}
@@ -131,15 +128,16 @@ function TabletShell() {
             />
           ) : (
             <QuickStart
-              orderType={tab}
+              orderType="llevar"
               onStart={() =>
                 setSelected({
-                  orderType: tab,
-                  title: tab === "llevar" ? "Para llevar" : "A domicilio",
+                  orderType: "llevar",
+                  title: "Para llevar",
                 })
               }
             />
           )
+
         ) : (
           <PosScreen
             orderType={selected.orderType}
