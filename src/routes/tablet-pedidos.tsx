@@ -9,6 +9,14 @@ import { PosScreen, type OrderType } from "@/components/pos-screen";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Utensils, ShoppingBag, ArrowLeft, LogOut } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
@@ -223,12 +231,19 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
     { free: 0, occupied: 0, reserved: 0 } as Record<Mesa["status"], number>,
   );
 
+  const [addToOccupied, setAddToOccupied] = useState<Mesa | null>(null);
+
   async function handleOpen(m: Mesa) {
     // No marcamos la mesa como ocupada al abrirla. La mesa cambia a
     // "ocupada" únicamente cuando se guarda un pedido con al menos un
     // producto (trigger DB `auto_occupy_table_on_sale_item`). Así, si el
     // mesero abre una mesa por error y sale sin agregar nada, la mesa
-    // sigue mostrándose como Libre.
+    // sigue mostrándose como Libre. Si ya está ocupada, pedimos
+    // confirmación antes de agregar productos al pedido existente.
+    if (m.status === "occupied") {
+      setAddToOccupied(m);
+      return;
+    }
     onSelect(m);
   }
 
@@ -297,6 +312,29 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
           </div>
         </CardContent>
       </Card>
+
+      <Dialog open={!!addToOccupied} onOpenChange={(o) => { if (!o) setAddToOccupied(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mesa {addToOccupied?.number} ya tiene un pedido activo</DialogTitle>
+            <DialogDescription>
+              ¿Desea agregar nuevos productos a este pedido? Los productos anteriores se conservan y solo se imprimirá una comanda con los productos recién agregados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddToOccupied(null)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const m = addToOccupied;
+                setAddToOccupied(null);
+                if (m) onSelect(m);
+              }}
+            >
+              Sí, agregar productos
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

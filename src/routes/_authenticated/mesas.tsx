@@ -145,6 +145,7 @@ function MesasPage() {
   const [merging, setMerging] = useState(false);
   const [splitTarget, setSplitTarget] = useState<Mesa | null>(null);
   const [search, setSearch] = useState("");
+  const [addToOccupied, setAddToOccupied] = useState<Mesa | null>(null);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
 
   useRealtimeBranchSync(activeBranchId);
@@ -211,7 +212,12 @@ function MesasPage() {
 
   async function openMesa(m: Mesa) {
     // La mesa solo cambia a "ocupada" cuando se guarda un pedido con al menos un producto
-    // (lo gestiona el trigger de DB sobre sale_items).
+    // (lo gestiona el trigger de DB sobre sale_items). Si ya está ocupada,
+    // pedimos confirmación antes de agregar productos al pedido existente.
+    if (m.status === "occupied") {
+      setAddToOccupied(m);
+      return;
+    }
     navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
   }
 
@@ -705,6 +711,30 @@ function MesasPage() {
             </Button>
             <Button variant="destructive" onClick={confirmRelease} disabled={releasing || releaseReason.trim().length < 3}>
               Confirmar liberación
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmar adición de productos a mesa ocupada */}
+      <Dialog open={!!addToOccupied} onOpenChange={(o) => { if (!o) setAddToOccupied(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Mesa {addToOccupied?.number} ya tiene un pedido activo</DialogTitle>
+            <DialogDescription>
+              ¿Desea agregar nuevos productos a este pedido? Los productos anteriores se conservan y solo se imprimirá una comanda con los productos recién agregados.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddToOccupied(null)}>Cancelar</Button>
+            <Button
+              onClick={() => {
+                const m = addToOccupied;
+                setAddToOccupied(null);
+                if (m) navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
+              }}
+            >
+              Sí, agregar productos
             </Button>
           </DialogFooter>
         </DialogContent>
