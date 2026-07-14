@@ -898,6 +898,42 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
                     </Select>
                   </div>
                 </div>
+                <div className="rounded-md border p-3 space-y-3 bg-primary/5">
+                  <div>
+                    <Label className="font-medium">Sede asociada</Label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Vincula esta impresora a una sede. Las tablets detectarán automáticamente
+                      la sede sondeando la <b>URL local</b> del Print Server: si responde, la
+                      tablet asume que está físicamente en esa sede y las comandas se imprimen
+                      aquí.
+                    </p>
+                  </div>
+                  <Select
+                    value={edit?.branch_id ?? "__none__"}
+                    onValueChange={(v) => setEdit({ ...edit, branch_id: v === "__none__" ? null : v })}
+                  >
+                    <SelectTrigger><SelectValue placeholder="Sin sede" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="__none__">Sin sede (no participa en auto-detección)</SelectItem>
+                      {allBranches.map((b) => (
+                        <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <div>
+                    <Label>URL local del Print Server (para auto-detección)</Label>
+                    <Input
+                      value={edit?.local_url ?? ""}
+                      onChange={(e) => setEdit({ ...edit, local_url: e.target.value })}
+                      placeholder="http://192.168.1.50:3001/print"
+                    />
+                    <p className="text-[11px] text-muted-foreground mt-1">
+                      Dirección accesible desde la LAN de la sede. Las tablets probarán
+                      <code className="mx-1 rounded bg-background px-1">/health</code> en esta URL para saber en qué sede están.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="rounded-md bg-muted/50 border p-2 text-xs text-muted-foreground space-y-1">
                   <div className="font-medium text-foreground">Compatibilidad de impresión</div>
                   <div>• <b>Windows:</b> instala el driver de la térmica como impresora predeterminada del navegador y los tickets se envían por diálogo de impresión.</div>
