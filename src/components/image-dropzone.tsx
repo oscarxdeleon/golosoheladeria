@@ -14,9 +14,22 @@ interface Props {
   className?: string;
 }
 
+let webpSupport: boolean | null = null;
+function supportsWebp(): boolean {
+  if (webpSupport !== null) return webpSupport;
+  try {
+    const c = document.createElement("canvas");
+    c.width = c.height = 1;
+    webpSupport = c.toDataURL("image/webp").startsWith("data:image/webp");
+  } catch {
+    webpSupport = false;
+  }
+  return webpSupport;
+}
+
 async function compressImage(file: File, maxDim: number, quality: number): Promise<Blob> {
-  // Skip compression for tiny files or unsupported types (bmp handled by canvas as well)
-  if (file.size < 80 * 1024) return file;
+  // Skip only for very small files
+  if (file.size < 40 * 1024 && file.type === "image/webp") return file;
   const bitmap = await createImageBitmap(file).catch(() => null);
   if (!bitmap) return file;
   const scale = Math.min(1, maxDim / Math.max(bitmap.width, bitmap.height));
@@ -27,7 +40,9 @@ async function compressImage(file: File, maxDim: number, quality: number): Promi
   const ctx = canvas.getContext("2d");
   if (!ctx) return file;
   ctx.drawImage(bitmap, 0, 0, w, h);
-  const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, "image/jpeg", quality));
+  const useWebp = supportsWebp();
+  const mime = useWebp ? "image/webp" : "image/jpeg";
+  const blob: Blob | null = await new Promise((res) => canvas.toBlob(res, mime, quality));
   return blob && blob.size < file.size ? blob : file;
 }
 
