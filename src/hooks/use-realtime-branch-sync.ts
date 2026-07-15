@@ -22,12 +22,30 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
 
     const invalidateTables = () => {
       void qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard-shared"] });
     };
     const invalidateSales = () => {
       void qc.invalidateQueries({ queryKey: ["sales"] });
+      void qc.invalidateQueries({ queryKey: ["dashboard-shared"] });
+      void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.sales"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.session.detail"] });
+      void qc.invalidateQueries({ queryKey: ["stats-all"] });
       if (invalidatePendingSale) {
         void qc.invalidateQueries({ queryKey: ["pending-sale"] });
       }
+    };
+    const invalidateMoney = () => {
+      void qc.invalidateQueries({ queryKey: ["dashboard-shared"] });
+      void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.sales"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.expenses"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.purchases"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.sessions"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.session-options"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
+      void qc.invalidateQueries({ queryKey: ["reportes.session.detail"] });
     };
     const invalidateBoth = () => {
       invalidateTables();
@@ -54,6 +72,36 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
         { event: "*", schema: "public", table: "sale_items" },
         invalidateSales,
       )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${branchId}` },
+        invalidateMoney,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${branchId}` },
+        invalidateMoney,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${branchId}` },
+        invalidateMoney,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "purchase_items" },
+        invalidateMoney,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` },
+        invalidateMoney,
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "table_events", filter: `branch_id=eq.${branchId}` },
+        invalidateTables,
+      )
       // Catálogo: si el Admin activa/desactiva una categoría o producto,
       // el POS del Cajero y la tablet de Meseros deben reflejarlo al instante
       // sin necesidad de recargar.
@@ -63,6 +111,7 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
         () => {
           void qc.invalidateQueries({ queryKey: ["categories"] });
           void qc.invalidateQueries({ queryKey: ["categories-all"] });
+          void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
         },
       )
       .on(
@@ -72,6 +121,8 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
           void qc.invalidateQueries({ queryKey: ["products"] });
           void qc.invalidateQueries({ queryKey: ["products-all"] });
           void qc.invalidateQueries({ queryKey: ["public-products"] });
+          void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
+          void qc.invalidateQueries({ queryKey: ["stats-all"] });
         },
       )
       .subscribe();
