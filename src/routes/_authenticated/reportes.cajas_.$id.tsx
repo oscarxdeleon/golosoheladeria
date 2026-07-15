@@ -29,8 +29,20 @@ const METHOD_DOT: Record<string, string> = {
   bancolombia: "bg-slate-400",
   tarjeta: "bg-violet-500",
   transferencia: "bg-emerald-500",
+  mixto: "bg-amber-500",
   otros: "bg-slate-400",
 };
+
+const METHOD_LABEL: Record<string, string> = {
+  efectivo: "Efectivo",
+  nequi: "Nequi",
+  bancolombia: "Bancolombia",
+  tarjeta: "Tarjeta",
+  transferencia: "Transferencia",
+  mixto: "Pago Mixto",
+  otros: "Otros",
+};
+
 
 const SERVICE_STYLE: Record<string, { emoji: string; label: string; bg: string; text: string; badgeBg: string; badgeText: string }> = {
   mesa:      { emoji: "🪑", label: "Mesa",       bg: "bg-blue-50 border-blue-100",       text: "text-blue-700",     badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
