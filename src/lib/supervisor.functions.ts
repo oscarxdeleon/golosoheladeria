@@ -56,7 +56,6 @@ export const listSupervisorAccounts = createServerFn({ method: "GET" })
 export const createSupervisorAccount = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({
-      username: z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9._-]+$/, "Solo letras, números . _ -"),
       display_name: z.string().trim().min(2).max(80),
       pin: z.string().regex(PIN_RE, "PIN debe ser 4 dígitos"),
     }).parse(d),
@@ -66,14 +65,18 @@ export const createSupervisorAccount = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const salt = randomBytes(16).toString("hex");
     const pin_hash = `${salt}:${hashPin(data.pin, salt)}`;
+    const base = data.display_name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 24) || "sup";
+    const username = `${base}-${randomBytes(3).toString("hex")}`;
     const { data: row, error } = await supabaseAdmin
       .from("supervisor_accounts")
-      .insert({
-        username: data.username.toLowerCase(),
-        display_name: data.display_name,
-        pin_hash,
-      })
-      .select("id,access_token")
+      .insert({ username, display_name: data.display_name, pin_hash })
+      .select("id,access_token,username")
       .single();
     if (error) throw new Error(error.message);
     return row;
@@ -132,42 +135,44 @@ export const supervisorLogin = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({
       token: z.string().min(1).optional(),
-      username: z.string().trim().min(1).max(60),
+      display_name: z.string().trim().min(1).max(80).optional(),
+      username: z.string().trim().min(1).max(60).optional(),
       pin: z.string().regex(PIN_RE, "PIN debe ser 4 dígitos"),
+    }).refine((v) => !!(v.display_name || v.username || v.token), {
+      message: "Falta identificar el supervisor",
     }).parse(d),
   )
   .handler(async ({ data }) => {
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { ip, ua } = reqMeta();
-    const username = data.username.toLowerCase();
 
-    let query = supabaseAdmin
-      .from("supervisor_accounts")
-      .select("id,username,display_name,pin_hash,active,failed_attempts,locked_until,access_token")
-      .eq("username", username);
-    if (data.token) query = query.eq("access_token", data.token);
+    type Acct = {
+      id: string; username: string; display_name: string; pin_hash: string;
+      active: boolean; failed_attempts: number | null; locked_until: string | null; access_token: string;
+    };
+    let acct: Acct | null = null;
+    const cols = "id,username,display_name,pin_hash,active,failed_attempts,locked_until,access_token";
+    if (data.token) {
+      const { data: r } = await supabaseAdmin.from("supervisor_accounts").select(cols).eq("access_token", data.token).maybeSingle();
+      acct = (r as Acct | null) ?? null;
+    } else if (data.display_name) {
+      const { data: r } = await supabaseAdmin.from("supervisor_accounts").select(cols).ilike("display_name", data.display_name.trim()).maybeSingle();
+      acct = (r as Acct | null) ?? null;
+    } else if (data.username) {
+      const { data: r } = await supabaseAdmin.from("supervisor_accounts").select(cols).eq("username", data.username.toLowerCase()).maybeSingle();
+      acct = (r as Acct | null) ?? null;
+    }
 
-    const { data: acct } = await query.maybeSingle();
-
+    const identifier = acct?.username ?? data.display_name ?? data.username ?? "unknown";
     const logFail = async (accountId: string | null, reason: string) => {
       await supabaseAdmin.from("supervisor_audit_log").insert({
-        account_id: accountId,
-        username,
-        event: "login_failed",
-        detail: { reason },
-        ip,
-        user_agent: ua,
+        account_id: accountId, username: identifier, event: "login_failed",
+        detail: { reason }, ip, user_agent: ua,
       });
     };
 
-    if (!acct) {
-      await logFail(null, "not_found");
-      throw new Error("Credenciales incorrectas");
-    }
-    if (!acct.active) {
-      await logFail(acct.id, "inactive");
-      throw new Error("Acceso desactivado");
-    }
+    if (!acct) { await logFail(null, "not_found"); throw new Error("Credenciales incorrectas"); }
+    if (!acct.active) { await logFail(acct.id, "inactive"); throw new Error("Acceso desactivado"); }
     if (acct.locked_until && new Date(acct.locked_until) > new Date()) {
       await logFail(acct.id, "locked");
       throw new Error("Acceso bloqueado temporalmente. Intenta más tarde.");
@@ -201,7 +206,7 @@ export const supervisorLogin = createServerFn({ method: "POST" })
 
     await supabaseAdmin.from("supervisor_audit_log").insert({
       account_id: acct.id,
-      username,
+      username: identifier,
       event: "login_success",
       ip,
       user_agent: ua,
