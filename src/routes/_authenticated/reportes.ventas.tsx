@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfDay, endOfDay, subDays, startOfMonth } from "date-fns";
 import {
@@ -27,11 +27,20 @@ const COLORS = ["#2563eb", "#10b981", "#f59e0b", "#e11d48", "#8b5cf6", "#0ea5e9"
 type Preset = "hoy" | "7d" | "mes" | "custom";
 
 function VentasPage() {
-  const { branches, activeBranchId } = useBranch();
+  const { branches, activeBranchId, setActiveBranchId } = useBranch();
   const [preset, setPreset] = useState<Preset>("7d");
   const [customFrom, setCustomFrom] = useState<string>(format(subDays(new Date(), 6), "yyyy-MM-dd"));
   const [customTo, setCustomTo] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [branchId, setBranchId] = useState<string>(activeBranchId ?? "all");
+
+  useEffect(() => {
+    if (activeBranchId) setBranchId(activeBranchId);
+  }, [activeBranchId]);
+
+  const handleBranchChange = (value: string) => {
+    setBranchId(value);
+    if (value !== "all") setActiveBranchId(value);
+  };
 
   const range = useMemo(() => {
     const now = new Date();
@@ -117,7 +126,7 @@ function VentasPage() {
           )}
           <div>
             <label className="text-xs text-muted-foreground">Sede</label>
-            <Select value={branchId} onValueChange={setBranchId}>
+            <Select value={branchId} onValueChange={handleBranchChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
