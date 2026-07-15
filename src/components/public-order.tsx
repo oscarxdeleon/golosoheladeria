@@ -358,14 +358,39 @@ export function PublicOrder({
     return () => window.clearInterval(id);
   }, [source]);
   const onlineStatus = getChannelStatus(branchSchedules, "online", new Date(nowTick));
+  const physicalStatus = getChannelStatus(branchSchedules, "physical", new Date(nowTick));
+
+  // Reglas por tipo de servicio:
+  //  - Domicilio  -> horario online.  Fuera de horario => ofrecer "Programa tu pedido".
+  //  - Recoger    -> horario físico. Fuera de horario => bloquear sin opción de programar.
+  //  - Menú en línea sin servicio elegido aún -> validar online (banner informativo).
+  //  - Otros (kiosk, table_qr) -> no aplica cierre por horario.
+  const effectiveStatus = source === "online_menu"
+    ? (isPickup ? physicalStatus : onlineStatus)
+    : { isOpen: true, reason: "open" as const, closesAt: null, opensAt: null, minutesToClose: null };
+  const canSchedule = source === "online_menu" && isDelivery; // solo domicilio permite programar
   const enforceOnlineSchedule = source === "online_menu";
-  const onlineClosed = enforceOnlineSchedule && !onlineStatus.isOpen;
-  const onlineClosingSoon = enforceOnlineSchedule && onlineStatus.isOpen && (onlineStatus.minutesToClose ?? 999) <= 30;
-  const onlineClosedMessage = onlineStatus.reason === "closed_day"
-    ? "Hoy no hay pedidos en línea disponibles."
-    : onlineStatus.reason === "before_open"
-      ? `Los pedidos en línea inician a las ${onlineStatus.opensAt}.`
-      : "Estamos fuera del horario para pedidos en línea.";
+  const isClosedForService = enforceOnlineSchedule && !effectiveStatus.isOpen;
+  const onlineClosingSoon = enforceOnlineSchedule && effectiveStatus.isOpen && (effectiveStatus.minutesToClose ?? 999) <= 30;
+
+  const closedTitle = isPickup
+    ? "La heladería se encuentra cerrada en este momento."
+    : "En este momento ya no estamos recibiendo pedidos a domicilio.";
+  const closedSubtitle = effectiveStatus.reason === "closed_day"
+    ? "Hoy no hay servicio disponible."
+    : effectiveStatus.reason === "before_open"
+      ? `Reabrimos a las ${effectiveStatus.opensAt}.`
+      : (isPickup ? "El horario de atención del local ha finalizado." : "Puedes programar tu pedido para más tarde.");
+
+  // Programación de pedidos (solo domicilio)
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState<string | null>(null); // ISO UTC
+  const [scheduledLabel, setScheduledLabel] = useState<string>("");
+  // Cuando cambia el servicio, limpiar cualquier programación previa incompatible
+  useEffect(() => {
+    if (!isDelivery && scheduledFor) { setScheduledFor(null); setScheduledLabel(""); }
+  }, [isDelivery, scheduledFor]);
+
 
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
