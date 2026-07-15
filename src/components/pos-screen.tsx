@@ -1407,6 +1407,27 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
       console.log(`[pay] venta #${sale.ticket_number} registrada como ${method}`);
 
+      // Apertura automática del cajón monedero al confirmar venta en efectivo.
+      // Se ejecuta inmediatamente después de registrar la venta, antes de
+      // limpiar la UI o preguntar por impresión, para no depender del ticket.
+      try {
+        const { openCashDrawer, isCashPaymentMethod } = await import("@/lib/cash-drawer");
+        const splitDetails = paymentDetails as { splits?: Array<{ method?: unknown }> } | null | undefined;
+        const splits = Array.isArray(splitDetails?.splits) ? splitDetails.splits : [];
+        const splitIncludesCash = splits.some((part) => isCashPaymentMethod(String(part.method ?? "")));
+        const involvesCash = splits.length > 0
+          ? splitIncludesCash
+          : isCashPaymentMethod(sale.payment_method) || isCashPaymentMethod(method);
+        if (involvesCash) {
+          const res = await openCashDrawer({ event: "cash_sale", operationId: sale.id });
+          if (!res.fired && res.reason === "error") {
+            toast.warning("La venta fue registrada correctamente, pero no fue posible abrir el cajón monedero. Verifique la impresora o el Print Server.");
+          }
+        }
+      } catch (drawerErr) {
+        console.warn("[pay] apertura de cajón falló", drawerErr);
+      }
+
       // Upsert opcional cliente CRM (Para llevar con WhatsApp)
       if (!creditCustomer) { void upsertLlevarCustomerFromForm(sale.id); }
 
@@ -1503,26 +1524,6 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
 
       toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
-
-      // ───────────────────────────────────────────────────────────────
-      // Apertura automática del cajón monedero (independiente de imprimir)
-      // Se dispara UNA sola vez por venta gracias al dedup por operationId
-      // = sale.id. Si el pago no involucra efectivo (o es cortesía), la
-      // función `isCashPaymentMethod` devuelve false y no abre.
-      // ───────────────────────────────────────────────────────────────
-      try {
-        const { openCashDrawer, isCashPaymentMethod } = await import("@/lib/cash-drawer");
-        const involvesCash = isCashPaymentMethod(sale.payment_method) || method === "Efectivo" || method === "Mixto";
-        if (involvesCash) {
-          const res = await openCashDrawer({ event: "cash_sale", operationId: sale.id });
-          if (!res.fired && res.reason === "error") {
-            toast.warning("La venta fue registrada correctamente, pero no fue posible abrir el cajón monedero. Verifique la impresora o el Print Server.");
-          }
-        }
-      } catch (drawerErr) {
-        console.warn("[pay] apertura de cajón falló", drawerErr);
-      }
-
 
       // ───────────────────────────────────────────────────────────────
       // PASO 3: Mostrar modal de confirmación post-venta
