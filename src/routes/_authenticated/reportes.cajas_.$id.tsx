@@ -235,7 +235,7 @@ function CajaDetailPage() {
                 <div key={k} className="flex items-center justify-between rounded-2xl bg-muted/40 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className={`h-2.5 w-2.5 rounded-full ${METHOD_DOT[k] ?? "bg-slate-400"}`} />
-                    <span className="font-bold uppercase tracking-wide text-sm">{k}</span>
+                    <span className="font-bold uppercase tracking-wide text-sm">{METHOD_LABEL[k] ?? k}</span>
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{v.count} ventas</span>
                   </div>
                   <div className={`font-display text-lg font-extrabold ${v.amount > 0 ? "text-emerald-700" : "text-muted-foreground"}`}>{formatMoney(v.amount)}</div>
