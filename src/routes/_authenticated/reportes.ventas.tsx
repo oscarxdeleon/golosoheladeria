@@ -90,7 +90,8 @@ function VentasPage() {
   });
   const products = useMemo(() => aggregateProducts(items, { modifierNames }), [items, modifierNames]);
 
-  const paymentData = Object.entries(payments).map(([k, v]) => ({ name: k, value: v.amount }));
+  const METHOD_LABELS: Record<string, string> = { efectivo: "Efectivo", nequi: "Nequi", bancolombia: "Bancolombia", tarjeta: "Tarjeta", transferencia: "Transferencia", mixto: "Pago Mixto", otros: "Otros" };
+  const paymentData = Object.entries(payments).map(([k, v]) => ({ name: METHOD_LABELS[k] ?? k, value: v.amount }));
   const serviceData = Object.entries(services).map(([k, v]) => ({ name: k, value: v.amount }));
 
   return (
