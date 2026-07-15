@@ -112,6 +112,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
   const [data, setData] = useState<Awaited<ReturnType<typeof supervisorDashboard>> | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const load = useCallback(async (bid: string | null, logSwitch = false) => {
     setLoading(true);
@@ -119,12 +120,16 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
       const res = await supervisorDashboard({ session_token: session.session_token, branch_id: bid, log_switch: logSwitch });
       setData(res);
       setBranchId(res.active_branch_id);
+      setLoadError(null);
     } catch (err) {
       const msg = (err as Error).message;
       if (msg.toLowerCase().includes("sesión") || msg.toLowerCase().includes("acceso")) {
         toast.error(msg);
         onLogout();
-      } else toast.error(msg);
+      } else {
+        setLoadError(msg || "No se pudo cargar la información del supervisor");
+        toast.error(msg || "No se pudo cargar la información del supervisor");
+      }
     } finally { setLoading(false); }
   }, [session.session_token, onLogout]);
 
@@ -187,7 +192,18 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
       </header>
 
       <main className="mx-auto max-w-7xl p-4 space-y-4">
-        {!data && <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando información…</CardContent></Card>}
+        {!data && !loadError && <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando información…</CardContent></Card>}
+        {!data && loadError && (
+          <Card>
+            <CardContent className="p-8 text-center space-y-3">
+              <div className="font-semibold">No se pudo cargar la información.</div>
+              <div className="text-sm text-muted-foreground">{loadError}</div>
+              <Button variant="outline" onClick={() => load(branchId)} disabled={loading}>
+                <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Reintentar
+              </Button>
+            </CardContent>
+          </Card>
+        )}
         {data && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
