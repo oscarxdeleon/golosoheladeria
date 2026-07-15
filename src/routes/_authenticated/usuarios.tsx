@@ -204,7 +204,7 @@ function UsuariosPage() {
                         <Badge className={roleMeta.tone}><roleMeta.icon className="h-3 w-3 mr-1" />{roleMeta.label}</Badge>
                       ) : <span className="text-xs text-muted-foreground">Sin rol</span>}
                     </TableCell>
-                    <TableCell className="text-sm">{u.branch_name ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell className="text-sm">{u.role === "supervisor" ? <span className="text-indigo-600 font-medium">Todas las sedes</span> : (u.branch_name ?? <span className="text-muted-foreground">—</span>)}</TableCell>
                     <TableCell>
                       {u.active
                         ? <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">Activo</Badge>
