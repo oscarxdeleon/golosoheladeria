@@ -10,10 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
 import {
-  aggregateProducts, computeFinancialSummary, fetchExpenses, fetchPurchases, fetchSaleItemsForSales,
-  fetchSales, normalizeMethod, paymentBreakdown, serviceBreakdown,
-  CATEGORY_INCOME, CATEGORY_WITHDRAWAL, CATEGORY_REFUND,
-  type CashSessionRow, type ExpenseRow,
+  fetchExpenses, fetchPurchases, fetchSaleItemsForSales, fetchSales,
+  type CashSessionRow,
 } from "@/lib/reports";
 import { downloadShiftPdf } from "@/lib/shift-pdf";
 import { toast } from "sonner";
@@ -22,6 +20,75 @@ export const Route = createFileRoute("/_authenticated/reportes/cajas_/$id")({
   head: () => ({ meta: [{ title: "Detalle de arqueo · Reportes" }] }),
   component: CajaDetailPage,
 });
+
+/* ---------------- Types (RPC payload) ---------------- */
+
+type MethodStat = { amount: number; count: number };
+type ServiceStat = { amount: number; count: number };
+type ProductRow = { name: string; qty: number; total: number };
+type AdjustRow = {
+  id: string;
+  kind: "entrada" | "salida" | "devolucion";
+  amount: number;
+  category: string | null;
+  description: string | null;
+  method: string | null;
+  user_name: string | null;
+  created_at: string;
+};
+type DepositRow = {
+  id: string;
+  amount: number;
+  description: string;
+  method: string;
+  user_name: string | null;
+  status: string;
+  created_at: string;
+};
+
+type SessionDetail = {
+  session: {
+    id: string;
+    branch_id: string | null;
+    branch_name: string | null;
+    opened_at: string;
+    closed_at: string | null;
+    opening_amount: number | null;
+    counted_amount: number | null;
+    expected_amount: number | null;
+    difference: number | null;
+    user_name: string | null;
+    status: string;
+    opening_notes: string | null;
+    closing_notes: string | null;
+  };
+  summary: {
+    total_sales: number;
+    order_count: number;
+    avg_ticket: number;
+    cancelled_count: number;
+    cancelled_value: number;
+    cash_sales: number;
+    entries_cash: number;
+    expenses_cash: number;
+    purchases_cash: number;
+    opening_amount: number;
+    expected_cash: number;
+    counted_amount: number;
+    difference: number;
+    nequi_counted: number;
+    bancolombia_counted: number;
+  };
+  payments: Record<string, MethodStat>;
+  services: Record<string, ServiceStat>;
+  products: ProductRow[];
+  entradas: AdjustRow[];
+  salidas: AdjustRow[];
+  devoluciones: AdjustRow[];
+  deposits: DepositRow[];
+};
+
+/* ---------------- Style maps ---------------- */
 
 const METHOD_DOT: Record<string, string> = {
   efectivo: "bg-blue-500",
@@ -43,12 +110,11 @@ const METHOD_LABEL: Record<string, string> = {
   otros: "Otros",
 };
 
-
 const SERVICE_STYLE: Record<string, { emoji: string; label: string; bg: string; text: string; badgeBg: string; badgeText: string }> = {
-  mesa:      { emoji: "🪑", label: "Mesa",       bg: "bg-blue-50 border-blue-100",       text: "text-blue-700",     badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
-  domicilio: { emoji: "🛵", label: "Domicilio",  bg: "bg-orange-50 border-orange-100",   text: "text-orange-700",   badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
-  llevar:    { emoji: "🥡", label: "Para Llevar",bg: "bg-purple-50 border-purple-100",   text: "text-purple-700",   badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
-  kiosko:    { emoji: "🖥️", label: "Kiosko",     bg: "bg-teal-50 border-teal-100",       text: "text-teal-700",     badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
+  mesa:      { emoji: "🪑", label: "Mesa",       bg: "bg-blue-50 border-blue-100",     text: "text-blue-700",   badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
+  domicilio: { emoji: "🛵", label: "Domicilio",  bg: "bg-orange-50 border-orange-100", text: "text-orange-700", badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
+  llevar:    { emoji: "🥡", label: "Para Llevar",bg: "bg-purple-50 border-purple-100", text: "text-purple-700", badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
+  kiosko:    { emoji: "🖥️", label: "Kiosko",     bg: "bg-teal-50 border-teal-100",     text: "text-teal-700",   badgeBg: "bg-emerald-100", badgeText: "text-emerald-700" },
 };
 
 function normalizeService(k: string): keyof typeof SERVICE_STYLE {
@@ -60,91 +126,33 @@ function normalizeService(k: string): keyof typeof SERVICE_STYLE {
   return "mesa";
 }
 
+/* ---------------- Page ---------------- */
+
 function CajaDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
-  
   const { branches, activeBranchId, setActiveBranchId, loading: branchesLoading } = useBranch();
   const [downloading, setDownloading] = useState(false);
 
-  const { data: session, isLoading } = useQuery({
-    queryKey: ["reportes.session", id],
+  const { data: detail, isLoading } = useQuery({
+    queryKey: ["reportes.session.detail", id],
     queryFn: async () => {
-      const { data, error } = await supabase.from("cash_sessions").select("*").eq("id", id).maybeSingle();
+      const { data, error } = await supabase.rpc("admin_cash_session_detail_rpc", { _cash_session_id: id });
       if (error) throw error;
-      return data as CashSessionRow | null;
+      return data as unknown as SessionDetail | null;
     },
   });
+
+  const sessionBranchId = detail?.session.branch_id ?? null;
 
   useEffect(() => {
-    if (!session || !activeBranchId || session.branch_id === activeBranchId) return;
+    if (!detail || !activeBranchId || sessionBranchId === activeBranchId) return;
     void navigate({ to: "/reportes/cajas", replace: true });
-  }, [session, activeBranchId, navigate]);
+  }, [detail, sessionBranchId, activeBranchId, navigate]);
 
-  const visibleSession = session?.branch_id === activeBranchId ? session : null;
+  const visible = detail && sessionBranchId === activeBranchId ? detail : null;
 
-  const filters = useMemo(() => visibleSession ? { cashSessionId: visibleSession.id, branchId: visibleSession.branch_id } : null, [visibleSession]);
-
-  const { data: sales = [] } = useQuery({
-    queryKey: ["reportes.session.sales", id, visibleSession?.branch_id ?? null, visibleSession?.opened_at ?? null, visibleSession?.closed_at ?? null],
-    enabled: !!filters,
-    queryFn: async () => {
-      const currentSession = visibleSession;
-      if (!currentSession) return [];
-      const [linked, scoped] = await Promise.all([
-        fetchSales({ cashSessionId: currentSession.id }),
-        currentSession.branch_id
-          ? fetchSales({ branchId: currentSession.branch_id, from: currentSession.opened_at, to: currentSession.closed_at ?? undefined })
-          : Promise.resolve([]),
-      ]);
-      const byId = new Map([...linked, ...scoped].map((sale) => [sale.id, sale]));
-      return [...byId.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-    },
-  });
-  const { data: expenses = [] } = useQuery({
-    queryKey: ["reportes.session.expenses", id, visibleSession?.branch_id ?? null],
-    enabled: !!filters,
-    queryFn: () => fetchExpenses(filters!),
-  });
-  const { data: purchases = [] } = useQuery({
-    queryKey: ["reportes.session.purchases", id, visibleSession?.branch_id ?? null],
-    enabled: !!filters,
-    queryFn: () => fetchPurchases(filters!),
-  });
-  const { data: deposits = [] } = useQuery({
-    queryKey: ["reportes.session.deposits", id, visibleSession?.branch_id ?? null],
-    enabled: !!visibleSession?.id,
-    queryFn: async () => {
-      const currentSession = visibleSession;
-      if (!currentSession?.branch_id) return [];
-      const { data, error } = await supabase
-        .from("cash_deposits")
-        .select("id, amount, description, method, status, user_name, created_at")
-        .eq("cash_session_id", currentSession.id)
-        .eq("branch_id", currentSession.branch_id)
-        .order("created_at", { ascending: true });
-      if (error) throw error;
-      return (data ?? []) as Array<{ id: string; amount: number; description: string; method: string; status: string; user_name: string | null; created_at: string }>;
-    },
-  });
-  const saleIds = useMemo(() => sales.filter((s) => s.status !== "cancelled").map((s) => s.id), [sales]);
-  const { data: items = [] } = useQuery({
-    queryKey: ["reportes.session.items", id, saleIds.length],
-    enabled: saleIds.length > 0,
-    queryFn: () => fetchSaleItemsForSales(saleIds),
-  });
-  const { data: modifierNames } = useQuery({
-    queryKey: ["reportes.modifier-names"],
-    staleTime: 5 * 60_000,
-    queryFn: async () => {
-      const { data } = await supabase.from("modifiers").select("name");
-      return new Set((data ?? []).map((m: { name: string | null }) => (m.name ?? "").trim().toLowerCase()).filter(Boolean));
-    },
-  });
-
-  const branchName = branches.find((b) => b.id === visibleSession?.branch_id)?.name ?? "—";
-
-  if (isLoading || branchesLoading || !session) {
+  if (isLoading || branchesLoading || !detail) {
     return (
       <div className="mx-auto max-w-2xl">
         <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading || branchesLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
@@ -152,30 +160,23 @@ function CajaDetailPage() {
     );
   }
 
-  if (!visibleSession) {
-    const sessionBranch = branches.find((b) => b.id === session.branch_id)?.name ?? "otra sede";
+  if (!visible) {
+    const sessionBranch = detail.session.branch_name ?? branches.find((b) => b.id === sessionBranchId)?.name ?? "otra sede";
     return (
       <div className="mx-auto max-w-2xl space-y-4">
         <Card>
           <CardContent className="space-y-4 py-8 text-center">
             <div className="text-lg font-bold">Este arqueo pertenece a {sessionBranch}</div>
             <p className="text-sm text-muted-foreground">
-              La sede activa no coincide con el cierre seleccionado. Cambia a la sede del arqueo o vuelve al historial para ver los cierres de la sede actual.
+              La sede activa no coincide con el cierre seleccionado. Cambia a la sede del arqueo o vuelve al historial.
             </p>
             <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
-              {session.branch_id && (
-                <Button
-                  onClick={() => setActiveBranchId(session.branch_id!)}
-                  className="rounded-xl font-semibold"
-                >
+              {sessionBranchId && (
+                <Button onClick={() => setActiveBranchId(sessionBranchId)} className="rounded-xl font-semibold">
                   Cambiar a {sessionBranch}
                 </Button>
               )}
-              <Button
-                variant="outline"
-                onClick={() => navigate({ to: "/reportes/cajas" })}
-                className="rounded-xl font-semibold"
-              >
+              <Button variant="outline" onClick={() => navigate({ to: "/reportes/cajas" })} className="rounded-xl font-semibold">
                 Volver al historial
               </Button>
             </div>
@@ -185,58 +186,52 @@ function CajaDetailPage() {
     );
   }
 
-  const detailSession = visibleSession;
-  const summary = computeFinancialSummary(sales, expenses, [detailSession], purchases);
-  const payments = paymentBreakdown(sales);
-  const services = serviceBreakdown(sales);
-  const products = aggregateProducts(items, { modifierNames });
+  const s = visible.session;
+  const summary = visible.summary;
+  const payments = visible.payments ?? {};
+  const services = visible.services ?? {};
+  const products = visible.products ?? [];
+  const branchName = s.branch_name ?? "—";
 
-  const activeDeposits = deposits.filter((d) => d.status === "active");
-  const depByMethod = activeDeposits.reduce<Record<string, number>>((a, d) => {
-    const k = normalizeMethod(d.method || "efectivo");
-    a[k] = (a[k] ?? 0) + Number(d.amount || 0);
-    return a;
-  }, {});
-  const isCashMethod = (method: string | null | undefined) => normalizeMethod(method || "efectivo") === "efectivo";
-  const cashSales = payments["efectivo"]?.amount ?? 0;
-  const entries = depByMethod.efectivo ?? 0;
-  const cashExpenseOut = expenses
-    .filter((e) => isCashMethod(e.payment_method))
-    .reduce((a, e) => a + Number(e.amount || 0), 0);
-  const cashPurchasesOut = purchases
-    .filter((p) => isCashMethod(p.payment_method))
-    .reduce((a, p) => a + Number(p.total || 0), 0);
-  const exits = cashExpenseOut + cashPurchasesOut;
-  const apertura = Number(detailSession.opening_amount) || 0;
-  const efectivoEsperadoCalculado = apertura + cashSales + entries - exits;
+  const apertura = Number(summary.opening_amount) || 0;
+  const cashSales = Number(summary.cash_sales) || 0;
+  const entries = Number(summary.entries_cash) || 0;
+  const exits = (Number(summary.expenses_cash) || 0) + (Number(summary.purchases_cash) || 0);
+  const expected = Number(summary.expected_cash) || 0;
+  const declared = Number(summary.counted_amount) || 0;
+  const diff = Number(summary.difference) || 0;
 
-  const declared = Number(detailSession.counted_amount) || 0;
-  const expected = Number(detailSession.expected_amount) || efectivoEsperadoCalculado;
-  const diff = declared - expected;
-
-  // Declared por medio no-efectivo
   const declaredNonCash: { key: string; label: string; amount: number }[] = [];
-  const nequi = Number(detailSession.nequi_counted ?? 0);
-  const banco = Number(detailSession.bancolombia_counted ?? 0);
-  if (nequi > 0) declaredNonCash.push({ key: "nequi", label: "NEQUI", amount: nequi });
-  if (banco > 0) declaredNonCash.push({ key: "bancolombia", label: "BANCOLOMBIA", amount: banco });
+  if (summary.nequi_counted > 0) declaredNonCash.push({ key: "nequi", label: "NEQUI", amount: summary.nequi_counted });
+  if (summary.bancolombia_counted > 0) declaredNonCash.push({ key: "bancolombia", label: "BANCOLOMBIA", amount: summary.bancolombia_counted });
   const totalDeclarado = declaredNonCash.reduce((a, x) => a + x.amount, 0);
 
-  const entradas = expenses.filter((e) => CATEGORY_INCOME.has((e.category ?? "").toLowerCase()));
-  const salidas = expenses.filter((e) => {
-    const c = (e.category ?? "").toLowerCase();
-    return CATEGORY_WITHDRAWAL.has(c) || (!CATEGORY_INCOME.has(c) && !CATEGORY_REFUND.has(c));
-  });
-  const devoluciones = expenses.filter((e) => CATEGORY_REFUND.has((e.category ?? "").toLowerCase()));
+  const activeDeposits = (visible.deposits ?? []).filter((d) => d.status === "active");
+  const entradas = visible.entradas ?? [];
+  const salidas = visible.salidas ?? [];
+  const devoluciones = visible.devoluciones ?? [];
 
   const totalSalesByPayments = Object.values(payments).reduce((a, v) => a + v.amount, 0);
   const totalTx = Object.values(payments).reduce((a, v) => a + v.count, 0);
-  const turnNumber = detailSession.id.slice(0, 3).toUpperCase();
+  const turnNumber = s.id.slice(0, 3).toUpperCase();
 
   async function handlePdf() {
     setDownloading(true);
     try {
-      await downloadShiftPdf({ session: detailSession, branchName, turnNumber, sales, items, expenses, purchases });
+      // Datos crudos on-demand SOLO para PDF
+      const [rawSales, rawExpenses, rawPurchases] = await Promise.all([
+        fetchSales({ cashSessionId: s.id }),
+        fetchExpenses({ cashSessionId: s.id, branchId: s.branch_id }),
+        fetchPurchases({ cashSessionId: s.id, branchId: s.branch_id }),
+      ]);
+      const ids = rawSales.filter((x) => x.status !== "cancelled").map((x) => x.id);
+      const items = ids.length ? await fetchSaleItemsForSales(ids) : [];
+      const fullSession = {
+        ...s,
+        nequi_counted: summary.nequi_counted,
+        bancolombia_counted: summary.bancolombia_counted,
+      } as unknown as CashSessionRow;
+      await downloadShiftPdf({ session: fullSession, branchName, turnNumber, sales: rawSales, items, expenses: rawExpenses, purchases: rawPurchases });
       toast.success("PDF generado");
     } catch (e) {
       toast.error("No se pudo generar el PDF", { description: (e as Error).message });
@@ -247,7 +242,7 @@ function CajaDetailPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 pb-10">
-      {/* Header sheet */}
+      {/* Header */}
       <Card className="overflow-hidden">
         <div className="relative bg-gradient-to-b from-primary/5 to-background p-5">
           <div className="flex items-start justify-between gap-3">
@@ -257,8 +252,8 @@ function CajaDetailPage() {
               </div>
               <div>
                 <h2 className="font-display text-2xl font-extrabold leading-tight">Detalle de Arqueo <span className="text-primary">#{turnNumber}</span></h2>
-                <p className="text-sm text-muted-foreground">Sesión de {detailSession.user_name ?? "—"}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{branchName} · {format(new Date(detailSession.opened_at), "dd/MM/yyyy HH:mm")}{detailSession.closed_at ? ` – ${format(new Date(detailSession.closed_at), "HH:mm")}` : " · abierto"}</p>
+                <p className="text-sm text-muted-foreground">Sesión de {s.user_name ?? "—"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{branchName} · {format(new Date(s.opened_at), "dd/MM/yyyy HH:mm")}{s.closed_at ? ` – ${format(new Date(s.closed_at), "HH:mm")}` : " · abierto"}</p>
               </div>
             </div>
             <Link to="/reportes/cajas">
@@ -288,15 +283,13 @@ function CajaDetailPage() {
 
         {/* -------- RESUMEN -------- */}
         <TabsContent value="resumen" className="space-y-6">
-          {/* KPI 2x2 */}
           <div className="grid grid-cols-2 gap-3">
-            <KpiTile label="Pedidos" value={String(summary.transactions)} tone="slate" />
-            <KpiTile label="Ventas totales" value={formatMoney(summary.salesTotal)} tone="emerald" />
-            <KpiTile label="Ticket promedio" value={formatMoney(summary.averageTicket)} tone="blue" />
-            <KpiTile label="Cancelados" value={String(summary.cancelled)} tone="amber" />
+            <KpiTile label="Pedidos" value={String(summary.order_count)} tone="slate" />
+            <KpiTile label="Ventas totales" value={formatMoney(summary.total_sales)} tone="emerald" />
+            <KpiTile label="Ticket promedio" value={formatMoney(summary.avg_ticket)} tone="blue" />
+            <KpiTile label="Cancelados" value={String(summary.cancelled_count)} tone="amber" />
           </div>
 
-          {/* Ventas por método de pago */}
           <Section emoji="💳" title="VENTAS POR MÉTODO DE PAGO">
             <div className="space-y-2">
               {Object.entries(payments).map(([k, v]) => (
@@ -320,7 +313,6 @@ function CajaDetailPage() {
             </div>
           </Section>
 
-          {/* Declarado por el cajero */}
           <Section emoji="🧾" title="DECLARADO POR EL CAJERO (POR MEDIO)">
             <div className="space-y-2">
               {declaredNonCash.map((m) => (
@@ -337,20 +329,19 @@ function CajaDetailPage() {
             </div>
           </Section>
 
-          {/* Ventas por tipo de servicio */}
           <Section emoji="🍽️" title="VENTAS POR TIPO DE SERVICIO">
             <div className="space-y-3">
               {Object.entries(services).map(([k, v]) => {
-                const s = SERVICE_STYLE[normalizeService(k)];
+                const st = SERVICE_STYLE[normalizeService(k)];
                 return (
-                  <div key={k} className={`rounded-2xl border px-4 py-3 ${s.bg}`}>
+                  <div key={k} className={`rounded-2xl border px-4 py-3 ${st.bg}`}>
                     <div className="flex items-center justify-between">
-                      <div className={`flex items-center gap-2 font-bold text-base ${s.text}`}>
-                        <span className="text-xl leading-none">{s.emoji}</span>{s.label}
+                      <div className={`flex items-center gap-2 font-bold text-base ${st.text}`}>
+                        <span className="text-xl leading-none">{st.emoji}</span>{st.label}
                       </div>
-                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${s.badgeBg} ${s.badgeText}`}>{v.count} pedidos</span>
+                      <span className={`rounded-full px-2.5 py-1 text-[11px] font-semibold ${st.badgeBg} ${st.badgeText}`}>{v.count} pedidos</span>
                     </div>
-                    <div className={`mt-1 font-display text-2xl font-extrabold ${s.text}`}>{formatMoney(v.amount)}</div>
+                    <div className={`mt-1 font-display text-2xl font-extrabold ${st.text}`}>{formatMoney(v.amount)}</div>
                   </div>
                 );
               })}
@@ -358,7 +349,6 @@ function CajaDetailPage() {
             </div>
           </Section>
 
-          {/* Balance efectivo */}
           <Section emoji="💵" title="BALANCE DE EFECTIVO EN CAJA">
             <div className="space-y-2.5 px-1 text-[15px]">
               <BalanceLine label="Apertura de caja" value={formatMoney(apertura)} />
@@ -373,7 +363,6 @@ function CajaDetailPage() {
             </div>
           </Section>
 
-          {/* Comparación final */}
           <div className="rounded-2xl border border-blue-100 bg-blue-50/70 p-5">
             <div className="grid grid-cols-3 gap-3 text-center">
               <div>
@@ -513,7 +502,7 @@ const TONE_HEADING: Record<string, string> = {
   amber: "text-amber-600",
 };
 
-function AjusteBlock({ title, rows, tone, sign }: { title: string; rows: ExpenseRow[]; tone: keyof typeof TONE_HEADING; sign: "+" | "-" }) {
+function AjusteBlock({ title, rows, tone, sign }: { title: string; rows: AdjustRow[]; tone: keyof typeof TONE_HEADING; sign: "+" | "-" }) {
   const total = rows.reduce((a, r) => a + Number(r.amount ?? 0), 0);
   return (
     <div className="space-y-2">
@@ -550,4 +539,3 @@ function AjusteBlock({ title, rows, tone, sign }: { title: string; rows: Expense
     </div>
   );
 }
-
