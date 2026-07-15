@@ -76,19 +76,37 @@ function DashboardPage() {
     if (!activeBranchId) return;
     const invalidateDashboard = () => {
       void queryClient.invalidateQueries({ queryKey: ["dashboard-shared"] });
+      void queryClient.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
     };
     const channel = supabase
       .channel(`dashboard-shared-sync-${activeBranchId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
       .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, invalidateDashboard)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
       .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchase_items" }, invalidateDashboard)
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "table_events", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, invalidateDashboard)
       .subscribe();
 
     return () => {
       void supabase.removeChannel(channel);
     };
+  }, [activeBranchId, queryClient]);
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    void queryClient.invalidateQueries({ queryKey: ["dashboard-shared"] });
+    void queryClient.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
+    void queryClient.invalidateQueries({ queryKey: ["reportes.session.detail"] });
+    void queryClient.invalidateQueries({ queryKey: ["reportes.sales"] });
+    void queryClient.invalidateQueries({ queryKey: ["reportes.expenses"] });
+    void queryClient.invalidateQueries({ queryKey: ["reportes.purchases"] });
+    void queryClient.invalidateQueries({ queryKey: ["reportes.sessions"] });
+    void queryClient.invalidateQueries({ queryKey: ["stats-all"] });
   }, [activeBranchId, queryClient]);
 
   const { data, isLoading } = useQuery({
@@ -107,6 +125,8 @@ function DashboardPage() {
       bestDays: Array<{ dow: number; name: string; total: number }>;
       valleys: number[];
       realCash: { efectivo: number; nequi: number; bancolombia: number; efectivoEsperado: number; nequiEsperado: number; bancolombiaEsperado: number; diferenciaEfectivo: number; diferenciaNequi: number; diferenciaBanco: number; cajasCerradas: number };
+      activeCash: { id: string | null; userName: string | null; openedAt: string | null; openingAmount: number; status: string | null };
+      pending: { tablesOccupied: number; pendingLlevar: number; pendingDomicilio: number; preparing: number };
     }> => {
       const raw = await dashboardPayload({
         data: { branchId: activeBranchId!, range, origen, pago },
@@ -146,6 +166,21 @@ function DashboardPage() {
         diferenciaBanco: Number(rc.diferenciaBanco ?? 0),
         cajasCerradas: Number(rc.cajasCerradas ?? 0),
       };
+      const ac = p.active_cash ?? {};
+      const activeCash = {
+        id: typeof ac.id === "string" ? ac.id : null,
+        userName: typeof ac.user_name === "string" ? ac.user_name : null,
+        openedAt: typeof ac.opened_at === "string" ? ac.opened_at : null,
+        openingAmount: Number(ac.opening_amount ?? 0),
+        status: typeof ac.status === "string" ? ac.status : null,
+      };
+      const pendingRaw = p.pending ?? {};
+      const pending = {
+        tablesOccupied: Number(pendingRaw.tables_occupied ?? 0),
+        pendingLlevar: Number(pendingRaw.pending_llevar ?? 0),
+        pendingDomicilio: Number(pendingRaw.pending_domicilio ?? 0),
+        preparing: Number(pendingRaw.preparing ?? 0),
+      };
 
       return {
         total: Number(p.total ?? 0),
@@ -164,7 +199,7 @@ function DashboardPage() {
           neto: Number(m.neto ?? 0),
           total: Number(m.total ?? 0),
         })),
-        hourly, bestDays, valleys, realCash,
+        hourly, bestDays, valleys, realCash, activeCash, pending,
       };
     },
   });
@@ -252,6 +287,17 @@ function DashboardPage() {
               label="Utilidad Estimada" value={formatMoney(data?.utilidad ?? 0)} hint="Ventas − Gastos" />
           </>
         )}
+      </div>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard color="turquoise" icon={<Clock className="h-5 w-5" />}
+          label="Pedidos en preparación" value={String(data?.pending.preparing ?? 0)} hint="Actualizado en vivo" />
+        <KpiCard color="lime" icon={<ShoppingBag className="h-5 w-5" />}
+          label="Domicilios pendientes" value={String(data?.pending.pendingDomicilio ?? 0)} hint="Por sede activa" />
+        <KpiCard color="pink" icon={<Package className="h-5 w-5" />}
+          label="Para llevar pendientes" value={String(data?.pending.pendingLlevar ?? 0)} hint="Pendientes / preparación" />
+        <KpiCard color="yellow" icon={<Target className="h-5 w-5" />}
+          label="Mesas ocupadas" value={String(data?.pending.tablesOccupied ?? 0)} hint={data?.activeCash.id ? "Caja abierta" : "Sin caja abierta"} />
       </div>
 
       {/* Alertas de inventario */}
