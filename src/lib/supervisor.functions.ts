@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { createHash, randomBytes } from "node:crypto";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const PIN_RE = /^\d{4}$/;
 
@@ -10,14 +9,26 @@ function hashPin(pin: string, salt: string): string {
   return createHash("sha256").update(`${salt}::${pin}`).digest("hex");
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-async function assertAdmin(supabase: any, userId: string) {
-  const { data, error } = await supabase.rpc("has_role", { _user_id: userId, _role: "admin" });
-  if (error || !data) throw new Error("Solo administradores");
+// Verifica que el request venga de un admin autenticado usando el bearer
+// token del header Authorization y supabaseAdmin (SERVICE_ROLE). Evita
+// depender de SUPABASE_PUBLISHABLE_KEY en el runtime del Worker.
+async function requireAdminUser(): Promise<string> {
+  const req = getRequest();
+  const authHeader = req?.headers?.get("authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) throw new Error("No autenticado");
+  const token = authHeader.slice("Bearer ".length).trim();
+  if (!token) throw new Error("No autenticado");
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const { data: userRes, error: userErr } = await supabaseAdmin.auth.getUser(token);
+  if (userErr || !userRes?.user) throw new Error("Sesión inválida");
+  const userId = userRes.user.id;
+  const { data: isAdmin, error: roleErr } = await supabaseAdmin.rpc("has_role", {
+    _user_id: userId,
+    _role: "admin",
+  });
+  if (roleErr || !isAdmin) throw new Error("Solo administradores");
+  return userId;
 }
-
-
-
 
 function reqMeta() {
   const req = getRequest();
