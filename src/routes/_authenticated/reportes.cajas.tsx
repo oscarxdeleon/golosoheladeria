@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import {
@@ -44,6 +44,7 @@ type SessionListItem = {
 };
 
 function CajasPage() {
+  const queryClient = useQueryClient();
   const { branches, activeBranchId, setActiveBranchId } = useBranch();
   const { user, isAdmin, roles, loading: authLoading, rolesLoading } = useAuth();
   const isSupervisor = roles.includes("supervisor");
@@ -77,6 +78,26 @@ function CajasPage() {
     _status: status === "all" ? null : status,
   }), [effectiveBranchId, from, to, status]);
 
+  useEffect(() => {
+    if (!effectiveBranchId) return;
+    const invalidateCajas = () => {
+      void queryClient.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
+      void queryClient.invalidateQueries({ queryKey: ["reportes.session.detail"] });
+    };
+    const channel = supabase
+      .channel(`cash-reports-sync-${effectiveBranchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${effectiveBranchId}` }, invalidateCajas)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${effectiveBranchId}` }, invalidateCajas)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, invalidateCajas)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${effectiveBranchId}` }, invalidateCajas)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${effectiveBranchId}` }, invalidateCajas)
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${effectiveBranchId}` }, invalidateCajas)
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [effectiveBranchId, queryClient]);
+
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["reportes.cajas.rpc", user?.id ?? "anon", rpcParams],
     // Esperar a que la sesión y los roles estén cargados; de lo contrario
@@ -85,6 +106,9 @@ function CajasPage() {
     enabled: !authLoading && !rolesLoading && !!user?.id,
     staleTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
+    refetchInterval: 15_000,
     queryFn: async () => {
       const { data, error } = await supabase.rpc("admin_cash_sessions_list_rpc", rpcParams as never);
       if (error) throw error;

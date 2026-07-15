@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -34,6 +34,7 @@ type ModifierRow = { key: string; name: string; uses: number; qty_total: number;
 type RawMod = { name?: string; price?: number | string; qty?: number | string };
 
 function EstadisticasPage() {
+  const queryClient = useQueryClient();
   const { activeBranchId, activeBranch } = useBranch();
   const [from, setFrom] = useState(todayISO());
   const [to, setTo] = useState(todayISO());
@@ -42,6 +43,10 @@ function EstadisticasPage() {
   const { data, isLoading } = useQuery({
     queryKey: ["stats-all", activeBranchId, from, to],
     enabled: !!activeBranchId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: async () => {
       const startIso = new Date(`${from}T00:00:00`).toISOString();
       const endDate = new Date(`${to}T00:00:00`);
@@ -139,6 +144,22 @@ function EstadisticasPage() {
       return { cats, prods, mods, salesCount: saleIds.length };
     },
   });
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    const invalidateStats = () => {
+      void queryClient.invalidateQueries({ queryKey: ["stats-all"] });
+    };
+    const channel = supabase
+      .channel(`stats-sync-${activeBranchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, invalidateStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, invalidateStats)
+      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, invalidateStats)
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [activeBranchId, queryClient]);
 
   const { data: allModifiers } = useQuery({
     queryKey: ["all-modifiers-catalog"],

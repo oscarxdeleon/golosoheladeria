@@ -115,8 +115,9 @@ function DashboardPage() {
     staleTime: 0,
     gcTime: 0,
     refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
     refetchOnReconnect: "always",
-    refetchInterval: 30_000,
+    refetchInterval: 10_000,
     queryFn: async (): Promise<{
       total: number; txs: number; avg: number; gastos: number; utilidad: number; qtyVendida: number;
       top: Array<{ name: string; qty: number; total: number }>;

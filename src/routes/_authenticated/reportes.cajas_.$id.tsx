@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -132,6 +132,7 @@ function normalizeService(k: string): keyof typeof SERVICE_STYLE {
 function CajaDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { branches, activeBranchId, setActiveBranchId, loading: branchesLoading } = useBranch();
   const { isAdmin, roles, rolesLoading } = useAuth();
   const canSeeAllBranches = isAdmin || roles.includes("supervisor");
@@ -139,6 +140,10 @@ function CajaDetailPage() {
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["reportes.session.detail", id],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("admin_cash_session_detail_rpc", { _cash_session_id: id });
       if (error) throw error;
@@ -147,6 +152,26 @@ function CajaDetailPage() {
   });
 
   const sessionBranchId = detail?.session.branch_id ?? null;
+
+  useEffect(() => {
+    if (!sessionBranchId) return;
+    const invalidateDetail = () => {
+      void queryClient.invalidateQueries({ queryKey: ["reportes.session.detail", id] });
+      void queryClient.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
+    };
+    const channel = supabase
+      .channel(`cash-detail-sync-${sessionBranchId}-${id}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${sessionBranchId}` }, invalidateDetail)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${sessionBranchId}` }, invalidateDetail)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, invalidateDetail)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${sessionBranchId}` }, invalidateDetail)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${sessionBranchId}` }, invalidateDetail)
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${sessionBranchId}` }, invalidateDetail)
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [id, sessionBranchId, queryClient]);
 
   useEffect(() => {
     if (rolesLoading) return;

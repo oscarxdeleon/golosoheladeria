@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format, startOfDay, endOfDay, subDays, startOfMonth } from "date-fns";
 import {
   Coins, DollarSign, Receipt, TrendingUp, TrendingDown, ArrowDownLeft,
@@ -25,6 +25,7 @@ export const Route = createFileRoute("/_authenticated/reportes/resumen")({
 type Preset = "hoy" | "ayer" | "7d" | "mes" | "custom";
 
 function ResumenPage() {
+  const queryClient = useQueryClient();
   const { branches, activeBranchId, setActiveBranchId } = useBranch();
   const [preset, setPreset] = useState<Preset>("hoy");
   const [customFrom, setCustomFrom] = useState<string>(format(new Date(), "yyyy-MM-dd"));
@@ -69,20 +70,59 @@ function ResumenPage() {
     cashSessionId: sessionId === "all" ? null : sessionId,
   }), [range, branchId, userId, sessionId]);
 
+  useEffect(() => {
+    if (!filters.branchId) return;
+    const invalidateReports = () => {
+      void queryClient.invalidateQueries({ queryKey: ["reportes.sales"] });
+      void queryClient.invalidateQueries({ queryKey: ["reportes.expenses"] });
+      void queryClient.invalidateQueries({ queryKey: ["reportes.purchases"] });
+      void queryClient.invalidateQueries({ queryKey: ["reportes.sessions"] });
+      void queryClient.invalidateQueries({ queryKey: ["reportes.session-options"] });
+    };
+    const channel = supabase
+      .channel(`reports-summary-sync-${filters.branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${filters.branchId}` }, invalidateReports)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, invalidateReports)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${filters.branchId}` }, invalidateReports)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${filters.branchId}` }, invalidateReports)
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${filters.branchId}` }, invalidateReports)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${filters.branchId}` }, invalidateReports)
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [filters.branchId, queryClient]);
+
   const { data: sales = [] } = useQuery({
     queryKey: ["reportes.sales", filters],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: () => fetchSales(filters),
   });
   const { data: expenses = [] } = useQuery({
     queryKey: ["reportes.expenses", filters],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: () => fetchExpenses(filters),
   });
   const { data: purchases = [] } = useQuery({
     queryKey: ["reportes.purchases", filters],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: () => fetchPurchases(filters),
   });
   const { data: sessions = [] } = useQuery({
     queryKey: ["reportes.sessions", filters],
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: () => fetchCashSessions(filters),
   });
 
@@ -94,6 +134,8 @@ function ResumenPage() {
 
   const { data: sessionOptions = [] } = useQuery({
     queryKey: ["reportes.session-options", filters.branchId],
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       let q = supabase.from("cash_sessions").select("id,opened_at,user_name").order("opened_at", { ascending: false }).limit(50);
       if (filters.branchId) q = q.eq("branch_id", filters.branchId);
