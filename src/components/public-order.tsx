@@ -347,6 +347,24 @@ export function PublicOrder({
   const deliveryFee = isDelivery ? Number((settings as { delivery_fee?: number | null } | null | undefined)?.delivery_fee ?? 0) : 0;
   const total = subtotal + deliveryFee;
 
+  // Estado del canal "menú en línea" para esta sede (America/Bogota).
+  const branchSchedules = normalizeSchedules((branch as { schedules?: unknown } | null | undefined)?.schedules);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (source !== "online_menu") return;
+    const id = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [source]);
+  const onlineStatus = getChannelStatus(branchSchedules, "online", new Date(nowTick));
+  const enforceOnlineSchedule = source === "online_menu";
+  const onlineClosed = enforceOnlineSchedule && !onlineStatus.isOpen;
+  const onlineClosingSoon = enforceOnlineSchedule && onlineStatus.isOpen && (onlineStatus.minutesToClose ?? 999) <= 30;
+  const onlineClosedMessage = onlineStatus.reason === "closed_day"
+    ? "Hoy no hay pedidos en línea disponibles."
+    : onlineStatus.reason === "before_open"
+      ? `Los pedidos en línea inician a las ${onlineStatus.opensAt}.`
+      : "Estamos fuera del horario para pedidos en línea.";
+
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
 
