@@ -1,13 +1,14 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { supervisorLogin, supervisorLogout, supervisorDashboard } from "@/lib/supervisor-client";
+import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard, Users, Bike, Utensils, ChefHat, ShieldCheck, Eye } from "lucide-react";
+import { Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard, Users, Bike, Utensils, ChefHat, ShieldCheck, Eye, ArrowDownLeft, ArrowUpRight, ReceiptText, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney as formatCurrency } from "@/lib/format";
 
@@ -113,6 +114,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
   const [branchId, setBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const load = useCallback(async (bid: string | null, logSwitch = false) => {
     setLoading(true);
@@ -139,6 +141,29 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
     return () => clearInterval(int);
   }, [branchId, load]);
 
+  useEffect(() => {
+    if (!branchId) return;
+    const scheduleRefresh = () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      refreshTimer.current = setTimeout(() => load(branchId), 350);
+    };
+    const channel = supabase
+      .channel(`supervisor-live-${branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimer.current) clearTimeout(refreshTimer.current);
+      void supabase.removeChannel(channel);
+    };
+  }, [branchId, load]);
+
   async function handleLogout() {
     try { await supervisorLogout({ session_token: session.session_token }); } catch { /* noop */ }
     onLogout();
@@ -155,6 +180,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
     return Object.entries(data.by_hour).sort(([a], [b]) => a.localeCompare(b));
   }, [data]);
   const maxHour = hours.reduce((m, [, v]) => Math.max(m, v), 0) || 1;
+  const scopeTitle = data?.scope?.kind === "active_cash_session" ? "Turno activo" : data?.scope?.kind === "latest_cash_session" ? "Último turno" : "Día actual";
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -207,11 +233,14 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
         {data && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Kpi icon={TrendingUp} label="Ventas del día" value={formatCurrency(s?.total_sales ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
+              <Kpi icon={TrendingUp} label="Ventas del turno" value={formatCurrency(s?.total_sales ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
               <Kpi icon={ShoppingBag} label="Pedidos" value={String(s?.order_count ?? 0)} tone="from-sky-500/15 to-sky-500/5 text-sky-700" />
               <Kpi icon={Wallet} label="Ticket promedio" value={formatCurrency(s?.avg_ticket ?? 0)} tone="from-amber-500/15 to-amber-500/5 text-amber-700" />
               <Kpi icon={CreditCard} label="Digital" value={formatCurrency(s?.digital_total ?? 0)} tone="from-violet-500/15 to-violet-500/5 text-violet-700" />
               <Kpi icon={Wallet} label="Efectivo" value={formatCurrency(s?.cash_total ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
+              <Kpi icon={ArrowDownLeft} label="Entradas" value={formatCurrency((s?.entries ?? 0) + (s?.deposits ?? 0))} tone="from-lime-500/15 to-lime-500/5 text-lime-700" />
+              <Kpi icon={ArrowUpRight} label="Salidas/Gastos" value={formatCurrency((s?.exits ?? 0) + (s?.expenses ?? 0) + (s?.refunds ?? 0))} tone="from-rose-500/15 to-rose-500/5 text-rose-700" />
+              <Kpi icon={AlertTriangle} label="Cancelados" value={`${s?.cancelled_count ?? 0} · ${formatCurrency(s?.cancelled_value ?? 0)}`} tone="from-slate-500/15 to-slate-500/5 text-slate-700" />
               <Kpi icon={Users} label="Mesas ocupadas" value={String(s?.tables_occupied ?? 0)} tone="from-rose-500/15 to-rose-500/5 text-rose-700" />
               <Kpi icon={ChefHat} label="En preparación" value={String(s?.preparing ?? 0)} tone="from-orange-500/15 to-orange-500/5 text-orange-700" />
               <Kpi icon={Bike} label="Domicilios pendientes" value={String(s?.pending_domicilio ?? 0)} tone="from-indigo-500/15 to-indigo-500/5 text-indigo-700" />
@@ -248,6 +277,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
                       </div>
                       <div className="text-xs text-muted-foreground">Apertura: {data.active_cash.opened_at ? new Date(data.active_cash.opened_at).toLocaleString() : "—"}</div>
                       <div className="text-xs text-muted-foreground">Monto inicial: {formatCurrency(Number(data.active_cash.opening_amount ?? 0))}</div>
+                      <div className="text-xs text-muted-foreground">Alcance: {scopeTitle}</div>
                       {data.active_cash.closed_at && <div className="text-xs text-muted-foreground">Cierre: {new Date(data.active_cash.closed_at).toLocaleString()}</div>}
                     </>
                   ) : <div className="text-muted-foreground">Sin caja registrada hoy.</div>}
@@ -265,15 +295,39 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
                   {data.top_products.map((p, i) => (
                     <div key={p.name} className="flex justify-between border-b last:border-0 py-1">
                       <span className="truncate"><span className="text-muted-foreground mr-2">{i + 1}.</span>{p.name}</span>
-                      <span className="font-semibold">{p.qty}</span>
+                      <span className="font-semibold text-right shrink-0">{p.qty} · {formatCurrency(Number(p.total ?? 0))}</span>
                     </div>
                   ))}
                 </CardContent>
               </Card>
             </div>
 
+            <Card>
+              <CardHeader><CardTitle className="text-base flex items-center gap-2"><ReceiptText className="h-4 w-4" /> Cierres de caja</CardTitle></CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {(data.recent_closures ?? []).length === 0 && <div className="text-muted-foreground">Sin cierres registrados.</div>}
+                {(data.recent_closures ?? []).map((c) => {
+                  const counted = Number(c.counted_amount ?? 0) || Number(c.cash_counted ?? 0) + Number(c.nequi_counted ?? 0) + Number(c.bancolombia_counted ?? 0);
+                  const expected = Number(c.expected_amount ?? 0) || Number(c.cash_expected ?? 0) + Number(c.nequi_expected ?? 0) + Number(c.bancolombia_expected ?? 0);
+                  return (
+                    <div key={c.id} className="grid gap-2 rounded-lg border p-3 sm:grid-cols-[1fr_auto_auto_auto] sm:items-center">
+                      <div>
+                        <div className="font-semibold">{c.user_name ?? "—"}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {c.opened_at ? new Date(c.opened_at).toLocaleString() : "—"} → {c.closed_at ? new Date(c.closed_at).toLocaleString() : "abierta"}
+                        </div>
+                      </div>
+                      <Badge className={c.status === "open" ? "bg-emerald-600" : "bg-muted text-muted-foreground"}>{c.status === "open" ? "Abierta" : "Cerrada"}</Badge>
+                      <div className="text-xs text-muted-foreground sm:text-right">Esperado <b className="text-foreground">{formatCurrency(expected)}</b></div>
+                      <div className="text-xs text-muted-foreground sm:text-right">Declarado <b className="text-foreground">{formatCurrency(counted)}</b></div>
+                    </div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+
             <div className="text-xs text-muted-foreground text-center pt-2">
-              Última actualización: {new Date(data.generated_at).toLocaleTimeString()} · Solo lectura
+              {scopeTitle}: {data.scope?.start_at ? new Date(data.scope.start_at).toLocaleString() : "—"} · Última actualización: {new Date(data.generated_at).toLocaleTimeString()} · Solo lectura
             </div>
           </>
         )}
