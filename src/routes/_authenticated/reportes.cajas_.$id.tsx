@@ -29,8 +29,20 @@ const METHOD_DOT: Record<string, string> = {
   bancolombia: "bg-slate-400",
   tarjeta: "bg-violet-500",
   transferencia: "bg-emerald-500",
+  mixto: "bg-amber-500",
   otros: "bg-slate-400",
 };
+
+const METHOD_LABEL: Record<string, string> = {
+  efectivo: "Efectivo",
+  nequi: "Nequi",
+  bancolombia: "Bancolombia",
+  tarjeta: "Tarjeta",
+  transferencia: "Transferencia",
+  mixto: "Pago Mixto",
+  otros: "Otros",
+};
+
 
 const SERVICE_STYLE: Record<string, { emoji: string; label: string; bg: string; text: string; badgeBg: string; badgeText: string }> = {
   mesa:      { emoji: "🪑", label: "Mesa",       bg: "bg-blue-50 border-blue-100",       text: "text-blue-700",     badgeBg: "bg-emerald-100",  badgeText: "text-emerald-700" },
@@ -139,7 +151,7 @@ function CajaDetailPage() {
   const nequi = Number(session.nequi_counted ?? 0);
   const banco = Number(session.bancolombia_counted ?? 0);
   if (nequi > 0) declaredNonCash.push({ key: "nequi", label: "NEQUI", amount: nequi });
-  if (banco > 0) declaredNonCash.push({ key: "bcol", label: "BCOLOMBIA", amount: banco });
+  if (banco > 0) declaredNonCash.push({ key: "bancolombia", label: "BANCOLOMBIA", amount: banco });
   const totalDeclarado = declaredNonCash.reduce((a, x) => a + x.amount, 0);
 
   const entradas = expenses.filter((e) => CATEGORY_INCOME.has((e.category ?? "").toLowerCase()));
@@ -223,7 +235,7 @@ function CajaDetailPage() {
                 <div key={k} className="flex items-center justify-between rounded-2xl bg-muted/40 px-4 py-3">
                   <div className="flex items-center gap-3">
                     <span className={`h-2.5 w-2.5 rounded-full ${METHOD_DOT[k] ?? "bg-slate-400"}`} />
-                    <span className="font-bold uppercase tracking-wide text-sm">{k}</span>
+                    <span className="font-bold uppercase tracking-wide text-sm">{METHOD_LABEL[k] ?? k}</span>
                     <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[11px] font-semibold text-emerald-700">{v.count} ventas</span>
                   </div>
                   <div className={`font-display text-lg font-extrabold ${v.amount > 0 ? "text-emerald-700" : "text-muted-foreground"}`}>{formatMoney(v.amount)}</div>

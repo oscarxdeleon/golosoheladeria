@@ -596,7 +596,7 @@ function CajaPage() {
                     <div className="space-y-2">
                       <PaymentRow icon={<Smartphone className="h-4 w-4 text-[#C41A6B]" />} label="NEQUI" value={nequiCounted} onChange={handleAmount(setNequiCounted)} />
                       <div className="border-t border-dashed border-pink-200" />
-                      <PaymentRow icon={<Building2 className="h-4 w-4 text-[#C41A6B]" />} label="BCOLOMBIA" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
+                      <PaymentRow icon={<Building2 className="h-4 w-4 text-[#C41A6B]" />} label="BANCOLOMBIA" value={bancoCounted} onChange={handleAmount(setBancoCounted)} />
                     </div>
                   </section>
                 </div>
