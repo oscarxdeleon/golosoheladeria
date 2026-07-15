@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, ShieldCheck, Unlock } from "lucide-react";
+import { Pencil, Plus, Trash2, ShieldCheck, Unlock, Link2, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Acct = {
