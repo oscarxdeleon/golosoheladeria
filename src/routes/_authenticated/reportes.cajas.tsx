@@ -71,7 +71,7 @@ function CajasPage() {
   const { data: sessions = [], isLoading } = useQuery({
     queryKey: ["reportes.cajas.rpc", rpcParams],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("admin_cash_sessions_list_rpc", rpcParams);
+      const { data, error } = await supabase.rpc("admin_cash_sessions_list_rpc", rpcParams as never);
       if (error) throw error;
       return (data ?? []) as unknown as SessionListItem[];
     },
