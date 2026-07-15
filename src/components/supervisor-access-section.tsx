@@ -15,7 +15,6 @@ import {
   createSupervisorAccount,
   updateSupervisorAccount,
   deleteSupervisorAccount,
-} from "@/lib/supervisor.functions";
 } from "@/lib/supervisor-client";
 
 type Acct = Awaited<ReturnType<typeof listSupervisorAccounts>>[number];
