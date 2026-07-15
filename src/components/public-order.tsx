@@ -1428,6 +1428,13 @@ export function PublicOrder({
           setModalProduct(null);
         }}
       />
+      <ScheduleOrderDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        schedules={branchSchedules}
+        channel="online"
+        onConfirm={(iso, label) => { setScheduledFor(iso); setScheduledLabel(label); }}
+      />
     </div>
   );
 }
