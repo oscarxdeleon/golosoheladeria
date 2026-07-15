@@ -45,7 +45,9 @@ type SessionListItem = {
 
 function CajasPage() {
   const { branches, activeBranchId, setActiveBranchId } = useBranch();
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, roles } = useAuth();
+  const isSupervisor = roles.includes("supervisor");
+  const canSeeAll = isAdmin || isSupervisor;
   const [branchId, setBranchId] = useState<string>(activeBranchId ?? "all");
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
@@ -80,14 +82,14 @@ function CajasPage() {
   const visibleSessions = useMemo(() => {
     const uid = user?.id ?? null;
     return sessions.filter((s) => {
-      if (!isAdmin && uid && s.user_id !== uid) return false;
+      if (!canSeeAll && uid && s.user_id !== uid) return false;
       if (search) {
         const hay = `${s.user_name ?? ""} ${s.branch_name ?? ""}`.toLowerCase();
         if (!hay.includes(search.toLowerCase())) return false;
       }
       return true;
     });
-  }, [sessions, search, isAdmin, user?.id]);
+  }, [sessions, search, canSeeAll, user?.id]);
 
   const branchName = (id: string | null) => branches.find((b) => b.id === id)?.name ?? "—";
 

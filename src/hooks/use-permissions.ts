@@ -52,6 +52,7 @@ export const ROLE_HOME: Record<AppRole, string> = {
   cajero: "/mesas",
   mesero: "/tablet-pedidos",
   domiciliario: "/domicilios",
+  supervisor: "/dashboard",
 };
 
 export function usePermissions() {

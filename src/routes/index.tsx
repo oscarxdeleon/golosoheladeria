@@ -9,6 +9,7 @@ export const Route = createFileRoute("/")({
 
 const ROLE_HOME: Record<string, string> = {
   admin: "/dashboard",
+  supervisor: "/dashboard",
   cajero: "/mesas",
   mesero: "/tablet-pedidos",
   domiciliario: "/domicilios",
@@ -29,6 +30,7 @@ function IndexRedirect() {
       const list = (roles ?? []).map((r: { role: string }) => r.role);
       const primary =
         list.find((r) => r === "admin") ??
+        list.find((r) => r === "supervisor") ??
         list.find((r) => r === "cajero") ??
         list.find((r) => r === "mesero") ??
         list.find((r) => r === "domiciliario") ??
