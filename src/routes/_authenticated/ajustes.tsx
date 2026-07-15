@@ -754,7 +754,7 @@ function ImpresorasTabInner({ disabled }: { disabled: boolean }) {
     const name = edit?.name?.trim();
     if (!name) return toast.error("El nombre es obligatorio");
     const ip = edit?.ip?.trim() || null;
-    const drawerOnCashSale = edit?.drawer_on_cash_sale ?? edit?.open_drawer_on_print ?? false;
+    const drawerOnCashSale = edit?.drawer_on_cash_sale ?? edit?.open_drawer_on_print ?? true;
     const payload = {
       name,
       ip,
