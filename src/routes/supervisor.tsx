@@ -114,17 +114,31 @@ function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void 
   );
 }
 
+function toBogotaDateStr(d: Date): string {
+  // Format YYYY-MM-DD in America/Bogota
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const y = parts.find(p => p.type === "year")?.value ?? "";
+  const m = parts.find(p => p.type === "month")?.value ?? "";
+  const day = parts.find(p => p.type === "day")?.value ?? "";
+  return `${y}-${m}-${day}`;
+}
+
 function SupervisorDashboard({ session, onLogout }: { session: StoredSession; onLogout: () => void }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof supervisorDashboard>> | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (bid: string | null, logSwitch = false) => {
+  const todayStr = toBogotaDateStr(new Date());
+  const selectedStr = toBogotaDateStr(selectedDate);
+  const isToday = selectedStr === todayStr;
+
+  const load = useCallback(async (bid: string | null, dateStr: string | null, logSwitch = false) => {
     setLoading(true);
     try {
-      const res = await supervisorDashboard({ session_token: session.session_token, branch_id: bid, log_switch: logSwitch });
+      const res = await supervisorDashboard({ session_token: session.session_token, branch_id: bid, log_switch: logSwitch, date: dateStr });
       setData(res);
       setBranchId(res.active_branch_id);
       setLoadError(null);
@@ -140,17 +154,23 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
     } finally { setLoading(false); }
   }, [session.session_token, onLogout]);
 
-  useEffect(() => { load(null); }, [load]);
+  // Initial + on date change
   useEffect(() => {
-    const int = setInterval(() => load(branchId), 30_000);
-    return () => clearInterval(int);
-  }, [branchId, load]);
+    load(branchId, isToday ? null : selectedStr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStr]);
 
   useEffect(() => {
-    if (!branchId) return;
+    if (!isToday) return; // only auto-refresh for today
+    const int = setInterval(() => load(branchId, null), 30_000);
+    return () => clearInterval(int);
+  }, [branchId, load, isToday]);
+
+  useEffect(() => {
+    if (!branchId || !isToday) return;
     const scheduleRefresh = () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(() => load(branchId), 350);
+      refreshTimer.current = setTimeout(() => load(branchId, null), 350);
     };
     const channel = supabase
       .channel(`supervisor-live-${branchId}`)
@@ -167,7 +187,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       void supabase.removeChannel(channel);
     };
-  }, [branchId, load]);
+  }, [branchId, load, isToday]);
 
   async function handleLogout() {
     try { await supervisorLogout({ session_token: session.session_token }); } catch { /* noop */ }
@@ -176,7 +196,17 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
 
   async function switchBranch(id: string) {
     if (id === branchId) return;
-    await load(id, true);
+    // Clear previous branch data to avoid showing stale values while loading
+    setData(null);
+    setBranchId(id);
+    await load(id, isToday ? null : selectedStr, true);
+  }
+
+  function pickDate(d: Date | undefined) {
+    if (!d) return;
+    // Clear data so old values don't linger while new date loads
+    setData(null);
+    setSelectedDate(d);
   }
 
   const s = data?.summary;
@@ -185,7 +215,8 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
     return Object.entries(data.by_hour).sort(([a], [b]) => a.localeCompare(b));
   }, [data]);
   const maxHour = hours.reduce((m, [, v]) => Math.max(m, v), 0) || 1;
-  const scopeTitle = data?.scope?.kind === "active_cash_session" ? "Turno activo" : data?.scope?.kind === "latest_cash_session" ? "Último turno" : "Día actual";
+  const scopeTitle = isToday ? "Hoy" : format(selectedDate, "PPP", { locale: es });
+
 
   return (
     <div className="min-h-screen bg-muted/30">
