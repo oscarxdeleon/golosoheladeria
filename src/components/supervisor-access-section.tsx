@@ -91,7 +91,7 @@ export function SupervisorAccessSection() {
                   await updateFn({ data: { id: editing.id, display_name: p.display_name, pin: p.pin || undefined } });
                   toast.success("Actualizado");
                 } else {
-                  await createFn({ data: { username: p.username, display_name: p.display_name, pin: p.pin } });
+                  await createFn({ data: { display_name: p.display_name, pin: p.pin } });
                   toast.success("Acceso creado");
                 }
                 qc.invalidateQueries({ queryKey: ["supervisor-accounts"] });
