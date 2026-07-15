@@ -78,11 +78,18 @@ echo.
 echo Iniciando el Print Server en segundo plano...
 start "" wscript.exe //nologo "%~dp0start-hidden.vbs"
 
-timeout /t 2 /nobreak >nul
-echo Verificando version activa...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "try { $h = Invoke-RestMethod http://localhost:3001/health -TimeoutSec 5; if ($h.version -ne '2.12.0') { Write-Host '[ERROR] Version activa inesperada:' $h.version; exit 1 }; Write-Host 'Print Server activo version' $h.version } catch { Write-Host '[ERROR] No se pudo verificar /health'; exit 1 }"
+REM Leer version esperada desde package.json
+for /f "usebackq tokens=2 delims=:," %%V in (`findstr /C:"\"version\"" "%~dp0package.json"`) do (
+  set "EXPECTED_VERSION=%%~V"
+)
+set "EXPECTED_VERSION=%EXPECTED_VERSION: =%"
+set "EXPECTED_VERSION=%EXPECTED_VERSION:"=%"
+
+timeout /t 3 /nobreak >nul
+echo Verificando version activa (esperada: %EXPECTED_VERSION%)...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$expected='%EXPECTED_VERSION%'; $ok=$false; for($i=0;$i -lt 10;$i++){ try { $h=Invoke-RestMethod http://localhost:3001/health -TimeoutSec 3; if($h.version -eq $expected){ Write-Host 'Print Server activo version' $h.version; $ok=$true; break } else { Write-Host ('Version actual ' + $h.version + ', esperando ' + $expected + '...'); Start-Sleep -Seconds 2 } } catch { Start-Sleep -Seconds 2 } }; if(-not $ok){ Write-Host '[ERROR] No se activo la version' $expected; exit 1 }"
 if errorlevel 1 (
-  echo [ERROR] La version nueva no quedo activa. Revisa que no exista otro servicio usando el puerto 3001.
+  echo [ERROR] La version nueva no quedo activa. Reinicia el equipo y vuelve a ejecutar este instalador.
   pause
   exit /b 1
 )
@@ -93,7 +100,7 @@ echo.
 echo El Print Server ya esta corriendo y se iniciara automaticamente
 echo cada vez que enciendas este computador, sin pedir confirmacion.
 echo.
-echo Verifica en el navegador: http://localhost:3001/health ^(debe mostrar version 2.12.0^)
+echo Verifica en el navegador: http://localhost:3001/health ^(debe mostrar version %EXPECTED_VERSION%^)
 echo.
 pause
 endlocal
