@@ -641,6 +641,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   // Sincronización realtime: refresca mesas y pedidos pendientes al instante
   // cuando la tablet del mesero (u otro POS) guarda cambios.
   useRealtimeBranchSync(activeBranchId, { invalidatePendingSale: true });
+  const physicalStatus = usePhysicalChannelStatus(activeBranchId);
+  const physicalClosedMsg = "El horario de atención en el punto físico ha finalizado. No es posible registrar nuevos pedidos.";
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
