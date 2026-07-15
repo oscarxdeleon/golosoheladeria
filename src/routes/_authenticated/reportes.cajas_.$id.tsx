@@ -151,7 +151,7 @@ function CajaDetailPage() {
   const nequi = Number(session.nequi_counted ?? 0);
   const banco = Number(session.bancolombia_counted ?? 0);
   if (nequi > 0) declaredNonCash.push({ key: "nequi", label: "NEQUI", amount: nequi });
-  if (banco > 0) declaredNonCash.push({ key: "bcol", label: "BCOLOMBIA", amount: banco });
+  if (banco > 0) declaredNonCash.push({ key: "bancolombia", label: "BANCOLOMBIA", amount: banco });
   const totalDeclarado = declaredNonCash.reduce((a, x) => a + x.amount, 0);
 
   const entradas = expenses.filter((e) => CATEGORY_INCOME.has((e.category ?? "").toLowerCase()));
