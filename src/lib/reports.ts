@@ -173,22 +173,44 @@ function isModifierName(name: string | null | undefined): boolean {
 
 export function paymentBreakdown(sales: SaleRow[]): Record<string, { amount: number; count: number }> {
   const out: Record<string, { amount: number; count: number }> = {};
+  const bump = (rawKey: string, amount: number) => {
+    const key = normalizeMethod(rawKey);
+    if (!out[key]) out[key] = { amount: 0, count: 0 };
+    out[key].amount += Number(amount) || 0;
+    return key;
+  };
   for (const s of sales) {
     if (s.status === "cancelled") continue;
-    const details = (s.payment_details ?? null) as Record<string, number> | null;
-    if (details && typeof details === "object" && Object.keys(details).length > 0) {
-      for (const [k, v] of Object.entries(details)) {
-        const key = normalizeMethod(k);
-        if (!out[key]) out[key] = { amount: 0, count: 0 };
-        out[key].amount += Number(v) || 0;
+    const details = (s.payment_details ?? null) as Record<string, unknown> | null;
+    const isSplit =
+      !!details &&
+      typeof details === "object" &&
+      (details as { split?: unknown }).split === true &&
+      Array.isArray((details as { splits?: unknown }).splits);
+    if (isSplit) {
+      const splits = (details as { splits: Array<{ method?: string; amount?: number }> }).splits;
+      let firstKey: string | null = null;
+      for (const part of splits) {
+        const k = bump(String(part?.method ?? "otros"), Number(part?.amount ?? 0));
+        if (!firstKey) firstKey = k;
       }
-      // count sale once against first method
-      const first = normalizeMethod(Object.keys(details)[0]);
-      out[first].count += 1;
+      if (firstKey) out[firstKey].count += 1;
+    } else if (details && typeof details === "object" && Object.keys(details).length > 0) {
+      // Formato heredado: { efectivo: 1000, nequi: 500, ... }
+      let firstKey: string | null = null;
+      for (const [k, v] of Object.entries(details)) {
+        // Ignorar claves de control que no son medios de pago
+        if (k === "split" || k === "splits") continue;
+        const key = bump(k, Number(v) || 0);
+        if (!firstKey) firstKey = key;
+      }
+      if (firstKey) out[firstKey].count += 1;
+      else {
+        const key = bump(s.payment_method || "otros", Number(s.total) || 0);
+        out[key].count += 1;
+      }
     } else {
-      const key = normalizeMethod(s.payment_method || "otros");
-      if (!out[key]) out[key] = { amount: 0, count: 0 };
-      out[key].amount += Number(s.total) || 0;
+      const key = bump(s.payment_method || "otros", Number(s.total) || 0);
       out[key].count += 1;
     }
   }
@@ -202,6 +224,7 @@ export function normalizeMethod(m: string): string {
   if (s.includes("bancolom")) return "bancolombia";
   if (s.includes("tarjeta") || s.includes("card")) return "tarjeta";
   if (s.includes("transfer")) return "transferencia";
+  if (s === "mixto" || s === "split" || s === "splits" || s.includes("dividido") || s.includes("combinado")) return "mixto";
   return s || "otros";
 }
 
