@@ -48,15 +48,33 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
     reportLovableError(error, { boundary: "tanstack_root_error_component" });
   }, [error]);
 
+  const stack = (error?.stack ?? "").split("\n").slice(0, 8).join("\n");
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="max-w-md text-center">
+    <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
+      <div className="w-full max-w-xl text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
         </h1>
         <p className="mt-2 text-sm text-muted-foreground">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
+
+        {/* Detalle técnico visible para diagnóstico rápido. */}
+        <details open className="mt-4 rounded-lg border border-destructive/40 bg-destructive/5 p-3 text-left">
+          <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wider text-destructive">
+            Detalle técnico
+          </summary>
+          <p className="mt-2 text-xs font-medium text-foreground break-words">
+            {String(error?.message ?? error ?? "Error desconocido")}
+          </p>
+          {stack ? (
+            <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-background/60 p-2 text-[11px] leading-snug text-muted-foreground">
+{stack}
+            </pre>
+          ) : null}
+        </details>
+
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
             onClick={() => {
