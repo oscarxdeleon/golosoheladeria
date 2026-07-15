@@ -3,7 +3,7 @@ import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import logoUrl from "@/assets/logo-goloso.png";
+import logoUrl from "@/assets/logo-goloso.webp";
 import { usePermissions } from "@/hooks/use-permissions";
 import { ConnectionStatus } from "@/components/connection-status";
 

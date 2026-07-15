@@ -17,8 +17,8 @@ import {
 import {
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid,
 } from "recharts";
-import welcomeBanner from "@/assets/welcome-goloso.jpeg";
-import welcomeBannerParque from "@/assets/welcome-goloso-parque.jpeg";
+import welcomeBanner from "@/assets/welcome-goloso.webp";
+import welcomeBannerParque from "@/assets/welcome-goloso-parque.webp";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "Dashboard · Goloso POS" }] }),

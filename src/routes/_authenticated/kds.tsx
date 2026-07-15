@@ -9,8 +9,8 @@ import { Check, Clock, Utensils, ShoppingBag, Bike, Monitor, CheckCheck, User } 
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { notifyCustomerReady } from "@/lib/customer-ready-notify";
-import kdsImg from "@/assets/kds-goloso-3d.png";
-import golosoLogo from "@/assets/goloso-logo-official.png";
+import kdsImg from "@/assets/kds-goloso-3d.webp";
+import golosoLogo from "@/assets/goloso-logo-official.webp";
 
 
 export const Route = createFileRoute("/_authenticated/kds")({

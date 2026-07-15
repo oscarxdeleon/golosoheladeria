@@ -20,8 +20,8 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import golosoLogo from "@/assets/goloso-logo-official.png";
-import takeawayImg from "@/assets/takeaway-goloso-3d.png";
+import golosoLogo from "@/assets/goloso-logo-official.webp";
+import takeawayImg from "@/assets/takeaway-goloso-3d.webp";
 
 
 export const Route = createFileRoute("/_authenticated/llevar-pendientes")({

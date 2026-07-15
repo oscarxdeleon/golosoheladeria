@@ -13,8 +13,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { VoiceMicButton } from "@/components/voice-input";
 
-import domicilioMotoImg from "@/assets/delivery-goloso-3d.png";
-import golosoLogo from "@/assets/goloso-logo-official.png";
+import domicilioMotoImg from "@/assets/delivery-goloso-3d.webp";
+import golosoLogo from "@/assets/goloso-logo-official.webp";
 
 export const Route = createFileRoute("/_authenticated/domicilio")({
   head: () => ({ meta: [{ title: "A domicilio · Goloso POS" }] }),

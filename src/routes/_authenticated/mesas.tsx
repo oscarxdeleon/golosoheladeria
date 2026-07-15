@@ -23,12 +23,12 @@ import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
-import mesaLibreImg from "@/assets/mesa_libre.png";
-import mesaOcupadaImg from "@/assets/mesa_ocupada.png";
-import golosoCharacter from "@/assets/goloso-character-official.png";
-import golosoLogo from "@/assets/goloso-logo-official.png";
-import takeawayImg from "@/assets/takeaway-goloso-3d.png";
-import deliveryImg from "@/assets/delivery-goloso-3d.png";
+import mesaLibreImg from "@/assets/mesa_libre.webp";
+import mesaOcupadaImg from "@/assets/mesa_ocupada.webp";
+import golosoCharacter from "@/assets/goloso-character-official.webp";
+import golosoLogo from "@/assets/goloso-logo-official.webp";
+import takeawayImg from "@/assets/takeaway-goloso-3d.webp";
+import deliveryImg from "@/assets/delivery-goloso-3d.webp";
 
 export const Route = createFileRoute("/_authenticated/mesas")({
   head: () => ({ meta: [{ title: "Mesas · Goloso POS" }] }),

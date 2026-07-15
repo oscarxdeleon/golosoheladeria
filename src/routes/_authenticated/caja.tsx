@@ -21,7 +21,7 @@ import {
 } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { AlertTriangle, Banknote, LockOpen, LockKeyhole, History, Eye, Smartphone, Building2, Lock, Clock, Wallet, Coins, Calculator, NotebookPen } from "lucide-react";
-import heroImage from "@/assets/cierre-caja-hero-v2.png";
+import heroImage from "@/assets/cierre-caja-hero-v2.webp";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
 import { useBranch } from "@/contexts/branch-context";
