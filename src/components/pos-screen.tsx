@@ -2135,8 +2135,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
       </div>
 
-      <Card className="h-fit lg:sticky lg:top-20">
-        <CardContent className="p-4 space-y-3">
+      <Card className="h-fit md:sticky md:top-4">
+        <CardContent className="p-3 md:p-4 space-y-3">
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             <h2 className="font-display text-xl">Pedido</h2>
