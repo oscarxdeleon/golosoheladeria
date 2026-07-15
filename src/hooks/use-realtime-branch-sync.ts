@@ -54,6 +54,26 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
         { event: "*", schema: "public", table: "sale_items" },
         invalidateSales,
       )
+      // Catálogo: si el Admin activa/desactiva una categoría o producto,
+      // el POS del Cajero y la tablet de Meseros deben reflejarlo al instante
+      // sin necesidad de recargar.
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "categories" },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["categories"] });
+          void qc.invalidateQueries({ queryKey: ["categories-all"] });
+        },
+      )
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "products" },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["products"] });
+          void qc.invalidateQueries({ queryKey: ["products-all"] });
+          void qc.invalidateQueries({ queryKey: ["public-products"] });
+        },
+      )
       .subscribe();
 
     return () => {
