@@ -39,12 +39,28 @@ export type SupervisorDashboardData = {
   branches: Array<{ id: string; name: string; is_main: boolean }>;
   active_branch_id: string | null;
   generated_at: string;
+  scope?: {
+    kind: string;
+    cash_session_id: string | null;
+    start_at: string | null;
+    end_at: string | null;
+    timezone: string;
+  };
   summary: {
     total_sales: number;
     order_count: number;
     avg_ticket: number;
     cash_total: number;
     digital_total: number;
+    expenses?: number;
+    deposits?: number;
+    entries?: number;
+    exits?: number;
+    refunds?: number;
+    tips?: number;
+    cancelled_count?: number;
+    cancelled_value?: number;
+    net_balance?: number;
     tables_occupied: number;
     pending_llevar: number;
     pending_domicilio: number;
@@ -53,17 +69,52 @@ export type SupervisorDashboardData = {
   by_hour: Record<string, number>;
   by_service: Record<string, number>;
   by_payment: Record<string, number>;
-  top_products: Array<{ name: string; qty: number }>;
-  low_products: Array<{ name: string; qty: number }>;
+  top_products: Array<{ name: string; qty: number; total?: number }>;
+  low_products: Array<{ name: string; qty: number; total?: number }>;
   active_cash: {
     id: string;
     status: string | null;
     opened_at: string | null;
     closed_at: string | null;
     opening_amount: number | null;
+    counted_amount?: number | null;
+    expected_amount?: number | null;
+    difference?: number | null;
+    cash_counted?: number | null;
+    nequi_counted?: number | null;
+    bancolombia_counted?: number | null;
+    cash_expected?: number | null;
+    nequi_expected?: number | null;
+    bancolombia_expected?: number | null;
+    cash_difference?: number | null;
+    nequi_difference?: number | null;
+    bancolombia_difference?: number | null;
     user_name: string | null;
     user_id: string | null;
+    branch_id?: string | null;
   } | null;
+  recent_closures?: Array<{
+    id: string;
+    status: string | null;
+    opened_at: string | null;
+    closed_at: string | null;
+    opening_amount: number | null;
+    counted_amount: number | null;
+    expected_amount: number | null;
+    difference: number | null;
+    cash_counted?: number | null;
+    nequi_counted?: number | null;
+    bancolombia_counted?: number | null;
+    cash_expected?: number | null;
+    nequi_expected?: number | null;
+    bancolombia_expected?: number | null;
+    cash_difference?: number | null;
+    nequi_difference?: number | null;
+    bancolombia_difference?: number | null;
+    user_name: string | null;
+    user_id: string | null;
+    branch_id: string | null;
+  }>;
 };
 
 export async function listSupervisorAccounts(): Promise<SupervisorAccount[]> {
