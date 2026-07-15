@@ -1319,13 +1319,32 @@ export function PublicOrder({
                 <div className="flex justify-between font-display text-lg pt-1 border-t"><span>Total</span><span>{formatMoney(total)}</span></div>
               </div>
 
-              <Button size="lg" className="w-full" onClick={submit} disabled={submitting}>
+              {onlineClosed && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-100 flex items-start gap-2">
+                  <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-semibold">{onlineClosedMessage}</div>
+                    <div className="text-xs mt-0.5 opacity-80">Puedes seguir viendo el menú, pero no es posible enviar pedidos inmediatos.</div>
+                  </div>
+                </div>
+              )}
+              {onlineClosingSoon && (
+                <div className="rounded-lg border border-sky-300 bg-sky-50 dark:bg-sky-950/30 p-2.5 text-xs text-sky-900 dark:text-sky-100 flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5" />
+                  Pedidos en línea disponibles por {onlineStatus.minutesToClose} minuto{onlineStatus.minutesToClose === 1 ? "" : "s"} más (hasta las {onlineStatus.closesAt}).
+                </div>
+              )}
+
+              <Button size="lg" className="w-full" onClick={submit} disabled={submitting || onlineClosed}>
                 {submitting
                   ? "Enviando..."
-                  : source === "table_qr"
-                    ? "Confirmar pedido"
-                    : `Finalizar pedido · ${formatMoney(total)}`}
+                  : onlineClosed
+                    ? "Fuera de horario"
+                    : source === "table_qr"
+                      ? "Confirmar pedido"
+                      : `Finalizar pedido · ${formatMoney(total)}`}
               </Button>
+
 
             </div>
           </div>
