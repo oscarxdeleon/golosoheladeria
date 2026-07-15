@@ -1299,12 +1299,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   async function handleCobrar() {
     if (paying) return;
     if (cart.length === 0 && !pendingSaleId) return toast.error("Carrito vacío");
+    // Horario del punto físico: bloqueamos nuevos pedidos cuando está cerrado.
+    // Se permite cobrar pedidos ya existentes (pendingSaleId presente).
+    if (!pendingSaleId && !physicalStatus.isOpen) {
+      return toast.error(physicalClosedMsg);
+    }
     if (orderType === "llevar" && cart.length > 0 && !pendingSaleId) {
       const ok = await saveComanda({ stayForPayment: true });
       if (!ok) return; // saveComanda ya notificó el error
     }
     setPayDialogOpen(true);
   }
+
 
   async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
