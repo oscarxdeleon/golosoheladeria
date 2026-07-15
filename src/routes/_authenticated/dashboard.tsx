@@ -307,8 +307,8 @@ function DashboardPage() {
             <p className="text-sm text-muted-foreground">Sin movimientos registrados.</p>
           )}
           {(() => {
-            const totalIngresos = (data?.methods ?? []).reduce((a, m: any) => a + (m.ingresos ?? 0), 0);
-            const totalEgresos = (data?.methods ?? []).reduce((a, m: any) => a + (m.egresos ?? 0), 0);
+            const totalIngresos = (data?.methods ?? []).reduce((a: number, m: { ingresos?: number }) => a + (m.ingresos ?? 0), 0);
+            const totalEgresos = (data?.methods ?? []).reduce((a: number, m: { egresos?: number }) => a + (m.egresos ?? 0), 0);
             const totalNeto = totalIngresos - totalEgresos;
             return (
               <>
