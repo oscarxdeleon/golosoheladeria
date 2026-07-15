@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Pencil, Plus, Trash2, ShieldCheck, Unlock } from "lucide-react";
+import { Pencil, Plus, Trash2, ShieldCheck, Unlock, Link2, Copy } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 type Acct = {
@@ -52,6 +52,20 @@ export function SupervisorAccessSection() {
   const { data = [], isLoading } = useQuery({ queryKey: ["supervisor-accounts-v2"], queryFn: listAccounts });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Acct | null>(null);
+  const [created, setCreated] = useState<{ display_name: string; pin: string; url: string } | null>(null);
+
+  const supervisorUrl = () =>
+    (typeof window !== "undefined" ? window.location.origin : "") + "/supervisor";
+
+  async function copy(text: string, label = "Enlace") {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copiado`);
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  }
+
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["supervisor-accounts-v2"] });
 
@@ -96,6 +110,7 @@ export function SupervisorAccessSection() {
                 } else {
                   await createAccount(p.display_name, p.pin);
                   toast.success("Acceso creado");
+                  setCreated({ display_name: p.display_name, pin: p.pin, url: supervisorUrl() });
                 }
                 invalidate();
                 setOpen(false); setEditing(null);
@@ -104,6 +119,7 @@ export function SupervisorAccessSection() {
           />
         </Dialog>
       </CardHeader>
+
       <CardContent className="p-0">
         <Table>
           <TableHeader>
@@ -139,6 +155,9 @@ export function SupervisorAccessSection() {
                         <Unlock className="h-3.5 w-3.5 mr-1" /> Desbloquear
                       </Button>
                     )}
+                    <Button size="icon" variant="ghost" onClick={() => copy(supervisorUrl(), "Enlace")} title="Copiar enlace supervisor">
+                      <Link2 className="h-4 w-4" />
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => { setEditing(a); setOpen(true); }} title="Editar">
                       <Pencil className="h-4 w-4" />
                     </Button>
@@ -155,8 +174,65 @@ export function SupervisorAccessSection() {
           </TableBody>
         </Table>
       </CardContent>
+
+      <Dialog open={!!created} onOpenChange={(v) => { if (!v) setCreated(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Acceso supervisor creado</DialogTitle>
+          </DialogHeader>
+          {created && (
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Comparte este enlace y las credenciales con <b>{created.display_name}</b>. El PIN no podrá recuperarse después.
+              </p>
+              <div className="space-y-2">
+                <Label>Enlace de acceso</Label>
+                <div className="flex gap-2">
+                  <Input readOnly value={created.url} className="font-mono text-sm" />
+                  <Button size="icon" variant="outline" onClick={() => copy(created.url, "Enlace")} title="Copiar enlace">
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Nombre</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={created.display_name} />
+                    <Button size="icon" variant="outline" onClick={() => copy(created.display_name, "Nombre")} title="Copiar nombre">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label>PIN</Label>
+                  <div className="flex gap-2">
+                    <Input readOnly value={created.pin} className="font-mono tracking-[0.4em] text-center" />
+                    <Button size="icon" variant="outline" onClick={() => copy(created.pin, "PIN")} title="Copiar PIN">
+                      <Copy className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </div>
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => copy(
+                  `Acceso Supervisor\nEnlace: ${created.url}\nNombre: ${created.display_name}\nPIN: ${created.pin}`,
+                  "Credenciales",
+                )}
+              >
+                <Copy className="h-4 w-4 mr-2" /> Copiar todo
+              </Button>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCreated(null)}>Cerrar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
+
 }
 
 function SupervisorForm({
