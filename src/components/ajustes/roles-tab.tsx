@@ -9,10 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { ALL_ROUTE_KEYS, type RolePermission } from "@/hooks/use-permissions";
 import type { AppRole } from "@/hooks/use-auth";
-import { ShieldCheck, ShoppingCart, Utensils, Bike } from "lucide-react";
+import { ShieldCheck, ShoppingCart, Utensils, Bike, Glasses } from "lucide-react";
 
 const ROLES: { value: AppRole; label: string; desc: string; icon: typeof ShieldCheck }[] = [
   { value: "admin", label: "Administrador", desc: "Acceso total al sistema.", icon: ShieldCheck },
+  { value: "supervisor", label: "Supervisor", desc: "Solo lectura: Dashboard, Resumen Financiero e Historial de Cajas de todas las sedes.", icon: Glasses },
   { value: "cajero", label: "Cajero", desc: "POS, Autopedido, Pedidos en línea y cierre de caja a ciegas.", icon: ShoppingCart },
   { value: "mesero", label: "Mesero", desc: "Plano de mesas y envío de comandas al KDS.", icon: Utensils },
   { value: "domiciliario", label: "Domiciliario", desc: "Despacho y entrega de pedidos a domicilio.", icon: Bike },

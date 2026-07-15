@@ -13,7 +13,7 @@ import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, EyeOff } from "lucide-react";
+import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, EyeOff, Glasses } from "lucide-react";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { createAppUser, updateAppUser, deleteAppUser } from "@/lib/admin-users.functions";
@@ -38,6 +38,7 @@ interface UserRow {
 
 const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: string }[] = [
   { value: "admin", label: "Administrador", icon: ShieldCheck, tone: "bg-primary text-primary-foreground" },
+  { value: "supervisor", label: "Supervisor", icon: Glasses, tone: "bg-indigo-600 text-white" },
   { value: "cajero", label: "Cajero", icon: ShoppingCart, tone: "bg-amber-500 text-white" },
   { value: "mesero", label: "Mesero", icon: Utensils, tone: "bg-emerald-600 text-white" },
   { value: "domiciliario", label: "Domiciliario", icon: Bike, tone: "bg-sky-600 text-white" },
@@ -354,6 +355,7 @@ function UserForm({
           <b>Cajero:</b> POS, Autopedido, Pedidos en línea, Caja. <br />
           <b>Mesero:</b> Plano de mesas, Para llevar, A domicilio, KDS. <br />
           <b>Domiciliario:</b> Despacho de domicilios. <br />
+          <b>Supervisor:</b> Dashboard, Resumen Financiero e Historial de Cajas (solo lectura, todas las sedes). <br />
           <b>Administrador:</b> Acceso total al sistema.
         </div>
       </div>

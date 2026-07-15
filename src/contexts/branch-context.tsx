@@ -66,15 +66,18 @@ export function BranchProvider({ children }: { children: ReactNode }) {
         supabase.from("profiles").select("branch_id").eq("id", authUserId!).maybeSingle(),
         supabase.from("user_roles").select("role").eq("user_id", authUserId!),
       ]);
-      const isAdmin = (roles ?? []).some((r: { role: string }) => r.role === "admin");
-      return { userId: authUserId!, branchId: (prof?.branch_id as string | null) ?? null, isAdmin };
+      const rlist = (roles ?? []).map((r: { role: string }) => r.role);
+      const isAdmin = rlist.includes("admin");
+      const isSupervisor = rlist.includes("supervisor");
+      return { userId: authUserId!, branchId: (prof?.branch_id as string | null) ?? null, isAdmin, isSupervisor };
     },
   });
 
   const userId = userScope?.userId ?? null;
   const profileBranchId = userScope?.branchId ?? null;
   const isAdmin = userScope?.isAdmin ?? false;
-  const lockedToBranch = !isAdmin && !!profileBranchId;
+  const isMultiBranch = isAdmin || (userScope?.isSupervisor ?? false);
+  const lockedToBranch = !isMultiBranch && !!profileBranchId;
   const storageKey = userId ? `${STORAGE_KEY}:${userId}` : STORAGE_KEY;
 
   useEffect(() => {
