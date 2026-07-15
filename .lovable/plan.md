@@ -1,85 +1,116 @@
+
+# Rework del módulo Usuario Supervisor
+
 ## Objetivo
 
-Reemplazar completamente la lógica actual del módulo Supervisor por una vista **solo lectura** que reutilice los mismos servicios, consultas y componentes del Administrador. Los valores mostrados al Supervisor deben ser idénticos, bit a bit, a los del Dashboard, Reportes e Historial de Cajas del Administrador para la misma sede/fecha/turno.
+Eliminar la implementación actual del Supervisor y construir una nueva, en modo **solo lectura**, con **coincidencia exacta 1:1** con los datos del Administrador, para las sedes GOLOSO SANTA y GOLOSO PARQUE.
 
-## Diagnóstico actual
+## Principio arquitectónico (crítico)
 
-- `supervisor.tsx` y `supervisor-client.ts` mantienen consultas paralelas (a través del RPC `supervisor_dashboard_rpc`) con fórmulas propias que no coinciden con las del Dashboard Administrador.
-- `paymentBreakdown`, cálculo de "efectivo esperado" y "Top de productos" están duplicados y desincronizados.
-- El Supervisor no consume `dashboard.tsx`, `reportes.cajas.tsx`, `reportes.cajas_.$id.tsx`, ni las funciones de `reports.ts` / `cash-report.functions.ts` que usa el Administrador.
-- No hay selector de fecha (hoy / ayer / personalizada), no hay historial ni detalle de cierre.
+**Una única fuente de verdad.** El Supervisor NO tendrá RPCs propios de cálculo. Reutilizará exactamente la misma lógica de agregación que hoy usa el Administrador (`src/lib/reports.ts` → `computeFinancialSummary`, `fetchSales`, `fetchExpenses`, `fetchDeposits`, `fetchPurchases`, más las consultas del `dashboard.tsx` y `reportes.cajas_.$id.tsx`).
 
-## Plan de implementación
+Los RPCs actuales `supervisor_dashboard_rpc` y `supervisor_session_detail_rpc` se eliminan. En su lugar:
 
-### A. Extraer lógica compartida a un servicio central
+- Un único RPC ligero `supervisor_validate_session_rpc(_session_token)` que verifica sesión activa y devuelve `{ supervisor_id, display_name, branches[] }`. Nada más.
+- Todos los datos se leen directamente vía Supabase con las MISMAS funciones que el Admin, pero llamadas desde una capa `readonly` en el cliente Supervisor.
 
-Crear `src/lib/shift-metrics.ts` (o reutilizar/extender `src/lib/reports.ts` y `cash-report.functions.ts`) con **una sola** implementación de:
+Para permitir esto sin dar sesión de `auth.users` al Supervisor, se añade un RPC pasarela `supervisor_read_rpc(_session_token, _kind, _params jsonb)` que:
+1. Valida el token supervisor.
+2. Ejecuta internamente las MISMAS queries que corren para el Admin (SECURITY DEFINER), reutilizando funciones SQL compartidas.
+3. Devuelve el JSON tal cual.
 
-- `getShiftSummary(branchId, date | sessionId)` → ventas totales, pedidos, ticket, cancelados, tipos de servicio, top productos (solo producto principal), estado de caja, cajero, hora apertura.
-- `getPaymentBreakdown(sales)` → desglose Efectivo / Nequi / Bancolombia / Otros digitales, con pagos mixtos correctamente distribuidos (sin "SPLIT/SPLITS").
-- `getCashBalance(session, movements)` → apertura + ventas efectivo + entradas − gastos efectivo − salidas − retiros − devoluciones efectivo.
-- `getMovements(sessionId)` → gastos, retiros, entradas, depósitos, devoluciones, reembolsos, con detalle por movimiento.
-- `getRealtimeShiftState(branchId)` → mesas ocupadas, para‑llevar pendientes, domicilios pendientes, pedidos en preparación.
+Esto garantiza literalmente los mismos números.
 
-El Dashboard Administrador y todos los reportes deben migrarse para consumir estas mismas funciones (eliminando duplicados en `dashboard.tsx`, `reportes.*`, `caja.tsx`).
+## Cambios
 
-### B. Rediseñar el módulo Supervisor
+### 1. Base de datos (migración)
 
-Reescribir `src/routes/supervisor.tsx` como un shell con tabs, consumiendo exclusivamente el servicio central:
+- Mantener tablas: `supervisor_accounts`, `supervisor_sessions`, `supervisor_audit_log`.
+- Simplificar `supervisor_accounts`: quitar `username`, `access_token`. Login solo por `display_name` + `pin_hash`.
+- Nuevos RPCs:
+  - `supervisor_login_rpc(_display_name, _pin, _user_agent, _ip)` → devuelve `session_token`, registra auditoría con IP/dispositivo/sede.
+  - `supervisor_logout_rpc(_session_token)`.
+  - `supervisor_validate_session_rpc(_session_token)` → devuelve supervisor + branches.
+  - `supervisor_dashboard_data_rpc(_session_token, _branch_id, _date)` → **internamente llama a las MISMAS funciones/queries del dashboard admin**, envuelto en SECURITY DEFINER. Devuelve exactamente el mismo shape que consume hoy `dashboard.tsx`.
+  - `supervisor_cash_session_list_rpc(_session_token, _branch_id, _date)` → lista de cierres con misma lógica que `reportes.cajas.tsx`.
+  - `supervisor_cash_session_detail_rpc(_session_token, _cash_session_id)` → mismo shape que `reportes.cajas_.$id.tsx`.
+- Admin CRUD: `create_supervisor_account_rpc(_display_name, _pin)`, `update_supervisor_account_rpc`, `delete_supervisor_account_rpc`, `list_supervisor_accounts_rpc`.
+- Refactorizar la lógica de cálculo del Dashboard Admin actual a funciones SQL compartidas (`_admin_dashboard_payload`, `_admin_cash_session_detail`) que ambos usuarios (admin vía RLS normal, supervisor vía SECURITY DEFINER) consumen.
 
-```
-┌──────────────────────────────────────────────────────┐
-│ [GOLOSO SANTA ▾]     [Hoy] [Ayer] [📅 Fecha]        │
-├──────────────────────────────────────────────────────┤
-│ Tabs: Dashboard │ Historial de Cajas │ Salidas      │
-└──────────────────────────────────────────────────────┘
-```
+### 2. Frontend
 
-**Tab Dashboard** — reutiliza el mismo componente visual del Administrador (`DashboardView`), con todas las acciones deshabilitadas. Muestra por defecto el turno abierto del día. Si no hay turno abierto: aviso *"No existe un turno activo actualmente en esta sede"* + resumen del día.
+Eliminar:
+- `src/routes/supervisor.tsx` (versión actual pesada con lógica propia).
+- Referencias en `src/lib/supervisor-client.ts` y `src/lib/supervisor.functions.ts` a los RPCs viejos.
 
-**Tab Historial de Cajas** — reutiliza `reportes.cajas.tsx` en modo lectura, filtrado por la sede seleccionada. Cada fila con botón **Ver detalle** que abre la misma vista `reportes.cajas_.$id.tsx` (Resumen / Productos / Ajustes) en solo lectura.
+Crear:
+- `src/routes/supervisor.tsx` — login (nombre + PIN 4 dígitos).
+- `src/routes/supervisor/_layout.tsx` (o wrapper) con selector de sede + tabs Dashboard / Cierre de Caja.
+- `src/routes/supervisor/dashboard.tsx` — **importa y renderiza los mismos componentes visuales** del dashboard admin en modo `readOnly`. Datos vienen de `supervisor_dashboard_data_rpc`.
+- `src/routes/supervisor/cierres.tsx` — vista Hoy / Ayer / Buscar fecha, lista + detalle. Reutiliza los mismos componentes de `reportes.cajas.tsx` y `reportes.cajas_.$id.tsx` en modo readOnly.
+- `src/lib/supervisor-client.ts` reescrito: solo login, logout, validate, y wrappers que llaman a los 3 RPCs de lectura.
+- Realtime: suscripción a `sales`, `sale_items`, `expenses`, `cash_deposits`, `cash_sessions`, `purchases` filtrando por `branch_id`; al recibir evento → `queryClient.invalidateQueries` de las claves del dashboard/cierre.
+- Al cambiar sede o fecha → `queryClient.removeQueries` (no solo invalidate) para limpiar completamente.
 
-**Tab Salidas** — nueva vista con detalle por movimiento (fecha, hora, usuario, tipo, categoría, descripción, medio, valor, estado, motivo anulación) y totales por categoría.
+### 3. Componentes reutilizables (extracción)
 
-### C. Selector de fecha y sede
+Extraer del Admin actual sin cambiar su comportamiento:
+- `<DashboardKpis />`, `<PaymentBreakdown />`, `<TopProducts />`, `<CashStatusCard />` desde `_authenticated/dashboard.tsx`.
+- `<CashSessionSummary />`, `<CashSessionProducts />`, `<CashSessionAdjustments />` desde `reportes.cajas_.$id.tsx`.
+- `<CashSessionList />` desde `reportes.cajas.tsx`.
 
-- Selector superior con chips: **Hoy** (default), **Ayer**, y un date-picker para fecha personalizada.
-- Al cambiar sede o fecha: `queryClient.cancelQueries()` + `queryClient.removeQueries({ queryKey: ['supervisor'] })` y re-fetch. Query keys incluyen `branchId` y `date` para evitar mezclas.
+Cada uno acepta `data` como prop; Admin y Supervisor los alimentan con la misma estructura → imposible que diverjan.
 
-### D. Tiempo real
+### 4. Administración de supervisores
 
-Suscripción única Supabase Realtime a `sales`, `sale_items`, `cash_sessions`, `cash_deposits`, `expenses`, `restaurant_tables`, `table_events`. Cada evento dispara `queryClient.invalidateQueries({ queryKey: ['supervisor', branchId] })`. Botón *Actualizar* como respaldo.
+Sección en `/ajustes` (o `/usuarios`) para admin: crear / editar / activar / desactivar / eliminar / cambiar PIN. Sin `username` ni token visible.
 
-### E. Solo lectura (frontend + backend)
+### 5. Auditoría
 
-- Frontend: el shell Supervisor no monta ninguna acción de escritura; los componentes reutilizados se renderizan con prop `readOnly`.
-- Backend: verificar que las RLS ya bloquean escritura al rol supervisor (revisar y ajustar migración si falta).
+`supervisor_audit_log` registra en cada login/switch de sede: `supervisor_id`, `event`, `ip`, `user_agent`, `branch_id`, `created_at`. Panel de consulta en admin.
 
-### F. Pagos mixtos
+### 6. Validación final
 
-Corregir `paymentBreakdown` en el servicio central: cuando `payment_details.split === true`, iterar `splits[]` y acumular en su método real. Nunca mostrar "SPLIT" ni "SPLITS" como método.
-
-### G. Top de productos
-
-En el servicio central: agrupar por `product_id` (nombre del producto principal), ignorando modificadores/toppings/observaciones.
-
-### H. Formato
-
-Auditar tarjetas del Supervisor: sin `truncate`, sin `text-ellipsis`, sin abreviaciones de montos. Responsive mobile/tablet/desktop.
-
-### I. Validación
-
-Después de implementar, comparar manualmente con Playwright: Dashboard Admin vs Supervisor para GOLOSO SANTA y GOLOSO PARQUE, turno abierto y cierre de ayer. Todos los valores deben coincidir.
+Script de comparación (en dev) que consulta ambos endpoints para SANTA y PARQUE (hoy y ayer) y hace `deepEqual` de los campos clave. Se corre con Playwright tras el deploy.
 
 ## Detalles técnicos
 
-- Archivos nuevos: `src/lib/shift-metrics.ts`, `src/lib/shift-metrics.functions.ts`, `src/components/supervisor/*` (shell, tabs, selector).
-- Archivos reescritos: `src/routes/supervisor.tsx`, `src/lib/supervisor-client.ts` (eliminado o reducido a re-export), `src/lib/supervisor.functions.ts`.
-- Migración SQL: eliminar/dejar en desuso `supervisor_dashboard_rpc`; añadir RLS de solo lectura para rol supervisor si no existen.
-- Refactor de `dashboard.tsx`, `reportes.cajas.tsx`, `reportes.cajas_.$id.tsx`, `caja.tsx` para consumir el mismo servicio central (sin cambios visuales).
+- Sesiones supervisor expiran a 12h; se refrescan en cada request.
+- PIN se almacena con `crypt(_pin, gen_salt('bf'))`. Login usa `crypt(_pin, pin_hash) = pin_hash`.
+- Rate limit: 5 intentos fallidos por nombre / 15 min → `locked_until`.
+- Realtime usa el canal `supabase.channel('supervisor:'+branchId)` con filtros por `branch_id`.
+- Diseño responsive con Tailwind: grid 1 col mobile / 2 col tablet / 4 col desktop en KPIs; sin truncar valores monetarios (usar `tabular-nums` y `whitespace-nowrap`).
+- Rutas Supervisor son SSR-off y públicas (no bajo `_authenticated/`), protegidas por el token supervisor en localStorage.
 
-## Alcance y riesgo
+## Archivos afectados
 
-Este es un refactor grande (~2000 LoC tocadas + nuevos componentes + migración SQL). Requiere que el Administrador y todos los reportes migren al servicio central en el mismo cambio para garantizar "una única fuente de verdad". Existe riesgo de regresiones visuales menores en el Dashboard Administrador que se validarán con Playwright.
+**Eliminados / reescritos**
+- `src/routes/supervisor.tsx`
+- `src/lib/supervisor-client.ts`
+- `src/lib/supervisor.functions.ts`
 
-¿Apruebas este rediseño completo, o prefieres que lo divida en fases (primero servicio central + Dashboard Supervisor, luego Historial + Salidas, luego migración del Administrador)?
+**Nuevos**
+- `src/routes/supervisor.login.tsx` (o `supervisor.index.tsx` con login)
+- `src/routes/supervisor.dashboard.tsx`
+- `src/routes/supervisor.cierres.tsx`
+- `src/routes/supervisor.cierres.$id.tsx`
+- `src/components/supervisor/*` (layout, branch selector, quick date tabs)
+- `src/components/dashboard/*` (extraídos del admin)
+- `src/components/cash-session/*` (extraídos del admin)
+- `src/lib/supervisor-realtime.ts`
+- Migración SQL grande con nuevos RPCs y funciones compartidas.
+
+**Modificados**
+- `src/routes/_authenticated/dashboard.tsx` → pasa a usar los mismos componentes extraídos.
+- `src/routes/_authenticated/reportes.cajas.tsx` y `reportes.cajas_.$id.tsx` → idem.
+- `src/components/supervisor-access-section.tsx` → nuevo flujo (sin token visible, sin username).
+
+## Riesgos
+
+- Refactor amplio del Admin para extraer componentes. Mitigación: mantener el comportamiento visual idéntico, cambiar solo la fuente del `data` prop.
+- Los RPCs SECURITY DEFINER deben validar el token supervisor en la PRIMERA línea, y respetar `branch_id` permitido.
+- La migración es grande; la corro en un solo paso tras aprobación.
+
+## Estimación
+
+1 migración SQL grande + ~15 archivos nuevos + ~6 archivos modificados. Un solo turno de implementación tras aprobación del plan.
