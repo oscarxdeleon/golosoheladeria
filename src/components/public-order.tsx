@@ -482,6 +482,9 @@ export function PublicOrder({
 
 
   async function submit() {
+    if (enforceOnlineSchedule && !onlineStatus.isOpen) {
+      return toast.error(onlineClosedMessage);
+    }
     const err = validate();
     if (err) return toast.error(err);
     setSubmitting(true);
