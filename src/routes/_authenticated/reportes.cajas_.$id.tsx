@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
+import { useAuth } from "@/hooks/use-auth";
 import { formatMoney } from "@/lib/format";
 import {
   fetchExpenses, fetchPurchases, fetchSaleItemsForSales, fetchSales,
@@ -132,6 +133,8 @@ function CajaDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const { branches, activeBranchId, setActiveBranchId, loading: branchesLoading } = useBranch();
+  const { isAdmin, roles } = useAuth();
+  const canSeeAllBranches = isAdmin || roles.includes("supervisor");
   const [downloading, setDownloading] = useState(false);
 
   const { data: detail, isLoading } = useQuery({
@@ -146,11 +149,12 @@ function CajaDetailPage() {
   const sessionBranchId = detail?.session.branch_id ?? null;
 
   useEffect(() => {
+    if (canSeeAllBranches) return;
     if (!detail || !activeBranchId || sessionBranchId === activeBranchId) return;
     void navigate({ to: "/reportes/cajas", replace: true });
-  }, [detail, sessionBranchId, activeBranchId, navigate]);
+  }, [canSeeAllBranches, detail, sessionBranchId, activeBranchId, navigate]);
 
-  const visible = detail && sessionBranchId === activeBranchId ? detail : null;
+  const visible = detail && (canSeeAllBranches || sessionBranchId === activeBranchId) ? detail : null;
 
   if (isLoading || branchesLoading || !detail) {
     return (
