@@ -16,6 +16,8 @@ import { ModifiersModal } from "@/components/modifiers-modal";
 import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import { getChannelStatus, normalizeSchedules } from "@/lib/schedules";
+import { ScheduleOrderDialog } from "@/components/schedule-order-dialog";
+import { CalendarClock } from "lucide-react";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
