@@ -2047,7 +2047,17 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       )}
 
 
-      {!meseroMode && !openSession && (
+      {!physicalStatus.isOpen && (
+        <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-start gap-2">
+          <span className="mt-0.5">🕒</span>
+          <div>
+            <strong>Horario cerrado — punto físico.</strong> {physicalClosedMsg} Puedes cobrar o modificar pedidos ya abiertos.
+            {physicalStatus.opensAt && <span className="ml-1">Próxima apertura: {physicalStatus.opensAt}.</span>}
+          </div>
+        </div>
+      )}
+
+
         <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
           <span>
             <strong>Caja cerrada.</strong> Debes abrir caja antes de cobrar ventas.
