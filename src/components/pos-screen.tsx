@@ -1581,6 +1581,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     if (!effectiveSessionId) return toast.error("No hay caja abierta en esta sede");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (!validateDelivery()) return;
+    // Bloqueo por horario del punto físico: sólo para pedidos nuevos.
+    // Se permite editar / actualizar un pedido existente.
+    if (!pendingSaleId && !physicalStatus.isOpen) {
+      toast.error(physicalClosedMsg);
+      return false;
+    }
+
     console.log("[pos] saveComanda inicio · user=", user.id, "· pendingSaleId=", pendingSaleId, "· items=", cart.length);
     setPaying(true);
 
