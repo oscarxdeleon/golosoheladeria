@@ -20,6 +20,7 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
+import { usePhysicalChannelStatus } from "@/hooks/use-branch-schedule";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
 import { Split, Smartphone, Building2, Sparkles, Gift, X } from "lucide-react";
@@ -641,6 +642,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   // Sincronización realtime: refresca mesas y pedidos pendientes al instante
   // cuando la tablet del mesero (u otro POS) guarda cambios.
   useRealtimeBranchSync(activeBranchId, { invalidatePendingSale: true });
+  const physicalStatus = usePhysicalChannelStatus(activeBranchId);
+  const physicalClosedMsg = "El horario de atención en el punto físico ha finalizado. No es posible registrar nuevos pedidos.";
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
   const searchRef = useRef<HTMLInputElement | null>(null);
@@ -1296,12 +1299,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   async function handleCobrar() {
     if (paying) return;
     if (cart.length === 0 && !pendingSaleId) return toast.error("Carrito vacío");
+    // Horario del punto físico: bloqueamos nuevos pedidos cuando está cerrado.
+    // Se permite cobrar pedidos ya existentes (pendingSaleId presente).
+    if (!pendingSaleId && !physicalStatus.isOpen) {
+      return toast.error(physicalClosedMsg);
+    }
     if (orderType === "llevar" && cart.length > 0 && !pendingSaleId) {
       const ok = await saveComanda({ stayForPayment: true });
       if (!ok) return; // saveComanda ya notificó el error
     }
     setPayDialogOpen(true);
   }
+
 
   async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
@@ -1572,6 +1581,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     if (!effectiveSessionId) return toast.error("No hay caja abierta en esta sede");
     if (cart.length === 0) return toast.error("Carrito vacío");
     if (!validateDelivery()) return;
+    // Bloqueo por horario del punto físico: sólo para pedidos nuevos.
+    // Se permite editar / actualizar un pedido existente.
+    if (!pendingSaleId && !physicalStatus.isOpen) {
+      toast.error(physicalClosedMsg);
+      return false;
+    }
+
     console.log("[pos] saveComanda inicio · user=", user.id, "· pendingSaleId=", pendingSaleId, "· items=", cart.length);
     setPaying(true);
 
@@ -2031,6 +2047,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       )}
 
 
+      {!physicalStatus.isOpen && (
+        <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-start gap-2">
+          <span className="mt-0.5">🕒</span>
+          <div>
+            <strong>Horario cerrado — punto físico.</strong> {physicalClosedMsg} Puedes cobrar o modificar pedidos ya abiertos.
+            {physicalStatus.opensAt && <span className="ml-1">Próxima apertura: {physicalStatus.opensAt}.</span>}
+          </div>
+        </div>
+      )}
+
       {!meseroMode && !openSession && (
         <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
           <span>
@@ -2041,6 +2067,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </a>
         </div>
       )}
+
       <div className="space-y-4">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center sm:gap-4">
           {!hideTitle && (

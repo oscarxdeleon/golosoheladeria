@@ -17,7 +17,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight, ShieldAlert } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight, ShieldAlert, Clock, Globe } from "lucide-react";
+import { DAYS as SCHEDULE_DAYS, normalizeSchedules, type BranchSchedules, type DayKey, type ScheduleChannel, getChannelStatus, humanReason } from "@/lib/schedules";
 import printServerPkg from "../../../print-server/package.json";
 const PRINT_SERVER_VERSION = (printServerPkg as { version: string }).version;
 import { QRCodeCanvas } from "qrcode.react";
@@ -105,6 +106,7 @@ type TabDef = {
 
 const TABS: TabDef[] = [
   { value: "estab",       label: "Establecimiento",   icon: Store,        hint: "Datos generales, horarios y marca del negocio",       group: "negocio",     accent: "from-indigo-500 to-violet-500" },
+  { value: "horarios",    label: "Horarios de atención", icon: Clock,     hint: "Horarios independientes por sede: punto físico y menú en línea", group: "negocio", accent: "from-amber-500 to-orange-600" },
   { value: "suc",         label: "Sucursales",        icon: Building2,    hint: "Administra todas tus sedes y sus datos",              group: "negocio",     accent: "from-sky-500 to-blue-600" },
   { value: "sede-edit",   label: "Editar sede",       icon: Pencil,       hint: "Modificar información de una sede específica",         group: "negocio",     accent: "from-slate-500 to-slate-700", hidden: true },
   { value: "ticket",      label: "Ticket",            icon: Receipt,      hint: "Personaliza el diseño y contenido del recibo",         group: "ventas",      accent: "from-amber-500 to-orange-600" },
@@ -145,6 +147,7 @@ function AjustesPage() {
       {activeTab ? (
         <SectionView activeTab={activeTab} allTabs={visibleTabs} onBack={() => setTab(null)} onSelect={setTab}>
           {tab === "estab"       && <SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary>}
+          {tab === "horarios"    && <SectionErrorBoundary label="Horarios de atención"><HorariosTab /></SectionErrorBoundary>}
           {tab === "ticket"      && <SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary>}
           {tab === "suc"         && <SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary>}
           {tab === "sede-edit"   && <SectionErrorBoundary label="Editar sede"><EditarSedeTab initialBranchId={editBranchId} /></SectionErrorBoundary>}
@@ -2160,4 +2163,158 @@ function KdsLinkTab() {
     </Card>
   );
 }
+
+function HorariosTab() {
+  const qc = useQueryClient();
+  const { branches, activeBranchId } = useBranch();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const branchId = selectedId ?? activeBranchId ?? branches[0]?.id ?? null;
+
+  const { data, isLoading } = useQuery({
+    queryKey: ["branch-schedules-edit", branchId],
+    enabled: !!branchId,
+    queryFn: async () => {
+      const { data } = await supabase.from("branches").select("id,name,schedules").eq("id", branchId!).maybeSingle();
+      return data as { id: string; name: string; schedules: unknown } | null;
+    },
+  });
+
+  const [draft, setDraft] = useState<BranchSchedules | null>(null);
+  useEffect(() => {
+    if (data) setDraft(normalizeSchedules(data.schedules));
+  }, [data]);
+
+  if (!branchId) {
+    return <Card><CardContent className="p-6 text-sm text-muted-foreground">No hay sedes disponibles.</CardContent></Card>;
+  }
+  if (isLoading || !draft) {
+    return <Card><CardContent className="p-6 text-sm text-muted-foreground">Cargando horarios…</CardContent></Card>;
+  }
+
+  const setDay = (ch: ScheduleChannel, day: DayKey, patch: Partial<{ open: boolean; from: string; to: string }>) => {
+    setDraft({
+      ...draft,
+      [ch]: { ...draft[ch], [day]: { ...draft[ch][day], ...patch } },
+    });
+  };
+
+  async function save() {
+    if (!draft || !branchId) return;
+    const { error } = await supabase.from("branches").update({ schedules: draft as unknown as never }).eq("id", branchId);
+    if (error) return toast.error(error.message);
+    toast.success("Horarios guardados");
+    qc.invalidateQueries({ queryKey: ["branch-schedules-edit", branchId] });
+    qc.invalidateQueries({ queryKey: ["branch-schedules", branchId] });
+    qc.invalidateQueries({ queryKey: ["branch-schedules-by-slug"] });
+  }
+
+  const physStatus = getChannelStatus(draft, "physical");
+  const onlineStatus = getChannelStatus(draft, "online");
+
+  return (
+    <div className="space-y-4">
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2"><Clock className="h-5 w-5" /> Horarios de atención</CardTitle>
+          <CardDescription>
+            Cada sede maneja dos horarios independientes: <b>punto físico</b> (POS, mesas, para llevar, domicilio manual, tablet mesero) y <b>menú en línea</b> (menú online, PWA, enlaces). Zona horaria: America/Bogotá.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <Label className="sm:min-w-24">Sede</Label>
+            <Select value={branchId} onValueChange={(v) => setSelectedId(v)}>
+              <SelectTrigger className="sm:max-w-md"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {branches.map((b) => (
+                  <SelectItem key={b.id} value={b.id}>{b.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <StatusPill icon={<Store className="h-4 w-4" />} title="Punto físico" status={physStatus} />
+            <StatusPill icon={<Globe className="h-4 w-4" />} title="Menú en línea" status={onlineStatus} />
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-2">
+        <ChannelScheduleCard
+          title="Horario del punto físico"
+          description="Controla POS, mesas, para llevar en el local, domicilio manual y tablet mesero."
+          channel="physical"
+          schedule={draft.physical}
+          onChange={(day, patch) => setDay("physical", day, patch)}
+        />
+        <ChannelScheduleCard
+          title="Horario de pedidos en línea"
+          description="Controla el menú en línea, PWA y enlaces públicos de pedido."
+          channel="online"
+          schedule={draft.online}
+          onChange={(day, patch) => setDay("online", day, patch)}
+        />
+      </div>
+
+      <div className="flex justify-end">
+        <Button onClick={save}>Guardar horarios de esta sede</Button>
+      </div>
+    </div>
+  );
+}
+
+function StatusPill({ icon, title, status }: { icon: React.ReactNode; title: string; status: ReturnType<typeof getChannelStatus> }) {
+  const open = status.isOpen;
+  return (
+    <div className={`rounded-xl border p-3 flex items-center gap-3 ${open ? "border-emerald-300 bg-emerald-50/50 dark:bg-emerald-950/20" : "border-amber-300 bg-amber-50/50 dark:bg-amber-950/20"}`}>
+      <div className={`grid h-9 w-9 place-items-center rounded-lg ${open ? "bg-emerald-500/20 text-emerald-700 dark:text-emerald-300" : "bg-amber-500/20 text-amber-700 dark:text-amber-300"}`}>{icon}</div>
+      <div className="min-w-0 flex-1">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{title}</div>
+        <div className={`text-sm font-semibold ${open ? "text-emerald-700 dark:text-emerald-300" : "text-amber-700 dark:text-amber-300"}`}>
+          {open ? `Abierto hasta las ${status.closesAt}` : status.reason === "before_open" ? `Abre a las ${status.opensAt}` : status.reason === "closed_day" ? "Cerrado hoy" : `Cerrado desde las ${status.closesAt}`}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ChannelScheduleCard({
+  title, description, channel, schedule, onChange,
+}: {
+  title: string;
+  description: string;
+  channel: ScheduleChannel;
+  schedule: BranchSchedules["physical"];
+  onChange: (day: DayKey, patch: Partial<{ open: boolean; from: string; to: string }>) => void;
+}) {
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2 text-base">
+          {channel === "physical" ? <Store className="h-4 w-4" /> : <Globe className="h-4 w-4" />}
+          {title}
+        </CardTitle>
+        <CardDescription className="text-xs">{description}</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {SCHEDULE_DAYS.map((d) => {
+          const sc = schedule[d.key];
+          return (
+            <div key={d.key} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-2 rounded-lg border p-2.5">
+              <div className="flex items-center gap-2 w-28">
+                <Switch checked={sc.open} onCheckedChange={(v) => onChange(d.key, { open: v })} />
+                <span className="text-sm">{d.label}</span>
+              </div>
+              <div className="text-xs text-muted-foreground">{sc.open ? "Abierto" : "Cerrado"}</div>
+              <Input type="time" className="w-28" disabled={!sc.open} value={sc.from} onChange={(e) => onChange(d.key, { from: e.target.value })} />
+              <Input type="time" className="w-28" disabled={!sc.open} value={sc.to} onChange={(e) => onChange(d.key, { to: e.target.value })} />
+            </div>
+          );
+        })}
+      </CardContent>
+    </Card>
+  );
+}
+// Silenciamos `humanReason` como no usada aquí para evitar warnings de lint sin dejar de exportar el helper.
+void humanReason;
 

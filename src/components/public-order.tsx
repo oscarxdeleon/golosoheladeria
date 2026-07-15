@@ -9,12 +9,13 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check, Bike, Store } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check, Bike, Store, Clock } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
+import { getChannelStatus, normalizeSchedules } from "@/lib/schedules";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
@@ -278,7 +279,7 @@ export function PublicOrder({
       if (!branchSlug) {
         const { data } = await supabase
           .from("branches")
-          .select("id,name,slug,phone,address,nit,logo_url")
+          .select("id,name,slug,phone,address,nit,logo_url,schedules")
           .eq("is_main", true)
           .order("created_at")
           .limit(1)
@@ -287,7 +288,7 @@ export function PublicOrder({
       }
       const { data } = await supabase
         .from("branches")
-        .select("id,name,slug,phone,address,nit,logo_url")
+        .select("id,name,slug,phone,address,nit,logo_url,schedules")
         .eq("slug", branchSlug)
         .maybeSingle();
       return data;
@@ -345,6 +346,24 @@ export function PublicOrder({
   const isPickup = source === "online_menu" && onlineService === "recoger";
   const deliveryFee = isDelivery ? Number((settings as { delivery_fee?: number | null } | null | undefined)?.delivery_fee ?? 0) : 0;
   const total = subtotal + deliveryFee;
+
+  // Estado del canal "menú en línea" para esta sede (America/Bogota).
+  const branchSchedules = normalizeSchedules((branch as { schedules?: unknown } | null | undefined)?.schedules);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  useEffect(() => {
+    if (source !== "online_menu") return;
+    const id = window.setInterval(() => setNowTick(Date.now()), 30_000);
+    return () => window.clearInterval(id);
+  }, [source]);
+  const onlineStatus = getChannelStatus(branchSchedules, "online", new Date(nowTick));
+  const enforceOnlineSchedule = source === "online_menu";
+  const onlineClosed = enforceOnlineSchedule && !onlineStatus.isOpen;
+  const onlineClosingSoon = enforceOnlineSchedule && onlineStatus.isOpen && (onlineStatus.minutesToClose ?? 999) <= 30;
+  const onlineClosedMessage = onlineStatus.reason === "closed_day"
+    ? "Hoy no hay pedidos en línea disponibles."
+    : onlineStatus.reason === "before_open"
+      ? `Los pedidos en línea inician a las ${onlineStatus.opensAt}.`
+      : "Estamos fuera del horario para pedidos en línea.";
 
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
@@ -463,6 +482,9 @@ export function PublicOrder({
 
 
   async function submit() {
+    if (enforceOnlineSchedule && !onlineStatus.isOpen) {
+      return toast.error(onlineClosedMessage);
+    }
     const err = validate();
     if (err) return toast.error(err);
     setSubmitting(true);
@@ -1297,13 +1319,32 @@ export function PublicOrder({
                 <div className="flex justify-between font-display text-lg pt-1 border-t"><span>Total</span><span>{formatMoney(total)}</span></div>
               </div>
 
-              <Button size="lg" className="w-full" onClick={submit} disabled={submitting}>
+              {onlineClosed && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-100 flex items-start gap-2">
+                  <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-semibold">{onlineClosedMessage}</div>
+                    <div className="text-xs mt-0.5 opacity-80">Puedes seguir viendo el menú, pero no es posible enviar pedidos inmediatos.</div>
+                  </div>
+                </div>
+              )}
+              {onlineClosingSoon && (
+                <div className="rounded-lg border border-sky-300 bg-sky-50 dark:bg-sky-950/30 p-2.5 text-xs text-sky-900 dark:text-sky-100 flex items-center gap-2">
+                  <Clock className="h-3.5 w-3.5" />
+                  Pedidos en línea disponibles por {onlineStatus.minutesToClose} minuto{onlineStatus.minutesToClose === 1 ? "" : "s"} más (hasta las {onlineStatus.closesAt}).
+                </div>
+              )}
+
+              <Button size="lg" className="w-full" onClick={submit} disabled={submitting || onlineClosed}>
                 {submitting
                   ? "Enviando..."
-                  : source === "table_qr"
-                    ? "Confirmar pedido"
-                    : `Finalizar pedido · ${formatMoney(total)}`}
+                  : onlineClosed
+                    ? "Fuera de horario"
+                    : source === "table_qr"
+                      ? "Confirmar pedido"
+                      : `Finalizar pedido · ${formatMoney(total)}`}
               </Button>
+
 
             </div>
           </div>

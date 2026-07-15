@@ -340,6 +340,7 @@ export type Database = {
           online_menu_url: string | null
           phone: string | null
           report_email: string | null
+          schedules: Json
           slug: string | null
           ticket_footer: string | null
           ticket_header: string | null
@@ -361,6 +362,7 @@ export type Database = {
           online_menu_url?: string | null
           phone?: string | null
           report_email?: string | null
+          schedules?: Json
           slug?: string | null
           ticket_footer?: string | null
           ticket_header?: string | null
@@ -382,6 +384,7 @@ export type Database = {
           online_menu_url?: string | null
           phone?: string | null
           report_email?: string | null
+          schedules?: Json
           slug?: string | null
           ticket_footer?: string | null
           ticket_header?: string | null
