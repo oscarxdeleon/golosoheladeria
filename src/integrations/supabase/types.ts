@@ -2813,6 +2813,10 @@ export type Database = {
         }[]
       }
       supervisor_logout_rpc: { Args: { _session_token: string }; Returns: Json }
+      supervisor_session_detail_rpc: {
+        Args: { _cash_session_id: string; _session_token: string }
+        Returns: Json
+      }
       supervisor_slug: { Args: { _value: string }; Returns: string }
       sync_active_cash_session: {
         Args: { _branch_id?: string; _user_name?: string }
