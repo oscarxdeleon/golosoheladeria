@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
@@ -27,13 +27,22 @@ export const Route = createFileRoute("/_authenticated/reportes/cajas")({
 });
 
 function CajasPage() {
-  const { branches, activeBranchId } = useBranch();
+  const { branches, activeBranchId, setActiveBranchId } = useBranch();
   const { user, isAdmin } = useAuth();
   const [branchId, setBranchId] = useState<string>(activeBranchId ?? "all");
   const [status, setStatus] = useState<string>("all");
   const [search, setSearch] = useState<string>("");
   const [from, setFrom] = useState<string>("");
   const [to, setTo] = useState<string>("");
+
+  useEffect(() => {
+    if (activeBranchId) setBranchId(activeBranchId);
+  }, [activeBranchId]);
+
+  const handleBranchChange = (value: string) => {
+    setBranchId(value);
+    if (value !== "all") setActiveBranchId(value);
+  };
 
   const filters = useMemo(() => ({
     branchId: branchId === "all" ? null : branchId,
@@ -96,7 +105,7 @@ function CajasPage() {
             <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input className="pl-9 rounded-xl" placeholder="Buscar cajero o sede" value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
-          <Select value={branchId} onValueChange={setBranchId}>
+          <Select value={branchId} onValueChange={handleBranchChange}>
             <SelectTrigger className="rounded-xl"><SelectValue placeholder="Sede" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todas las sedes</SelectItem>
