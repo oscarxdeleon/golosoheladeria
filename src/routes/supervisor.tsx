@@ -1,7 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useEffect, useMemo, useState, useCallback } from "react";
-import { supervisorLogin, supervisorLogout, supervisorDashboard } from "@/lib/supervisor.functions";
+import { supervisorLogin, supervisorLogout, supervisorDashboard } from "@/lib/supervisor-client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,7 +48,6 @@ function SupervisorPage() {
 }
 
 function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void }) {
-  const loginFn = useServerFn(supervisorLogin);
   const [displayName, setDisplayName] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
@@ -61,7 +59,7 @@ function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void 
     if (!token && !displayName.trim()) return toast.error("Ingresa tu nombre");
     setLoading(true);
     try {
-      const res = await loginFn({ data: { display_name: displayName.trim() || undefined, pin, token } });
+      const res = await supervisorLogin({ display_name: displayName.trim() || undefined, pin, token });
       onSuccess(res);
     } catch (err) {
       toast.error((err as Error).message);
@@ -111,8 +109,6 @@ function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void 
 }
 
 function SupervisorDashboard({ session, onLogout }: { session: StoredSession; onLogout: () => void }) {
-  const dashFn = useServerFn(supervisorDashboard);
-  const logoutFn = useServerFn(supervisorLogout);
   const [data, setData] = useState<Awaited<ReturnType<typeof supervisorDashboard>> | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -120,7 +116,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
   const load = useCallback(async (bid: string | null, logSwitch = false) => {
     setLoading(true);
     try {
-      const res = await dashFn({ data: { session_token: session.session_token, branch_id: bid, log_switch: logSwitch } });
+      const res = await supervisorDashboard({ session_token: session.session_token, branch_id: bid, log_switch: logSwitch });
       setData(res);
       setBranchId(res.active_branch_id);
     } catch (err) {
@@ -130,7 +126,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
         onLogout();
       } else toast.error(msg);
     } finally { setLoading(false); }
-  }, [dashFn, session.session_token, onLogout]);
+  }, [session.session_token, onLogout]);
 
   useEffect(() => { load(null); }, [load]);
   useEffect(() => {
@@ -139,7 +135,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
   }, [branchId, load]);
 
   async function handleLogout() {
-    try { await logoutFn({ data: { session_token: session.session_token } }); } catch { /* noop */ }
+    try { await supervisorLogout({ session_token: session.session_token }); } catch { /* noop */ }
     onLogout();
   }
 
