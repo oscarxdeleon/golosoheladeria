@@ -234,7 +234,10 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
   const maxHour = hours.reduce((m, [, v]) => Math.max(m, v), 0) || 1;
   const scopeTitle = isToday ? "Hoy" : isYesterday ? "Ayer" : format(selectedDate, "PPP", { locale: es });
 
-  const expectedCash = Number(s?.expected_cash ?? 0);
+  const closedCashTotal = useMemo(() => (data?.recent_closures ?? [])
+    .filter((c) => c.status === "closed")
+    .reduce((sum, c) => sum + Number(c.expected_amount ?? 0), 0), [data?.recent_closures]);
+  const expectedCash = closedCashTotal > 0 && !data?.active_cash ? closedCashTotal : Number(s?.expected_cash ?? 0);
   const activeCashLabel = data?.active_cash
     ? (data.active_cash.status === "open" ? "Abierta" : "Cerrada")
     : null;
