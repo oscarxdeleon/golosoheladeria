@@ -22,6 +22,7 @@ import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import golosoLogo from "@/assets/goloso-logo-official.webp";
 import takeawayImg from "@/assets/takeaway-goloso-3d.webp";
+import { cancelSaleRequest } from "@/lib/sales-cancellation";
 
 
 export const Route = createFileRoute("/_authenticated/llevar-pendientes")({
@@ -198,15 +199,16 @@ function LlevarPendientesPage() {
     }
     setCancelBusy(true);
     try {
-      const { error } = await supabase.rpc("cancel_sale", {
-        _sale_id: cancelling.id,
-        _reason: reason,
-      });
-      if (error) throw error;
+      await cancelSaleRequest({ saleId: cancelling.id, reason });
       toast.success(`Pedido #${cancelling.ticket_number} cancelado`);
       setCancelling(null);
       setCancelReason("");
-      qc.invalidateQueries({ queryKey: ["llevar-pendientes", activeBranchId] });
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["llevar-pendientes", activeBranchId] }),
+        qc.invalidateQueries({ queryKey: ["llevar-pending", activeBranchId] }),
+        qc.invalidateQueries({ queryKey: ["sales"] }),
+        qc.invalidateQueries({ queryKey: ["kds-pending"] }),
+      ]);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : "No se pudo cancelar el pedido");
     } finally {

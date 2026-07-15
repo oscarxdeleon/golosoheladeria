@@ -28,6 +28,7 @@ import nequiLogo from "@/assets/nequi-logo-transparent.webp";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
 import { VoiceMicButton } from "@/components/voice-input";
+import { cancelSaleRequest } from "@/lib/sales-cancellation";
 
 
 
@@ -1882,6 +1883,73 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
 
+  async function cancelCurrentSale() {
+    if (cancelling) return;
+    const saleId = pendingSaleId;
+    const reason = cancelReason.trim();
+    if (!saleId) {
+      toast.error("No hay un pedido activo para cancelar");
+      setCancelDialogOpen(false);
+      return;
+    }
+    if (reason.length < 3) {
+      toast.error("El motivo debe tener al menos 3 caracteres");
+      return;
+    }
+
+    setCancelling(true);
+    try {
+      await cancelSaleRequest({ saleId, reason });
+
+      toast.success("Pedido cancelado");
+      setCancelDialogOpen(false);
+      setCancelReason("");
+      setPendingSaleId(null);
+      setCart([]);
+      clearDraft();
+      setCustomer("");
+      setNotes("");
+      setAddress("");
+      setPhone("");
+      setShowLlevarContact(orderType === "llevar");
+      setNeighborhood("");
+      setFieldErrors({});
+      setTip(0);
+      setTipInput("");
+      printedQtyRef.current = {};
+
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["pending-sale"] }),
+        qc.invalidateQueries({ queryKey: ["restaurant_tables"] }),
+        qc.invalidateQueries({ queryKey: ["sales"] }),
+        qc.invalidateQueries({ queryKey: ["kds-pending"] }),
+        qc.invalidateQueries({ queryKey: ["llevar-pending"] }),
+        qc.invalidateQueries({ queryKey: ["llevar-pendientes"] }),
+        qc.invalidateQueries({ queryKey: ["delivery-dispatch"] }),
+        qc.invalidateQueries({ queryKey: ["dashboard-today"] }),
+      ]);
+
+      if (onSaved) {
+        onSaved();
+      } else if (orderType === "llevar") {
+        navigate({ to: "/llevar" });
+      } else if (orderType === "domicilio") {
+        navigate({ to: "/domicilio" });
+      } else if (orderType === "kiosko") {
+        navigate({ to: "/kiosko" });
+      } else {
+        navigate({ to: "/mesas" });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "No se pudo cancelar el pedido";
+      toast.error(msg);
+    } finally {
+      setCancelling(false);
+    }
+  }
+
+
+
   async function handlePrecuenta() {
     // Si el pedido ya está guardado, recargar items desde la base para garantizar el monto correcto
     let items = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
@@ -3363,38 +3431,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <Button
               variant="destructive"
               disabled={cancelling || cancelReason.trim().length < 3}
-              onClick={async () => {
-                if (!pendingSaleId) return;
-                setCancelling(true);
-                try {
-                  // Los tipos generados aún no incluyen la nueva RPC.
-                  const rpc = supabase.rpc as unknown as (
-                    name: string,
-                    args: Record<string, unknown>,
-                  ) => Promise<{ data: unknown; error: { message: string } | null }>;
-                  const { error } = await rpc("cancel_sale", {
-                    _sale_id: pendingSaleId,
-                    _reason: cancelReason.trim(),
-                  });
-                  if (error) throw new Error(error.message);
-                  toast.success("Pedido cancelado");
-                  setCancelDialogOpen(false);
-                  setCancelReason("");
-                  setPendingSaleId(null);
-                  setCart([]);
-                  clearDraft();
-                  qc.invalidateQueries({ queryKey: ["pending-sale"] });
-                  qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
-                  qc.invalidateQueries({ queryKey: ["sales"] });
-                  qc.invalidateQueries({ queryKey: ["kds-pending"] });
-                  navigate({ to: "/mesas" });
-                } catch (e) {
-                  const msg = e instanceof Error ? e.message : "No se pudo cancelar";
-                  toast.error(msg);
-                } finally {
-                  setCancelling(false);
-                }
-              }}
+              onClick={cancelCurrentSale}
             >
               {cancelling ? "Cancelando…" : "Sí, cancelar pedido"}
             </Button>
