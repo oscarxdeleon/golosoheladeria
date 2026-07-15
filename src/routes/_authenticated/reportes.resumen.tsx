@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfDay, endOfDay, subDays, startOfMonth } from "date-fns";
 import {
@@ -25,13 +25,26 @@ export const Route = createFileRoute("/_authenticated/reportes/resumen")({
 type Preset = "hoy" | "ayer" | "7d" | "mes" | "custom";
 
 function ResumenPage() {
-  const { branches, activeBranchId } = useBranch();
+  const { branches, activeBranchId, setActiveBranchId } = useBranch();
   const [preset, setPreset] = useState<Preset>("hoy");
   const [customFrom, setCustomFrom] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [customTo, setCustomTo] = useState<string>(format(new Date(), "yyyy-MM-dd"));
   const [branchId, setBranchId] = useState<string>(activeBranchId ?? "all");
   const [userId, setUserId] = useState<string>("all");
   const [sessionId, setSessionId] = useState<string>("all");
+
+  useEffect(() => {
+    if (activeBranchId) {
+      setBranchId(activeBranchId);
+      setSessionId("all");
+    }
+  }, [activeBranchId]);
+
+  const handleBranchChange = (value: string) => {
+    setBranchId(value);
+    setSessionId("all");
+    if (value !== "all") setActiveBranchId(value);
+  };
 
   const range = useMemo(() => {
     const now = new Date();
@@ -141,7 +154,7 @@ function ResumenPage() {
           )}
           <div>
             <label className="text-xs text-muted-foreground">Sede</label>
-            <Select value={branchId} onValueChange={setBranchId}>
+            <Select value={branchId} onValueChange={handleBranchChange}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Todas</SelectItem>
