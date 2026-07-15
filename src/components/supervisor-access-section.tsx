@@ -160,22 +160,20 @@ function SupervisorForm({
   initial, onSubmit, onClose,
 }: {
   initial: Acct | null;
-  onSubmit: (p: { username: string; display_name: string; pin: string }) => Promise<void>;
+  onSubmit: (p: { display_name: string; pin: string }) => Promise<void>;
   onClose: () => void;
 }) {
   const isEdit = !!initial;
-  const [username, setUsername] = useState(initial?.username ?? "");
   const [display_name, setDisplayName] = useState(initial?.display_name ?? "");
   const [pin, setPin] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function save() {
     if (!display_name.trim()) return toast.error("El nombre es obligatorio");
-    if (!isEdit && !/^[a-zA-Z0-9._-]{3,40}$/.test(username)) return toast.error("Usuario inválido");
     if (!isEdit && !/^\d{4}$/.test(pin)) return toast.error("PIN debe ser 4 dígitos");
     if (isEdit && pin && !/^\d{4}$/.test(pin)) return toast.error("PIN debe ser 4 dígitos");
     setSaving(true);
-    try { await onSubmit({ username: username.trim(), display_name: display_name.trim(), pin }); }
+    try { await onSubmit({ display_name: display_name.trim(), pin }); }
     finally { setSaving(false); }
   }
 
@@ -187,12 +185,7 @@ function SupervisorForm({
       <div className="space-y-4">
         <div className="space-y-2">
           <Label>Nombre del supervisor</Label>
-          <Input value={display_name} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ej: Camilo Torres" />
-        </div>
-        <div className="space-y-2">
-          <Label>Nombre de usuario</Label>
-          <Input value={username} onChange={(e) => setUsername(e.target.value)} disabled={isEdit} placeholder="ej: camilo" />
-          {isEdit && <p className="text-xs text-muted-foreground">El nombre de usuario no se puede cambiar.</p>}
+          <Input value={display_name} onChange={(e) => setDisplayName(e.target.value)} placeholder="Ej: Camilo Torres" autoFocus />
         </div>
         <div className="space-y-2">
           <Label>{isEdit ? "Nuevo PIN (opcional)" : "PIN de 4 dígitos"}</Label>
@@ -204,7 +197,7 @@ function SupervisorForm({
             placeholder={isEdit ? "Dejar vacío para no cambiar" : "····"}
             className="text-center text-2xl tracking-[0.6em] font-mono"
           />
-          <p className="text-xs text-muted-foreground">El PIN se guarda cifrado y no puede recuperarse. Solo puedes reemplazarlo.</p>
+          <p className="text-xs text-muted-foreground">El PIN se guarda cifrado y no puede recuperarse.</p>
         </div>
       </div>
       <DialogFooter>
