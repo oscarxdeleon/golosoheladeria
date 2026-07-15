@@ -274,7 +274,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
             <CardContent className="p-8 text-center space-y-3">
               <div className="font-semibold">No se pudo cargar la información.</div>
               <div className="text-sm text-muted-foreground">{loadError}</div>
-              <Button variant="outline" onClick={() => load(branchId)} disabled={loading}>
+              <Button variant="outline" onClick={() => load(branchId, isToday ? null : selectedStr)} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Reintentar
               </Button>
             </CardContent>
