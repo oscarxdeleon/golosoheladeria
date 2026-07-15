@@ -117,7 +117,7 @@ export function SupervisorAccessSection() {
             {!isLoading && data.length === 0 && (
               <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Aún no hay accesos supervisor. Crea el primero.</TableCell></TableRow>
             )}
-            {data.map((a) => (
+            {data.map((a: Acct) => (
               <TableRow key={a.id}>
                 <TableCell className="font-medium">{a.display_name}</TableCell>
                 <TableCell className="font-mono text-xs">{a.username}</TableCell>
