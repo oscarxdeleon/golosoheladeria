@@ -14,7 +14,7 @@ import { Button } from "@/components/ui/button";
 import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
 import {
-  fetchCashSessions, fetchSales, fetchExpenses, fetchSaleItemsForSales,
+  fetchCashSessions, fetchSales, fetchExpenses, fetchPurchases, fetchSaleItemsForSales,
   type CashSessionRow,
 } from "@/lib/reports";
 import { useAuth } from "@/hooks/use-auth";
@@ -170,16 +170,17 @@ function SessionCard({
     setDownloading(true);
     try {
       // Cargar datos on-demand para PDF
-      const [sales, expenses] = await Promise.all([
+      const [sales, expenses, purchases] = await Promise.all([
         fetchSales({ cashSessionId: session.id }),
         fetchExpenses({ cashSessionId: session.id }),
+        fetchPurchases({ cashSessionId: session.id }),
       ]);
       const ids = sales.filter((x) => x.status !== "cancelled").map((x) => x.id);
       const items = ids.length ? await fetchSaleItemsForSales(ids) : [];
       await downloadShiftPdf({
         session, branchName,
         turnNumber: session.id.slice(0, 3).toUpperCase(),
-        sales, items, expenses,
+        sales, items, expenses, purchases,
       });
       toast.success("PDF generado");
     } catch (e) {

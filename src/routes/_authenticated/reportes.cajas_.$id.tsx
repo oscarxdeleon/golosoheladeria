@@ -10,8 +10,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
 import {
-  aggregateProducts, computeFinancialSummary, fetchExpenses, fetchSaleItemsForSales,
-  fetchSales, paymentBreakdown, serviceBreakdown,
+  aggregateProducts, computeFinancialSummary, fetchExpenses, fetchPurchases, fetchSaleItemsForSales,
+  fetchSales, normalizeMethod, paymentBreakdown, serviceBreakdown,
   CATEGORY_INCOME, CATEGORY_WITHDRAWAL, CATEGORY_REFUND,
   type CashSessionRow, type ExpenseRow,
 } from "@/lib/reports";
@@ -86,14 +86,30 @@ function CajaDetailPage() {
   const filters = useMemo(() => visibleSession ? { cashSessionId: visibleSession.id, branchId: visibleSession.branch_id } : null, [visibleSession]);
 
   const { data: sales = [] } = useQuery({
-    queryKey: ["reportes.session.sales", id, visibleSession?.branch_id ?? null],
+    queryKey: ["reportes.session.sales", id, visibleSession?.branch_id ?? null, visibleSession?.opened_at ?? null, visibleSession?.closed_at ?? null],
     enabled: !!filters,
-    queryFn: () => fetchSales(filters!),
+    queryFn: async () => {
+      const currentSession = visibleSession;
+      if (!currentSession) return [];
+      const [linked, scoped] = await Promise.all([
+        fetchSales({ cashSessionId: currentSession.id }),
+        currentSession.branch_id
+          ? fetchSales({ branchId: currentSession.branch_id, from: currentSession.opened_at, to: currentSession.closed_at ?? undefined })
+          : Promise.resolve([]),
+      ]);
+      const byId = new Map([...linked, ...scoped].map((sale) => [sale.id, sale]));
+      return [...byId.values()].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+    },
   });
   const { data: expenses = [] } = useQuery({
     queryKey: ["reportes.session.expenses", id, visibleSession?.branch_id ?? null],
     enabled: !!filters,
     queryFn: () => fetchExpenses(filters!),
+  });
+  const { data: purchases = [] } = useQuery({
+    queryKey: ["reportes.session.purchases", id, visibleSession?.branch_id ?? null],
+    enabled: !!filters,
+    queryFn: () => fetchPurchases(filters!),
   });
   const { data: deposits = [] } = useQuery({
     queryKey: ["reportes.session.deposits", id, visibleSession?.branch_id ?? null],
@@ -170,25 +186,32 @@ function CajaDetailPage() {
   }
 
   const detailSession = visibleSession;
-  const summary = computeFinancialSummary(sales, expenses, [detailSession]);
+  const summary = computeFinancialSummary(sales, expenses, [detailSession], purchases);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
   const products = aggregateProducts(items, { modifierNames });
 
   const activeDeposits = deposits.filter((d) => d.status === "active");
   const depByMethod = activeDeposits.reduce<Record<string, number>>((a, d) => {
-    const k = (d.method || "").toLowerCase();
+    const k = normalizeMethod(d.method || "efectivo");
     a[k] = (a[k] ?? 0) + Number(d.amount || 0);
     return a;
   }, {});
+  const isCashMethod = (method: string | null | undefined) => normalizeMethod(method || "efectivo") === "efectivo";
   const cashSales = payments["efectivo"]?.amount ?? 0;
-  const entries = summary.entries + (depByMethod.efectivo ?? 0);
-  const exits = summary.exits + summary.expenses + summary.refunds;
+  const entries = depByMethod.efectivo ?? 0;
+  const cashExpenseOut = expenses
+    .filter((e) => isCashMethod(e.payment_method))
+    .reduce((a, e) => a + Number(e.amount || 0), 0);
+  const cashPurchasesOut = purchases
+    .filter((p) => isCashMethod(p.payment_method))
+    .reduce((a, p) => a + Number(p.total || 0), 0);
+  const exits = cashExpenseOut + cashPurchasesOut;
   const apertura = Number(detailSession.opening_amount) || 0;
-  const efectivoEsperado = apertura + cashSales + entries - exits;
+  const efectivoEsperadoCalculado = apertura + cashSales + entries - exits;
 
   const declared = Number(detailSession.counted_amount) || 0;
-  const expected = Number(detailSession.expected_amount) || efectivoEsperado;
+  const expected = Number(detailSession.expected_amount) || efectivoEsperadoCalculado;
   const diff = declared - expected;
 
   // Declared por medio no-efectivo
@@ -213,7 +236,7 @@ function CajaDetailPage() {
   async function handlePdf() {
     setDownloading(true);
     try {
-      await downloadShiftPdf({ session: detailSession, branchName, turnNumber, sales, items, expenses });
+      await downloadShiftPdf({ session: detailSession, branchName, turnNumber, sales, items, expenses, purchases });
       toast.success("PDF generado");
     } catch (e) {
       toast.error("No se pudo generar el PDF", { description: (e as Error).message });
@@ -345,7 +368,7 @@ function CajaDetailPage() {
               <div className="my-2 border-t border-dashed" />
               <div className="flex items-center justify-between font-bold">
                 <span>= Efectivo Esperado</span>
-                <span className="font-display text-2xl text-rose-600">{formatMoney(efectivoEsperado)}</span>
+                <span className="font-display text-2xl text-rose-600">{formatMoney(expected)}</span>
               </div>
             </div>
           </Section>
