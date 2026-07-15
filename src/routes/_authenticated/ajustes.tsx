@@ -2300,17 +2300,22 @@ function ChannelScheduleCard({
         {SCHEDULE_DAYS.map((d) => {
           const sc = schedule[d.key];
           return (
-            <div key={d.key} className="grid grid-cols-[auto,1fr,auto,auto] items-center gap-2 rounded-lg border p-2.5">
-              <div className="flex items-center gap-2 w-28">
+            <div key={d.key} className="rounded-lg border p-2.5 space-y-2 sm:space-y-0 sm:flex sm:items-center sm:gap-3">
+              <div className="flex items-center gap-2 sm:w-40 shrink-0">
                 <Switch checked={sc.open} onCheckedChange={(v) => onChange(d.key, { open: v })} />
-                <span className="text-sm">{d.label}</span>
+                <span className="text-sm font-medium">{d.label}</span>
+                <span className="ml-auto sm:hidden text-xs text-muted-foreground">{sc.open ? "Abierto" : "Cerrado"}</span>
               </div>
-              <div className="text-xs text-muted-foreground">{sc.open ? "Abierto" : "Cerrado"}</div>
-              <Input type="time" className="w-28" disabled={!sc.open} value={sc.from} onChange={(e) => onChange(d.key, { from: e.target.value })} />
-              <Input type="time" className="w-28" disabled={!sc.open} value={sc.to} onChange={(e) => onChange(d.key, { to: e.target.value })} />
+              <div className="hidden sm:block text-xs text-muted-foreground w-16">{sc.open ? "Abierto" : "Cerrado"}</div>
+              <div className="flex items-center gap-2 sm:ml-auto">
+                <Input type="time" className="w-full sm:w-32 min-w-0" disabled={!sc.open} value={sc.from} onChange={(e) => onChange(d.key, { from: e.target.value })} />
+                <span className="text-xs text-muted-foreground">a</span>
+                <Input type="time" className="w-full sm:w-32 min-w-0" disabled={!sc.open} value={sc.to} onChange={(e) => onChange(d.key, { to: e.target.value })} />
+              </div>
             </div>
           );
         })}
+
       </CardContent>
     </Card>
   );
