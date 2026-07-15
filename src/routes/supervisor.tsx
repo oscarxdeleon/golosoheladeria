@@ -392,8 +392,8 @@ function Kpi({ icon: Icon, label, value, tone }: { icon: typeof TrendingUp; labe
       <CardContent className="p-4 flex items-start gap-3">
         <div className="rounded-xl bg-background/60 p-2"><Icon className="h-5 w-5" /></div>
         <div className="min-w-0">
-          <div className="text-xs font-medium text-muted-foreground truncate">{label}</div>
-          <div className="text-xl font-bold truncate">{value}</div>
+          <div className="text-xs font-medium text-muted-foreground leading-tight">{label}</div>
+          <div className="text-lg sm:text-xl font-bold break-words leading-tight">{value}</div>
         </div>
       </CardContent>
     </Card>
