@@ -1,95 +1,85 @@
+## Objetivo
 
-# Módulo REPORTES — Heladería Goloso
+Reemplazar completamente la lógica actual del módulo Supervisor por una vista **solo lectura** que reutilice los mismos servicios, consultas y componentes del Administrador. Los valores mostrados al Supervisor deben ser idénticos, bit a bit, a los del Dashboard, Reportes e Historial de Cajas del Administrador para la misma sede/fecha/turno.
 
-Un nuevo centro unificado de consulta financiera, comercial, operativa y de auditoría. Se integra con las tablas existentes (`sales`, `sale_items`, `cash_sessions`, `expenses`, `audit_log`, `branches`, `profiles`, `products`) sin modificar la lógica actual de ventas, caja, inventario ni pedidos.
+## Diagnóstico actual
 
-## 1. Estructura de navegación
+- `supervisor.tsx` y `supervisor-client.ts` mantienen consultas paralelas (a través del RPC `supervisor_dashboard_rpc`) con fórmulas propias que no coinciden con las del Dashboard Administrador.
+- `paymentBreakdown`, cálculo de "efectivo esperado" y "Top de productos" están duplicados y desincronizados.
+- El Supervisor no consume `dashboard.tsx`, `reportes.cajas.tsx`, `reportes.cajas_.$id.tsx`, ni las funciones de `reports.ts` / `cash-report.functions.ts` que usa el Administrador.
+- No hay selector de fecha (hoy / ayer / personalizada), no hay historial ni detalle de cierre.
 
-En el sidebar aparece un nuevo grupo **REPORTES** (icono BarChart3) con:
+## Plan de implementación
 
-- Resumen Financiero → `/reportes/resumen`
-- Ventas y Analíticas → `/reportes/ventas`
-- Historial y Cajas → `/reportes/cajas`
-- Auditorías → `/reportes/auditoria` (ruta actual `/auditoria` se reexporta aquí, manteniendo el archivo original por compatibilidad y agregando alias en el menú).
+### A. Extraer lógica compartida a un servicio central
 
-Permisos (`role_permissions.route_key`):
-- `reportes` (raíz), `reportes/resumen`, `reportes/ventas`, `reportes/cajas`, `reportes/auditoria`.
-- Admin: acceso total. Cajero: solo sus propios cierres (filtrado por `cash_sessions.opened_by/closed_by = auth.uid()`). Otros roles: sin acceso salvo que el admin lo habilite.
+Crear `src/lib/shift-metrics.ts` (o reutilizar/extender `src/lib/reports.ts` y `cash-report.functions.ts`) con **una sola** implementación de:
 
-## 2. Resumen Financiero (`/reportes/resumen`)
+- `getShiftSummary(branchId, date | sessionId)` → ventas totales, pedidos, ticket, cancelados, tipos de servicio, top productos (solo producto principal), estado de caja, cajero, hora apertura.
+- `getPaymentBreakdown(sales)` → desglose Efectivo / Nequi / Bancolombia / Otros digitales, con pagos mixtos correctamente distribuidos (sin "SPLIT/SPLITS").
+- `getCashBalance(session, movements)` → apertura + ventas efectivo + entradas − gastos efectivo − salidas − retiros − devoluciones efectivo.
+- `getMovements(sessionId)` → gastos, retiros, entradas, depósitos, devoluciones, reembolsos, con detalle por movimiento.
+- `getRealtimeShiftState(branchId)` → mesas ocupadas, para‑llevar pendientes, domicilios pendientes, pedidos en preparación.
 
-Panel con KPIs consolidados por sede/rango/usuario/caja/turno:
+El Dashboard Administrador y todos los reportes deben migrarse para consumir estas mismas funciones (eliminando duplicados en `dashboard.tsx`, `reportes.*`, `caja.tsx`).
 
-- Ventas totales, # transacciones, ticket promedio.
-- Ingresos, Gastos, Entradas, Salidas, Retiros.
-- Propinas (`sales.tip_amount`), Cortesías (items con `is_courtesy` o `discount = total`).
-- Saldo neto = Ventas − Gastos − Devoluciones − Reembolsos + Entradas − Salidas.
-- Efectivo esperado, Valor declarado, Diferencia (agregados desde `cash_sessions`).
+### B. Rediseñar el módulo Supervisor
 
-Filtros: rango de fechas (con presets Hoy / Ayer / 7d / Mes), sede, usuario, caja/turno.
-Tarjetas modernas con gradient sky→emerald, iconografía Lucide y contadores animados.
+Reescribir `src/routes/supervisor.tsx` como un shell con tabs, consumiendo exclusivamente el servicio central:
 
-## 3. Ventas y Analíticas (`/reportes/ventas`)
+```
+┌──────────────────────────────────────────────────────┐
+│ [GOLOSO SANTA ▾]     [Hoy] [Ayer] [📅 Fecha]        │
+├──────────────────────────────────────────────────────┤
+│ Tabs: Dashboard │ Historial de Cajas │ Salidas      │
+└──────────────────────────────────────────────────────┘
+```
 
-- Ventas por día (line), por hora (bar).
-- Ventas por sede, usuario, producto, categoría, tipo de servicio, medio de pago (bar/pie).
-- Top y bottom productos, ticket promedio, tendencias, comparativo periodo vs periodo anterior (delta %).
-- Regla clave: usar `sale_items.product_name` únicamente para el producto principal, **excluyendo modificadores**. Se filtra por `parent_item_id IS NULL` (o `is_modifier = false`) y se agrupa por `product_id` para no fragmentar variantes.
+**Tab Dashboard** — reutiliza el mismo componente visual del Administrador (`DashboardView`), con todas las acciones deshabilitadas. Muestra por defecto el turno abierto del día. Si no hay turno abierto: aviso *"No existe un turno activo actualmente en esta sede"* + resumen del día.
 
-Charts con `recharts` (ya instalado). Filtros globales de sede + rango.
+**Tab Historial de Cajas** — reutiliza `reportes.cajas.tsx` en modo lectura, filtrado por la sede seleccionada. Cada fila con botón **Ver detalle** que abre la misma vista `reportes.cajas_.$id.tsx` (Resumen / Productos / Ajustes) en solo lectura.
 
-## 4. Historial y Cajas (`/reportes/cajas`)
+**Tab Salidas** — nueva vista con detalle por movimiento (fecha, hora, usuario, tipo, categoría, descripción, medio, valor, estado, motivo anulación) y totales por categoría.
 
-Tabla con columnas: Sede, Caja, Turno #, Usuario apertura, Fecha/hora apertura, Usuario cierre, Fecha/hora cierre, Estado, Monto inicial, Ventas totales, Valor declarado, Diferencia.
+### C. Selector de fecha y sede
 
-Buscar (texto libre en usuarios/sede), filtros (sede, estado, rango, usuario) y orden por cualquier columna.
+- Selector superior con chips: **Hoy** (default), **Ayer**, y un date-picker para fecha personalizada.
+- Al cambiar sede o fecha: `queryClient.cancelQueries()` + `queryClient.removeQueries({ queryKey: ['supervisor'] })` y re-fetch. Query keys incluyen `branchId` y `date` para evitar mezclas.
 
-Clic en un cierre → `/reportes/cajas/$id` (detalle).
+### D. Tiempo real
 
-## 5. Detalle de cierre (`/reportes/cajas/$id`)
+Suscripción única Supabase Realtime a `sales`, `sale_items`, `cash_sessions`, `cash_deposits`, `expenses`, `restaurant_tables`, `table_events`. Cada evento dispara `queryClient.invalidateQueries({ queryKey: ['supervisor', branchId] })`. Botón *Actualizar* como respaldo.
 
-Componente con pestañas (`Tabs` shadcn):
+### E. Solo lectura (frontend + backend)
 
-1. **Resumen** — # pedidos, ventas totales, ticket promedio, cancelados, cortesías, propinas, duración, usuarios apertura/cierre.
-2. **Medios de pago** — Efectivo / Nequi / Bancolombia / Tarjeta / Transferencia / Otros. Valor + # transacciones + totales.
-3. **Declarado** — declarado por método vs esperado, con delta por método.
-4. **Tipo de servicio** — Mesa / Llevar / Domicilio / Online / Kiosko: # pedidos y valor.
-5. **Balance efectivo** — Apertura + Ventas efectivo + Entradas − Salidas − Gastos − Retiros − Devoluciones = **Efectivo esperado**.
-6. **Productos** — nombre, cantidad, total. Solo producto principal, agrupado por `product_id`, ordenado desc por cantidad. Totales al pie.
-7. **Ajustes** — Entradas, Salidas, Gastos, Devoluciones, Reembolsos con fecha/hora/usuario/motivo/valor + subtotales.
+- Frontend: el shell Supervisor no monta ninguna acción de escritura; los componentes reutilizados se renderizan con prop `readOnly`.
+- Backend: verificar que las RLS ya bloquean escritura al rol supervisor (revisar y ajustar migración si falta).
 
-Al final del detalle: tres tarjetas grandes → **Valor esperado / Valor declarado / Diferencia** con semáforo (🟢 cuadró | 🟠 sobrante | 🔴 faltante).
+### F. Pagos mixtos
 
-Botón **Descargar PDF** (icono Download) que genera vía `jsPDF + jspdf-autotable` un PDF con: logo Goloso, sede, turno #, usuarios, fecha/hora, resumen, ventas, medios de pago, productos, balance, ajustes, valores esperado/declarado/diferencia. Diseño limpio, A4, listo para impresión.
+Corregir `paymentBreakdown` en el servicio central: cuando `payment_details.split === true`, iterar `splits[]` y acumular en su método real. Nunca mostrar "SPLIT" ni "SPLITS" como método.
 
-## 6. Auditorías
+### G. Top de productos
 
-La ruta `/auditoria` existente se mantiene funcional; se agrega ruta espejo `/reportes/auditoria` que renderiza el mismo componente `AuditoriaPage`. El sidebar solo expone la nueva ubicación dentro de REPORTES.
+En el servicio central: agrupar por `product_id` (nombre del producto principal), ignorando modificadores/toppings/observaciones.
 
-## 7. Fuente única de datos
+### H. Formato
 
-Todos los cálculos se derivan de un helper compartido `src/lib/reports.ts` que:
-- Consulta `sales`, `sale_items`, `cash_sessions`, `expenses` de forma consistente.
-- Aplica el filtro anti-modificadores en un solo lugar.
-- Exporta funciones `getShiftSummary(sessionId)`, `getFinancialSummary(filters)`, `getSalesAnalytics(filters)` reutilizadas por Dashboard/Caja/Ventas/Reportes para garantizar coincidencia entre módulos.
+Auditar tarjetas del Supervisor: sin `truncate`, sin `text-ellipsis`, sin abreviaciones de montos. Responsive mobile/tablet/desktop.
 
-## 8. Diseño
+### I. Validación
 
-Tarjetas rounded-2xl, sombras suaves (`shadow-elegant`), gradients corporativos ya definidos, tipografía `font-display` para titulares, responsive grid (`md:grid-cols-2 lg:grid-cols-4`), tablas con `Table` shadcn, gráficos `recharts` con tokens semánticos.
+Después de implementar, comparar manualmente con Playwright: Dashboard Admin vs Supervisor para GOLOSO SANTA y GOLOSO PARQUE, turno abierto y cierre de ayer. Todos los valores deben coincidir.
 
 ## Detalles técnicos
 
-- Rutas nuevas: `src/routes/_authenticated/reportes/route.tsx` (layout con `<Outlet/>`), `resumen.tsx`, `ventas.tsx`, `cajas.tsx`, `cajas.$id.tsx`, `auditoria.tsx`.
-- Sidebar: editar `src/components/app-sidebar.tsx` — nuevo grupo REPORTES; ocultar el enlace suelto a "Auditoría" dentro de Administración.
-- Permisos: migración SQL agregando `route_key` `reportes*` a `role_permissions` (admin habilitado por defecto).
-- Helper: `src/lib/reports.ts` con tipos + queries.
-- PDF: `src/lib/shift-pdf.ts` usando `jspdf` y `jspdf-autotable` (verificar/instalar).
-- Charts: `recharts` (ya en `package.json`).
-- Data: no se cambian esquemas de negocio; solo se consultan tablas existentes. Si falta alguna columna (p.ej. `is_courtesy`), se derivará (`discount >= subtotal`).
+- Archivos nuevos: `src/lib/shift-metrics.ts`, `src/lib/shift-metrics.functions.ts`, `src/components/supervisor/*` (shell, tabs, selector).
+- Archivos reescritos: `src/routes/supervisor.tsx`, `src/lib/supervisor-client.ts` (eliminado o reducido a re-export), `src/lib/supervisor.functions.ts`.
+- Migración SQL: eliminar/dejar en desuso `supervisor_dashboard_rpc`; añadir RLS de solo lectura para rol supervisor si no existen.
+- Refactor de `dashboard.tsx`, `reportes.cajas.tsx`, `reportes.cajas_.$id.tsx`, `caja.tsx` para consumir el mismo servicio central (sin cambios visuales).
 
-## Fuera de alcance
+## Alcance y riesgo
 
-- No se rediseña Caja ni Dashboard actuales (solo se opcionalmente pueden migrar a usar `reports.ts` en un paso posterior).
-- No se toca el flujo de cierre en `caja.tsx`; solo se lee histórico.
+Este es un refactor grande (~2000 LoC tocadas + nuevos componentes + migración SQL). Requiere que el Administrador y todos los reportes migren al servicio central en el mismo cambio para garantizar "una única fuente de verdad". Existe riesgo de regresiones visuales menores en el Dashboard Administrador que se validarán con Playwright.
 
-¿Apruebas para implementar?
+¿Apruebas este rediseño completo, o prefieres que lo divida en fases (primero servicio central + Dashboard Supervisor, luego Historial + Salidas, luego migración del Administrador)?
