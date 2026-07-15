@@ -11,10 +11,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
+import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
 import {
-  fetchCashSessions, fetchSales, fetchExpenses, fetchPurchases, fetchSaleItemsForSales,
+  fetchSales, fetchExpenses, fetchPurchases, fetchSaleItemsForSales,
   type CashSessionRow,
 } from "@/lib/reports";
 import { useAuth } from "@/hooks/use-auth";
@@ -25,6 +26,22 @@ export const Route = createFileRoute("/_authenticated/reportes/cajas")({
   head: () => ({ meta: [{ title: "Historial de Cajas · Reportes" }] }),
   component: CajasPage,
 });
+
+type SessionListItem = {
+  id: string;
+  branch_id: string | null;
+  branch_name: string | null;
+  user_id: string | null;
+  user_name: string | null;
+  opened_at: string;
+  closed_at: string | null;
+  opening_amount: number | null;
+  counted_amount: number | null;
+  expected_amount: number | null;
+  difference: number | null;
+  status: string;
+  sales_total: number;
+};
 
 function CajasPage() {
   const { branches, activeBranchId, setActiveBranchId } = useBranch();
@@ -44,44 +61,35 @@ function CajasPage() {
     if (value !== "all") setActiveBranchId(value);
   };
 
-  const filters = useMemo(() => ({
-    branchId: branchId === "all" ? null : branchId,
-    from: from ? new Date(from).toISOString() : undefined,
-    to: to ? new Date(new Date(to).getTime() + 86400000 - 1).toISOString() : undefined,
-    userId: isAdmin ? null : (user?.id ?? null),
-  }), [branchId, from, to, isAdmin, user?.id]);
+  const rpcParams = useMemo(() => ({
+    _branch_id: branchId === "all" ? null : branchId,
+    _from: from ? new Date(from).toISOString() : null,
+    _to: to ? new Date(new Date(to).getTime() + 86400000 - 1).toISOString() : null,
+    _status: status === "all" ? null : status,
+  }), [branchId, from, to, status]);
 
   const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ["reportes.cajas", filters],
-    queryFn: () => fetchCashSessions(filters),
+    queryKey: ["reportes.cajas.rpc", rpcParams],
+    queryFn: async () => {
+      const { data, error } = await supabase.rpc("admin_cash_sessions_list_rpc", rpcParams as never);
+      if (error) throw error;
+      return (data ?? []) as unknown as SessionListItem[];
+    },
   });
 
-  const { data: allSales = [] } = useQuery({
-    queryKey: ["reportes.cajas.sales", filters],
-    queryFn: () => fetchSales({ branchId: filters.branchId, from: filters.from, to: filters.to }),
-    enabled: sessions.length > 0,
-  });
-  const salesBySession = useMemo(() => {
-    const map = new Map<string, number>();
-    for (const s of allSales) {
-      if (s.status === "cancelled" || !s.cash_session_id) continue;
-      map.set(s.cash_session_id, (map.get(s.cash_session_id) ?? 0) + Number(s.total ?? 0));
-    }
-    return map;
-  }, [allSales]);
-
-  const branchName = (id: string | null) => branches.find((b) => b.id === id)?.name ?? "—";
-
-  const filtered = useMemo(() => {
+  const visibleSessions = useMemo(() => {
+    const uid = user?.id ?? null;
     return sessions.filter((s) => {
-      if (status !== "all" && s.status !== status) return false;
+      if (!isAdmin && uid && s.user_id !== uid) return false;
       if (search) {
-        const hay = `${s.user_name ?? ""} ${branchName(s.branch_id)}`.toLowerCase();
+        const hay = `${s.user_name ?? ""} ${s.branch_name ?? ""}`.toLowerCase();
         if (!hay.includes(search.toLowerCase())) return false;
       }
       return true;
     });
-  }, [sessions, status, search, branches]);
+  }, [sessions, search, isAdmin, user?.id]);
+
+  const branchName = (id: string | null) => branches.find((b) => b.id === id)?.name ?? "—";
 
   return (
     <div className="mx-auto max-w-2xl space-y-5 pb-10">
@@ -143,15 +151,14 @@ function CajasPage() {
       {/* Lista */}
       <div className="space-y-4">
         {isLoading && <Card><CardContent className="py-8 text-center text-muted-foreground">Cargando…</CardContent></Card>}
-        {!isLoading && filtered.length === 0 && (
+        {!isLoading && visibleSessions.length === 0 && (
           <Card><CardContent className="py-8 text-center text-muted-foreground">Sin cierres para los filtros.</CardContent></Card>
         )}
-        {filtered.map((s) => (
+        {visibleSessions.map((s) => (
           <SessionCard
             key={s.id}
             session={s}
-            branchName={branchName(s.branch_id)}
-            salesTotal={salesBySession.get(s.id) ?? 0}
+            branchName={s.branch_name ?? branchName(s.branch_id)}
           />
         ))}
       </div>
@@ -160,16 +167,17 @@ function CajasPage() {
 }
 
 function SessionCard({
-  session, branchName, salesTotal,
-}: { session: CashSessionRow; branchName: string; salesTotal: number }) {
+  session, branchName,
+}: { session: SessionListItem; branchName: string }) {
   const [downloading, setDownloading] = useState(false);
   const diff = Number(session.difference ?? 0);
   const finalAmount = Number(session.counted_amount ?? 0);
+  const salesTotal = Number(session.sales_total ?? 0);
 
   async function handlePdf() {
     setDownloading(true);
     try {
-      // Cargar datos on-demand para PDF
+      // Datos crudos on-demand SOLO para el PDF
       const [sales, expenses, purchases] = await Promise.all([
         fetchSales({ cashSessionId: session.id }),
         fetchExpenses({ cashSessionId: session.id }),
@@ -177,8 +185,16 @@ function SessionCard({
       ]);
       const ids = sales.filter((x) => x.status !== "cancelled").map((x) => x.id);
       const items = ids.length ? await fetchSaleItemsForSales(ids) : [];
+      // shift-pdf espera CashSessionRow con todos los campos
+      const fullSession = {
+        ...session,
+        nequi_counted: null,
+        bancolombia_counted: null,
+        opening_notes: null,
+        closing_notes: null,
+      } as unknown as CashSessionRow;
       await downloadShiftPdf({
-        session, branchName,
+        session: fullSession, branchName,
         turnNumber: session.id.slice(0, 3).toUpperCase(),
         sales, items, expenses, purchases,
       });
