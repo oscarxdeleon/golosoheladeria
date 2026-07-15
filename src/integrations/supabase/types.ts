@@ -2787,6 +2787,7 @@ export type Database = {
       supervisor_dashboard_rpc: {
         Args: {
           _branch_id?: string
+          _date?: string
           _log_switch?: boolean
           _session_token: string
         }

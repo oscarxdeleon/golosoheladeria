@@ -188,11 +188,13 @@ export async function supervisorDashboard(data: {
   session_token: string;
   branch_id?: string | null;
   log_switch?: boolean;
+  date?: string | null; // YYYY-MM-DD in Bogota; null = today
 }): Promise<SupervisorDashboardData> {
   const res = await rpcClient.rpc<SupervisorDashboardData>("supervisor_dashboard_rpc", {
     _session_token: data.session_token,
     _branch_id: data.branch_id ?? null,
     _log_switch: data.log_switch ?? false,
+    _date: data.date ?? null,
   });
   throwIfError(res.error);
   if (!res.data) throw new Error("No se pudo cargar el tablero supervisor");
