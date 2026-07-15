@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -10,6 +11,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
+import { useAuth } from "@/hooks/use-auth";
+import { getSharedDashboardPayload } from "@/lib/dashboard.functions";
 import {
   DollarSign, ShoppingBag, Target, TrendingUp, Calendar, Globe, CreditCard,
   Package, Clock, Lightbulb, Sparkles,
@@ -61,14 +64,40 @@ function rangeFor(r: Range) {
 }
 
 function DashboardPage() {
+  const queryClient = useQueryClient();
+  const dashboardPayload = useServerFn(getSharedDashboardPayload);
+  const { user, loading: authLoading, rolesLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
   const [range, setRange] = useState<Range>("hoy");
   const [origen, setOrigen] = useState<string>("all");
   const [pago, setPago] = useState<string>("all");
 
+  useEffect(() => {
+    if (!activeBranchId) return;
+    const invalidateDashboard = () => {
+      void queryClient.invalidateQueries({ queryKey: ["dashboard-shared"] });
+    };
+    const channel = supabase
+      .channel(`dashboard-shared-sync-${activeBranchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
+      .subscribe();
+
+    return () => {
+      void supabase.removeChannel(channel);
+    };
+  }, [activeBranchId, queryClient]);
+
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-shared", activeBranchId, range, origen, pago],
-    enabled: !!activeBranchId,
+    queryKey: ["dashboard-shared", user?.id ?? "anon", activeBranchId, range, origen, pago],
+    enabled: !authLoading && !rolesLoading && !!user?.id && !!activeBranchId,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: "always",
+    refetchOnReconnect: "always",
     refetchInterval: 30_000,
     queryFn: async (): Promise<{
       total: number; txs: number; avg: number; gastos: number; utilidad: number; qtyVendida: number;
@@ -79,13 +108,10 @@ function DashboardPage() {
       valleys: number[];
       realCash: { efectivo: number; nequi: number; bancolombia: number; efectivoEsperado: number; nequiEsperado: number; bancolombiaEsperado: number; diferenciaEfectivo: number; diferenciaNequi: number; diferenciaBanco: number; cajasCerradas: number };
     }> => {
-      const { data: raw, error } = await (supabase as unknown as {
-        rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
-      }).rpc("admin_dashboard_rpc", {
-        _branch_id: activeBranchId, _range: range, _origen: origen, _pago: pago,
+      const raw = await dashboardPayload({
+        data: { branchId: activeBranchId!, range, origen, pago },
       });
-      if (error) throw new Error(error.message);
-      const p = raw ?? {};
+      const p = (raw ?? {}) as any;
 
       const hourlyArr: { hour: number; total: number }[] = Array.isArray(p.hourly) ? p.hourly : [];
       const hourly = Array.from({ length: 24 }, (_, h) => ({
