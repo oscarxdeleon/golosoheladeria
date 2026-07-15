@@ -130,3 +130,75 @@ export function humanReason(status: ChannelStatus, channel: ScheduleChannel): st
 }
 
 export { DEFAULT_DAY };
+
+/** Devuelve el DayKey correspondiente a una fecha (en zona Bogotá). */
+export function dayKeyForDate(date: Date): DayKey {
+  const wk = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Bogota",
+    weekday: "short",
+  }).format(date).toLowerCase();
+  const map: Record<string, DayKey> = {
+    sun: "dom", mon: "lun", tue: "mar", wed: "mie", thu: "jue", fri: "vie", sat: "sab",
+  };
+  return map[wk] ?? "lun";
+}
+
+/** yyyy-mm-dd en zona Bogotá. */
+export function toBogotaDateStr(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Bogota",
+    year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(date);
+  const y = parts.find(p => p.type === "year")?.value ?? "1970";
+  const m = parts.find(p => p.type === "month")?.value ?? "01";
+  const d = parts.find(p => p.type === "day")?.value ?? "01";
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Convierte "YYYY-MM-DD" + "HH:MM" (interpretados en Bogotá, UTC-05, sin DST)
+ * a una fecha absoluta (ISO/Date en UTC).
+ */
+export function bogotaDateTimeToUTC(dateStr: string, hhmm: string): Date {
+  return new Date(`${dateStr}T${hhmm}:00-05:00`);
+}
+
+/**
+ * Genera franjas horarias disponibles para un canal, en un día concreto.
+ * - stepMinutes: separación entre franjas (default 30).
+ * - minLeadMinutes: tiempo mínimo de preparación respecto a "now" (default 45).
+ * - lastSlotBeforeCloseMinutes: cuánto antes del cierre se corta (default 30).
+ */
+export function getAvailableSlots(
+  schedules: BranchSchedules,
+  channel: ScheduleChannel,
+  dateStr: string,
+  opts: { now?: Date; stepMinutes?: number; minLeadMinutes?: number; lastSlotBeforeCloseMinutes?: number } = {},
+): string[] {
+  const step = opts.stepMinutes ?? 30;
+  const lead = opts.minLeadMinutes ?? 45;
+  const tail = opts.lastSlotBeforeCloseMinutes ?? 30;
+  const now = opts.now ?? new Date();
+
+  const s = normalizeSchedules(schedules);
+  // "YYYY-MM-DD" -> día de la semana en Bogotá:
+  const probe = bogotaDateTimeToUTC(dateStr, "12:00");
+  const day = dayKeyForDate(probe);
+  const cfg = s[channel][day];
+  if (!cfg || !cfg.open) return [];
+
+  const from = toMinutes(cfg.from);
+  const to = toMinutes(cfg.to) - tail;
+  if (to <= from) return [];
+
+  const todayStr = toBogotaDateStr(now);
+  const nowMinutes = todayStr === dateStr ? bogotaParts(now).minutes + lead : -1;
+
+  const out: string[] = [];
+  for (let m = from; m <= to; m += step) {
+    if (m < nowMinutes) continue;
+    out.push(`${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`);
+  }
+  return out;
+}
+
