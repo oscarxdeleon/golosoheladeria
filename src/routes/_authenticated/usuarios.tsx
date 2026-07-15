@@ -261,16 +261,18 @@ function UserForm({
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const isSupervisor = role === "supervisor";
+
   async function handleSave() {
     if (!full_name.trim()) return toast.error("El nombre es obligatorio");
     if (!isEdit) {
       if (!email.trim()) return toast.error("El correo es obligatorio");
       if (password.length < 6) return toast.error("La contraseña debe tener mínimo 6 caracteres");
     }
-    if (!branch_id) return toast.error("Debes asignar una sede");
+    if (!isSupervisor && !branch_id) return toast.error("Debes asignar una sede");
     setSaving(true);
     try {
-      await onSubmit({ full_name: full_name.trim(), email: email.trim(), password, role, branch_id, active });
+      await onSubmit({ full_name: full_name.trim(), email: email.trim(), password, role, branch_id: isSupervisor ? null : branch_id, active });
     } finally {
       setSaving(false);
     }
