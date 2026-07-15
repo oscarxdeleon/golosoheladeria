@@ -243,7 +243,21 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => load(branchId)} disabled={loading}>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-10 gap-2 font-semibold", !isToday && "border-primary text-primary")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {isToday ? "Hoy" : format(selectedDate, "d MMM yyyy", { locale: es })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar mode="single" selected={selectedDate} onSelect={pickDate} initialFocus locale={es} disabled={(d) => d > new Date()} className={cn("p-3 pointer-events-auto")} />
+                {!isToday && (
+                  <div className="p-2 border-t"><Button size="sm" variant="ghost" className="w-full" onClick={() => pickDate(new Date())}>Volver a hoy</Button></div>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="sm" onClick={() => load(branchId, isToday ? null : selectedStr)} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
             </Button>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
