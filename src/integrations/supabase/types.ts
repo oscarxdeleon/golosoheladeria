@@ -2475,6 +2475,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assert_current_user_is_admin: { Args: never; Returns: string }
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
       cancel_sale: {
         Args: { _reason: string; _sale_id: string }
@@ -2559,10 +2560,19 @@ export type Database = {
         }
       }
       create_public_order: { Args: { _payload: Json }; Returns: Json }
+      create_supervisor_account_rpc: {
+        Args: { _display_name: string; _pin: string }
+        Returns: {
+          access_token: string
+          id: string
+          username: string
+        }[]
+      }
       create_waiter_call: {
         Args: { _reason?: string; _table_id: string }
         Returns: Json
       }
+      delete_supervisor_account_rpc: { Args: { _id: string }; Returns: Json }
       get_active_cash_session: {
         Args: { _branch_id?: string }
         Returns: {
@@ -2618,6 +2628,38 @@ export type Database = {
         Returns: undefined
       }
       kds_public_pending: { Args: { p_slug: string }; Returns: Json }
+      list_supervisor_accounts_rpc: {
+        Args: never
+        Returns: {
+          access_token: string
+          active: boolean
+          created_at: string
+          display_name: string
+          id: string
+          last_login_at: string
+          locked_until: string
+          username: string
+        }[]
+      }
+      list_supervisor_audit_rpc: {
+        Args: never
+        Returns: {
+          account_id: string | null
+          created_at: string
+          detail: Json | null
+          event: string
+          id: string
+          ip: string | null
+          user_agent: string | null
+          username: string | null
+        }[]
+        SetofOptions: {
+          from: "*"
+          to: "supervisor_audit_log"
+          isOneToOne: false
+          isSetofReturn: true
+        }
+      }
       log_failed_login: {
         Args: {
           _email: string
@@ -2720,6 +2762,14 @@ export type Database = {
         Args: { _items: Json; _sale_id: string }
         Returns: Json
       }
+      require_supervisor_session_rpc: {
+        Args: { _session_token: string }
+        Returns: {
+          account_id: string
+          display_name: string
+          username: string
+        }[]
+      }
       resync_product_from_parent: {
         Args: { _child_id: string }
         Returns: undefined
@@ -2730,6 +2780,35 @@ export type Database = {
         Args: { _principal_id: string; _reason?: string }
         Returns: Json
       }
+      supervisor_dashboard_rpc: {
+        Args: {
+          _branch_id?: string
+          _log_switch?: boolean
+          _session_token: string
+        }
+        Returns: Json
+      }
+      supervisor_hash_pin: {
+        Args: { _pin: string; _salt: string }
+        Returns: string
+      }
+      supervisor_login_rpc: {
+        Args: {
+          _display_name?: string
+          _pin?: string
+          _token?: string
+          _user_agent?: string
+          _username?: string
+        }
+        Returns: {
+          display_name: string
+          expires_at: string
+          session_token: string
+          username: string
+        }[]
+      }
+      supervisor_logout_rpc: { Args: { _session_token: string }; Returns: Json }
+      supervisor_slug: { Args: { _value: string }; Returns: string }
       sync_active_cash_session: {
         Args: { _branch_id?: string; _user_name?: string }
         Returns: {
@@ -2779,6 +2858,16 @@ export type Database = {
         }[]
       }
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
+      update_supervisor_account_rpc: {
+        Args: {
+          _active?: boolean
+          _display_name?: string
+          _id: string
+          _pin?: string
+          _regenerate_token?: boolean
+        }
+        Returns: Json
+      }
     }
     Enums: {
       app_role: "admin" | "cajero" | "mesero" | "domiciliario"

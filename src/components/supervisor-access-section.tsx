@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -17,19 +16,16 @@ import {
   updateSupervisorAccount,
   deleteSupervisorAccount,
 } from "@/lib/supervisor.functions";
+} from "@/lib/supervisor-client";
 
 type Acct = Awaited<ReturnType<typeof listSupervisorAccounts>>[number];
 
 export function SupervisorAccessSection() {
   const qc = useQueryClient();
-  const listFn = useServerFn(listSupervisorAccounts);
-  const createFn = useServerFn(createSupervisorAccount);
-  const updateFn = useServerFn(updateSupervisorAccount);
-  const delFn = useServerFn(deleteSupervisorAccount);
 
   const { data = [], isLoading } = useQuery({
     queryKey: ["supervisor-accounts"],
-    queryFn: () => listFn(),
+    queryFn: () => listSupervisorAccounts(),
   });
 
   const [open, setOpen] = useState(false);
@@ -48,20 +44,20 @@ export function SupervisorAccessSection() {
   }
 
   async function toggleActive(a: Acct) {
-    await updateFn({ data: { id: a.id, active: !a.active } });
+    await updateSupervisorAccount({ id: a.id, active: !a.active });
     qc.invalidateQueries({ queryKey: ["supervisor-accounts"] });
   }
 
   async function regenerate(a: Acct) {
     if (!confirm("Se generará un nuevo enlace y las sesiones activas se cerrarán. ¿Continuar?")) return;
-    await updateFn({ data: { id: a.id, regenerate_token: true } });
+    await updateSupervisorAccount({ id: a.id, regenerate_token: true });
     toast.success("Enlace regenerado");
     qc.invalidateQueries({ queryKey: ["supervisor-accounts"] });
   }
 
   async function remove(a: Acct) {
     if (!confirm(`¿Eliminar el acceso supervisor "${a.display_name}"?`)) return;
-    await delFn({ data: { id: a.id } });
+    await deleteSupervisorAccount({ id: a.id });
     toast.success("Acceso eliminado");
     qc.invalidateQueries({ queryKey: ["supervisor-accounts"] });
   }
@@ -88,10 +84,10 @@ export function SupervisorAccessSection() {
             onSubmit={async (p) => {
               try {
                 if (editing) {
-                  await updateFn({ data: { id: editing.id, display_name: p.display_name, pin: p.pin || undefined } });
+                  await updateSupervisorAccount({ id: editing.id, display_name: p.display_name, pin: p.pin || undefined });
                   toast.success("Actualizado");
                 } else {
-                  await createFn({ data: { display_name: p.display_name, pin: p.pin } });
+                  await createSupervisorAccount({ display_name: p.display_name, pin: p.pin });
                   toast.success("Acceso creado");
                 }
                 qc.invalidateQueries({ queryKey: ["supervisor-accounts"] });
