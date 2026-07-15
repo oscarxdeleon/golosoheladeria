@@ -78,6 +78,20 @@ export interface ExpenseRow {
   created_at: string;
 }
 
+export interface PurchaseRow {
+  id: string;
+  branch_id: string | null;
+  cash_session_id: string | null;
+  user_id: string | null;
+  user_name: string | null;
+  supplier: string | null;
+  invoice_number: string | null;
+  payment_method: string | null;
+  total: number;
+  notes: string | null;
+  created_at: string;
+}
+
 // ----------- Fetchers -----------
 
 function applyDateFilters<T extends { gte: (...a: unknown[]) => T; lte: (...a: unknown[]) => T }>(
@@ -137,6 +151,17 @@ export async function fetchExpenses(f: ReportFilters): Promise<ExpenseRow[]> {
   const { data, error } = await q.limit(2000);
   if (error) throw error;
   return (data ?? []) as ExpenseRow[];
+}
+
+export async function fetchPurchases(f: ReportFilters): Promise<PurchaseRow[]> {
+  let q = supabase.from("purchases").select("*").order("created_at", { ascending: false });
+  if (f.branchId) q = q.eq("branch_id", f.branchId);
+  if (f.userId) q = q.eq("user_id", f.userId);
+  if (f.cashSessionId) q = q.eq("cash_session_id", f.cashSessionId);
+  q = applyDateFilters(q, "created_at", f);
+  const { data, error } = await q.limit(2000);
+  if (error) throw error;
+  return (data ?? []) as PurchaseRow[];
 }
 
 // ----------- Derived helpers -----------
@@ -244,6 +269,7 @@ export function computeFinancialSummary(
   sales: SaleRow[],
   expenses: ExpenseRow[],
   cashSessions: CashSessionRow[],
+  purchases: PurchaseRow[] = [],
 ): FinancialSummary {
   const activeSales = sales.filter((s) => s.status !== "cancelled");
   const cancelledSales = sales.filter((s) => s.status === "cancelled");
@@ -262,6 +288,7 @@ export function computeFinancialSummary(
     else if (CATEGORY_REFUND.has(cat)) refunds += Number(e.amount) || 0;
     else expensesAmt += Number(e.amount) || 0;
   }
+  const purchasesAmt = purchases.reduce((a, p) => a + (Number(p.total) || 0), 0);
 
   const cashExpected = cashSessions.reduce((a, c) => a + (Number(c.expected_amount) || 0), 0);
   const declared = cashSessions.reduce((a, c) => a + (Number(c.counted_amount) || 0), 0);
@@ -273,7 +300,7 @@ export function computeFinancialSummary(
     averageTicket: transactions > 0 ? salesTotal / transactions : 0,
     income,
     entries,
-    expenses: expensesAmt,
+    expenses: expensesAmt + purchasesAmt,
     exits,
     withdrawals,
     refunds,
@@ -281,7 +308,7 @@ export function computeFinancialSummary(
     courtesies: 0,
     cancelled: cancelledSales.length,
     cancelledValue: cancelledSales.reduce((a, s) => a + (Number(s.total) || 0), 0),
-    netBalance: salesTotal - expensesAmt - refunds + entries - exits,
+    netBalance: salesTotal - expensesAmt - purchasesAmt - refunds + entries - exits,
     cashExpected,
     declared,
     difference,

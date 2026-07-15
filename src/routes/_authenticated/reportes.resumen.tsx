@@ -13,7 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
 import {
-  fetchSales, fetchExpenses, fetchCashSessions, computeFinancialSummary,
+  fetchSales, fetchExpenses, fetchPurchases, fetchCashSessions, computeFinancialSummary,
 } from "@/lib/reports";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -77,6 +77,10 @@ function ResumenPage() {
     queryKey: ["reportes.expenses", filters],
     queryFn: () => fetchExpenses(filters),
   });
+  const { data: purchases = [] } = useQuery({
+    queryKey: ["reportes.purchases", filters],
+    queryFn: () => fetchPurchases(filters),
+  });
   const { data: sessions = [] } = useQuery({
     queryKey: ["reportes.sessions", filters],
     queryFn: () => fetchCashSessions(filters),
@@ -97,7 +101,7 @@ function ResumenPage() {
     },
   });
 
-  const summary = useMemo(() => computeFinancialSummary(sales, expenses, sessions), [sales, expenses, sessions]);
+  const summary = useMemo(() => computeFinancialSummary(sales, expenses, sessions, purchases), [sales, expenses, sessions, purchases]);
 
   const kpis: { label: string; value: string; icon: React.ElementType; gradient: string }[] = [
     { label: "Ventas totales", value: formatMoney(summary.salesTotal), icon: DollarSign, gradient: "from-emerald-500 to-teal-500" },

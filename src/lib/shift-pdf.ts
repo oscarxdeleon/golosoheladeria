@@ -4,6 +4,7 @@ import { formatMoney } from "@/lib/format";
 import type {
   CashSessionRow,
   ExpenseRow,
+  PurchaseRow,
   SaleRow,
   SaleItemRow,
 } from "@/lib/reports";
@@ -38,10 +39,11 @@ export interface ShiftPdfInput {
   sales: SaleRow[];
   items: SaleItemRow[];
   expenses: ExpenseRow[];
+  purchases?: PurchaseRow[];
 }
 
 export async function downloadShiftPdf(input: ShiftPdfInput): Promise<void> {
-  const { session, branchName, turnNumber, sales, items, expenses } = input;
+  const { session, branchName, turnNumber, sales, items, expenses, purchases = [] } = input;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const logo = await loadLogo();
 
@@ -74,7 +76,7 @@ export async function downloadShiftPdf(input: ShiftPdfInput): Promise<void> {
     yTop + 14,
   );
 
-  const summary = computeFinancialSummary(sales, expenses, [session]);
+  const summary = computeFinancialSummary(sales, expenses, [session], purchases);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
   // Cargar catálogo de modificadores para excluirlos del listado de productos
@@ -123,12 +125,17 @@ export async function downloadShiftPdf(input: ShiftPdfInput): Promise<void> {
 
   // Balance efectivo
   const cashSalesRow = payments["efectivo"] ?? { amount: 0, count: 0 };
-  const entriesAmt = summary.entries;
-  const exitsAmt = summary.exits;
-  const expensesAmt = summary.expenses;
-  const refundsAmt = summary.refunds;
+  const normalizeMethod = (m: string | null | undefined) => (m ?? "efectivo").toLowerCase().trim();
+  const entriesAmt = 0;
+  const exitsAmt = expenses
+    .filter((e) => normalizeMethod(e.payment_method) === "efectivo" || !e.payment_method)
+    .reduce((a, e) => a + Number(e.amount || 0), 0);
+  const purchasesCashAmt = purchases
+    .filter((p) => normalizeMethod(p.payment_method) === "efectivo" || !p.payment_method)
+    .reduce((a, p) => a + Number(p.total || 0), 0);
   const apertura = Number(session.opening_amount) || 0;
-  const efectivoEsperado = apertura + cashSalesRow.amount + entriesAmt - exitsAmt - expensesAmt - refundsAmt;
+  const efectivoEsperadoCalculado = apertura + cashSalesRow.amount + entriesAmt - exitsAmt - purchasesCashAmt;
+  const expected = Number(session.expected_amount) || efectivoEsperadoCalculado;
 
   autoTable(doc, {
     head: [["Balance de efectivo", "Valor"]],
@@ -137,9 +144,8 @@ export async function downloadShiftPdf(input: ShiftPdfInput): Promise<void> {
       ["+ Ventas en efectivo", formatMoney(cashSalesRow.amount)],
       ["+ Entradas", formatMoney(entriesAmt)],
       ["− Salidas", formatMoney(exitsAmt)],
-      ["− Gastos", formatMoney(expensesAmt)],
-      ["− Devoluciones/Reembolsos", formatMoney(refundsAmt)],
-      ["= Efectivo esperado", formatMoney(efectivoEsperado)],
+      ["− Compras", formatMoney(purchasesCashAmt)],
+      ["= Efectivo esperado", formatMoney(expected)],
     ],
     theme: "grid",
     headStyles: { fillColor: [124, 58, 237] },
@@ -174,7 +180,6 @@ export async function downloadShiftPdf(input: ShiftPdfInput): Promise<void> {
 
   // Comparación final
   const declared = Number(session.counted_amount) || 0;
-  const expected = Number(session.expected_amount) || efectivoEsperado;
   const diff = declared - expected;
   autoTable(doc, {
     head: [["Comparación final", "Valor"]],
