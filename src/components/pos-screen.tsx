@@ -20,6 +20,7 @@ import { useBranch } from "@/contexts/branch-context";
 import { ModifiersModal } from "@/components/modifiers-modal";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
+import { usePhysicalChannelStatus } from "@/hooks/use-branch-schedule";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { SplitBillDialog, type SplitPart } from "@/components/split-bill-dialog";
 import { Split, Smartphone, Building2, Sparkles, Gift, X } from "lucide-react";
