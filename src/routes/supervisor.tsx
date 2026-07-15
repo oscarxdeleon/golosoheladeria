@@ -8,7 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard, Users, Bike, Utensils, ChefHat, ShieldCheck, Eye, ArrowDownLeft, ArrowUpRight, ReceiptText, AlertTriangle } from "lucide-react";
+import { Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard, Users, Bike, Utensils, ChefHat, ShieldCheck, Eye, ArrowDownLeft, ArrowUpRight, ReceiptText, AlertTriangle, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatMoney as formatCurrency } from "@/lib/format";
 
@@ -109,17 +114,31 @@ function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void 
   );
 }
 
+function toBogotaDateStr(d: Date): string {
+  // Format YYYY-MM-DD in America/Bogota
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
+  const y = parts.find(p => p.type === "year")?.value ?? "";
+  const m = parts.find(p => p.type === "month")?.value ?? "";
+  const day = parts.find(p => p.type === "day")?.value ?? "";
+  return `${y}-${m}-${day}`;
+}
+
 function SupervisorDashboard({ session, onLogout }: { session: StoredSession; onLogout: () => void }) {
   const [data, setData] = useState<Awaited<ReturnType<typeof supervisorDashboard>> | null>(null);
   const [branchId, setBranchId] = useState<string | null>(null);
+  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
   const [loading, setLoading] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const load = useCallback(async (bid: string | null, logSwitch = false) => {
+  const todayStr = toBogotaDateStr(new Date());
+  const selectedStr = toBogotaDateStr(selectedDate);
+  const isToday = selectedStr === todayStr;
+
+  const load = useCallback(async (bid: string | null, dateStr: string | null, logSwitch = false) => {
     setLoading(true);
     try {
-      const res = await supervisorDashboard({ session_token: session.session_token, branch_id: bid, log_switch: logSwitch });
+      const res = await supervisorDashboard({ session_token: session.session_token, branch_id: bid, log_switch: logSwitch, date: dateStr });
       setData(res);
       setBranchId(res.active_branch_id);
       setLoadError(null);
@@ -135,17 +154,23 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
     } finally { setLoading(false); }
   }, [session.session_token, onLogout]);
 
-  useEffect(() => { load(null); }, [load]);
+  // Initial + on date change
   useEffect(() => {
-    const int = setInterval(() => load(branchId), 30_000);
-    return () => clearInterval(int);
-  }, [branchId, load]);
+    load(branchId, isToday ? null : selectedStr);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedStr]);
 
   useEffect(() => {
-    if (!branchId) return;
+    if (!isToday) return; // only auto-refresh for today
+    const int = setInterval(() => load(branchId, null), 30_000);
+    return () => clearInterval(int);
+  }, [branchId, load, isToday]);
+
+  useEffect(() => {
+    if (!branchId || !isToday) return;
     const scheduleRefresh = () => {
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(() => load(branchId), 350);
+      refreshTimer.current = setTimeout(() => load(branchId, null), 350);
     };
     const channel = supabase
       .channel(`supervisor-live-${branchId}`)
@@ -162,7 +187,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
       if (refreshTimer.current) clearTimeout(refreshTimer.current);
       void supabase.removeChannel(channel);
     };
-  }, [branchId, load]);
+  }, [branchId, load, isToday]);
 
   async function handleLogout() {
     try { await supervisorLogout({ session_token: session.session_token }); } catch { /* noop */ }
@@ -171,7 +196,17 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
 
   async function switchBranch(id: string) {
     if (id === branchId) return;
-    await load(id, true);
+    // Clear previous branch data to avoid showing stale values while loading
+    setData(null);
+    setBranchId(id);
+    await load(id, isToday ? null : selectedStr, true);
+  }
+
+  function pickDate(d: Date | undefined) {
+    if (!d) return;
+    // Clear data so old values don't linger while new date loads
+    setData(null);
+    setSelectedDate(d);
   }
 
   const s = data?.summary;
@@ -180,7 +215,8 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
     return Object.entries(data.by_hour).sort(([a], [b]) => a.localeCompare(b));
   }, [data]);
   const maxHour = hours.reduce((m, [, v]) => Math.max(m, v), 0) || 1;
-  const scopeTitle = data?.scope?.kind === "active_cash_session" ? "Turno activo" : data?.scope?.kind === "latest_cash_session" ? "Último turno" : "Día actual";
+  const scopeTitle = isToday ? "Hoy" : format(selectedDate, "PPP", { locale: es });
+
 
   return (
     <div className="min-h-screen bg-muted/30">
@@ -207,7 +243,21 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
                 ))}
               </SelectContent>
             </Select>
-            <Button variant="outline" size="sm" onClick={() => load(branchId)} disabled={loading}>
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className={cn("h-10 gap-2 font-semibold", !isToday && "border-primary text-primary")}>
+                  <CalendarIcon className="h-4 w-4" />
+                  {isToday ? "Hoy" : format(selectedDate, "d MMM yyyy", { locale: es })}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar mode="single" selected={selectedDate} onSelect={pickDate} initialFocus locale={es} disabled={(d) => d > new Date()} className={cn("p-3 pointer-events-auto")} />
+                {!isToday && (
+                  <div className="p-2 border-t"><Button size="sm" variant="ghost" className="w-full" onClick={() => pickDate(new Date())}>Volver a hoy</Button></div>
+                )}
+              </PopoverContent>
+            </Popover>
+            <Button variant="outline" size="sm" onClick={() => load(branchId, isToday ? null : selectedStr)} disabled={loading}>
               <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
             </Button>
             <Button variant="ghost" size="sm" onClick={handleLogout}>
@@ -224,7 +274,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
             <CardContent className="p-8 text-center space-y-3">
               <div className="font-semibold">No se pudo cargar la información.</div>
               <div className="text-sm text-muted-foreground">{loadError}</div>
-              <Button variant="outline" onClick={() => load(branchId)} disabled={loading}>
+              <Button variant="outline" onClick={() => load(branchId, isToday ? null : selectedStr)} disabled={loading}>
                 <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Reintentar
               </Button>
             </CardContent>
@@ -233,7 +283,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
         {data && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Kpi icon={TrendingUp} label="Ventas del turno" value={formatCurrency(s?.total_sales ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
+              <Kpi icon={TrendingUp} label={isToday ? "Ventas de hoy" : "Ventas"} value={formatCurrency(s?.total_sales ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
               <Kpi icon={ShoppingBag} label="Pedidos" value={String(s?.order_count ?? 0)} tone="from-sky-500/15 to-sky-500/5 text-sky-700" />
               <Kpi icon={Wallet} label="Ticket promedio" value={formatCurrency(s?.avg_ticket ?? 0)} tone="from-amber-500/15 to-amber-500/5 text-amber-700" />
               <Kpi icon={CreditCard} label="Digital" value={formatCurrency(s?.digital_total ?? 0)} tone="from-violet-500/15 to-violet-500/5 text-violet-700" />
@@ -294,7 +344,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
                   {data.top_products.length === 0 && <div className="text-muted-foreground">Sin datos.</div>}
                   {data.top_products.map((p, i) => (
                     <div key={p.name} className="flex justify-between border-b last:border-0 py-1">
-                      <span className="truncate"><span className="text-muted-foreground mr-2">{i + 1}.</span>{p.name}</span>
+                      <span className="break-words pr-2"><span className="text-muted-foreground mr-2">{i + 1}.</span>{p.name}</span>
                       <span className="font-semibold text-right shrink-0">{p.qty} · {formatCurrency(Number(p.total ?? 0))}</span>
                     </div>
                   ))}
@@ -342,8 +392,8 @@ function Kpi({ icon: Icon, label, value, tone }: { icon: typeof TrendingUp; labe
       <CardContent className="p-4 flex items-start gap-3">
         <div className="rounded-xl bg-background/60 p-2"><Icon className="h-5 w-5" /></div>
         <div className="min-w-0">
-          <div className="text-xs font-medium text-muted-foreground truncate">{label}</div>
-          <div className="text-xl font-bold truncate">{value}</div>
+          <div className="text-xs font-medium text-muted-foreground leading-tight">{label}</div>
+          <div className="text-lg sm:text-xl font-bold break-words leading-tight">{value}</div>
         </div>
       </CardContent>
     </Card>
