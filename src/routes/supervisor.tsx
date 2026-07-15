@@ -344,7 +344,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
                   {data.top_products.length === 0 && <div className="text-muted-foreground">Sin datos.</div>}
                   {data.top_products.map((p, i) => (
                     <div key={p.name} className="flex justify-between border-b last:border-0 py-1">
-                      <span className="truncate"><span className="text-muted-foreground mr-2">{i + 1}.</span>{p.name}</span>
+                      <span className="break-words pr-2"><span className="text-muted-foreground mr-2">{i + 1}.</span>{p.name}</span>
                       <span className="font-semibold text-right shrink-0">{p.qty} · {formatCurrency(Number(p.total ?? 0))}</span>
                     </div>
                   ))}
