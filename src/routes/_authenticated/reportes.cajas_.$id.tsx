@@ -133,7 +133,7 @@ function CajaDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   const { branches, activeBranchId, setActiveBranchId, loading: branchesLoading } = useBranch();
-  const { isAdmin, roles } = useAuth();
+  const { isAdmin, roles, rolesLoading } = useAuth();
   const canSeeAllBranches = isAdmin || roles.includes("supervisor");
   const [downloading, setDownloading] = useState(false);
 
@@ -149,17 +149,18 @@ function CajaDetailPage() {
   const sessionBranchId = detail?.session.branch_id ?? null;
 
   useEffect(() => {
+    if (rolesLoading) return;
     if (canSeeAllBranches) return;
     if (!detail || !activeBranchId || sessionBranchId === activeBranchId) return;
     void navigate({ to: "/reportes/cajas", replace: true });
-  }, [canSeeAllBranches, detail, sessionBranchId, activeBranchId, navigate]);
+  }, [rolesLoading, canSeeAllBranches, detail, sessionBranchId, activeBranchId, navigate]);
 
   const visible = detail && (canSeeAllBranches || sessionBranchId === activeBranchId) ? detail : null;
 
-  if (isLoading || branchesLoading || !detail) {
+  if (isLoading || branchesLoading || rolesLoading || !detail) {
     return (
       <div className="mx-auto max-w-2xl">
-        <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading || branchesLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading || branchesLoading || rolesLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
       </div>
     );
   }
