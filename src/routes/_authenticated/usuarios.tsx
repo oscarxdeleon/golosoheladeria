@@ -204,7 +204,7 @@ function UsuariosPage() {
                         <Badge className={roleMeta.tone}><roleMeta.icon className="h-3 w-3 mr-1" />{roleMeta.label}</Badge>
                       ) : <span className="text-xs text-muted-foreground">Sin rol</span>}
                     </TableCell>
-                    <TableCell className="text-sm">{u.branch_name ?? <span className="text-muted-foreground">—</span>}</TableCell>
+                    <TableCell className="text-sm">{u.role === "supervisor" ? <span className="text-indigo-600 font-medium">Todas las sedes</span> : (u.branch_name ?? <span className="text-muted-foreground">—</span>)}</TableCell>
                     <TableCell>
                       {u.active
                         ? <Badge variant="secondary" className="bg-emerald-100 text-emerald-700">Activo</Badge>
@@ -261,16 +261,18 @@ function UserForm({
   const [saving, setSaving] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
+  const isSupervisor = role === "supervisor";
+
   async function handleSave() {
     if (!full_name.trim()) return toast.error("El nombre es obligatorio");
     if (!isEdit) {
       if (!email.trim()) return toast.error("El correo es obligatorio");
       if (password.length < 6) return toast.error("La contraseña debe tener mínimo 6 caracteres");
     }
-    if (!branch_id) return toast.error("Debes asignar una sede");
+    if (!isSupervisor && !branch_id) return toast.error("Debes asignar una sede");
     setSaving(true);
     try {
-      await onSubmit({ full_name: full_name.trim(), email: email.trim(), password, role, branch_id, active });
+      await onSubmit({ full_name: full_name.trim(), email: email.trim(), password, role, branch_id: isSupervisor ? null : branch_id, active });
     } finally {
       setSaving(false);
     }
@@ -319,15 +321,17 @@ function UserForm({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>Sede asignada *</Label>
-            <Select value={branch_id ?? ""} onValueChange={(v) => setBranchId(v)}>
-              <SelectTrigger><SelectValue placeholder="Selecciona una sede" /></SelectTrigger>
+            <Label>Sede asignada {isSupervisor ? "" : "*"}</Label>
+            <Select value={isSupervisor ? "__all__" : (branch_id ?? "")} onValueChange={(v) => setBranchId(v)} disabled={isSupervisor}>
+              <SelectTrigger><SelectValue placeholder={isSupervisor ? "Todas las sedes" : "Selecciona una sede"} /></SelectTrigger>
               <SelectContent>
+                {isSupervisor && <SelectItem value="__all__">Todas las sedes</SelectItem>}
                 {branches.map((b) => (
                   <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " (Principal)" : ""}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {isSupervisor && <p className="text-xs text-muted-foreground">El Supervisor accede a todas las sedes desde el selector superior.</p>}
           </div>
           <div className="space-y-2">
             <Label>Rol *</Label>
