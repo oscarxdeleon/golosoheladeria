@@ -74,31 +74,6 @@ function DashboardPage() {
 
   useEffect(() => {
     if (!activeBranchId) return;
-    const invalidateDashboard = () => {
-      void queryClient.invalidateQueries({ queryKey: ["dashboard-shared"] });
-      void queryClient.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
-    };
-    const channel = supabase
-      .channel(`dashboard-shared-sync-${activeBranchId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "purchase_items" }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "table_events", filter: `branch_id=eq.${activeBranchId}` }, invalidateDashboard)
-      .on("postgres_changes", { event: "*", schema: "public", table: "products" }, invalidateDashboard)
-      .subscribe();
-
-    return () => {
-      void supabase.removeChannel(channel);
-    };
-  }, [activeBranchId, queryClient]);
-
-  useEffect(() => {
-    if (!activeBranchId) return;
     void queryClient.invalidateQueries({ queryKey: ["dashboard-shared"] });
     void queryClient.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
     void queryClient.invalidateQueries({ queryKey: ["reportes.session.detail"] });

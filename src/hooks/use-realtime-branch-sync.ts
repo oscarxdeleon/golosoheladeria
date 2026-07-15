@@ -27,6 +27,7 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
     const invalidateSales = () => {
       void qc.invalidateQueries({ queryKey: ["sales"] });
       void qc.invalidateQueries({ queryKey: ["dashboard-shared"] });
+      void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
       void qc.invalidateQueries({ queryKey: ["reportes.sales"] });
       void qc.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
       void qc.invalidateQueries({ queryKey: ["reportes.session.detail"] });
@@ -37,6 +38,7 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
     };
     const invalidateMoney = () => {
       void qc.invalidateQueries({ queryKey: ["dashboard-shared"] });
+      void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
       void qc.invalidateQueries({ queryKey: ["reportes.sales"] });
       void qc.invalidateQueries({ queryKey: ["reportes.expenses"] });
       void qc.invalidateQueries({ queryKey: ["reportes.purchases"] });
@@ -109,6 +111,7 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
         () => {
           void qc.invalidateQueries({ queryKey: ["categories"] });
           void qc.invalidateQueries({ queryKey: ["categories-all"] });
+          void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
         },
       )
       .on(
@@ -118,6 +121,8 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
           void qc.invalidateQueries({ queryKey: ["products"] });
           void qc.invalidateQueries({ queryKey: ["products-all"] });
           void qc.invalidateQueries({ queryKey: ["public-products"] });
+          void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
+          void qc.invalidateQueries({ queryKey: ["stats-all"] });
         },
       )
       .subscribe();

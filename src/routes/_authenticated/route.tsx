@@ -36,7 +36,8 @@ function AuthedLayout() {
 function AuthedShell() {
   const { profile, user, roles } = useAuth();
   const { activeBranchId } = useBranch();
-  useRealtimeBranchSync(activeBranchId);
+  const realtimeBranchId = roles.includes("admin") || roles.includes("supervisor") ? activeBranchId : null;
+  useRealtimeBranchSync(realtimeBranchId);
   const roleLabel = roles.includes("admin") ? "Administrador"
     : roles.includes("supervisor") ? "Supervisor"
     : roles.includes("mesero") ? "Mesero"
