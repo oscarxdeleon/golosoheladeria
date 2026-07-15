@@ -50,18 +50,18 @@ function SupervisorPage() {
 
 function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void }) {
   const loginFn = useServerFn(supervisorLogin);
-  const [username, setUsername] = useState("");
+  const [displayName, setDisplayName] = useState("");
   const [pin, setPin] = useState("");
   const [loading, setLoading] = useState(false);
-  // Optional token in URL: /supervisor?t=xxxx
   const token = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("t") ?? undefined : undefined;
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!/^\d{4}$/.test(pin)) return toast.error("El PIN debe tener 4 dígitos");
+    if (!token && !displayName.trim()) return toast.error("Ingresa tu nombre");
     setLoading(true);
     try {
-      const res = await loginFn({ data: { username: username.trim(), pin, token } });
+      const res = await loginFn({ data: { display_name: displayName.trim() || undefined, pin, token } });
       onSuccess(res);
     } catch (err) {
       toast.error((err as Error).message);
@@ -81,8 +81,8 @@ function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void 
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
             <div className="space-y-2">
-              <Label>Nombre de usuario</Label>
-              <Input value={username} onChange={(e) => setUsername(e.target.value)} autoFocus autoComplete="username" />
+              <Label>Nombre</Label>
+              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoFocus placeholder="Ej: Camilo Torres" />
             </div>
             <div className="space-y-2">
               <Label>PIN de 4 dígitos</Label>
@@ -97,7 +97,7 @@ function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void 
                 className="text-center text-2xl tracking-[0.6em] font-mono"
               />
             </div>
-            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading || !username || pin.length !== 4}>
+            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading || pin.length !== 4 || (!token && !displayName.trim())}>
               {loading ? "Verificando…" : "Ingresar"}
             </Button>
             <p className="text-[11px] text-center text-muted-foreground pt-2">
