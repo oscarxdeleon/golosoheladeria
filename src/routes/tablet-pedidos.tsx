@@ -79,19 +79,19 @@ function TabletShell() {
   return (
     <BranchCashGuard allowLogout extraMessage="Tu tablet quedará disponible automáticamente cuando el cajero abra el turno.">
     <div className="flex min-h-screen flex-col bg-background">
-      <header className="sticky top-0 z-20 flex h-16 items-center gap-3 border-b bg-background/95 px-4 backdrop-blur">
-        <img src={logoUrl} alt="Goloso" className="h-10 w-10 object-contain" />
-        <div className="leading-tight">
-          <div className="font-display text-lg">Goloso · Meseros</div>
-          <div className="text-xs text-muted-foreground">Tablet de pedidos</div>
+      <header className="sticky top-0 z-20 flex h-14 md:h-16 items-center gap-2 md:gap-3 border-b bg-background/95 px-2 sm:px-4 backdrop-blur">
+        <img src={logoUrl} alt="Goloso" className="h-8 w-8 md:h-10 md:w-10 object-contain shrink-0" />
+        <div className="leading-tight min-w-0 hidden sm:block">
+          <div className="font-display text-base md:text-lg truncate">Goloso · Meseros</div>
+          <div className="text-[10px] md:text-xs text-muted-foreground truncate">Tablet de pedidos</div>
         </div>
-        <div className="ml-3 flex items-center gap-2">
+        <div className="ml-1 md:ml-3 flex items-center gap-1 md:gap-2 min-w-0">
           <BranchSelector />
           <BranchAutoDetectBadge />
         </div>
-        <div className="ml-auto flex items-center gap-3 text-sm">
-          <div className="text-right leading-tight">
-            <div className="font-medium">{profile?.full_name ?? user?.email}</div>
+        <div className="ml-auto flex items-center gap-2 md:gap-3 text-sm shrink-0">
+          <div className="text-right leading-tight hidden md:block max-w-[160px]">
+            <div className="font-medium truncate">{profile?.full_name ?? user?.email}</div>
             <div className="text-xs text-muted-foreground">Mesero</div>
           </div>
           <Button
@@ -109,7 +109,7 @@ function TabletShell() {
 
       {/* Tabs principales — Mesero solo puede Mesas y Para llevar */}
       {!selected && (
-        <nav className="sticky top-16 z-10 flex gap-1 border-b bg-background/95 px-3 py-2 backdrop-blur">
+        <nav className="sticky top-14 md:top-16 z-10 flex gap-1 border-b bg-background/95 px-2 sm:px-3 py-1.5 md:py-2 backdrop-blur">
           <TabButton active={tab === "mesas"} onClick={() => setTab("mesas")} icon={<Utensils className="h-4 w-4" />}>
             Mesas
           </TabButton>
@@ -120,15 +120,15 @@ function TabletShell() {
       )}
 
       {selected && (
-        <div className="sticky top-16 z-10 flex items-center gap-2 border-b bg-background/95 px-3 py-2 backdrop-blur">
+        <div className="sticky top-14 md:top-16 z-10 flex items-center gap-2 border-b bg-background/95 px-2 sm:px-3 py-1.5 md:py-2 backdrop-blur">
           <Button variant="ghost" size="sm" onClick={backToList}>
             <ArrowLeft className="h-4 w-4 mr-1" /> Volver
           </Button>
-          <span className="text-sm text-muted-foreground">{selected.title ?? "Pedido"}</span>
+          <span className="text-xs md:text-sm text-muted-foreground truncate">{selected.title ?? "Pedido"}</span>
         </div>
       )}
 
-      <main className="flex-1 p-3 md:p-5">
+      <main className="flex-1 p-2 sm:p-3 md:p-5 min-w-0 overflow-x-hidden">
         {!selected ? (
           tab === "mesas" ? (
             <MesasGrid

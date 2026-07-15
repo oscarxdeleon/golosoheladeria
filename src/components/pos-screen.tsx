@@ -1951,7 +1951,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   }
 
   return (
-    <div className="relative grid gap-4 pb-32 lg:grid-cols-[1fr,420px]">
+    <div className="relative grid gap-3 md:gap-4 pb-32 md:grid-cols-[minmax(0,1fr)_340px] xl:grid-cols-[minmax(0,1fr)_420px]">
       {meseroMode && paying && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/70 backdrop-blur-sm">
           <div className="flex flex-col items-center gap-3 rounded-2xl border bg-card px-8 py-6 shadow-2xl">
@@ -1964,7 +1964,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
       {!meseroMode && !openSession && (
-        <div className="lg:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
+        <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
           <span>
             <strong>Caja cerrada.</strong> Debes abrir caja antes de cobrar ventas.
           </span>
@@ -1989,7 +1989,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             <img
               src={headerImage}
               alt={headerImageAlt ?? ""}
-              className="block h-[90px] sm:h-[130px] md:h-[160px] w-auto object-contain select-none shrink-0 mx-auto bg-transparent border-0 shadow-none"
+              className="block h-[70px] sm:h-[100px] md:h-[120px] xl:h-[150px] w-auto object-contain select-none shrink-0 mx-auto bg-transparent border-0 shadow-none"
               draggable={false}
             />
           )}
@@ -2040,7 +2040,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         )}
 
 
-        <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <Tabs value={activeCat} onValueChange={setActiveCat} className={`sticky ${meseroMode ? "top-[6.25rem] md:top-28" : "top-14"} z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70`}>
           <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent">
             <TabsTrigger
               value="all"
@@ -2135,8 +2135,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
       </div>
 
-      <Card className="h-fit lg:sticky lg:top-20">
-        <CardContent className="p-4 space-y-3">
+      <Card className="h-fit md:sticky md:top-4">
+        <CardContent className="p-3 md:p-4 space-y-3">
           <div className="flex items-center gap-2">
             <ShoppingCart className="h-5 w-5" />
             <h2 className="font-display text-xl">Pedido</h2>
