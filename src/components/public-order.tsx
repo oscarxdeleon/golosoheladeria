@@ -278,7 +278,7 @@ export function PublicOrder({
       if (!branchSlug) {
         const { data } = await supabase
           .from("branches")
-          .select("id,name,slug,phone,address,nit,logo_url")
+          .select("id,name,slug,phone,address,nit,logo_url,schedules")
           .eq("is_main", true)
           .order("created_at")
           .limit(1)
@@ -287,7 +287,7 @@ export function PublicOrder({
       }
       const { data } = await supabase
         .from("branches")
-        .select("id,name,slug,phone,address,nit,logo_url")
+        .select("id,name,slug,phone,address,nit,logo_url,schedules")
         .eq("slug", branchSlug)
         .maybeSingle();
       return data;
