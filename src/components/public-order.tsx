@@ -549,6 +549,7 @@ export function PublicOrder({
         payment_method: isTableQr ? "Pendiente" : payMethod,
         payment_details,
         items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
+        scheduled_for: canSchedule ? scheduledFor : null,
       };
 
       const { data, error } = await supabase.rpc("create_public_order", {
