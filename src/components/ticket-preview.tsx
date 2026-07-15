@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { formatMoney } from "@/lib/format";
 import { IdCard, MapPin, Phone, Calendar, User, CreditCard, Banknote } from "lucide-react";
-import logoUrl from "@/assets/logo-goloso.png";
+import logoUrl from "@/assets/logo-goloso.webp";
 
 interface SaleLine { name: string; qty: number; unit_price: number; }
 

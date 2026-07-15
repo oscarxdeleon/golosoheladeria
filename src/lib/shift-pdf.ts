@@ -13,7 +13,7 @@ import {
   paymentBreakdown,
   serviceBreakdown,
 } from "@/lib/reports";
-import logoUrl from "@/assets/logo-goloso.png";
+import logoUrl from "@/assets/logo-goloso.webp";
 import { supabase } from "@/integrations/supabase/client";
 
 async function loadLogo(): Promise<string | null> {

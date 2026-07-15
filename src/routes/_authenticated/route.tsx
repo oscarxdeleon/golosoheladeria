@@ -9,7 +9,7 @@ import { WaiterCallsNotifier } from "@/components/waiter-calls-notifier";
 import { BranchProvider } from "@/contexts/branch-context";
 import { BranchSelector } from "@/components/branch-selector";
 import { RoleRouteGuard } from "@/components/role-route-guard";
-import mascotTriggerAsset from "@/assets/goloso-mascot-trigger.png";
+import mascotTriggerAsset from "@/assets/goloso-mascot-trigger.webp";
 
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,

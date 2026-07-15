@@ -19,7 +19,7 @@ import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { ticketHTML, printTicketFinal, type Branding, type TicketConfig } from "@/components/pos-screen";
-import nequiLogo from "@/assets/nequi-logo-transparent.png";
+import nequiLogo from "@/assets/nequi-logo-transparent.webp";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 
 export const Route = createFileRoute("/_authenticated/pedidos-online")({

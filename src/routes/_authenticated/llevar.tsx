@@ -4,8 +4,8 @@ import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { LlevarPendingPanel } from "@/components/llevar-pending-panel";
 import { Button } from "@/components/ui/button";
 import { User } from "lucide-react";
-import barraImg from "@/assets/goloso-barra.png";
-import golosoLogo from "@/assets/goloso-logo-official.png";
+import barraImg from "@/assets/goloso-barra.webp";
+import golosoLogo from "@/assets/goloso-logo-official.webp";
 
 function LlevarHeader() {
   const navigate = useNavigate();

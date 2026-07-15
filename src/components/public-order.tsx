@@ -17,7 +17,7 @@ import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
-import golosoLogo from "@/assets/logo-goloso.png";
+import golosoLogo from "@/assets/logo-goloso.webp";
 
 const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
@@ -626,7 +626,7 @@ export function PublicOrder({
 
           <div className="flex-1 flex flex-col items-center justify-center gap-6 relative z-10">
             <img
-              src="/__l5e/assets-v1/8acb9227-b9fd-468e-b2b8-63d3cc30c823/goloso-mascot.png"
+              src="/__l5e/assets-v1/8acb9227-b9fd-468e-b2b8-63d3cc30c823/goloso-mascot.webp"
               alt="Goloso"
               className="h-56 sm:h-72 w-auto drop-shadow-2xl select-none"
               draggable={false}

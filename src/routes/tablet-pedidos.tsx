@@ -23,9 +23,9 @@ import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
 import { BranchAutoDetectBadge } from "@/components/branch-auto-detect-badge";
 
-import logoUrl from "@/assets/logo-goloso.png";
-import tableFree from "@/assets/mesa_libre.png";
-import tableOccupied from "@/assets/mesa_ocupada.png";
+import logoUrl from "@/assets/logo-goloso.webp";
+import tableFree from "@/assets/mesa_libre.webp";
+import tableOccupied from "@/assets/mesa_ocupada.webp";
 
 export const Route = createFileRoute("/tablet-pedidos")({
   ssr: false,
