@@ -1,14 +1,10 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
-import {
-  supervisorLogin,
-  supervisorLogout,
-  supervisorDashboard,
-  supervisorSessionDetail,
-  type SupervisorSessionDetail,
-  type SupervisorMovement,
-} from "@/lib/supervisor-client";
+import { useEffect, useMemo, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import {
+  supLogin, supValidate, supLogout, supDashboard, supCashList, supCashDetail,
+  type SupContext, type SupDashboard, type SupCashListItem, type SupCashDetail,
+} from "@/lib/supervisor-v2";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,20 +13,18 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
-  Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard,
-  Users, Bike, Utensils, ChefHat, ShieldCheck, Eye, ArrowDownLeft, ArrowUpRight,
-  ReceiptText, AlertTriangle, CalendarIcon, PiggyBank, ArrowUpDown, ArrowRightLeft,
+  ShieldCheck, LogOut, RefreshCw, Building2, TrendingUp, ShoppingBag, Wallet,
+  CreditCard, DollarSign, Eye, Users, ChefHat, Bike, Utensils, Clock,
+  ArrowDownLeft, ArrowUpRight, ReceiptText, PiggyBank,
 } from "lucide-react";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
+import { toast } from "sonner";
+import { formatMoney } from "@/lib/format";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-import { toast } from "sonner";
-import { formatMoney as formatCurrency } from "@/lib/format";
 
-const SESSION_KEY = "goloso.supervisor.session";
+const SESSION_KEY = "goloso.supervisor.session.v2";
 
 export const Route = createFileRoute("/supervisor")({
   ssr: false,
@@ -38,100 +32,98 @@ export const Route = createFileRoute("/supervisor")({
   component: SupervisorPage,
 });
 
-interface StoredSession {
-  session_token: string;
-  expires_at: string;
-  display_name: string;
-  username: string;
-}
+type Stored = { session_token: string; expires_at: string; display_name: string };
 
-// ==================== LABELS DE MÉTODOS ====================
-const METHOD_LABEL: Record<string, string> = {
-  efectivo: "EFECTIVO",
-  nequi: "NEQUI",
-  bancolombia: "BANCOLOMBIA",
-  daviplata: "DAVIPLATA",
-  bcolombia: "BANCOLOMBIA",
-  tarjeta: "TARJETA",
-  transferencia: "TRANSFERENCIA",
-  qr: "QR",
-  mixto: "PAGO MIXTO",
-  otro: "OTRO",
-};
-const methodLabel = (k: string) => METHOD_LABEL[k.toLowerCase()] ?? k.toUpperCase();
+function loadStored(): Stored | null {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as Stored;
+    if (new Date(s.expires_at).getTime() < Date.now()) return null;
+    return s;
+  } catch { return null; }
+}
 
 function SupervisorPage() {
-  const [session, setSession] = useState<StoredSession | null>(null);
-  const [ready, setReady] = useState(false);
+  const [stored, setStored] = useState<Stored | null>(() => loadStored());
+  const [ctx, setCtx] = useState<SupContext | null>(null);
+  const [loadingCtx, setLoadingCtx] = useState(false);
 
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (raw) {
-        const s: StoredSession = JSON.parse(raw);
-        if (new Date(s.expires_at) > new Date()) setSession(s);
-        else localStorage.removeItem(SESSION_KEY);
-      }
-    } catch { /* noop */ }
-    setReady(true);
+    if (!stored) { setCtx(null); return; }
+    let cancelled = false;
+    setLoadingCtx(true);
+    supValidate(stored.session_token)
+      .then((c) => { if (!cancelled) setCtx(c); })
+      .catch(() => { if (!cancelled) { localStorage.removeItem(SESSION_KEY); setStored(null); setCtx(null); } })
+      .finally(() => { if (!cancelled) setLoadingCtx(false); });
+    return () => { cancelled = true; };
+  }, [stored]);
+
+  const onLoggedIn = useCallback((s: Stored) => {
+    localStorage.setItem(SESSION_KEY, JSON.stringify(s));
+    setStored(s);
   }, []);
 
-  if (!ready) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Cargando…</div>;
-  if (!session) return <SupervisorLogin onSuccess={(s) => { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); setSession(s); }} />;
-  return <SupervisorDashboard session={session} onLogout={() => { localStorage.removeItem(SESSION_KEY); setSession(null); }} />;
+  const onLogout = useCallback(async () => {
+    if (stored) { try { await supLogout(stored.session_token); } catch { /* noop */ } }
+    localStorage.removeItem(SESSION_KEY);
+    setStored(null); setCtx(null);
+  }, [stored]);
+
+  if (!stored) return <LoginScreen onLoggedIn={onLoggedIn} />;
+  if (loadingCtx || !ctx) return <div className="p-6"><Skeleton className="h-40 w-full" /></div>;
+  return <SupervisorShell stored={stored} ctx={ctx} onLogout={onLogout} />;
 }
 
-function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void }) {
-  const [displayName, setDisplayName] = useState("");
+// ==================== LOGIN ====================
+function LoginScreen({ onLoggedIn }: { onLoggedIn: (s: Stored) => void }) {
+  const [name, setName] = useState("");
   const [pin, setPin] = useState("");
-  const [loading, setLoading] = useState(false);
-  const token = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("t") ?? undefined : undefined;
+  const [busy, setBusy] = useState(false);
 
-  async function submit(e: React.FormEvent) {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!/^\d{4}$/.test(pin)) return toast.error("El PIN debe tener 4 dígitos");
-    if (!token && !displayName.trim()) return toast.error("Ingresa tu nombre");
-    setLoading(true);
+    if (busy) return;
+    if (!/^\d{4}$/.test(pin)) { toast.error("El PIN debe ser de 4 dígitos"); return; }
+    setBusy(true);
     try {
-      const res = await supervisorLogin({ display_name: displayName.trim() || undefined, pin, token });
-      onSuccess(res);
+      const s = await supLogin(name.trim(), pin);
+      onLoggedIn({ session_token: s.session_token, expires_at: s.expires_at, display_name: s.display_name });
+      toast.success(`Bienvenido/a, ${s.display_name}`);
     } catch (err) {
-      toast.error((err as Error).message);
-    } finally { setLoading(false); }
-  }
+      toast.error(err instanceof Error ? err.message : "No se pudo iniciar sesión");
+    } finally { setBusy(false); }
+  };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-primary/10 via-background to-background p-4">
-      <Card className="w-full max-w-md shadow-xl border-2">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 flex items-center justify-center p-4">
+      <Card className="w-full max-w-md">
         <CardHeader className="text-center space-y-2">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/15 text-primary">
-            <ShieldCheck className="h-7 w-7" />
+          <div className="mx-auto rounded-full bg-primary/10 p-3 w-fit">
+            <ShieldCheck className="h-8 w-8 text-primary" />
           </div>
-          <CardTitle className="text-2xl font-display">Modo Supervisor</CardTitle>
-          <p className="text-sm text-muted-foreground">Acceso exclusivo de solo lectura para Heladería Goloso.</p>
+          <CardTitle className="text-2xl">Modo Supervisor</CardTitle>
+          <p className="text-sm text-muted-foreground">Acceso de solo lectura · Goloso Heladería</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-2">
+            <div>
               <Label>Nombre</Label>
-              <Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} autoFocus placeholder="Ej: Camilo Torres" />
+              <Input value={name} onChange={(e) => setName(e.target.value)} autoFocus placeholder="Nombre del supervisor" required />
             </div>
-            <div className="space-y-2">
-              <Label>PIN de 4 dígitos</Label>
+            <div>
+              <Label>PIN (4 dígitos)</Label>
               <Input
-                type="password" inputMode="numeric" pattern="\d{4}" maxLength={4}
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                autoComplete="one-time-code"
-                className="text-center text-2xl tracking-[0.6em] font-mono"
+                inputMode="numeric" pattern="\d{4}" maxLength={4}
+                value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="••••" required
+                className="text-center text-2xl tracking-[0.5em] font-mono"
               />
             </div>
-            <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={loading || pin.length !== 4 || (!token && !displayName.trim())}>
-              {loading ? "Verificando…" : "Ingresar"}
+            <Button type="submit" className="w-full" disabled={busy}>
+              {busy ? "Ingresando..." : "Ingresar"}
             </Button>
-            <p className="text-[11px] text-center text-muted-foreground pt-2">
-              Este acceso no permite modificar información del sistema.
-            </p>
           </form>
         </CardContent>
       </Card>
@@ -139,625 +131,416 @@ function SupervisorLogin({ onSuccess }: { onSuccess: (s: StoredSession) => void 
   );
 }
 
-function toBogotaDateStr(d: Date): string {
-  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota", year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(d);
-  const y = parts.find(p => p.type === "year")?.value ?? "";
-  const m = parts.find(p => p.type === "month")?.value ?? "";
-  const day = parts.find(p => p.type === "day")?.value ?? "";
-  return `${y}-${m}-${day}`;
-}
-
-function SupervisorDashboard({ session, onLogout }: { session: StoredSession; onLogout: () => void }) {
-  const [data, setData] = useState<Awaited<ReturnType<typeof supervisorDashboard>> | null>(null);
-  const [branchId, setBranchId] = useState<string | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date>(() => new Date());
-  const [loading, setLoading] = useState(false);
-  const [loadError, setLoadError] = useState<string | null>(null);
-  const [detailId, setDetailId] = useState<string | null>(null);
-  const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  const todayStr = toBogotaDateStr(new Date());
-  const yesterday = useMemo(() => { const d = new Date(); d.setDate(d.getDate() - 1); return d; }, []);
-  const yesterdayStr = toBogotaDateStr(yesterday);
-  const selectedStr = toBogotaDateStr(selectedDate);
-  const isToday = selectedStr === todayStr;
-  const isYesterday = selectedStr === yesterdayStr;
-
-  const load = useCallback(async (bid: string | null, dateStr: string | null, logSwitch = false) => {
-    setLoading(true);
-    try {
-      const res = await supervisorDashboard({ session_token: session.session_token, branch_id: bid, log_switch: logSwitch, date: dateStr });
-      setData(res);
-      setBranchId(res.active_branch_id);
-      setLoadError(null);
-    } catch (err) {
-      const msg = (err as Error).message;
-      if (msg.toLowerCase().includes("sesión") || msg.toLowerCase().includes("acceso")) {
-        toast.error(msg); onLogout();
-      } else {
-        setLoadError(msg || "No se pudo cargar la información del supervisor");
-        toast.error(msg || "No se pudo cargar la información del supervisor");
-      }
-    } finally { setLoading(false); }
-  }, [session.session_token, onLogout]);
-
-  useEffect(() => {
-    load(branchId, isToday ? null : selectedStr);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedStr]);
-
-  useEffect(() => {
-    if (!isToday) return;
-    const int = setInterval(() => load(branchId, null), 30_000);
-    return () => clearInterval(int);
-  }, [branchId, load, isToday]);
-
-  useEffect(() => {
-    if (!branchId || !isToday) return;
-    const scheduleRefresh = () => {
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-      refreshTimer.current = setTimeout(() => load(branchId, null), 350);
-    };
-    const channel = supabase
-      .channel(`supervisor-live-${branchId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
-      .subscribe();
-    return () => {
-      if (refreshTimer.current) clearTimeout(refreshTimer.current);
-      void supabase.removeChannel(channel);
-    };
-  }, [branchId, load, isToday]);
-
-  async function handleLogout() {
-    try { await supervisorLogout({ session_token: session.session_token }); } catch { /* noop */ }
-    onLogout();
-  }
-
-  async function switchBranch(id: string) {
-    if (id === branchId) return;
-    setData(null); setBranchId(id);
-    await load(id, isToday ? null : selectedStr, true);
-  }
-
-  function pickDate(d: Date | undefined) {
-    if (!d) return;
-    setData(null); setSelectedDate(d);
-  }
-
-  const s = data?.summary;
-  const hours = useMemo(() => data ? Object.entries(data.by_hour).sort(([a], [b]) => a.localeCompare(b)) : [], [data]);
-  const maxHour = hours.reduce((m, [, v]) => Math.max(m, v), 0) || 1;
-  const scopeTitle = isToday ? "Hoy" : isYesterday ? "Ayer" : format(selectedDate, "PPP", { locale: es });
-
-  const closedCashTotal = useMemo(() => (data?.recent_closures ?? [])
-    .filter((c) => c.status === "closed")
-    .reduce((sum, c) => sum + Number(c.expected_amount ?? 0), 0), [data?.recent_closures]);
-  const expectedCash = closedCashTotal > 0 && !data?.active_cash ? closedCashTotal : Number(s?.expected_cash ?? 0);
-  const activeCashLabel = data?.active_cash
-    ? (data.active_cash.status === "open" ? "Abierta" : "Cerrada")
-    : null;
+// ==================== SHELL ====================
+function SupervisorShell({ stored, ctx, onLogout }: { stored: Stored; ctx: SupContext; onLogout: () => void }) {
+  const [branchId, setBranchId] = useState<string>(ctx.default_branch_id ?? ctx.branches[0]?.id ?? "");
+  const [tab, setTab] = useState<"dashboard" | "cierres">("dashboard");
+  const activeBranch = useMemo(() => ctx.branches.find((b) => b.id === branchId) ?? null, [ctx.branches, branchId]);
 
   return (
     <div className="min-h-screen bg-muted/30">
-      <header className="sticky top-0 z-10 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto max-w-7xl px-4 py-3 flex flex-wrap items-center gap-3 justify-between">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/15 text-primary shrink-0">
-              <Eye className="h-5 w-5" />
-            </div>
-            <div className="min-w-0">
-              <div className="text-xs font-semibold uppercase tracking-widest text-primary">Modo Supervisor</div>
-              <div className="font-semibold truncate">{session.display_name}</div>
+      <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur">
+        <div className="mx-auto max-w-7xl px-3 sm:px-6 py-3 flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 flex-1 min-w-[200px]">
+            <div className="rounded-lg bg-primary/10 p-2"><ShieldCheck className="h-5 w-5 text-primary" /></div>
+            <div>
+              <p className="text-sm font-semibold leading-tight">{ctx.supervisor.display_name}</p>
+              <p className="text-[11px] text-muted-foreground leading-tight">Modo Supervisor · Solo lectura</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap">
-            <Select value={branchId ?? undefined} onValueChange={switchBranch}>
-              <SelectTrigger className="h-10 min-w-[200px] gap-2 font-semibold border-2 border-primary/40 bg-primary/5">
-                <Building2 className="h-4 w-4" />
-                <SelectValue placeholder="Sede" />
-              </SelectTrigger>
-              <SelectContent>
-                {data?.branches.map((b) => (
-                  <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Button size="sm" variant={isToday ? "default" : "outline"} className="h-10" onClick={() => pickDate(new Date())}>Hoy</Button>
-            <Button size="sm" variant={isYesterday ? "default" : "outline"} className="h-10" onClick={() => pickDate(yesterday)}>Ayer</Button>
-            <Popover>
-              <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("h-10 gap-2 font-semibold", !isToday && !isYesterday && "border-primary text-primary")}>
-                  <CalendarIcon className="h-4 w-4" />
-                  {isToday ? "Hoy" : isYesterday ? "Ayer" : format(selectedDate, "d MMM yyyy", { locale: es })}
-                </Button>
-              </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="end">
-                <Calendar mode="single" selected={selectedDate} onSelect={pickDate} initialFocus locale={es} disabled={(d) => d > new Date()} className={cn("p-3 pointer-events-auto")} />
-              </PopoverContent>
-            </Popover>
-            <Button variant="outline" size="sm" onClick={() => load(branchId, isToday ? null : selectedStr)} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Actualizar
-            </Button>
-            <Button variant="ghost" size="sm" onClick={handleLogout}>
-              <LogOut className="h-4 w-4 mr-1" /> Salir
-            </Button>
-          </div>
+          <Select value={branchId} onValueChange={setBranchId}>
+            <SelectTrigger className="w-[220px]"><Building2 className="h-4 w-4 mr-2" /><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {ctx.branches.map((b) => (
+                <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button variant="outline" size="sm" onClick={onLogout}><LogOut className="h-4 w-4 mr-2" />Salir</Button>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl p-4 space-y-4">
-        {!data && !loadError && <Card><CardContent className="p-8 text-center text-muted-foreground">Cargando información…</CardContent></Card>}
-        {!data && loadError && (
-          <Card><CardContent className="p-8 text-center space-y-3">
-            <div className="font-semibold">No se pudo cargar la información.</div>
-            <div className="text-sm text-muted-foreground">{loadError}</div>
-            <Button variant="outline" onClick={() => load(branchId, isToday ? null : selectedStr)} disabled={loading}>
-              <RefreshCw className={`h-4 w-4 mr-1 ${loading ? "animate-spin" : ""}`} /> Reintentar
-            </Button>
-          </CardContent></Card>
-        )}
-
-        {data && (
-          <Tabs defaultValue="dashboard" className="space-y-4">
-            <TabsList className="grid w-full grid-cols-3 max-w-xl">
-              <TabsTrigger value="dashboard">Dashboard</TabsTrigger>
-              <TabsTrigger value="historial">Historial de Cajas</TabsTrigger>
-              <TabsTrigger value="salidas">Salidas</TabsTrigger>
-            </TabsList>
-
-            {/* =============== DASHBOARD =============== */}
-            <TabsContent value="dashboard" className="space-y-4">
-              {isToday && !data.active_cash && (
-                <Card className="border-amber-300 bg-amber-50">
-                  <CardContent className="p-4 text-sm text-amber-900 flex items-center gap-2">
-                    <AlertTriangle className="h-4 w-4" /> No existe un turno activo actualmente en esta sede. Se muestra el resumen del día.
-                  </CardContent>
-                </Card>
-              )}
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <Kpi icon={TrendingUp} label={isToday ? "Ventas de hoy" : "Ventas del día"} value={formatCurrency(s?.total_sales ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
-                <Kpi icon={ShoppingBag} label="Pedidos" value={String(s?.order_count ?? 0)} tone="from-sky-500/15 to-sky-500/5 text-sky-700" />
-                <Kpi icon={Wallet} label="Ticket promedio" value={formatCurrency(s?.avg_ticket ?? 0)} tone="from-amber-500/15 to-amber-500/5 text-amber-700" />
-                <Kpi icon={CreditCard} label="Digital" value={formatCurrency(s?.digital_total ?? 0)} tone="from-violet-500/15 to-violet-500/5 text-violet-700" />
-                <Kpi icon={Wallet} label="Ventas en efectivo" value={formatCurrency(s?.cash_total ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
-                <Kpi icon={PiggyBank} label="Efectivo esperado en caja" value={formatCurrency(expectedCash)} tone="from-teal-500/15 to-teal-500/5 text-teal-700" />
-                <Kpi icon={ArrowDownLeft} label="Entradas y depósitos" value={formatCurrency(s?.deposits ?? 0)} tone="from-lime-500/15 to-lime-500/5 text-lime-700" />
-                <Kpi icon={ArrowUpRight} label="Salidas y gastos" value={formatCurrency(s?.expenses ?? 0)} tone="from-rose-500/15 to-rose-500/5 text-rose-700" />
-                <Kpi icon={AlertTriangle} label="Cancelados" value={`${s?.cancelled_count ?? 0} · ${formatCurrency(s?.cancelled_value ?? 0)}`} tone="from-slate-500/15 to-slate-500/5 text-slate-700" />
-                <Kpi icon={Users} label="Mesas ocupadas" value={String(s?.tables_occupied ?? 0)} tone="from-rose-500/15 to-rose-500/5 text-rose-700" />
-                <Kpi icon={ChefHat} label="En preparación" value={String(s?.preparing ?? 0)} tone="from-orange-500/15 to-orange-500/5 text-orange-700" />
-                <Kpi icon={Bike} label="Domicilios pendientes" value={String(s?.pending_domicilio ?? 0)} tone="from-indigo-500/15 to-indigo-500/5 text-indigo-700" />
-              </div>
-
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-                <Card className="lg:col-span-2">
-                  <CardHeader><CardTitle className="text-base">Ventas por hora</CardTitle></CardHeader>
-                  <CardContent>
-                    {hours.length === 0 ? (
-                      <div className="text-sm text-muted-foreground py-8 text-center">Aún no hay ventas registradas.</div>
-                    ) : (
-                      <div className="flex items-end gap-1 h-40">
-                        {hours.map(([h, v]) => (
-                          <div key={h} className="flex-1 flex flex-col items-center gap-1">
-                            <div className="w-full bg-primary/80 rounded-t" style={{ height: `${(v / maxHour) * 100}%` }} title={formatCurrency(v)} />
-                            <div className="text-[10px] text-muted-foreground">{h}h</div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Caja actual</CardTitle></CardHeader>
-                  <CardContent className="space-y-2 text-sm">
-                    {data.active_cash ? (
-                      <>
-                        <div className="flex items-center gap-2">
-                          <Badge className={data.active_cash.status === "open" ? "bg-emerald-600" : "bg-muted text-muted-foreground"}>{activeCashLabel}</Badge>
-                          {data.active_cash.user_name && <span className="text-muted-foreground">Cajero: <b className="text-foreground">{data.active_cash.user_name}</b></span>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">Apertura: {data.active_cash.opened_at ? new Date(data.active_cash.opened_at).toLocaleString() : "—"}</div>
-                        <div className="text-xs text-muted-foreground">Monto inicial: {formatCurrency(Number(data.active_cash.opening_amount ?? 0))}</div>
-                        <div className="text-xs text-muted-foreground">Efectivo esperado: <b className="text-foreground">{formatCurrency(expectedCash)}</b></div>
-                        <div className="text-xs text-muted-foreground">Alcance: {scopeTitle}</div>
-                        {data.active_cash.closed_at && <div className="text-xs text-muted-foreground">Cierre: {new Date(data.active_cash.closed_at).toLocaleString()}</div>}
-                        <Button size="sm" variant="outline" className="mt-2 w-full" onClick={() => setDetailId(data.active_cash!.id)}>
-                          <ReceiptText className="h-4 w-4 mr-1" /> Ver detalle del turno
-                        </Button>
-                      </>
-                    ) : <div className="text-muted-foreground">Sin caja registrada para esta fecha.</div>}
-                  </CardContent>
-                </Card>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                <BreakdownCard title="Por tipo de servicio" icon={Utensils} data={data.by_service} labelFn={(k) => k.toUpperCase()} />
-                <BreakdownCard title="Por medio de pago" icon={CreditCard} data={data.by_payment} labelFn={methodLabel} />
-                <Card>
-                  <CardHeader><CardTitle className="text-base">Top productos</CardTitle></CardHeader>
-                  <CardContent className="space-y-1 text-sm">
-                    {data.top_products.length === 0 && <div className="text-muted-foreground">Sin datos.</div>}
-                    {data.top_products.slice(0, 10).map((p, i) => (
-                      <div key={p.name} className="flex justify-between border-b last:border-0 py-1 gap-2">
-                        <span className="break-words"><span className="text-muted-foreground mr-2">{i + 1}.</span>{p.name}</span>
-                        <span className="font-semibold text-right shrink-0">{p.qty} · {formatCurrency(Number(p.total ?? 0))}</span>
-                      </div>
-                    ))}
-                  </CardContent>
-                </Card>
-              </div>
-            </TabsContent>
-
-            {/* =============== HISTORIAL =============== */}
-            <TabsContent value="historial" className="space-y-3">
-              <Card>
-                <CardHeader><CardTitle className="text-base flex items-center gap-2"><ReceiptText className="h-4 w-4" /> Cierres de caja · {scopeTitle}</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  {(data.recent_closures ?? []).length === 0 && <div className="text-sm text-muted-foreground py-6 text-center">Sin cierres registrados en esta fecha.</div>}
-                  {(data.recent_closures ?? []).map((c) => {
-                    const counted = Number(c.counted_amount ?? 0);
-                    const expected = Number(c.expected_amount ?? 0);
-                    const diff = counted - expected;
-                    const turnNumber = c.id.slice(0, 3).toUpperCase();
-                    return (
-                      <div key={c.id} className="rounded-xl border p-3 space-y-2">
-                        <div className="flex flex-wrap items-center justify-between gap-2">
-                          <div className="flex items-center gap-2">
-                            <span className="text-xs font-mono bg-muted rounded px-2 py-0.5">#{turnNumber}</span>
-                            <span className="font-semibold">{c.user_name ?? "—"}</span>
-                            <Badge className={c.status === "open" ? "bg-emerald-600" : "bg-muted text-muted-foreground"}>{c.status === "open" ? "Abierta" : "Cerrada"}</Badge>
-                          </div>
-                          <Button size="sm" variant="outline" onClick={() => setDetailId(c.id)}>Ver detalle</Button>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          Apertura: {c.opened_at ? new Date(c.opened_at).toLocaleString() : "—"}
-                          {" · "}Cierre: {c.closed_at ? new Date(c.closed_at).toLocaleString() : "en curso"}
-                        </div>
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-                          <MiniStat label="Apertura" value={formatCurrency(Number(c.opening_amount ?? 0))} />
-                          <MiniStat label="Esperado" value={formatCurrency(expected)} />
-                          <MiniStat label="Declarado" value={formatCurrency(counted)} />
-                          <MiniStat label="Diferencia" value={formatCurrency(diff)} tone={diff === 0 ? "text-emerald-700" : diff > 0 ? "text-sky-700" : "text-rose-700"} />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </CardContent>
-              </Card>
-            </TabsContent>
-
-            {/* =============== SALIDAS =============== */}
-            <TabsContent value="salidas" className="space-y-3">
-              <MovementsView movements={data.movements ?? []} />
-            </TabsContent>
-          </Tabs>
-        )}
-
-        {data && (
-          <div className="text-xs text-muted-foreground text-center pt-2">
-            {scopeTitle} · Última actualización: {new Date(data.generated_at).toLocaleTimeString()} · Solo lectura
-          </div>
-        )}
+      <main className="mx-auto max-w-7xl px-3 sm:px-6 py-4">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as "dashboard" | "cierres")}>
+          <TabsList className="mb-4">
+            <TabsTrigger value="dashboard"><TrendingUp className="h-4 w-4 mr-2" />Dashboard</TabsTrigger>
+            <TabsTrigger value="cierres"><ReceiptText className="h-4 w-4 mr-2" />Cierres de Caja</TabsTrigger>
+          </TabsList>
+          <TabsContent value="dashboard">
+            {branchId ? <DashboardView token={stored.session_token} branchId={branchId} branchName={activeBranch?.name ?? ""} /> : null}
+          </TabsContent>
+          <TabsContent value="cierres">
+            {branchId ? <CierresView token={stored.session_token} branchId={branchId} /> : null}
+          </TabsContent>
+        </Tabs>
       </main>
-
-      <SessionDetailDialog
-        open={!!detailId}
-        onClose={() => setDetailId(null)}
-        sessionToken={session.session_token}
-        cashSessionId={detailId}
-      />
     </div>
   );
 }
 
-// ==================== SUB-COMPONENTES ====================
+// ==================== DASHBOARD ====================
+type Range = "hoy" | "ayer" | "semana" | "mes";
 
-function Kpi({ icon: Icon, label, value, tone }: { icon: typeof TrendingUp; label: string; value: string; tone: string }) {
+function DashboardView({ token, branchId, branchName }: { token: string; branchId: string; branchName: string }) {
+  const [range, setRange] = useState<Range>("hoy");
+  const [data, setData] = useState<SupDashboard | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshTick, setRefreshTick] = useState(0);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try { setData(await supDashboard(token, branchId, range)); }
+    catch (err) { toast.error(err instanceof Error ? err.message : "Error al cargar"); }
+    finally { setLoading(false); }
+  }, [token, branchId, range]);
+
+  useEffect(() => { load(); }, [load, refreshTick]);
+
+  // Realtime + auto-refresh
+  useEffect(() => {
+    const channel = supabase
+      .channel(`sup-dash-${branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${branchId}` }, () => setRefreshTick((t) => t + 1))
+      .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${branchId}` }, () => setRefreshTick((t) => t + 1))
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${branchId}` }, () => setRefreshTick((t) => t + 1))
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` }, () => setRefreshTick((t) => t + 1))
+      .subscribe();
+    const interval = setInterval(() => setRefreshTick((t) => t + 1), 45_000);
+    return () => { supabase.removeChannel(channel); clearInterval(interval); };
+  }, [branchId]);
+
   return (
-    <Card className={`bg-gradient-to-br ${tone} border-0`}>
-      <CardContent className="p-4 flex items-start gap-3">
-        <div className="rounded-xl bg-background/60 p-2 shrink-0"><Icon className="h-5 w-5" /></div>
-        <div className="min-w-0 flex-1">
-          <div className="text-xs font-medium text-muted-foreground leading-tight">{label}</div>
-          <div className="text-lg sm:text-xl font-bold leading-tight break-words">{value}</div>
-        </div>
+    <div className="space-y-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <Select value={range} onValueChange={(v) => setRange(v as Range)}>
+          <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="hoy">Hoy</SelectItem>
+            <SelectItem value="ayer">Ayer</SelectItem>
+            <SelectItem value="semana">Últimos 7 días</SelectItem>
+            <SelectItem value="mes">Últimos 30 días</SelectItem>
+          </SelectContent>
+        </Select>
+        <Button variant="outline" size="sm" onClick={() => setRefreshTick((t) => t + 1)}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />Actualizar
+        </Button>
+        <div className="ml-auto text-xs text-muted-foreground">{branchName}</div>
+      </div>
+
+      {loading && !data ? <SkeletonGrid /> : data ? <DashboardBody data={data} /> : null}
+    </div>
+  );
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+    </div>
+  );
+}
+
+function DashboardBody({ data }: { data: SupDashboard }) {
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi icon={<DollarSign className="h-4 w-4" />} label="Ventas" value={formatMoney(data.total)} />
+        <Kpi icon={<ShoppingBag className="h-4 w-4" />} label="Órdenes" value={data.txs.toLocaleString()} />
+        <Kpi icon={<TrendingUp className="h-4 w-4" />} label="Ticket promedio" value={formatMoney(data.avg)} />
+        <Kpi icon={<Wallet className="h-4 w-4" />} label="Utilidad neta" value={formatMoney(data.utilidad)} accent={data.utilidad >= 0 ? "text-emerald-600" : "text-red-600"} />
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <Kpi icon={<ReceiptText className="h-4 w-4" />} label="Gastos + Compras" value={formatMoney(data.gastos)} accent="text-red-600" />
+        <Kpi icon={<Users className="h-4 w-4" />} label="Mesas ocupadas" value={data.pending.tables_occupied.toString()} />
+        <Kpi icon={<Utensils className="h-4 w-4" />} label="Para llevar" value={data.pending.pending_llevar.toString()} />
+        <Kpi icon={<Bike className="h-4 w-4" />} label="Domicilios" value={data.pending.pending_domicilio.toString()} />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><CreditCard className="h-4 w-4" />Métodos de pago</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {data.methods.length === 0 && <p className="text-sm text-muted-foreground">Sin movimientos.</p>}
+            {data.methods.map((m) => (
+              <div key={m.name} className="flex items-center justify-between text-sm border-b last:border-0 py-1.5">
+                <span className="capitalize font-medium">{m.name}</span>
+                <div className="text-right">
+                  <div className="text-emerald-600 font-semibold">{formatMoney(m.ingresos)}</div>
+                  {m.egresos > 0 && <div className="text-[11px] text-red-600">-{formatMoney(m.egresos)}</div>}
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><ChefHat className="h-4 w-4" />Top productos</CardTitle></CardHeader>
+          <CardContent className="space-y-2">
+            {data.top.length === 0 && <p className="text-sm text-muted-foreground">Sin ventas.</p>}
+            {data.top.map((p) => (
+              <div key={p.name} className="flex items-center justify-between text-sm border-b last:border-0 py-1.5">
+                <div>
+                  <div className="font-medium">{p.name}</div>
+                  <div className="text-[11px] text-muted-foreground">{p.qty} und</div>
+                </div>
+                <div className="font-semibold">{formatMoney(p.total)}</div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+
+      {data.real_cash && data.real_cash.cajasCerradas > 0 && (
+        <Card>
+          <CardHeader className="pb-2"><CardTitle className="text-base flex items-center gap-2"><PiggyBank className="h-4 w-4" />Arqueo real (cajas cerradas: {data.real_cash.cajasCerradas})</CardTitle></CardHeader>
+          <CardContent className="grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <CashRow label="Efectivo" counted={data.real_cash.efectivo} expected={data.real_cash.efectivoEsperado} diff={data.real_cash.diferenciaEfectivo} />
+            <CashRow label="Nequi" counted={data.real_cash.nequi} expected={data.real_cash.nequiEsperado} diff={data.real_cash.diferenciaNequi} />
+            <CashRow label="Bancolombia" counted={data.real_cash.bancolombia} expected={data.real_cash.bancolombiaEsperado} diff={data.real_cash.diferenciaBanco} />
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}
+
+function Kpi({ icon, label, value, accent }: { icon: React.ReactNode; label: string; value: string; accent?: string }) {
+  return (
+    <Card>
+      <CardContent className="p-3">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">{icon}{label}</div>
+        <div className={`text-lg font-bold mt-1 ${accent ?? ""}`}>{value}</div>
       </CardContent>
     </Card>
   );
 }
 
-function BreakdownCard({ title, icon: Icon, data, labelFn }: { title: string; icon: typeof Utensils; data: Record<string, number>; labelFn?: (k: string) => string }) {
-  const entries = Object.entries(data).sort(([, a], [, b]) => b - a);
-  const total = entries.reduce((a, [, v]) => a + v, 0) || 1;
+function CashRow({ label, counted, expected, diff }: { label: string; counted: number; expected: number; diff: number }) {
+  const color = diff === 0 ? "text-emerald-600" : diff > 0 ? "text-sky-600" : "text-red-600";
+  return (
+    <div className="rounded-lg border p-3">
+      <div className="text-xs text-muted-foreground uppercase font-semibold">{label}</div>
+      <div className="flex items-baseline justify-between mt-1">
+        <span className="text-xs text-muted-foreground">Contado</span>
+        <span className="font-semibold">{formatMoney(counted)}</span>
+      </div>
+      <div className="flex items-baseline justify-between">
+        <span className="text-xs text-muted-foreground">Esperado</span>
+        <span>{formatMoney(expected)}</span>
+      </div>
+      <div className="flex items-baseline justify-between border-t mt-1 pt-1">
+        <span className="text-xs text-muted-foreground">Diferencia</span>
+        <span className={`font-bold ${color}`}>{diff >= 0 ? "+" : ""}{formatMoney(diff)}</span>
+      </div>
+    </div>
+  );
+}
+
+// ==================== CIERRES ====================
+function CierresView({ token, branchId }: { token: string; branchId: string }) {
+  const [tab, setTab] = useState<"hoy" | "ayer" | "todos">("hoy");
+  const [items, setItems] = useState<SupCashListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [openDetail, setOpenDetail] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const now = new Date();
+    let from: string | undefined, to: string | undefined;
+    if (tab === "hoy") {
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    } else if (tab === "ayer") {
+      from = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1).toISOString();
+      to = new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString();
+    }
+    try { setItems(await supCashList(token, branchId, from, to)); }
+    catch (err) { toast.error(err instanceof Error ? err.message : "Error al cargar"); }
+    finally { setLoading(false); }
+  }, [token, branchId, tab]);
+
+  useEffect(() => { load(); }, [load]);
+
+  useEffect(() => {
+    const channel = supabase
+      .channel(`sup-cierres-${branchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` }, () => load())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [branchId, load]);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <Tabs value={tab} onValueChange={(v) => setTab(v as typeof tab)}>
+          <TabsList>
+            <TabsTrigger value="hoy">Hoy</TabsTrigger>
+            <TabsTrigger value="ayer">Ayer</TabsTrigger>
+            <TabsTrigger value="todos">Últimos 30 días</TabsTrigger>
+          </TabsList>
+        </Tabs>
+        <Button variant="outline" size="sm" onClick={load}>
+          <RefreshCw className={`h-4 w-4 mr-2 ${loading ? "animate-spin" : ""}`} />Actualizar
+        </Button>
+      </div>
+
+      {loading && items.length === 0 ? (
+        <Skeleton className="h-40 w-full" />
+      ) : items.length === 0 ? (
+        <Card><CardContent className="p-8 text-center text-sm text-muted-foreground">No hay cierres en este período.</CardContent></Card>
+      ) : (
+        <div className="grid gap-2">
+          {items.map((it) => (
+            <Card key={it.id} className="hover:bg-muted/40 transition">
+              <CardContent className="p-3 flex flex-wrap items-center gap-3">
+                <div className="flex-1 min-w-[180px]">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={it.status === "closed" ? "default" : "secondary"}>{it.status === "closed" ? "Cerrado" : "Abierto"}</Badge>
+                    <span className="text-sm font-semibold">{it.user_name ?? "Sin usuario"}</span>
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {format(new Date(it.opened_at), "dd MMM · HH:mm", { locale: es })}
+                    {it.closed_at ? ` → ${format(new Date(it.closed_at), "HH:mm", { locale: es })}` : ""}
+                  </div>
+                </div>
+                <div className="text-right">
+                  <div className="text-xs text-muted-foreground">Ventas</div>
+                  <div className="font-semibold">{formatMoney(it.sales_total)}</div>
+                </div>
+                {it.difference !== null && it.status === "closed" && (
+                  <div className="text-right">
+                    <div className="text-xs text-muted-foreground">Diferencia</div>
+                    <div className={`font-semibold ${it.difference === 0 ? "text-emerald-600" : it.difference > 0 ? "text-sky-600" : "text-red-600"}`}>
+                      {it.difference >= 0 ? "+" : ""}{formatMoney(it.difference)}
+                    </div>
+                  </div>
+                )}
+                <Button size="sm" variant="outline" onClick={() => setOpenDetail(it.id)}>
+                  <Eye className="h-4 w-4 mr-1" />Ver
+                </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <Dialog open={!!openDetail} onOpenChange={(o) => !o && setOpenDetail(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader><DialogTitle>Detalle del cierre</DialogTitle></DialogHeader>
+          {openDetail && <CierreDetail token={token} id={openDetail} />}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function CierreDetail({ token, id }: { token: string; id: string }) {
+  const [d, setD] = useState<SupCashDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  useEffect(() => {
+    setLoading(true);
+    supCashDetail(token, id).then(setD).catch((e) => toast.error(e.message)).finally(() => setLoading(false));
+  }, [token, id]);
+
+  if (loading || !d) return <Skeleton className="h-64 w-full" />;
+
+  return (
+    <div className="space-y-4 text-sm">
+      <div className="flex flex-wrap gap-2">
+        <Badge variant={d.session.status === "closed" ? "default" : "secondary"}>{d.session.status}</Badge>
+        <Badge variant="outline">{d.session.branch_name}</Badge>
+        <Badge variant="outline">{d.session.user_name}</Badge>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+        <Stat label="Ventas" value={formatMoney(d.summary.total_sales)} />
+        <Stat label="Órdenes" value={d.summary.order_count.toString()} />
+        <Stat label="Ticket prom." value={formatMoney(d.summary.avg_ticket)} />
+        <Stat label="Anuladas" value={`${d.summary.cancelled_count} · ${formatMoney(d.summary.cancelled_value)}`} />
+      </div>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Balance de efectivo</CardTitle></CardHeader>
+        <CardContent className="space-y-1">
+          <Row k="Apertura" v={formatMoney(d.summary.opening_amount)} />
+          <Row k="+ Ventas efectivo" v={formatMoney(d.summary.cash_sales)} />
+          <Row k="+ Entradas efectivo" v={formatMoney(d.summary.entries_cash)} />
+          <Row k="- Gastos efectivo" v={formatMoney(d.summary.expenses_cash)} negative />
+          <Row k="- Compras efectivo" v={formatMoney(d.summary.purchases_cash)} negative />
+          <Row k="Esperado" v={formatMoney(d.summary.expected_cash)} bold />
+          <Row k="Contado" v={formatMoney(d.summary.counted_amount)} bold />
+          <Row k="Diferencia" v={`${d.summary.difference >= 0 ? "+" : ""}${formatMoney(d.summary.difference)}`} accent={d.summary.difference === 0 ? "text-emerald-600" : d.summary.difference > 0 ? "text-sky-600" : "text-red-600"} bold />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Métodos de pago</CardTitle></CardHeader>
+        <CardContent>
+          {Object.entries(d.payments).map(([k, v]) => (
+            <Row key={k} k={<span className="capitalize">{k} · {v.count}</span>} v={formatMoney(v.amount)} />
+          ))}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2"><CardTitle className="text-sm">Productos vendidos</CardTitle></CardHeader>
+        <CardContent className="max-h-64 overflow-y-auto">
+          {d.products.map((p) => (
+            <Row key={p.name} k={<span>{p.name} <span className="text-muted-foreground">×{p.qty}</span></span>} v={formatMoney(p.total)} />
+          ))}
+          {d.products.length === 0 && <p className="text-xs text-muted-foreground">Sin productos.</p>}
+        </CardContent>
+      </Card>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+        <MovList title="Entradas" icon={<ArrowDownLeft className="h-4 w-4 text-emerald-600" />} items={d.entradas} />
+        <MovList title="Salidas / gastos" icon={<ArrowUpRight className="h-4 w-4 text-red-600" />} items={d.salidas} />
+      </div>
+      {d.devoluciones.length > 0 && <MovList title="Devoluciones" icon={<ArrowUpRight className="h-4 w-4" />} items={d.devoluciones} />}
+      {d.deposits.length > 0 && <MovList title="Depósitos" icon={<PiggyBank className="h-4 w-4" />} items={d.deposits} />}
+    </div>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border p-2">
+      <div className="text-[11px] text-muted-foreground">{label}</div>
+      <div className="font-semibold">{value}</div>
+    </div>
+  );
+}
+
+function Row({ k, v, bold, negative, accent }: { k: React.ReactNode; v: React.ReactNode; bold?: boolean; negative?: boolean; accent?: string }) {
+  return (
+    <div className="flex justify-between border-b last:border-0 py-1">
+      <span className="text-xs text-muted-foreground">{k}</span>
+      <span className={`${bold ? "font-bold" : ""} ${negative ? "text-red-600" : ""} ${accent ?? ""}`}>{v}</span>
+    </div>
+  );
+}
+
+function MovList({ title, icon, items }: { title: string; icon: React.ReactNode; items: Array<{ id: string; amount: number; description?: string | null; category?: string | null; user_name?: string | null; created_at: string; method?: string | null }> }) {
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base flex items-center gap-2"><Icon className="h-4 w-4" />{title}</CardTitle></CardHeader>
-      <CardContent className="space-y-2 text-sm">
-        {entries.length === 0 && <div className="text-muted-foreground">Sin datos.</div>}
-        {entries.map(([k, v]) => (
-          <div key={k}>
-            <div className="flex justify-between text-xs mb-0.5 gap-2">
-              <span className="font-medium">{labelFn ? labelFn(k) : k}</span>
-              <span className="font-semibold">{formatCurrency(v)}</span>
+      <CardHeader className="pb-2"><CardTitle className="text-sm flex items-center gap-2">{icon}{title} ({items.length})</CardTitle></CardHeader>
+      <CardContent className="max-h-64 overflow-y-auto space-y-1">
+        {items.length === 0 && <p className="text-xs text-muted-foreground">Sin movimientos.</p>}
+        {items.map((m) => (
+          <div key={m.id} className="border-b last:border-0 py-1.5">
+            <div className="flex justify-between">
+              <span className="text-sm font-medium">{m.category ?? "—"}</span>
+              <span className="font-semibold">{formatMoney(m.amount)}</span>
             </div>
-            <div className="h-1.5 rounded-full bg-muted overflow-hidden">
-              <div className="h-full bg-primary" style={{ width: `${(v / total) * 100}%` }} />
+            {m.description && <div className="text-[11px] text-muted-foreground">{m.description}</div>}
+            <div className="text-[10px] text-muted-foreground flex gap-2">
+              <Clock className="h-3 w-3" />{format(new Date(m.created_at), "HH:mm", { locale: es })}
+              {m.user_name && <span>· {m.user_name}</span>}
+              {m.method && <span>· {m.method}</span>}
             </div>
           </div>
         ))}
       </CardContent>
     </Card>
-  );
-}
-
-function MiniStat({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="rounded-lg bg-muted/40 px-3 py-2">
-      <div className="text-[10px] uppercase tracking-widest text-muted-foreground">{label}</div>
-      <div className={cn("text-sm font-bold", tone)}>{value}</div>
-    </div>
-  );
-}
-
-// ==================== DETALLE DE SALIDAS ====================
-
-function categorizeMovement(m: SupervisorMovement): "gasto" | "deposito" | "retiro" | "devolucion" | "reembolso" | "salida" | "entrada" {
-  const c = (m.category ?? "").toLowerCase();
-  if (m.kind === "deposit") return c.includes("entrada") ? "entrada" : "deposito";
-  if (c.includes("retiro")) return "retiro";
-  if (c.includes("devol")) return "devolucion";
-  if (c.includes("reembolso")) return "reembolso";
-  if (c.includes("salida")) return "salida";
-  return "gasto";
-}
-
-const MOV_LABEL: Record<string, string> = {
-  gasto: "GASTO", deposito: "DEPÓSITO", retiro: "RETIRO",
-  devolucion: "DEVOLUCIÓN", reembolso: "REEMBOLSO", salida: "SALIDA", entrada: "ENTRADA",
-};
-
-function MovementsView({ movements }: { movements: SupervisorMovement[] }) {
-  const active = movements.filter((m) => (m.status ?? "active") === "active");
-  const totals = active.reduce<Record<string, number>>((a, m) => {
-    const t = categorizeMovement(m);
-    a[t] = (a[t] ?? 0) + Number(m.amount || 0);
-    return a;
-  }, {});
-  const totalGastos = totals.gasto ?? 0;
-  const totalRetiros = totals.retiro ?? 0;
-  const totalDevRee = (totals.devolucion ?? 0) + (totals.reembolso ?? 0);
-  const totalOtras = (totals.salida ?? 0);
-  const totalEntradas = (totals.entrada ?? 0) + (totals.deposito ?? 0);
-  const totalGeneral = totalGastos + totalRetiros + totalDevRee + totalOtras;
-
-  return (
-    <>
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        <SumTile label="Total gastos" value={formatCurrency(totalGastos)} icon={ArrowUpRight} tone="text-rose-700 bg-rose-50" />
-        <SumTile label="Total retiros" value={formatCurrency(totalRetiros)} icon={ArrowUpDown} tone="text-amber-700 bg-amber-50" />
-        <SumTile label="Devoluciones / reembolsos" value={formatCurrency(totalDevRee)} icon={ArrowRightLeft} tone="text-orange-700 bg-orange-50" />
-        <SumTile label="Otras salidas" value={formatCurrency(totalOtras)} icon={ArrowUpRight} tone="text-slate-700 bg-slate-50" />
-      </div>
-
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="text-base">Detalle de movimientos</CardTitle>
-          <div className="text-sm text-muted-foreground">Entradas: <b className="text-emerald-700">{formatCurrency(totalEntradas)}</b> · Salidas totales: <b className="text-rose-700">{formatCurrency(totalGeneral)}</b></div>
-        </CardHeader>
-        <CardContent>
-          {movements.length === 0 ? (
-            <div className="text-sm text-muted-foreground py-6 text-center">Sin movimientos registrados.</div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead className="text-xs text-muted-foreground border-b">
-                  <tr>
-                    <th className="text-left py-2 px-2">Fecha</th>
-                    <th className="text-left py-2 px-2">Usuario</th>
-                    <th className="text-left py-2 px-2">Tipo</th>
-                    <th className="text-left py-2 px-2">Categoría</th>
-                    <th className="text-left py-2 px-2">Descripción</th>
-                    <th className="text-left py-2 px-2">Medio</th>
-                    <th className="text-right py-2 px-2">Valor</th>
-                    <th className="text-left py-2 px-2">Estado</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {movements.map((m) => {
-                    const tipo = categorizeMovement(m);
-                    const inactive = (m.status ?? "active") !== "active";
-                    return (
-                      <tr key={m.id} className={cn("border-b last:border-0", inactive && "opacity-50 line-through")}>
-                        <td className="py-2 px-2 whitespace-nowrap">{new Date(m.created_at).toLocaleString()}</td>
-                        <td className="py-2 px-2">{m.user_name ?? "—"}</td>
-                        <td className="py-2 px-2"><Badge variant="outline">{MOV_LABEL[tipo]}</Badge></td>
-                        <td className="py-2 px-2 capitalize">{m.category ?? "—"}</td>
-                        <td className="py-2 px-2 max-w-[280px]">{m.description ?? "—"}</td>
-                        <td className="py-2 px-2 uppercase text-xs">{methodLabel(m.method ?? "efectivo")}</td>
-                        <td className={cn("py-2 px-2 text-right font-semibold", m.kind === "deposit" ? "text-emerald-700" : "text-rose-700")}>{formatCurrency(Number(m.amount || 0))}</td>
-                        <td className="py-2 px-2 text-xs">{m.status ?? "active"}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </>
-  );
-}
-
-function SumTile({ label, value, icon: Icon, tone }: { label: string; value: string; icon: typeof ArrowUpRight; tone: string }) {
-  return (
-    <Card className={cn("border-0", tone)}>
-      <CardContent className="p-4 flex items-center gap-3">
-        <div className="rounded-lg bg-white/60 p-2"><Icon className="h-4 w-4" /></div>
-        <div className="min-w-0">
-          <div className="text-[11px] font-medium leading-tight opacity-80">{label}</div>
-          <div className="text-lg font-bold leading-tight break-words">{value}</div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ==================== DETALLE DE CIERRE ====================
-
-function SessionDetailDialog({ open, onClose, sessionToken, cashSessionId }: {
-  open: boolean; onClose: () => void; sessionToken: string; cashSessionId: string | null;
-}) {
-  const [detail, setDetail] = useState<SupervisorSessionDetail | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!open || !cashSessionId) { setDetail(null); return; }
-    setLoading(true); setError(null);
-    supervisorSessionDetail({ session_token: sessionToken, cash_session_id: cashSessionId })
-      .then(setDetail)
-      .catch((e: Error) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [open, cashSessionId, sessionToken]);
-
-  return (
-    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>Detalle del cierre</DialogTitle>
-        </DialogHeader>
-        {loading && <div className="py-8 text-center text-muted-foreground">Cargando…</div>}
-        {error && <div className="py-8 text-center text-rose-600">{error}</div>}
-        {detail && <SessionDetailView detail={detail} />}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function SessionDetailView({ detail }: { detail: SupervisorSessionDetail }) {
-  const { session, summary, payments, services, products, movements, branch_name } = detail;
-  const turnNumber = session.id.slice(0, 3).toUpperCase();
-  const diff = summary.difference;
-  const totalPayments = Object.values(payments).reduce((a, v) => a + v.amount, 0);
-  const totalTx = Object.values(payments).reduce((a, v) => a + v.count, 0);
-  const isOpen = session.status === "open";
-
-  return (
-    <Tabs defaultValue="resumen" className="space-y-4">
-      <div>
-        <div className="text-lg font-bold">Arqueo #{turnNumber} {isOpen && <Badge className="bg-emerald-600 ml-2">Turno en curso</Badge>}</div>
-        <div className="text-sm text-muted-foreground">{branch_name} · {session.user_name ?? "—"}</div>
-        <div className="text-xs text-muted-foreground">
-          {new Date(session.opened_at).toLocaleString()} → {session.closed_at ? new Date(session.closed_at).toLocaleString() : "en curso"}
-        </div>
-      </div>
-
-      <TabsList className="grid grid-cols-3">
-        <TabsTrigger value="resumen">Resumen</TabsTrigger>
-        <TabsTrigger value="productos">Productos</TabsTrigger>
-        <TabsTrigger value="ajustes">Ajustes</TabsTrigger>
-      </TabsList>
-
-      <TabsContent value="resumen" className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          <MiniStat label="Pedidos" value={String(summary.order_count)} />
-          <MiniStat label="Ventas totales" value={formatCurrency(summary.total_sales)} />
-          <MiniStat label="Ticket promedio" value={formatCurrency(summary.avg_ticket)} />
-          <MiniStat label="Cancelados" value={`${summary.cancelled_count} · ${formatCurrency(summary.cancelled_value)}`} />
-        </div>
-
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Ventas por método de pago</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {Object.entries(payments).length === 0 && <div className="text-muted-foreground">Sin datos.</div>}
-            {Object.entries(payments).map(([k, v]) => (
-              <div key={k} className="flex justify-between items-center border-b last:border-0 py-1.5">
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{methodLabel(k)}</span>
-                  <span className="text-xs bg-muted rounded-full px-2 py-0.5">{v.count} ventas</span>
-                </div>
-                <span className="font-bold">{formatCurrency(v.amount)}</span>
-              </div>
-            ))}
-            <div className="flex justify-between border-t pt-2 font-bold">
-              <span>Total ({totalTx} transacciones)</span>
-              <span className="text-emerald-700">{formatCurrency(totalPayments)}</span>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Ventas por tipo de servicio</CardTitle></CardHeader>
-          <CardContent className="space-y-2 text-sm">
-            {Object.entries(services).length === 0 && <div className="text-muted-foreground">Sin datos.</div>}
-            {Object.entries(services).map(([k, v]) => (
-              <div key={k} className="flex justify-between border-b last:border-0 py-1.5">
-                <span className="uppercase font-medium">{k}</span>
-                <span><span className="text-xs text-muted-foreground mr-2">{v.count} pedidos</span><b>{formatCurrency(v.amount)}</b></span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Balance de efectivo en caja</CardTitle></CardHeader>
-          <CardContent className="space-y-1.5 text-sm">
-            <BalanceRow label="Apertura de caja" value={formatCurrency(summary.opening_amount)} />
-            <BalanceRow label="+ Ventas en efectivo" value={formatCurrency(summary.cash_total)} tone="text-emerald-700" />
-            <BalanceRow label="+ Entradas y depósitos en efectivo" value={formatCurrency(summary.deposits_cash)} tone="text-emerald-700" />
-            <BalanceRow label="− Gastos y salidas en efectivo" value={`−${formatCurrency(summary.expenses_cash)}`} tone="text-rose-700" />
-            <div className="border-t pt-2 flex justify-between font-bold">
-              <span>= Efectivo esperado</span><span className="text-teal-700">{formatCurrency(summary.expected_cash)}</span>
-            </div>
-            {!isOpen && (
-              <>
-                <div className="flex justify-between pt-1"><span>Declarado por el cajero</span><span className="font-bold">{formatCurrency(summary.counted_amount)}</span></div>
-                <div className="flex justify-between font-bold border-t pt-2">
-                  <span>Diferencia</span>
-                  <span className={cn(diff === 0 ? "text-emerald-700" : diff > 0 ? "text-sky-700" : "text-rose-700")}>
-                    {formatCurrency(diff)} · {diff === 0 ? "Cuadrado" : diff > 0 ? "Sobrante" : "Faltante"}
-                  </span>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="productos">
-        <Card>
-          <CardHeader><CardTitle className="text-sm">Productos vendidos</CardTitle></CardHeader>
-          <CardContent className="space-y-1 text-sm">
-            {products.length === 0 && <div className="text-muted-foreground">Sin datos.</div>}
-            {products.map((p, i) => (
-              <div key={p.name + i} className="flex justify-between border-b last:border-0 py-1.5 gap-2">
-                <span><span className="text-muted-foreground mr-2">{i + 1}.</span>{p.name}</span>
-                <span className="font-semibold shrink-0">{Number(p.qty)} · {formatCurrency(Number(p.total))}</span>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      </TabsContent>
-
-      <TabsContent value="ajustes">
-        <MovementsView movements={movements} />
-      </TabsContent>
-    </Tabs>
-  );
-}
-
-function BalanceRow({ label, value, tone }: { label: string; value: string; tone?: string }) {
-  return (
-    <div className="flex justify-between">
-      <span>{label}</span>
-      <span className={cn("font-semibold", tone)}>{value}</span>
-    </div>
   );
 }
