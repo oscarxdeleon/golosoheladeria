@@ -5,6 +5,7 @@
 // Endpoints:
 //   GET  /health  -> estado del servidor
 //   GET  /test    -> imprime un ticket de prueba
+//   GET  /test-drawer -> prueba únicamente el pulso del cajón monedero
 //   POST /render  -> diagnóstico: devuelve el texto ESC/POS renderizado sin imprimir
 //   POST /print   -> imprime el payload recibido
 //
@@ -1018,6 +1019,7 @@ const server = http.createServer(async (req, res) => {
       port: PRINTER_PORT,
       width: WIDTH,
       codepageId: CODEPAGE_ID,
+      drawerPulse: true,
       charset: "ESC/POS + Windows-1252 + USA international charset",
       modifierStyle: "Font A + bold + double-strike; normal character spacing",
     });
@@ -1061,6 +1063,16 @@ const server = http.createServer(async (req, res) => {
       return send(200, { ok: true });
     } catch (e) {
       console.error("[test]", e);
+      return send(500, { ok: false, error: String(e?.message || e) });
+    }
+  }
+
+  if (req.method === "GET" && req.url === "/test-drawer") {
+    try {
+      await printJob({ type: "drawer", header: "DRAWER", items: [], open_drawer: true });
+      return send(200, { ok: true, type: "drawer", version: APP_VERSION });
+    } catch (e) {
+      console.error("[test-drawer]", e);
       return send(500, { ok: false, error: String(e?.message || e) });
     }
   }
