@@ -17,8 +17,12 @@ echo.
 
 echo Cerrando cualquier Print Server anterior...
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3001 " ^| findstr LISTENING') do (
-  taskkill /F /PID %%P >nul 2>nul
+  taskkill /F /PID %%P /T >nul 2>nul
 )
+REM Cerrar tambien cualquier wscript/node que apunte a esta carpeta
+taskkill /F /IM node.exe >nul 2>nul
+taskkill /F /IM wscript.exe >nul 2>nul
+timeout /t 2 /nobreak >nul
 
 where node >nul 2>nul
 if errorlevel 1 (
