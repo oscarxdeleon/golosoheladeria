@@ -2040,7 +2040,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         )}
 
 
-        <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-14 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
+        <Tabs value={activeCat} onValueChange={setActiveCat} className="sticky top-24 md:top-28 z-20 -mx-1 bg-background/85 px-1 py-1 backdrop-blur supports-[backdrop-filter]:bg-background/70">
           <TabsList className="flex flex-wrap h-auto gap-1 bg-transparent">
             <TabsTrigger
               value="all"
