@@ -34,6 +34,18 @@ export type SupervisorSession = {
   username: string;
 };
 
+export type SupervisorMovement = {
+  id: string;
+  kind: "expense" | "deposit";
+  created_at: string;
+  user_name: string | null;
+  category: string | null;
+  description: string | null;
+  method: string | null;
+  amount: number;
+  status: string | null;
+};
+
 export type SupervisorDashboardData = {
   supervisor: { username: string; display_name: string };
   branches: Array<{ id: string; name: string; is_main: boolean }>;
@@ -45,6 +57,7 @@ export type SupervisorDashboardData = {
     start_at: string | null;
     end_at: string | null;
     timezone: string;
+    date?: string;
   };
   summary: {
     total_sales: number;
@@ -53,14 +66,18 @@ export type SupervisorDashboardData = {
     cash_total: number;
     digital_total: number;
     expenses?: number;
+    expenses_cash?: number;
     purchases?: number;
     deposits?: number;
+    deposits_cash?: number;
     entries?: number;
     exits?: number;
     refunds?: number;
     tips?: number;
     cancelled_count?: number;
     cancelled_value?: number;
+    opening_amount?: number;
+    expected_cash?: number;
     net_balance?: number;
     tables_occupied: number;
     pending_llevar: number;
@@ -85,11 +102,7 @@ export type SupervisorDashboardData = {
     nequi_counted?: number | null;
     bancolombia_counted?: number | null;
     cash_expected?: number | null;
-    nequi_expected?: number | null;
-    bancolombia_expected?: number | null;
-    cash_difference?: number | null;
-    nequi_difference?: number | null;
-    bancolombia_difference?: number | null;
+    cash_expected_calc?: number | null;
     user_name: string | null;
     user_id: string | null;
     branch_id?: string | null;
@@ -103,19 +116,45 @@ export type SupervisorDashboardData = {
     counted_amount: number | null;
     expected_amount: number | null;
     difference: number | null;
-    cash_counted?: number | null;
-    nequi_counted?: number | null;
-    bancolombia_counted?: number | null;
-    cash_expected?: number | null;
-    nequi_expected?: number | null;
-    bancolombia_expected?: number | null;
-    cash_difference?: number | null;
-    nequi_difference?: number | null;
-    bancolombia_difference?: number | null;
     user_name: string | null;
     user_id: string | null;
     branch_id: string | null;
   }>;
+  movements?: SupervisorMovement[];
+};
+
+export type SupervisorSessionDetail = {
+  session: {
+    id: string;
+    branch_id: string;
+    opened_at: string;
+    closed_at: string | null;
+    opening_amount: number | null;
+    counted_amount: number | null;
+    user_name: string | null;
+    status: string | null;
+  };
+  branch_name: string | null;
+  summary: {
+    total_sales: number;
+    order_count: number;
+    avg_ticket: number;
+    cancelled_count: number;
+    cancelled_value: number;
+    cash_total: number;
+    expenses_total: number;
+    expenses_cash: number;
+    deposits_total: number;
+    deposits_cash: number;
+    opening_amount: number;
+    expected_cash: number;
+    counted_amount: number;
+    difference: number;
+  };
+  payments: Record<string, { amount: number; count: number }>;
+  services: Record<string, { amount: number; count: number }>;
+  products: Array<{ name: string; qty: number; total: number }>;
+  movements: SupervisorMovement[];
 };
 
 export async function listSupervisorAccounts(): Promise<SupervisorAccount[]> {
@@ -198,6 +237,19 @@ export async function supervisorDashboard(data: {
   });
   throwIfError(res.error);
   if (!res.data) throw new Error("No se pudo cargar el tablero supervisor");
+  return res.data;
+}
+
+export async function supervisorSessionDetail(data: {
+  session_token: string;
+  cash_session_id: string;
+}): Promise<SupervisorSessionDetail> {
+  const res = await rpcClient.rpc<SupervisorSessionDetail>("supervisor_session_detail_rpc", {
+    _session_token: data.session_token,
+    _cash_session_id: data.cash_session_id,
+  });
+  throwIfError(res.error);
+  if (!res.data) throw new Error("No se pudo cargar el detalle del cierre");
   return res.data;
 }
 
