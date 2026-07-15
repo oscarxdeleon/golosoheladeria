@@ -8,7 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard, Users, Bike, Utensils, ChefHat, ShieldCheck, Eye, ArrowDownLeft, ArrowUpRight, ReceiptText, AlertTriangle } from "lucide-react";
+import { Building2, LogOut, RefreshCw, TrendingUp, ShoppingBag, Wallet, CreditCard, Users, Bike, Utensils, ChefHat, ShieldCheck, Eye, ArrowDownLeft, ArrowUpRight, ReceiptText, AlertTriangle, CalendarIcon } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { formatMoney as formatCurrency } from "@/lib/format";
 
