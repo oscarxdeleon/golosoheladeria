@@ -64,7 +64,7 @@ function CajaDetailPage() {
   const { id } = Route.useParams();
   const navigate = useNavigate();
   
-  const { branches, activeBranchId, setActiveBranchId } = useBranch();
+  const { branches, activeBranchId, setActiveBranchId, loading: branchesLoading } = useBranch();
   const [downloading, setDownloading] = useState(false);
 
   const { data: session, isLoading } = useQuery({
@@ -128,10 +128,10 @@ function CajaDetailPage() {
 
   const branchName = branches.find((b) => b.id === visibleSession?.branch_id)?.name ?? "—";
 
-  if (isLoading || !session) {
+  if (isLoading || branchesLoading || !session) {
     return (
       <div className="mx-auto max-w-2xl">
-        <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading || branchesLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
       </div>
     );
   }
