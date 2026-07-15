@@ -2036,7 +2036,7 @@ export type Database = {
       }
       supervisor_accounts: {
         Row: {
-          access_token: string
+          access_token: string | null
           active: boolean
           created_at: string
           display_name: string
@@ -2046,10 +2046,10 @@ export type Database = {
           locked_until: string | null
           pin_hash: string
           updated_at: string
-          username: string
+          username: string | null
         }
         Insert: {
-          access_token?: string
+          access_token?: string | null
           active?: boolean
           created_at?: string
           display_name: string
@@ -2059,10 +2059,10 @@ export type Database = {
           locked_until?: string | null
           pin_hash: string
           updated_at?: string
-          username: string
+          username?: string | null
         }
         Update: {
-          access_token?: string
+          access_token?: string | null
           active?: boolean
           created_at?: string
           display_name?: string
@@ -2072,38 +2072,44 @@ export type Database = {
           locked_until?: string | null
           pin_hash?: string
           updated_at?: string
-          username?: string
+          username?: string | null
         }
         Relationships: []
       }
       supervisor_audit_log: {
         Row: {
           account_id: string | null
+          branch_id: string | null
           created_at: string
           detail: Json | null
           event: string
           id: string
           ip: string | null
+          ip_address: string | null
           user_agent: string | null
           username: string | null
         }
         Insert: {
           account_id?: string | null
+          branch_id?: string | null
           created_at?: string
           detail?: Json | null
           event: string
           id?: string
           ip?: string | null
+          ip_address?: string | null
           user_agent?: string | null
           username?: string | null
         }
         Update: {
           account_id?: string | null
+          branch_id?: string | null
           created_at?: string
           detail?: Json | null
           event?: string
           id?: string
           ip?: string | null
+          ip_address?: string | null
           user_agent?: string | null
           username?: string | null
         }
@@ -2115,15 +2121,24 @@ export type Database = {
             referencedRelation: "supervisor_accounts"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "supervisor_audit_log_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       supervisor_sessions: {
         Row: {
           account_id: string
           created_at: string
+          current_branch_id: string | null
           expires_at: string
           id: string
           ip: string | null
+          ip_address: string | null
           revoked_at: string | null
           session_token: string
           user_agent: string | null
@@ -2131,9 +2146,11 @@ export type Database = {
         Insert: {
           account_id: string
           created_at?: string
+          current_branch_id?: string | null
           expires_at?: string
           id?: string
           ip?: string | null
+          ip_address?: string | null
           revoked_at?: string | null
           session_token?: string
           user_agent?: string | null
@@ -2141,9 +2158,11 @@ export type Database = {
         Update: {
           account_id?: string
           created_at?: string
+          current_branch_id?: string | null
           expires_at?: string
           id?: string
           ip?: string | null
+          ip_address?: string | null
           revoked_at?: string | null
           session_token?: string
           user_agent?: string | null
@@ -2154,6 +2173,13 @@ export type Database = {
             columns: ["account_id"]
             isOneToOne: false
             referencedRelation: "supervisor_accounts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supervisor_sessions_current_branch_id_fkey"
+            columns: ["current_branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
             referencedColumns: ["id"]
           },
         ]
@@ -2475,6 +2501,45 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _normalize_payment_method: { Args: { _m: string }; Returns: string }
+      _shared_cash_session_detail: {
+        Args: { _cash_session_id: string }
+        Returns: Json
+      }
+      _shared_cash_session_list: {
+        Args: {
+          _branch_id: string
+          _from?: string
+          _status?: string
+          _to?: string
+        }
+        Returns: Json
+      }
+      _shared_dashboard_payload: {
+        Args: {
+          _branch_id: string
+          _end: string
+          _origen?: string
+          _pago?: string
+          _start: string
+        }
+        Returns: Json
+      }
+      admin_create_supervisor_rpc: {
+        Args: { _display_name: string; _pin: string }
+        Returns: Json
+      }
+      admin_delete_supervisor_rpc: { Args: { _id: string }; Returns: Json }
+      admin_list_supervisors_rpc: { Args: never; Returns: Json }
+      admin_update_supervisor_rpc: {
+        Args: {
+          _active?: boolean
+          _display_name?: string
+          _id: string
+          _pin?: string
+        }
+        Returns: Json
+      }
       assert_current_user_is_admin: { Args: never; Returns: string }
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
       cancel_sale: {
@@ -2645,11 +2710,13 @@ export type Database = {
         Args: never
         Returns: {
           account_id: string | null
+          branch_id: string | null
           created_at: string
           detail: Json | null
           event: string
           id: string
           ip: string | null
+          ip_address: string | null
           user_agent: string | null
           username: string | null
         }[]
@@ -2784,6 +2851,19 @@ export type Database = {
         Args: { _principal_id: string; _reason?: string }
         Returns: Json
       }
+      supervisor_cash_session_detail_v2_rpc: {
+        Args: { _cash_session_id: string; _session_token: string }
+        Returns: Json
+      }
+      supervisor_cash_sessions_list_rpc: {
+        Args: {
+          _branch_id: string
+          _from?: string
+          _session_token: string
+          _to?: string
+        }
+        Returns: Json
+      }
       supervisor_dashboard_rpc: {
         Args: {
           _branch_id?: string
@@ -2793,9 +2873,28 @@ export type Database = {
         }
         Returns: Json
       }
+      supervisor_dashboard_v2_rpc: {
+        Args: {
+          _branch_id: string
+          _origen?: string
+          _pago?: string
+          _range?: string
+          _session_token: string
+        }
+        Returns: Json
+      }
       supervisor_hash_pin: {
         Args: { _pin: string; _salt: string }
         Returns: string
+      }
+      supervisor_login_by_name_rpc: {
+        Args: {
+          _display_name: string
+          _ip?: string
+          _pin: string
+          _user_agent?: string
+        }
+        Returns: Json
       }
       supervisor_login_rpc: {
         Args: {
@@ -2818,6 +2917,10 @@ export type Database = {
         Returns: Json
       }
       supervisor_slug: { Args: { _value: string }; Returns: string }
+      supervisor_validate_session_rpc: {
+        Args: { _session_token: string }
+        Returns: Json
+      }
       sync_active_cash_session: {
         Args: { _branch_id?: string; _user_name?: string }
         Returns: {
