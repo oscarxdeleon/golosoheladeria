@@ -2525,8 +2525,30 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_cash_session_detail_rpc: {
+        Args: { _cash_session_id: string }
+        Returns: Json
+      }
+      admin_cash_sessions_list_rpc: {
+        Args: {
+          _branch_id: string
+          _from?: string
+          _status?: string
+          _to?: string
+        }
+        Returns: Json
+      }
       admin_create_supervisor_rpc: {
         Args: { _display_name: string; _pin: string }
+        Returns: Json
+      }
+      admin_dashboard_rpc: {
+        Args: {
+          _branch_id: string
+          _origen?: string
+          _pago?: string
+          _range?: string
+        }
         Returns: Json
       }
       admin_delete_supervisor_rpc: { Args: { _id: string }; Returns: Json }
