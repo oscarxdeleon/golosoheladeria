@@ -1816,6 +1816,7 @@ export type Database = {
           payment_details: Json | null
           payment_method: string
           printed_at: string | null
+          scheduled_for: string | null
           source: string
           status: string
           subtotal: number
@@ -1854,6 +1855,7 @@ export type Database = {
           payment_details?: Json | null
           payment_method: string
           printed_at?: string | null
+          scheduled_for?: string | null
           source?: string
           status?: string
           subtotal?: number
@@ -1892,6 +1894,7 @@ export type Database = {
           payment_details?: Json | null
           payment_method?: string
           printed_at?: string | null
+          scheduled_for?: string | null
           source?: string
           status?: string
           subtotal?: number

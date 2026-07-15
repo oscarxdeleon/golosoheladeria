@@ -16,6 +16,8 @@ import { ModifiersModal } from "@/components/modifiers-modal";
 import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import { getChannelStatus, normalizeSchedules } from "@/lib/schedules";
+import { ScheduleOrderDialog } from "@/components/schedule-order-dialog";
+import { CalendarClock } from "lucide-react";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
@@ -356,14 +358,39 @@ export function PublicOrder({
     return () => window.clearInterval(id);
   }, [source]);
   const onlineStatus = getChannelStatus(branchSchedules, "online", new Date(nowTick));
+  const physicalStatus = getChannelStatus(branchSchedules, "physical", new Date(nowTick));
+
+  // Reglas por tipo de servicio:
+  //  - Domicilio  -> horario online.  Fuera de horario => ofrecer "Programa tu pedido".
+  //  - Recoger    -> horario físico. Fuera de horario => bloquear sin opción de programar.
+  //  - Menú en línea sin servicio elegido aún -> validar online (banner informativo).
+  //  - Otros (kiosk, table_qr) -> no aplica cierre por horario.
+  const effectiveStatus = source === "online_menu"
+    ? (isPickup ? physicalStatus : onlineStatus)
+    : { isOpen: true, reason: "open" as const, closesAt: null, opensAt: null, minutesToClose: null };
+  const canSchedule = source === "online_menu" && isDelivery; // solo domicilio permite programar
   const enforceOnlineSchedule = source === "online_menu";
-  const onlineClosed = enforceOnlineSchedule && !onlineStatus.isOpen;
-  const onlineClosingSoon = enforceOnlineSchedule && onlineStatus.isOpen && (onlineStatus.minutesToClose ?? 999) <= 30;
-  const onlineClosedMessage = onlineStatus.reason === "closed_day"
-    ? "Hoy no hay pedidos en línea disponibles."
-    : onlineStatus.reason === "before_open"
-      ? `Los pedidos en línea inician a las ${onlineStatus.opensAt}.`
-      : "Estamos fuera del horario para pedidos en línea.";
+  const isClosedForService = enforceOnlineSchedule && !effectiveStatus.isOpen;
+  const onlineClosingSoon = enforceOnlineSchedule && effectiveStatus.isOpen && (effectiveStatus.minutesToClose ?? 999) <= 30;
+
+  const closedTitle = isPickup
+    ? "La heladería se encuentra cerrada en este momento."
+    : "En este momento ya no estamos recibiendo pedidos a domicilio.";
+  const closedSubtitle = effectiveStatus.reason === "closed_day"
+    ? "Hoy no hay servicio disponible."
+    : effectiveStatus.reason === "before_open"
+      ? `Reabrimos a las ${effectiveStatus.opensAt}.`
+      : (isPickup ? "El horario de atención del local ha finalizado." : "Puedes programar tu pedido para más tarde.");
+
+  // Programación de pedidos (solo domicilio)
+  const [scheduleOpen, setScheduleOpen] = useState(false);
+  const [scheduledFor, setScheduledFor] = useState<string | null>(null); // ISO UTC
+  const [scheduledLabel, setScheduledLabel] = useState<string>("");
+  // Cuando cambia el servicio, limpiar cualquier programación previa incompatible
+  useEffect(() => {
+    if (!isDelivery && scheduledFor) { setScheduledFor(null); setScheduledLabel(""); }
+  }, [isDelivery, scheduledFor]);
+
 
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
   const bancoAcc = (settings as { bancolombia_account?: string | null } | null | undefined)?.bancolombia_account ?? "";
@@ -482,9 +509,11 @@ export function PublicOrder({
 
 
   async function submit() {
-    if (enforceOnlineSchedule && !onlineStatus.isOpen) {
-      return toast.error(onlineClosedMessage);
+    // Bloqueo por horario, salvo que sea domicilio con pedido programado.
+    if (isClosedForService && !(canSchedule && scheduledFor)) {
+      return toast.error(closedTitle);
     }
+
     const err = validate();
     if (err) return toast.error(err);
     setSubmitting(true);
@@ -520,6 +549,7 @@ export function PublicOrder({
         payment_method: isTableQr ? "Pendiente" : payMethod,
         payment_details,
         items: cart.map((l) => ({ product_id: l.product_id, name: l.name, qty: l.qty, unit_price: l.unit_price, modifiers: l.modifiers ?? [] })),
+        scheduled_for: canSchedule ? scheduledFor : null,
       };
 
       const { data, error } = await supabase.rpc("create_public_order", {
@@ -1319,31 +1349,66 @@ export function PublicOrder({
                 <div className="flex justify-between font-display text-lg pt-1 border-t"><span>Total</span><span>{formatMoney(total)}</span></div>
               </div>
 
-              {onlineClosed && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-100 flex items-start gap-2">
-                  <Clock className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="font-semibold">{onlineClosedMessage}</div>
-                    <div className="text-xs mt-0.5 opacity-80">Puedes seguir viendo el menú, pero no es posible enviar pedidos inmediatos.</div>
+              {isClosedForService && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-100 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div>
+                      <div className="font-semibold">{closedTitle}</div>
+                      <div className="text-xs mt-0.5 opacity-80">{closedSubtitle}</div>
+                    </div>
                   </div>
+                  {canSchedule && (
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="w-full"
+                      onClick={() => setScheduleOpen(true)}
+                    >
+                      <CalendarClock className="h-4 w-4 mr-2" />
+                      {scheduledFor ? `Programado · ${scheduledLabel}` : "Programa tu pedido"}
+                    </Button>
+                  )}
                 </div>
               )}
               {onlineClosingSoon && (
                 <div className="rounded-lg border border-sky-300 bg-sky-50 dark:bg-sky-950/30 p-2.5 text-xs text-sky-900 dark:text-sky-100 flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5" />
-                  Pedidos en línea disponibles por {onlineStatus.minutesToClose} minuto{onlineStatus.minutesToClose === 1 ? "" : "s"} más (hasta las {onlineStatus.closesAt}).
+                  {isPickup ? "El local" : "Pedidos en línea"} cierra en {effectiveStatus.minutesToClose} min (a las {effectiveStatus.closesAt}).
+                </div>
+              )}
+              {scheduledFor && canSchedule && (
+                <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="font-semibold">Pedido programado</div>
+                      <div className="text-xs text-muted-foreground">{scheduledLabel}</div>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => { setScheduledFor(null); setScheduledLabel(""); }}>
+                    Quitar
+                  </Button>
                 </div>
               )}
 
-              <Button size="lg" className="w-full" onClick={submit} disabled={submitting || onlineClosed}>
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={submit}
+                disabled={submitting || (isClosedForService && !(canSchedule && scheduledFor))}
+              >
                 {submitting
                   ? "Enviando..."
-                  : onlineClosed
+                  : isClosedForService && !(canSchedule && scheduledFor)
                     ? "Fuera de horario"
                     : source === "table_qr"
                       ? "Confirmar pedido"
-                      : `Finalizar pedido · ${formatMoney(total)}`}
+                      : scheduledFor
+                        ? `Confirmar programado · ${formatMoney(total)}`
+                        : `Finalizar pedido · ${formatMoney(total)}`}
               </Button>
+
 
 
             </div>
@@ -1362,6 +1427,13 @@ export function PublicOrder({
           if (modalProduct) addWithModifiers(modalProduct, mods, unitExtra);
           setModalProduct(null);
         }}
+      />
+      <ScheduleOrderDialog
+        open={scheduleOpen}
+        onOpenChange={setScheduleOpen}
+        schedules={branchSchedules}
+        channel="online"
+        onConfirm={(iso, label) => { setScheduledFor(iso); setScheduledLabel(label); }}
       />
     </div>
   );
