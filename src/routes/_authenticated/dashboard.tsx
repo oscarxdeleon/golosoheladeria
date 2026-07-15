@@ -291,14 +291,20 @@ function DashboardPage() {
       </div>
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard color="turquoise" icon={<Clock className="h-5 w-5" />}
-          label="Pedidos en preparación" value={String(data?.pending.preparing ?? 0)} hint="Actualizado en vivo" />
-        <KpiCard color="lime" icon={<ShoppingBag className="h-5 w-5" />}
-          label="Domicilios pendientes" value={String(data?.pending.pendingDomicilio ?? 0)} hint="Por sede activa" />
-        <KpiCard color="pink" icon={<Package className="h-5 w-5" />}
-          label="Para llevar pendientes" value={String(data?.pending.pendingLlevar ?? 0)} hint="Pendientes / preparación" />
-        <KpiCard color="yellow" icon={<Target className="h-5 w-5" />}
-          label="Mesas ocupadas" value={String(data?.pending.tablesOccupied ?? 0)} hint={data?.activeCash.id ? "Caja abierta" : "Sin caja abierta"} />
+        {isLoading ? (
+          <>{[0,1,2,3].map((i) => <Skeleton key={i} className="h-24 rounded-2xl" />)}</>
+        ) : (
+          <>
+            <KpiCard color="turquoise" icon={<Clock className="h-5 w-5" />}
+              label="Pedidos en preparación" value={String(data?.pending.preparing ?? 0)} hint="Actualizado en vivo" />
+            <KpiCard color="lime" icon={<ShoppingBag className="h-5 w-5" />}
+              label="Domicilios pendientes" value={String(data?.pending.pendingDomicilio ?? 0)} hint="Por sede activa" />
+            <KpiCard color="pink" icon={<Package className="h-5 w-5" />}
+              label="Para llevar pendientes" value={String(data?.pending.pendingLlevar ?? 0)} hint="Pendientes / preparación" />
+            <KpiCard color="yellow" icon={<Target className="h-5 w-5" />}
+              label="Mesas ocupadas" value={String(data?.pending.tablesOccupied ?? 0)} hint={data?.activeCash.id ? "Caja abierta" : "Sin caja abierta"} />
+          </>
+        )}
       </div>
 
       {/* Alertas de inventario */}
