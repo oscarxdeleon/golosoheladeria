@@ -67,134 +67,30 @@ function DashboardPage() {
   const [pago, setPago] = useState<string>("all");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["dashboard-v2", activeBranchId, range, origen, pago],
+    queryKey: ["dashboard-shared", activeBranchId, range, origen, pago],
     enabled: !!activeBranchId,
     refetchInterval: 30_000,
     queryFn: async () => {
-      const { start, end } = rangeFor(range);
-      const [salesRes, expensesRes, purchasesRes, cashSessionsRes] = await Promise.all([
-        supabase
-          .from("sales")
-          .select("id,total,created_at,payment_method,payment_details,source,status")
-          .eq("branch_id", activeBranchId!)
-          .gte("created_at", start).lt("created_at", end),
-        supabase
-          .from("expenses").select("amount,created_at,payment_method")
-          .eq("branch_id", activeBranchId!)
-          .gte("created_at", start).lt("created_at", end),
-        supabase
-          .from("purchases").select("total,created_at,payment_method")
-          .eq("branch_id", activeBranchId!)
-          .gte("created_at", start).lt("created_at", end),
-        supabase
-          .from("cash_sessions")
-          .select("opening_amount,cash_counted,nequi_counted,bancolombia_counted,cash_expected,nequi_expected,bancolombia_expected,cash_difference,nequi_difference,bancolombia_difference,closed_at,status")
-          .eq("branch_id", activeBranchId!)
-          .eq("status", "closed")
-          .gte("closed_at", start).lt("closed_at", end),
-      ]);
-
-      let sales = (salesRes.data ?? []).filter((s) => (s.status ?? "paid") !== "cancelled");
-      if (origen !== "all") sales = sales.filter((s) => norm(s.source) === origen);
-      if (pago !== "all")   sales = sales.filter((s) => norm(s.payment_method) === pago);
-
-      const saleIds = sales.map((s) => s.id);
-      const { data: items } = saleIds.length
-        ? await supabase.from("sale_items").select("product_id,product_name,qty,subtotal,sale_id").in("sale_id", saleIds)
-        : { data: [] as { product_id: string | null; product_name: string; qty: number; subtotal: number }[] };
-
-      // Resolver nombre base del producto (sin modificadores) desde la tabla products
-      const productIds = Array.from(new Set((items ?? []).map((i: any) => i.product_id).filter((x: any): x is string => !!x)));
-      const baseNameById = new Map<string, string>();
-      if (productIds.length) {
-        const { data: prods } = await supabase.from("products").select("id,name").in("id", productIds);
-        (prods ?? []).forEach((p: any) => baseNameById.set(p.id, p.name));
-      }
-      // Fallback: quitar todo lo que venga tras el primer "+" o "(" en product_name
-      const stripModifiers = (n: string) => (n ?? "").split(/\s*[+(]/)[0].trim() || n;
-
-      const productMap = new Map<string, { name: string; qty: number; total: number }>();
-      (items ?? []).forEach((it: any) => {
-        const baseName = (it.product_id && baseNameById.get(it.product_id)) || stripModifiers(it.product_name);
-        const key = (it.product_id as string) || baseName.toLowerCase();
-        const cur = productMap.get(key) ?? { name: baseName, qty: 0, total: 0 };
-        cur.qty += Number(it.qty);
-        cur.total += Number(it.subtotal);
-        productMap.set(key, cur);
+      const { data: raw, error } = await (supabase as unknown as {
+        rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
+      }).rpc("admin_dashboard_rpc", {
+        _branch_id: activeBranchId, _range: range, _origen: origen, _pago: pago,
       });
-      const top = [...productMap.values()]
-        .sort((a, b) => b.total - a.total).slice(0, 5);
+      if (error) throw new Error(error.message);
+      const p = raw ?? {};
 
-      // Payment breakdown (considera pagos divididos en payment_details.splits[])
-      const methodMap = new Map<string, number>();
-      sales.forEach((s) => {
-        const pd: any = (s as any).payment_details;
-        const splits = pd && pd.split === true && Array.isArray(pd.splits) ? pd.splits : null;
-        if (splits && splits.length) {
-          splits.forEach((sp: any) => {
-            const key = (sp.method ?? "otro").toString().trim() || "otro";
-            methodMap.set(key, (methodMap.get(key) ?? 0) + Number(sp.amount ?? 0));
-          });
-        } else {
-          const key = (s.payment_method ?? "otro").trim() || "otro";
-          methodMap.set(key, (methodMap.get(key) ?? 0) + Number(s.total));
-        }
-      });
-      // Egresos por medio de pago (gastos + compras) — se descuentan del medio en que realmente se pagaron
-      const egresosPorMedio = new Map<string, number>();
-      const addEgreso = (method: string | null | undefined, amount: number) => {
-        const key = (method ?? "otro").toString().trim().toLowerCase() || "otro";
-        egresosPorMedio.set(key, (egresosPorMedio.get(key) ?? 0) + Number(amount || 0));
-      };
-      (expensesRes.data ?? []).forEach((e: any) => addEgreso(e.payment_method, e.amount));
-      (purchasesRes.data ?? []).forEach((p: any) => addEgreso(p.payment_method, p.total));
+      const hourlyArr: { hour: number; total: number }[] = Array.isArray(p.hourly) ? p.hourly : [];
+      const hourly = Array.from({ length: 24 }, (_, h) => ({
+        hour: h,
+        total: Number(hourlyArr.find((x) => Number(x.hour) === h)?.total ?? 0),
+      }));
 
-      const allMethodKeys = new Set<string>([
-        ...Array.from(methodMap.keys()).map((k) => k.toLowerCase()),
-        ...Array.from(egresosPorMedio.keys()),
-      ]);
-      const methods = Array.from(allMethodKeys).map((key) => {
-        // ingresos: acumular por lower-case
-        const ingresos = Array.from(methodMap.entries())
-          .filter(([n]) => n.toLowerCase() === key)
-          .reduce((a, [, v]) => a + v, 0);
-        const egresos = egresosPorMedio.get(key) ?? 0;
-        return { name: key, ingresos, egresos, neto: ingresos - egresos, total: ingresos };
-      }).sort((a, b) => b.ingresos - a.ingresos);
+      const bestDays = (Array.isArray(p.best_days) ? p.best_days : []).map((d: { dow: number; total: number }) => ({
+        dow: Number(d.dow),
+        name: DAY_NAMES[Number(d.dow)] ?? "",
+        total: Number(d.total ?? 0),
+      }));
 
-      // Efectivo real (arqueo de cajas cerradas en el período)
-      const cashSessions = cashSessionsRes.data ?? [];
-      const realCash = {
-        efectivo: cashSessions.reduce((a, c: any) => a + Number(c.cash_counted ?? 0), 0),
-        nequi: cashSessions.reduce((a, c: any) => a + Number(c.nequi_counted ?? 0), 0),
-        bancolombia: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_counted ?? 0), 0),
-        efectivoEsperado: cashSessions.reduce((a, c: any) => a + Number(c.cash_expected ?? 0), 0),
-        nequiEsperado: cashSessions.reduce((a, c: any) => a + Number(c.nequi_expected ?? 0), 0),
-        bancolombiaEsperado: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_expected ?? 0), 0),
-        diferenciaEfectivo: cashSessions.reduce((a, c: any) => a + Number(c.cash_difference ?? 0), 0),
-        diferenciaNequi: cashSessions.reduce((a, c: any) => a + Number(c.nequi_difference ?? 0), 0),
-        diferenciaBanco: cashSessions.reduce((a, c: any) => a + Number(c.bancolombia_difference ?? 0), 0),
-        cajasCerradas: cashSessions.length,
-      };
-
-      // Hourly evolution (0..23)
-      const hourly = Array.from({ length: 24 }, (_, h) => ({ hour: h, total: 0 }));
-      sales.forEach((s) => {
-        const h = new Date(s.created_at).getHours();
-        hourly[h].total += Number(s.total);
-      });
-
-      // Best day (across selected period)
-      const dayMap = new Map<number, number>();
-      sales.forEach((s) => {
-        const dow = new Date(s.created_at).getDay();
-        dayMap.set(dow, (dayMap.get(dow) ?? 0) + Number(s.total));
-      });
-      const bestDays = [...dayMap.entries()]
-        .map(([dow, total]) => ({ dow, name: DAY_NAMES[dow], total }))
-        .sort((a, b) => b.total - a.total).slice(0, 3);
-
-      // Valley hours (only for "hoy"): hours between first and last sale with 0
       const activeHours = hourly.filter((h) => h.total > 0).map((h) => h.hour);
       const valleys: number[] = [];
       if (activeHours.length >= 2) {
@@ -203,16 +99,39 @@ function DashboardPage() {
         for (let h = first; h <= last; h++) if (hourly[h].total === 0) valleys.push(h);
       }
 
-      const total = sales.reduce((a, s) => a + Number(s.total), 0);
-      const txs = sales.length;
-      const avg = txs ? total / txs : 0;
-      const gastos =
-        (expensesRes.data ?? []).reduce((a, e) => a + Number(e.amount ?? 0), 0) +
-        (purchasesRes.data ?? []).reduce((a, p) => a + Number(p.total ?? 0), 0);
-      const utilidad = total - gastos;
-      const qtyVendida = (items ?? []).reduce((a, i) => a + Number(i.qty ?? 0), 0);
+      const rc = p.real_cash ?? {};
+      const realCash = {
+        efectivo: Number(rc.efectivo ?? 0),
+        nequi: Number(rc.nequi ?? 0),
+        bancolombia: Number(rc.bancolombia ?? 0),
+        efectivoEsperado: Number(rc.efectivoEsperado ?? 0),
+        nequiEsperado: Number(rc.nequiEsperado ?? 0),
+        bancolombiaEsperado: Number(rc.bancolombiaEsperado ?? 0),
+        diferenciaEfectivo: Number(rc.diferenciaEfectivo ?? 0),
+        diferenciaNequi: Number(rc.diferenciaNequi ?? 0),
+        diferenciaBanco: Number(rc.diferenciaBanco ?? 0),
+        cajasCerradas: Number(rc.cajasCerradas ?? 0),
+      };
 
-      return { total, txs, avg, gastos, utilidad, top, methods, hourly, bestDays, valleys, qtyVendida, realCash };
+      return {
+        total: Number(p.total ?? 0),
+        txs: Number(p.txs ?? 0),
+        avg: Number(p.avg ?? 0),
+        gastos: Number(p.gastos ?? 0),
+        utilidad: Number(p.utilidad ?? 0),
+        qtyVendida: Number(p.qty_vendida ?? 0),
+        top: (Array.isArray(p.top) ? p.top : []).map((t: { name: string; qty: number; total: number }) => ({
+          name: String(t.name), qty: Number(t.qty ?? 0), total: Number(t.total ?? 0),
+        })),
+        methods: (Array.isArray(p.methods) ? p.methods : []).map((m: { name: string; ingresos: number; egresos: number; neto: number; total: number }) => ({
+          name: String(m.name),
+          ingresos: Number(m.ingresos ?? 0),
+          egresos: Number(m.egresos ?? 0),
+          neto: Number(m.neto ?? 0),
+          total: Number(m.total ?? 0),
+        })),
+        hourly, bestDays, valleys, realCash,
+      };
     },
   });
 
