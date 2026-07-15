@@ -2774,6 +2774,10 @@ export type Database = {
         Args: { _child_id: string }
         Returns: undefined
       }
+      sale_involves_cash: {
+        Args: { _details: Json; _method: string }
+        Returns: boolean
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       split_merged_tables: {
