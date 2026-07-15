@@ -206,7 +206,7 @@ export const supervisorLogin = createServerFn({ method: "POST" })
 
     await supabaseAdmin.from("supervisor_audit_log").insert({
       account_id: acct.id,
-      username,
+      username: identifier,
       event: "login_success",
       ip,
       user_agent: ua,
