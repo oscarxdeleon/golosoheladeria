@@ -56,7 +56,7 @@ export function ImageDropzone({ value, onChange, bucket = "products", pathPrefix
     setBusy(true);
     try {
       const blob = await compressImage(file, maxDim, quality);
-      const ext = blob.type === "image/jpeg" ? "jpg" : (file.name.split(".").pop()?.toLowerCase() || "jpg");
+      const ext = blob.type === "image/webp" ? "webp" : (blob.type === "image/jpeg" ? "jpg" : (file.name.split(".").pop()?.toLowerCase() || "jpg"));
       const path = `${pathPrefix}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
       const up = await supabase.storage.from(bucket).upload(path, blob, { upsert: true, contentType: blob.type || `image/${ext}` });
       if (up.error) throw up.error;
