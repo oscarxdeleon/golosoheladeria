@@ -106,21 +106,19 @@ export function SupervisorAccessSection() {
           <TableHeader>
             <TableRow>
               <TableHead>Nombre</TableHead>
-              <TableHead>Usuario</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead>Último ingreso</TableHead>
               <TableHead className="text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {isLoading && <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Cargando…</TableCell></TableRow>}
+            {isLoading && <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Cargando…</TableCell></TableRow>}
             {!isLoading && data.length === 0 && (
-              <TableRow><TableCell colSpan={5} className="text-center py-6 text-muted-foreground">Aún no hay accesos supervisor. Crea el primero.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={4} className="text-center py-6 text-muted-foreground">Aún no hay accesos supervisor. Crea el primero.</TableCell></TableRow>
             )}
             {data.map((a: Acct) => (
               <TableRow key={a.id}>
                 <TableCell className="font-medium">{a.display_name}</TableCell>
-                <TableCell className="font-mono text-xs">{a.username}</TableCell>
                 <TableCell>
                   {a.active
                     ? <Badge className="bg-emerald-600">Activo</Badge>
