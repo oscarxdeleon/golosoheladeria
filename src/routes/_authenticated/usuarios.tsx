@@ -321,15 +321,17 @@ function UserForm({
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-2">
-            <Label>Sede asignada *</Label>
-            <Select value={branch_id ?? ""} onValueChange={(v) => setBranchId(v)}>
-              <SelectTrigger><SelectValue placeholder="Selecciona una sede" /></SelectTrigger>
+            <Label>Sede asignada {isSupervisor ? "" : "*"}</Label>
+            <Select value={isSupervisor ? "__all__" : (branch_id ?? "")} onValueChange={(v) => setBranchId(v)} disabled={isSupervisor}>
+              <SelectTrigger><SelectValue placeholder={isSupervisor ? "Todas las sedes" : "Selecciona una sede"} /></SelectTrigger>
               <SelectContent>
+                {isSupervisor && <SelectItem value="__all__">Todas las sedes</SelectItem>}
                 {branches.map((b) => (
                   <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " (Principal)" : ""}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {isSupervisor && <p className="text-xs text-muted-foreground">El Supervisor accede a todas las sedes desde el selector superior.</p>}
           </div>
           <div className="space-y-2">
             <Label>Rol *</Label>
