@@ -45,7 +45,7 @@ type SessionListItem = {
 
 function CajasPage() {
   const { branches, activeBranchId, setActiveBranchId } = useBranch();
-  const { user, isAdmin, roles } = useAuth();
+  const { user, isAdmin, roles, loading: authLoading, rolesLoading } = useAuth();
   const isSupervisor = roles.includes("supervisor");
   const canSeeAll = isAdmin || isSupervisor;
   const [branchId, setBranchId] = useState<string>(activeBranchId ?? "all");
@@ -63,15 +63,28 @@ function CajasPage() {
     if (value !== "all") setActiveBranchId(value);
   };
 
+  // Admin/Supervisor pueden ver todas las sedes; cajero se limita a la sede
+  // activa aunque el selector inicial diga "all".
+  const effectiveBranchId = useMemo(() => {
+    if (canSeeAll) return branchId === "all" ? null : branchId;
+    return branchId === "all" ? (activeBranchId ?? null) : branchId;
+  }, [canSeeAll, branchId, activeBranchId]);
+
   const rpcParams = useMemo(() => ({
-    _branch_id: branchId === "all" ? null : branchId,
+    _branch_id: effectiveBranchId,
     _from: from ? new Date(from).toISOString() : null,
     _to: to ? new Date(new Date(to).getTime() + 86400000 - 1).toISOString() : null,
     _status: status === "all" ? null : status,
-  }), [branchId, from, to, status]);
+  }), [effectiveBranchId, from, to, status]);
 
   const { data: sessions = [], isLoading } = useQuery({
-    queryKey: ["reportes.cajas.rpc", rpcParams],
+    queryKey: ["reportes.cajas.rpc", user?.id ?? "anon", rpcParams],
+    // Esperar a que la sesión y los roles estén cargados; de lo contrario
+    // la primera petición sale sin bearer o antes de conocer el rol y
+    // devuelve 401/vacío, y React Query cachea ese estado.
+    enabled: !authLoading && !rolesLoading && !!user?.id,
+    staleTime: 0,
+    refetchOnMount: "always",
     queryFn: async () => {
       const { data, error } = await supabase.rpc("admin_cash_sessions_list_rpc", rpcParams as never);
       if (error) throw error;
