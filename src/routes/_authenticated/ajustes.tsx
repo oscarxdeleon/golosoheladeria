@@ -147,6 +147,7 @@ function AjustesPage() {
       {activeTab ? (
         <SectionView activeTab={activeTab} allTabs={visibleTabs} onBack={() => setTab(null)} onSelect={setTab}>
           {tab === "estab"       && <SectionErrorBoundary label="Establecimiento"><EstablecimientoTab disabled={false} /></SectionErrorBoundary>}
+          {tab === "horarios"    && <SectionErrorBoundary label="Horarios de atención"><HorariosTab /></SectionErrorBoundary>}
           {tab === "ticket"      && <SectionErrorBoundary label="Ticket"><TicketTab /></SectionErrorBoundary>}
           {tab === "suc"         && <SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary>}
           {tab === "sede-edit"   && <SectionErrorBoundary label="Editar sede"><EditarSedeTab initialBranchId={editBranchId} /></SectionErrorBoundary>}
