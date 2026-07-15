@@ -53,6 +53,7 @@ export type SupervisorDashboardData = {
     cash_total: number;
     digital_total: number;
     expenses?: number;
+    purchases?: number;
     deposits?: number;
     entries?: number;
     exits?: number;

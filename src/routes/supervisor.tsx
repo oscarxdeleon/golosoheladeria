@@ -152,6 +152,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
       .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "sale_items" }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
+      .on("postgres_changes", { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "restaurant_tables", filter: `branch_id=eq.${branchId}` }, scheduleRefresh)
