@@ -2057,7 +2057,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         </div>
       )}
 
-
+      {!meseroMode && !openSession && (
         <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
           <span>
             <strong>Caja cerrada.</strong> Debes abrir caja antes de cobrar ventas.
@@ -2067,6 +2067,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </a>
         </div>
       )}
+
       <div className="space-y-4">
         <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 sm:flex sm:flex-row sm:items-center sm:gap-4">
           {!hideTitle && (
