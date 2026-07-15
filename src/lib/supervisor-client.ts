@@ -240,6 +240,19 @@ export async function supervisorDashboard(data: {
   return res.data;
 }
 
+export async function supervisorSessionDetail(data: {
+  session_token: string;
+  cash_session_id: string;
+}): Promise<SupervisorSessionDetail> {
+  const res = await rpcClient.rpc<SupervisorSessionDetail>("supervisor_session_detail_rpc", {
+    _session_token: data.session_token,
+    _cash_session_id: data.cash_session_id,
+  });
+  throwIfError(res.error);
+  if (!res.data) throw new Error("No se pudo cargar el detalle del cierre");
+  return res.data;
+}
+
 export async function listSupervisorAudit() {
   const { data, error } = await rpcClient.rpc("list_supervisor_audit_rpc");
   throwIfError(error);
