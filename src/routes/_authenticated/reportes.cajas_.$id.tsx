@@ -94,11 +94,13 @@ function CajaDetailPage() {
     queryKey: ["reportes.session.deposits", id, visibleSession?.branch_id ?? null],
     enabled: !!visibleSession?.id,
     queryFn: async () => {
+      const currentSession = visibleSession;
+      if (!currentSession?.branch_id) return [];
       const { data, error } = await supabase
         .from("cash_deposits")
         .select("id, amount, description, method, status, user_name, created_at")
-        .eq("cash_session_id", visibleSession!.id)
-        .eq("branch_id", visibleSession!.branch_id)
+        .eq("cash_session_id", currentSession.id)
+        .eq("branch_id", currentSession.branch_id)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Array<{ id: string; amount: number; description: string; method: string; status: string; user_name: string | null; created_at: string }>;
@@ -162,7 +164,8 @@ function CajaDetailPage() {
     );
   }
 
-  const summary = computeFinancialSummary(sales, expenses, [visibleSession]);
+  const detailSession = visibleSession;
+  const summary = computeFinancialSummary(sales, expenses, [detailSession]);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
   const products = aggregateProducts(items, { modifierNames });
@@ -176,17 +179,17 @@ function CajaDetailPage() {
   const cashSales = payments["efectivo"]?.amount ?? 0;
   const entries = summary.entries + (depByMethod.efectivo ?? 0);
   const exits = summary.exits + summary.expenses + summary.refunds;
-  const apertura = Number(visibleSession.opening_amount) || 0;
+  const apertura = Number(detailSession.opening_amount) || 0;
   const efectivoEsperado = apertura + cashSales + entries - exits;
 
-  const declared = Number(visibleSession.counted_amount) || 0;
-  const expected = Number(visibleSession.expected_amount) || efectivoEsperado;
+  const declared = Number(detailSession.counted_amount) || 0;
+  const expected = Number(detailSession.expected_amount) || efectivoEsperado;
   const diff = declared - expected;
 
   // Declared por medio no-efectivo
   const declaredNonCash: { key: string; label: string; amount: number }[] = [];
-  const nequi = Number(visibleSession.nequi_counted ?? 0);
-  const banco = Number(visibleSession.bancolombia_counted ?? 0);
+  const nequi = Number(detailSession.nequi_counted ?? 0);
+  const banco = Number(detailSession.bancolombia_counted ?? 0);
   if (nequi > 0) declaredNonCash.push({ key: "nequi", label: "NEQUI", amount: nequi });
   if (banco > 0) declaredNonCash.push({ key: "bancolombia", label: "BANCOLOMBIA", amount: banco });
   const totalDeclarado = declaredNonCash.reduce((a, x) => a + x.amount, 0);
@@ -200,12 +203,12 @@ function CajaDetailPage() {
 
   const totalSalesByPayments = Object.values(payments).reduce((a, v) => a + v.amount, 0);
   const totalTx = Object.values(payments).reduce((a, v) => a + v.count, 0);
-  const turnNumber = session.id.slice(0, 3).toUpperCase();
+  const turnNumber = detailSession.id.slice(0, 3).toUpperCase();
 
   async function handlePdf() {
     setDownloading(true);
     try {
-      await downloadShiftPdf({ session: visibleSession, branchName, turnNumber, sales, items, expenses });
+      await downloadShiftPdf({ session: detailSession, branchName, turnNumber, sales, items, expenses });
       toast.success("PDF generado");
     } catch (e) {
       toast.error("No se pudo generar el PDF", { description: (e as Error).message });
@@ -226,8 +229,8 @@ function CajaDetailPage() {
               </div>
               <div>
                 <h2 className="font-display text-2xl font-extrabold leading-tight">Detalle de Arqueo <span className="text-primary">#{turnNumber}</span></h2>
-                <p className="text-sm text-muted-foreground">Sesión de {visibleSession.user_name ?? "—"}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{branchName} · {format(new Date(visibleSession.opened_at), "dd/MM/yyyy HH:mm")}{visibleSession.closed_at ? ` – ${format(new Date(visibleSession.closed_at), "HH:mm")}` : " · abierto"}</p>
+                <p className="text-sm text-muted-foreground">Sesión de {detailSession.user_name ?? "—"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{branchName} · {format(new Date(detailSession.opened_at), "dd/MM/yyyy HH:mm")}{detailSession.closed_at ? ` – ${format(new Date(detailSession.closed_at), "HH:mm")}` : " · abierto"}</p>
               </div>
             </div>
             <Link to="/reportes/cajas">
