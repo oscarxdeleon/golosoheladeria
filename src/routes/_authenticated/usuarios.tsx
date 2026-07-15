@@ -17,7 +17,7 @@ import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, E
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
 import { createAppUser, updateAppUser, deleteAppUser } from "@/lib/admin-users.functions";
-import { SupervisorAccessSection } from "@/components/supervisor-access-section";
+
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
   head: () => ({ meta: [{ title: "Usuarios · Goloso POS" }] }),
@@ -226,7 +226,6 @@ function UsuariosPage() {
         </CardContent>
       </Card>
 
-      <SupervisorAccessSection />
     </div>
   );
 }

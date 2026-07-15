@@ -2034,156 +2034,6 @@ export type Database = {
         }
         Relationships: []
       }
-      supervisor_accounts: {
-        Row: {
-          access_token: string | null
-          active: boolean
-          created_at: string
-          display_name: string
-          failed_attempts: number
-          id: string
-          last_login_at: string | null
-          locked_until: string | null
-          pin_hash: string
-          updated_at: string
-          username: string | null
-        }
-        Insert: {
-          access_token?: string | null
-          active?: boolean
-          created_at?: string
-          display_name: string
-          failed_attempts?: number
-          id?: string
-          last_login_at?: string | null
-          locked_until?: string | null
-          pin_hash: string
-          updated_at?: string
-          username?: string | null
-        }
-        Update: {
-          access_token?: string | null
-          active?: boolean
-          created_at?: string
-          display_name?: string
-          failed_attempts?: number
-          id?: string
-          last_login_at?: string | null
-          locked_until?: string | null
-          pin_hash?: string
-          updated_at?: string
-          username?: string | null
-        }
-        Relationships: []
-      }
-      supervisor_audit_log: {
-        Row: {
-          account_id: string | null
-          branch_id: string | null
-          created_at: string
-          detail: Json | null
-          event: string
-          id: string
-          ip: string | null
-          ip_address: string | null
-          user_agent: string | null
-          username: string | null
-        }
-        Insert: {
-          account_id?: string | null
-          branch_id?: string | null
-          created_at?: string
-          detail?: Json | null
-          event: string
-          id?: string
-          ip?: string | null
-          ip_address?: string | null
-          user_agent?: string | null
-          username?: string | null
-        }
-        Update: {
-          account_id?: string | null
-          branch_id?: string | null
-          created_at?: string
-          detail?: Json | null
-          event?: string
-          id?: string
-          ip?: string | null
-          ip_address?: string | null
-          user_agent?: string | null
-          username?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "supervisor_audit_log_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "supervisor_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "supervisor_audit_log_branch_id_fkey"
-            columns: ["branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      supervisor_sessions: {
-        Row: {
-          account_id: string
-          created_at: string
-          current_branch_id: string | null
-          expires_at: string
-          id: string
-          ip: string | null
-          ip_address: string | null
-          revoked_at: string | null
-          session_token: string
-          user_agent: string | null
-        }
-        Insert: {
-          account_id: string
-          created_at?: string
-          current_branch_id?: string | null
-          expires_at?: string
-          id?: string
-          ip?: string | null
-          ip_address?: string | null
-          revoked_at?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Update: {
-          account_id?: string
-          created_at?: string
-          current_branch_id?: string | null
-          expires_at?: string
-          id?: string
-          ip?: string | null
-          ip_address?: string | null
-          revoked_at?: string | null
-          session_token?: string
-          user_agent?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "supervisor_sessions_account_id_fkey"
-            columns: ["account_id"]
-            isOneToOne: false
-            referencedRelation: "supervisor_accounts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "supervisor_sessions_current_branch_id_fkey"
-            columns: ["current_branch_id"]
-            isOneToOne: false
-            referencedRelation: "branches"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       supplier_credit_payments: {
         Row: {
           amount: number
@@ -2538,27 +2388,12 @@ export type Database = {
         }
         Returns: Json
       }
-      admin_create_supervisor_rpc: {
-        Args: { _display_name: string; _pin: string }
-        Returns: Json
-      }
       admin_dashboard_rpc: {
         Args: {
           _branch_id: string
           _origen?: string
           _pago?: string
           _range?: string
-        }
-        Returns: Json
-      }
-      admin_delete_supervisor_rpc: { Args: { _id: string }; Returns: Json }
-      admin_list_supervisors_rpc: { Args: never; Returns: Json }
-      admin_update_supervisor_rpc: {
-        Args: {
-          _active?: boolean
-          _display_name?: string
-          _id: string
-          _pin?: string
         }
         Returns: Json
       }
@@ -2647,19 +2482,10 @@ export type Database = {
         }
       }
       create_public_order: { Args: { _payload: Json }; Returns: Json }
-      create_supervisor_account_rpc: {
-        Args: { _display_name: string; _pin: string }
-        Returns: {
-          access_token: string
-          id: string
-          username: string
-        }[]
-      }
       create_waiter_call: {
         Args: { _reason?: string; _table_id: string }
         Returns: Json
       }
-      delete_supervisor_account_rpc: { Args: { _id: string }; Returns: Json }
       get_active_cash_session: {
         Args: { _branch_id?: string }
         Returns: {
@@ -2715,40 +2541,6 @@ export type Database = {
         Returns: undefined
       }
       kds_public_pending: { Args: { p_slug: string }; Returns: Json }
-      list_supervisor_accounts_rpc: {
-        Args: never
-        Returns: {
-          access_token: string
-          active: boolean
-          created_at: string
-          display_name: string
-          id: string
-          last_login_at: string
-          locked_until: string
-          username: string
-        }[]
-      }
-      list_supervisor_audit_rpc: {
-        Args: never
-        Returns: {
-          account_id: string | null
-          branch_id: string | null
-          created_at: string
-          detail: Json | null
-          event: string
-          id: string
-          ip: string | null
-          ip_address: string | null
-          user_agent: string | null
-          username: string | null
-        }[]
-        SetofOptions: {
-          from: "*"
-          to: "supervisor_audit_log"
-          isOneToOne: false
-          isSetofReturn: true
-        }
-      }
       log_failed_login: {
         Args: {
           _email: string
@@ -2851,14 +2643,6 @@ export type Database = {
         Args: { _items: Json; _sale_id: string }
         Returns: Json
       }
-      require_supervisor_session_rpc: {
-        Args: { _session_token: string }
-        Returns: {
-          account_id: string
-          display_name: string
-          username: string
-        }[]
-      }
       resync_product_from_parent: {
         Args: { _child_id: string }
         Returns: undefined
@@ -2871,76 +2655,6 @@ export type Database = {
       show_trgm: { Args: { "": string }; Returns: string[] }
       split_merged_tables: {
         Args: { _principal_id: string; _reason?: string }
-        Returns: Json
-      }
-      supervisor_cash_session_detail_v2_rpc: {
-        Args: { _cash_session_id: string; _session_token: string }
-        Returns: Json
-      }
-      supervisor_cash_sessions_list_rpc: {
-        Args: {
-          _branch_id: string
-          _from?: string
-          _session_token: string
-          _to?: string
-        }
-        Returns: Json
-      }
-      supervisor_dashboard_rpc: {
-        Args: {
-          _branch_id?: string
-          _date?: string
-          _log_switch?: boolean
-          _session_token: string
-        }
-        Returns: Json
-      }
-      supervisor_dashboard_v2_rpc: {
-        Args: {
-          _branch_id: string
-          _origen?: string
-          _pago?: string
-          _range?: string
-          _session_token: string
-        }
-        Returns: Json
-      }
-      supervisor_hash_pin: {
-        Args: { _pin: string; _salt: string }
-        Returns: string
-      }
-      supervisor_login_by_name_rpc: {
-        Args: {
-          _display_name: string
-          _ip?: string
-          _pin: string
-          _user_agent?: string
-        }
-        Returns: Json
-      }
-      supervisor_login_rpc: {
-        Args: {
-          _display_name?: string
-          _pin?: string
-          _token?: string
-          _user_agent?: string
-          _username?: string
-        }
-        Returns: {
-          display_name: string
-          expires_at: string
-          session_token: string
-          username: string
-        }[]
-      }
-      supervisor_logout_rpc: { Args: { _session_token: string }; Returns: Json }
-      supervisor_session_detail_rpc: {
-        Args: { _cash_session_id: string; _session_token: string }
-        Returns: Json
-      }
-      supervisor_slug: { Args: { _value: string }; Returns: string }
-      supervisor_validate_session_rpc: {
-        Args: { _session_token: string }
         Returns: Json
       }
       sync_active_cash_session: {
@@ -2992,16 +2706,6 @@ export type Database = {
         }[]
       }
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
-      update_supervisor_account_rpc: {
-        Args: {
-          _active?: boolean
-          _display_name?: string
-          _id: string
-          _pin?: string
-          _regenerate_token?: boolean
-        }
-        Returns: Json
-      }
     }
     Enums: {
       app_role: "admin" | "cajero" | "mesero" | "domiciliario" | "supervisor"
