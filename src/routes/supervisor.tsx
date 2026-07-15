@@ -283,7 +283,7 @@ function SupervisorDashboard({ session, onLogout }: { session: StoredSession; on
         {data && (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              <Kpi icon={TrendingUp} label="Ventas del turno" value={formatCurrency(s?.total_sales ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
+              <Kpi icon={TrendingUp} label={isToday ? "Ventas de hoy" : "Ventas"} value={formatCurrency(s?.total_sales ?? 0)} tone="from-emerald-500/15 to-emerald-500/5 text-emerald-700" />
               <Kpi icon={ShoppingBag} label="Pedidos" value={String(s?.order_count ?? 0)} tone="from-sky-500/15 to-sky-500/5 text-sky-700" />
               <Kpi icon={Wallet} label="Ticket promedio" value={formatCurrency(s?.avg_ticket ?? 0)} tone="from-amber-500/15 to-amber-500/5 text-amber-700" />
               <Kpi icon={CreditCard} label="Digital" value={formatCurrency(s?.digital_total ?? 0)} tone="from-violet-500/15 to-violet-500/5 text-violet-700" />
