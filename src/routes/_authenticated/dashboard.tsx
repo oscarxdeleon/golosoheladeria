@@ -111,7 +111,7 @@ function DashboardPage() {
       const raw = await dashboardPayload({
         data: { branchId: activeBranchId!, range, origen, pago },
       });
-      const p = raw ?? {};
+      const p = (raw ?? {}) as any;
 
       const hourlyArr: { hour: number; total: number }[] = Array.isArray(p.hourly) ? p.hourly : [];
       const hourly = Array.from({ length: 24 }, (_, h) => ({
