@@ -52,6 +52,20 @@ export function SupervisorAccessSection() {
   const { data = [], isLoading } = useQuery({ queryKey: ["supervisor-accounts-v2"], queryFn: listAccounts });
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Acct | null>(null);
+  const [created, setCreated] = useState<{ display_name: string; pin: string; url: string } | null>(null);
+
+  const supervisorUrl = () =>
+    (typeof window !== "undefined" ? window.location.origin : "") + "/supervisor";
+
+  async function copy(text: string, label = "Enlace") {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copiado`);
+    } catch {
+      toast.error("No se pudo copiar");
+    }
+  }
+
 
   const invalidate = () => qc.invalidateQueries({ queryKey: ["supervisor-accounts-v2"] });
 
