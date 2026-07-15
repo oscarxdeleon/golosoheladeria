@@ -1,5 +1,5 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp } from "lucide-react";
@@ -75,6 +75,11 @@ function CajaDetailPage() {
       return data as CashSessionRow | null;
     },
   });
+
+  useEffect(() => {
+    if (!session || !activeBranchId || session.branch_id === activeBranchId) return;
+    void navigate({ to: "/reportes/cajas", replace: true });
+  }, [session, activeBranchId, navigate]);
 
   const visibleSession = session?.branch_id === activeBranchId ? session : null;
 
