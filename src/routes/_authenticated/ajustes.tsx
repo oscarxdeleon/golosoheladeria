@@ -106,6 +106,7 @@ type TabDef = {
 
 const TABS: TabDef[] = [
   { value: "estab",       label: "Establecimiento",   icon: Store,        hint: "Datos generales, horarios y marca del negocio",       group: "negocio",     accent: "from-indigo-500 to-violet-500" },
+  { value: "horarios",    label: "Horarios de atención", icon: Clock,     hint: "Horarios independientes por sede: punto físico y menú en línea", group: "negocio", accent: "from-amber-500 to-orange-600" },
   { value: "suc",         label: "Sucursales",        icon: Building2,    hint: "Administra todas tus sedes y sus datos",              group: "negocio",     accent: "from-sky-500 to-blue-600" },
   { value: "sede-edit",   label: "Editar sede",       icon: Pencil,       hint: "Modificar información de una sede específica",         group: "negocio",     accent: "from-slate-500 to-slate-700", hidden: true },
   { value: "ticket",      label: "Ticket",            icon: Receipt,      hint: "Personaliza el diseño y contenido del recibo",         group: "ventas",      accent: "from-amber-500 to-orange-600" },
