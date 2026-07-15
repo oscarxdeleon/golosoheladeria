@@ -1,5 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { format } from "date-fns";
 import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp } from "lucide-react";
@@ -62,8 +62,9 @@ function normalizeService(k: string): keyof typeof SERVICE_STYLE {
 
 function CajaDetailPage() {
   const { id } = Route.useParams();
+  const navigate = useNavigate();
   
-  const { branches } = useBranch();
+  const { branches, activeBranchId, setActiveBranchId, loading: branchesLoading } = useBranch();
   const [downloading, setDownloading] = useState(false);
 
   const { data: session, isLoading } = useQuery({
@@ -75,26 +76,36 @@ function CajaDetailPage() {
     },
   });
 
-  const filters = useMemo(() => session ? { cashSessionId: session.id, branchId: session.branch_id } : null, [session]);
+  useEffect(() => {
+    if (!session || !activeBranchId || session.branch_id === activeBranchId) return;
+    void navigate({ to: "/reportes/cajas", replace: true });
+  }, [session, activeBranchId, navigate]);
+
+  const visibleSession = session?.branch_id === activeBranchId ? session : null;
+
+  const filters = useMemo(() => visibleSession ? { cashSessionId: visibleSession.id, branchId: visibleSession.branch_id } : null, [visibleSession]);
 
   const { data: sales = [] } = useQuery({
-    queryKey: ["reportes.session.sales", id],
+    queryKey: ["reportes.session.sales", id, visibleSession?.branch_id ?? null],
     enabled: !!filters,
     queryFn: () => fetchSales(filters!),
   });
   const { data: expenses = [] } = useQuery({
-    queryKey: ["reportes.session.expenses", id],
+    queryKey: ["reportes.session.expenses", id, visibleSession?.branch_id ?? null],
     enabled: !!filters,
     queryFn: () => fetchExpenses(filters!),
   });
   const { data: deposits = [] } = useQuery({
-    queryKey: ["reportes.session.deposits", id],
-    enabled: !!session?.id,
+    queryKey: ["reportes.session.deposits", id, visibleSession?.branch_id ?? null],
+    enabled: !!visibleSession?.id,
     queryFn: async () => {
+      const currentSession = visibleSession;
+      if (!currentSession?.branch_id) return [];
       const { data, error } = await supabase
         .from("cash_deposits")
         .select("id, amount, description, method, status, user_name, created_at")
-        .eq("cash_session_id", session!.id)
+        .eq("cash_session_id", currentSession.id)
+        .eq("branch_id", currentSession.branch_id)
         .order("created_at", { ascending: true });
       if (error) throw error;
       return (data ?? []) as Array<{ id: string; amount: number; description: string; method: string; status: string; user_name: string | null; created_at: string }>;
@@ -115,17 +126,51 @@ function CajaDetailPage() {
     },
   });
 
-  const branchName = branches.find((b) => b.id === session?.branch_id)?.name ?? "—";
+  const branchName = branches.find((b) => b.id === visibleSession?.branch_id)?.name ?? "—";
 
-  if (isLoading || !session) {
+  if (isLoading || branchesLoading || !session) {
     return (
       <div className="mx-auto max-w-2xl">
-        <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
+        <Card><CardContent className="py-10 text-center text-muted-foreground">{isLoading || branchesLoading ? "Cargando…" : "Cierre no encontrado."}</CardContent></Card>
       </div>
     );
   }
 
-  const summary = computeFinancialSummary(sales, expenses, [session]);
+  if (!visibleSession) {
+    const sessionBranch = branches.find((b) => b.id === session.branch_id)?.name ?? "otra sede";
+    return (
+      <div className="mx-auto max-w-2xl space-y-4">
+        <Card>
+          <CardContent className="space-y-4 py-8 text-center">
+            <div className="text-lg font-bold">Este arqueo pertenece a {sessionBranch}</div>
+            <p className="text-sm text-muted-foreground">
+              La sede activa no coincide con el cierre seleccionado. Cambia a la sede del arqueo o vuelve al historial para ver los cierres de la sede actual.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+              {session.branch_id && (
+                <Button
+                  onClick={() => setActiveBranchId(session.branch_id!)}
+                  className="rounded-xl font-semibold"
+                >
+                  Cambiar a {sessionBranch}
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                onClick={() => navigate({ to: "/reportes/cajas" })}
+                className="rounded-xl font-semibold"
+              >
+                Volver al historial
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const detailSession = visibleSession;
+  const summary = computeFinancialSummary(sales, expenses, [detailSession]);
   const payments = paymentBreakdown(sales);
   const services = serviceBreakdown(sales);
   const products = aggregateProducts(items, { modifierNames });
@@ -139,17 +184,17 @@ function CajaDetailPage() {
   const cashSales = payments["efectivo"]?.amount ?? 0;
   const entries = summary.entries + (depByMethod.efectivo ?? 0);
   const exits = summary.exits + summary.expenses + summary.refunds;
-  const apertura = Number(session.opening_amount) || 0;
+  const apertura = Number(detailSession.opening_amount) || 0;
   const efectivoEsperado = apertura + cashSales + entries - exits;
 
-  const declared = Number(session.counted_amount) || 0;
-  const expected = Number(session.expected_amount) || efectivoEsperado;
+  const declared = Number(detailSession.counted_amount) || 0;
+  const expected = Number(detailSession.expected_amount) || efectivoEsperado;
   const diff = declared - expected;
 
   // Declared por medio no-efectivo
   const declaredNonCash: { key: string; label: string; amount: number }[] = [];
-  const nequi = Number(session.nequi_counted ?? 0);
-  const banco = Number(session.bancolombia_counted ?? 0);
+  const nequi = Number(detailSession.nequi_counted ?? 0);
+  const banco = Number(detailSession.bancolombia_counted ?? 0);
   if (nequi > 0) declaredNonCash.push({ key: "nequi", label: "NEQUI", amount: nequi });
   if (banco > 0) declaredNonCash.push({ key: "bancolombia", label: "BANCOLOMBIA", amount: banco });
   const totalDeclarado = declaredNonCash.reduce((a, x) => a + x.amount, 0);
@@ -163,12 +208,12 @@ function CajaDetailPage() {
 
   const totalSalesByPayments = Object.values(payments).reduce((a, v) => a + v.amount, 0);
   const totalTx = Object.values(payments).reduce((a, v) => a + v.count, 0);
-  const turnNumber = session.id.slice(0, 3).toUpperCase();
+  const turnNumber = detailSession.id.slice(0, 3).toUpperCase();
 
   async function handlePdf() {
     setDownloading(true);
     try {
-      await downloadShiftPdf({ session: session!, branchName, turnNumber, sales, items, expenses });
+      await downloadShiftPdf({ session: detailSession, branchName, turnNumber, sales, items, expenses });
       toast.success("PDF generado");
     } catch (e) {
       toast.error("No se pudo generar el PDF", { description: (e as Error).message });
@@ -189,8 +234,8 @@ function CajaDetailPage() {
               </div>
               <div>
                 <h2 className="font-display text-2xl font-extrabold leading-tight">Detalle de Arqueo <span className="text-primary">#{turnNumber}</span></h2>
-                <p className="text-sm text-muted-foreground">Sesión de {session.user_name ?? "—"}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{branchName} · {format(new Date(session.opened_at), "dd/MM/yyyy HH:mm")}{session.closed_at ? ` – ${format(new Date(session.closed_at), "HH:mm")}` : " · abierto"}</p>
+                <p className="text-sm text-muted-foreground">Sesión de {detailSession.user_name ?? "—"}</p>
+                <p className="text-xs text-muted-foreground mt-0.5">{branchName} · {format(new Date(detailSession.opened_at), "dd/MM/yyyy HH:mm")}{detailSession.closed_at ? ` – ${format(new Date(detailSession.closed_at), "HH:mm")}` : " · abierto"}</p>
               </div>
             </div>
             <Link to="/reportes/cajas">
