@@ -110,6 +110,7 @@ export function SupervisorAccessSection() {
                 } else {
                   await createAccount(p.display_name, p.pin);
                   toast.success("Acceso creado");
+                  setCreated({ display_name: p.display_name, pin: p.pin, url: supervisorUrl() });
                 }
                 invalidate();
                 setOpen(false); setEditing(null);
@@ -118,6 +119,7 @@ export function SupervisorAccessSection() {
           />
         </Dialog>
       </CardHeader>
+
       <CardContent className="p-0">
         <Table>
           <TableHeader>
