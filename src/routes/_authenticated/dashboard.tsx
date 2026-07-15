@@ -70,7 +70,15 @@ function DashboardPage() {
     queryKey: ["dashboard-shared", activeBranchId, range, origen, pago],
     enabled: !!activeBranchId,
     refetchInterval: 30_000,
-    queryFn: async () => {
+    queryFn: async (): Promise<{
+      total: number; txs: number; avg: number; gastos: number; utilidad: number; qtyVendida: number;
+      top: Array<{ name: string; qty: number; total: number }>;
+      methods: Array<{ name: string; ingresos: number; egresos: number; neto: number; total: number }>;
+      hourly: Array<{ hour: number; total: number }>;
+      bestDays: Array<{ dow: number; name: string; total: number }>;
+      valleys: number[];
+      realCash: { efectivo: number; nequi: number; bancolombia: number; efectivoEsperado: number; nequiEsperado: number; bancolombiaEsperado: number; diferenciaEfectivo: number; diferenciaNequi: number; diferenciaBanco: number; cajasCerradas: number };
+    }> => {
       const { data: raw, error } = await (supabase as unknown as {
         rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: any; error: { message: string } | null }>;
       }).rpc("admin_dashboard_rpc", {
