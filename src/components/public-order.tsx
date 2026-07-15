@@ -1348,31 +1348,66 @@ export function PublicOrder({
                 <div className="flex justify-between font-display text-lg pt-1 border-t"><span>Total</span><span>{formatMoney(total)}</span></div>
               </div>
 
-              {onlineClosed && (
-                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-100 flex items-start gap-2">
-                  <Clock className="h-4 w-4 mt-0.5 shrink-0" />
-                  <div>
-                    <div className="font-semibold">{onlineClosedMessage}</div>
-                    <div className="text-xs mt-0.5 opacity-80">Puedes seguir viendo el menú, pero no es posible enviar pedidos inmediatos.</div>
+              {isClosedForService && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 p-3 text-sm text-amber-900 dark:text-amber-100 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <Clock className="h-4 w-4 mt-0.5 shrink-0" />
+                    <div>
+                      <div className="font-semibold">{closedTitle}</div>
+                      <div className="text-xs mt-0.5 opacity-80">{closedSubtitle}</div>
+                    </div>
                   </div>
+                  {canSchedule && (
+                    <Button
+                      type="button"
+                      size="lg"
+                      className="w-full"
+                      onClick={() => setScheduleOpen(true)}
+                    >
+                      <CalendarClock className="h-4 w-4 mr-2" />
+                      {scheduledFor ? `Programado · ${scheduledLabel}` : "Programa tu pedido"}
+                    </Button>
+                  )}
                 </div>
               )}
               {onlineClosingSoon && (
                 <div className="rounded-lg border border-sky-300 bg-sky-50 dark:bg-sky-950/30 p-2.5 text-xs text-sky-900 dark:text-sky-100 flex items-center gap-2">
                   <Clock className="h-3.5 w-3.5" />
-                  Pedidos en línea disponibles por {onlineStatus.minutesToClose} minuto{onlineStatus.minutesToClose === 1 ? "" : "s"} más (hasta las {onlineStatus.closesAt}).
+                  {isPickup ? "El local" : "Pedidos en línea"} cierra en {effectiveStatus.minutesToClose} min (a las {effectiveStatus.closesAt}).
+                </div>
+              )}
+              {scheduledFor && canSchedule && (
+                <div className="rounded-lg border border-primary/40 bg-primary/5 p-3 text-sm flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <CalendarClock className="h-4 w-4 text-primary" />
+                    <div>
+                      <div className="font-semibold">Pedido programado</div>
+                      <div className="text-xs text-muted-foreground">{scheduledLabel}</div>
+                    </div>
+                  </div>
+                  <Button size="sm" variant="ghost" onClick={() => { setScheduledFor(null); setScheduledLabel(""); }}>
+                    Quitar
+                  </Button>
                 </div>
               )}
 
-              <Button size="lg" className="w-full" onClick={submit} disabled={submitting || onlineClosed}>
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={submit}
+                disabled={submitting || (isClosedForService && !(canSchedule && scheduledFor))}
+              >
                 {submitting
                   ? "Enviando..."
-                  : onlineClosed
+                  : isClosedForService && !(canSchedule && scheduledFor)
                     ? "Fuera de horario"
                     : source === "table_qr"
                       ? "Confirmar pedido"
-                      : `Finalizar pedido · ${formatMoney(total)}`}
+                      : scheduledFor
+                        ? `Confirmar programado · ${formatMoney(total)}`
+                        : `Finalizar pedido · ${formatMoney(total)}`}
               </Button>
+
 
 
             </div>
