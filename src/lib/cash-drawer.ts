@@ -46,16 +46,47 @@ function looksLikeIp(v?: string | null) {
 
 async function loadCajaPrinter(): Promise<PrinterRow | null> {
   try {
-    const { data } = await supabase
+    const { getActivePrintBranchId } = await import("@/lib/print-client");
+    const branchId = getActivePrintBranchId();
+
+    const { data: printers } = await supabase
       .from("printers")
       .select(
-        "name,ip,port,drawer_master_enabled,drawer_on_cash_sale,drawer_on_cash_deposit,drawer_on_cash_expense,drawer_on_cash_close,drawer_on_cash_open",
+        "name,ip,port,branch_id,drawer_master_enabled,drawer_on_cash_sale,drawer_on_cash_deposit,drawer_on_cash_expense,drawer_on_cash_close,drawer_on_cash_open",
       )
       .eq("active", true)
       .eq("area", "caja")
-      .limit(1)
+      .order("created_at", { ascending: false });
+
+    const scopedPrinters = ((printers as Array<PrinterRow & { branch_id?: string | null }> | null) ?? [])
+      .filter((p) => !branchId || p.branch_id === branchId || p.branch_id == null);
+    const printer = scopedPrinters.find((p) => branchId && p.branch_id === branchId) ?? scopedPrinters[0] ?? null;
+
+    if (!branchId) return printer;
+
+    const { data: branchSettings } = await supabase
+      .from("branch_print_settings")
+      .select("cashier_printer_ip,cashier_printer_port")
+      .eq("branch_id", branchId)
       .maybeSingle();
-    return (data as PrinterRow | null) ?? null;
+
+    const target = branchSettings as { cashier_printer_ip?: string | null; cashier_printer_port?: number | null } | null;
+    const branchIp = target?.cashier_printer_ip?.trim();
+    if (branchIp) {
+      return {
+        name: printer?.name ?? null,
+        ip: branchIp,
+        port: target?.cashier_printer_port ?? printer?.port ?? 9100,
+        drawer_master_enabled: printer?.drawer_master_enabled ?? true,
+        drawer_on_cash_sale: printer?.drawer_on_cash_sale ?? true,
+        drawer_on_cash_deposit: printer?.drawer_on_cash_deposit ?? true,
+        drawer_on_cash_expense: printer?.drawer_on_cash_expense ?? true,
+        drawer_on_cash_close: printer?.drawer_on_cash_close ?? true,
+        drawer_on_cash_open: printer?.drawer_on_cash_open ?? false,
+      };
+    }
+
+    return printer;
   } catch (e) {
     console.warn("[cash-drawer] no se pudo leer impresora de caja", e);
     return null;
