@@ -56,7 +56,6 @@ export const listSupervisorAccounts = createServerFn({ method: "GET" })
 export const createSupervisorAccount = createServerFn({ method: "POST" })
   .inputValidator((d) =>
     z.object({
-      username: z.string().trim().min(3).max(40).regex(/^[a-zA-Z0-9._-]+$/, "Solo letras, números . _ -"),
       display_name: z.string().trim().min(2).max(80),
       pin: z.string().regex(PIN_RE, "PIN debe ser 4 dígitos"),
     }).parse(d),
@@ -66,14 +65,18 @@ export const createSupervisorAccount = createServerFn({ method: "POST" })
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const salt = randomBytes(16).toString("hex");
     const pin_hash = `${salt}:${hashPin(data.pin, salt)}`;
+    const base = data.display_name
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "")
+      .slice(0, 24) || "sup";
+    const username = `${base}-${randomBytes(3).toString("hex")}`;
     const { data: row, error } = await supabaseAdmin
       .from("supervisor_accounts")
-      .insert({
-        username: data.username.toLowerCase(),
-        display_name: data.display_name,
-        pin_hash,
-      })
-      .select("id,access_token")
+      .insert({ username, display_name: data.display_name, pin_hash })
+      .select("id,access_token,username")
       .single();
     if (error) throw new Error(error.message);
     return row;
