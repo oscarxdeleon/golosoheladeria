@@ -26,6 +26,7 @@ export const Route = createFileRoute("/_authenticated")({
 function AuthedLayout() {
   const { profile, user, roles } = useAuth();
   const roleLabel = roles.includes("admin") ? "Administrador"
+    : roles.includes("supervisor") ? "Supervisor"
     : roles.includes("mesero") ? "Mesero"
     : roles.includes("domiciliario") ? "Domiciliario"
     : "Cajero";
