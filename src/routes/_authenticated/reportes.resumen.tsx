@@ -19,6 +19,7 @@ import {
 import { formatDate } from "@/lib/format";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { ChevronDown } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/reportes/resumen")({
@@ -149,14 +150,16 @@ function ResumenPage() {
 
   const summary = useMemo(() => computeFinancialSummary(sales, expenses, sessions, purchases), [sales, expenses, sessions, purchases]);
 
-  const kpis: { label: string; value: string; icon: React.ElementType; gradient: string }[] = [
+  const [showGastosDialog, setShowGastosDialog] = useState(false);
+
+  const kpis: { label: string; value: string; icon: React.ElementType; gradient: string; onClick?: () => void }[] = [
     { label: "Ventas totales", value: formatMoney(summary.salesTotal), icon: DollarSign, gradient: "from-emerald-500 to-teal-500" },
     { label: "Transacciones", value: String(summary.transactions), icon: Receipt, gradient: "from-sky-500 to-cyan-500" },
     { label: "Ticket promedio", value: formatMoney(summary.averageTicket), icon: TrendingUp, gradient: "from-indigo-500 to-blue-500" },
     { label: "Propinas", value: formatMoney(summary.tips), icon: HandCoins, gradient: "from-fuchsia-500 to-pink-500" },
     { label: "Entradas", value: formatMoney(summary.entries), icon: ArrowDownLeft, gradient: "from-lime-500 to-emerald-500" },
     { label: "Salidas", value: formatMoney(summary.exits), icon: ArrowUpRight, gradient: "from-orange-500 to-red-500" },
-    { label: "Gastos", value: formatMoney(summary.expenses), icon: TrendingDown, gradient: "from-rose-500 to-red-500" },
+    { label: "Gastos", value: formatMoney(summary.expenses), icon: TrendingDown, gradient: "from-rose-500 to-red-500", onClick: () => setShowGastosDialog(true) },
     { label: "Retiros", value: formatMoney(summary.withdrawals), icon: PiggyBank, gradient: "from-amber-500 to-orange-500" },
     { label: "Devoluciones/Reembolsos", value: formatMoney(summary.refunds), icon: Coins, gradient: "from-slate-500 to-slate-700" },
     { label: "Cortesías", value: String(summary.courtesies), icon: Gift, gradient: "from-pink-500 to-rose-500" },
@@ -243,9 +246,10 @@ function ResumenPage() {
 
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((k) => (
-          <div key={k.label} className={`rounded-2xl bg-gradient-to-br ${k.gradient} p-[1px] shadow-md`}>
-            <div className="rounded-2xl bg-background/95 p-4 h-full">
+        {kpis.map((k) => {
+          const clickable = !!k.onClick;
+          const inner = (
+            <div className="rounded-2xl bg-background/95 p-4 h-full text-left">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{k.label}</div>
                 <div className={`grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br ${k.gradient} text-white shadow`}>
@@ -253,13 +257,37 @@ function ResumenPage() {
                 </div>
               </div>
               <div className="mt-2 font-display text-2xl font-extrabold tracking-tight">{k.value}</div>
+              {clickable && (
+                <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">Ver detalle →</div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+          return clickable ? (
+            <button
+              key={k.label}
+              type="button"
+              onClick={k.onClick}
+              className={`rounded-2xl bg-gradient-to-br ${k.gradient} p-[1px] shadow-md text-left transition hover:scale-[1.01] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-rose-400`}
+            >
+              {inner}
+            </button>
+          ) : (
+            <div key={k.label} className={`rounded-2xl bg-gradient-to-br ${k.gradient} p-[1px] shadow-md`}>
+              {inner}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Detalle de gastos */}
+      {/* Detalle de gastos (colapsable) */}
       <ExpensesDetail expenses={expenses as ExpenseRow[]} totalExpenses={summary.expenses} />
+
+      {/* Diálogo: gastos del turno activo */}
+      <GastosTurnoDialog
+        open={showGastosDialog}
+        onOpenChange={setShowGastosDialog}
+        branchId={filters.branchId}
+      />
     </div>
   );
 }
@@ -338,5 +366,149 @@ function ExpensesDetail({ expenses, totalExpenses }: { expenses: ExpenseRow[]; t
         </CollapsibleContent>
       </Collapsible>
     </Card>
+  );
+}
+
+function GastosTurnoDialog({
+  open,
+  onOpenChange,
+  branchId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  branchId: string | null;
+}) {
+  const { data: activeSession, isLoading: loadingSession } = useQuery({
+    queryKey: ["reportes.active-session", branchId],
+    enabled: open,
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async () => {
+      let q = supabase
+        .from("cash_sessions")
+        .select("id,opened_at,user_name,branch_id")
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1);
+      if (branchId) q = q.eq("branch_id", branchId);
+      const { data } = await q;
+      return (data && data[0]) || null;
+    },
+  });
+
+  const sessionId = activeSession?.id ?? null;
+
+  const { data: gastos = [], isLoading: loadingGastos } = useQuery({
+    queryKey: ["reportes.gastos-turno", sessionId],
+    enabled: open && !!sessionId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    queryFn: async (): Promise<ExpenseRow[]> => {
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("cash_session_id", sessionId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ExpenseRow[];
+    },
+  });
+
+  const qc = useQueryClient();
+  useEffect(() => {
+    if (!open || !sessionId) return;
+    const ch = supabase
+      .channel(`gastos-turno-${sessionId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expenses", filter: `cash_session_id=eq.${sessionId}` },
+        () => {
+          void qc.invalidateQueries({ queryKey: ["reportes.gastos-turno", sessionId] });
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [open, sessionId, qc]);
+
+  const rows = useMemo(
+    () =>
+      gastos.filter((e) => {
+        const c = (e.category || "").toLowerCase();
+        return !CATEGORY_INCOME.has(c) && !CATEGORY_WITHDRAWAL.has(c) && !CATEGORY_REFUND.has(c);
+      }),
+    [gastos],
+  );
+  const total = useMemo(() => rows.reduce((a, e) => a + (Number(e.amount) || 0), 0), [rows]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-rose-500" />
+            Gastos del turno activo
+          </DialogTitle>
+          <DialogDescription>
+            {loadingSession
+              ? "Buscando turno abierto…"
+              : activeSession
+              ? `Turno abierto el ${formatDate(activeSession.opened_at)} · ${activeSession.user_name ?? "—"}`
+              : "No hay ningún turno abierto en esta sede."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {!activeSession && !loadingSession ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">
+            No hay un turno de caja abierto actualmente. Abre una caja para registrar y consultar gastos.
+          </div>
+        ) : loadingGastos ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">Cargando gastos…</div>
+        ) : rows.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">
+            No hay gastos registrados en el turno actual.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs uppercase text-muted-foreground">
+                  <th className="text-left py-2 px-2">Fecha</th>
+                  <th className="text-left py-2 px-2">Concepto</th>
+                  <th className="text-left py-2 px-2">Descripción</th>
+                  <th className="text-left py-2 px-2">Usuario</th>
+                  <th className="text-left py-2 px-2">Método</th>
+                  <th className="text-right py-2 px-2">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((e) => (
+                  <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDate(e.created_at)}</td>
+                    <td className="py-2 px-2 font-medium">{e.category || "—"}</td>
+                    <td className="py-2 px-2 text-muted-foreground">{e.description || "—"}</td>
+                    <td className="py-2 px-2">{e.user_name || "—"}</td>
+                    <td className="py-2 px-2 capitalize">{e.payment_method || "—"}</td>
+                    <td className="py-2 px-2 text-right font-semibold text-rose-600">
+                      {formatMoney(Number(e.amount) || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2">
+                  <td colSpan={5} className="py-2 px-2 text-right font-semibold">
+                    Total del turno
+                  </td>
+                  <td className="py-2 px-2 text-right font-extrabold text-rose-700">{formatMoney(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
