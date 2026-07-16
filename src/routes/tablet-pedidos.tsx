@@ -205,6 +205,27 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
     },
   });
 
+  // Total en vivo del pedido activo por mesa. La key empieza con "sales" para
+  // que useRealtimeBranchSync la invalide al agregar/eliminar ítems.
+  const { data: mesaTotals = {} as Record<string, number> } = useQuery({
+    queryKey: ["sales", "mesa-totals", activeBranchId],
+    enabled: !!activeBranchId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sales")
+        .select("table_id,total")
+        .eq("branch_id", activeBranchId!)
+        .not("table_id", "is", null)
+        .not("status", "in", "(paid,cancelled)");
+      const map: Record<string, number> = {};
+      for (const r of (data ?? []) as { table_id: string; total: number | string | null }[]) {
+        const t = Number(r.total ?? 0);
+        map[r.table_id] = (map[r.table_id] ?? 0) + (Number.isFinite(t) ? t : 0);
+      }
+      return map;
+    },
+  });
+
   useEffect(() => {
     if (!activeBranchId) return;
     let cancelled = false;
