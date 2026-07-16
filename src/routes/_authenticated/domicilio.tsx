@@ -183,7 +183,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
 
   const visiblePendingOrders = useMemo(() => {
     const s = q.trim().toLowerCase();
-    const active = pendingOrders.filter((o) => o.delivery_status !== "entregado");
+    const active = pendingOrders;
     const courierName = (id: string | null) => couriers.find((c) => c.id === id)?.name ?? "";
     if (!s) return active.slice(0, 12);
     return active
@@ -360,7 +360,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
               <CardContent className="p-3 space-y-3">
                 <div className="flex items-center justify-between gap-3">
                   <div className="flex items-center gap-2 font-display text-xl">
-                    <Bike className="h-5 w-5 text-sky-600" /> Pedidos pendientes de domicilio
+                    <Bike className="h-5 w-5 text-sky-600" /> Pedidos activos de domicilio
                   </div>
                   <Badge className="bg-sky-600 text-white">{visiblePendingOrders.length}</Badge>
                 </div>
@@ -378,7 +378,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
                           <div className="flex items-center justify-between gap-2">
                             <div className="font-bold uppercase truncate">{o.customer_name ?? "SIN NOMBRE"}</div>
                             <Badge variant="secondary" className="shrink-0">
-                              {o.delivery_status === "en_camino" ? "En camino" : o.delivery_status === "asignado" ? "Asignado" : "Pendiente"}
+                              {o.delivery_status === "entregado" ? "Entregado" : o.delivery_status === "en_camino" ? "En camino" : o.delivery_status === "asignado" ? "Asignado" : "Pendiente"}
                             </Badge>
                           </div>
                           <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
