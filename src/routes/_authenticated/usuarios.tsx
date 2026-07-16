@@ -59,7 +59,10 @@ function UsuariosPage() {
     queryKey: ["users-list"],
     queryFn: async (): Promise<UserRow[]> => {
       const [{ data: profiles }, { data: roles }] = await Promise.all([
-        supabase.from("profiles").select("id,full_name,email,branch_id,active,created_at"),
+        supabase
+          .from("profiles")
+          .select("id,full_name,email,branch_id,active,created_at")
+          .not("full_name", "ilike", "%(eliminado)%"),
         supabase.from("user_roles").select("user_id,role"),
       ]);
       const roleMap = new Map<string, AppRole>();
@@ -89,6 +92,8 @@ function UsuariosPage() {
     const raw = e instanceof Error ? e.message : String(e ?? "");
     const message = /Missing Supabase environment variable|SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY/i.test(raw)
       ? "No se pudo completar la operación. Recarga la aplicación e intenta nuevamente."
+      : /violates foreign key constraint|sales_user_id_fkey|sales_delivery_user_id_fkey/i.test(raw)
+        ? "El usuario tiene historial de ventas o pedidos. Ya se ajustó la eliminación segura: recarga e intenta nuevamente."
       : raw || fallback;
     toast.error(message);
   }
@@ -108,7 +113,7 @@ function UsuariosPage() {
     try {
       const { error } = await supabase.rpc("admin_delete_app_user", { _user_id: u.id });
       if (error) throw error;
-      toast.success("Usuario eliminado");
+      toast.success("Usuario retirado del sistema");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     } catch (e) {
       showUserActionError(e, "No se pudo eliminar el usuario");
