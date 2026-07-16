@@ -69,6 +69,7 @@ function TabletPage() {
 function TabletShell() {
   const { profile, user } = useAuth();
   const [tab, setTab] = useState<TabKey>("mesas");
+  useKioskLock(isKioskContext());
   const [selected, setSelected] = useState<
     | { orderType: OrderType; tableId?: string | null; title?: string }
     | null
