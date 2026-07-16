@@ -368,7 +368,7 @@ export function PublicOrder({
   const effectiveStatus = source === "online_menu"
     ? (isPickup ? physicalStatus : onlineStatus)
     : { isOpen: true, reason: "open" as const, closesAt: null, opensAt: null, minutesToClose: null };
-  const canSchedule = source === "online_menu" && isDelivery; // solo domicilio permite programar
+  const canSchedule = source === "online_menu" && (isDelivery || isPickup); // domicilio y recoger permiten programar
   const enforceOnlineSchedule = source === "online_menu";
   const isClosedForService = enforceOnlineSchedule && !effectiveStatus.isOpen;
   const onlineClosingSoon = enforceOnlineSchedule && effectiveStatus.isOpen && (effectiveStatus.minutesToClose ?? 999) <= 30;
@@ -388,8 +388,8 @@ export function PublicOrder({
   const [scheduledLabel, setScheduledLabel] = useState<string>("");
   // Cuando cambia el servicio, limpiar cualquier programación previa incompatible
   useEffect(() => {
-    if (!isDelivery && scheduledFor) { setScheduledFor(null); setScheduledLabel(""); }
-  }, [isDelivery, scheduledFor]);
+    if (!isDelivery && !isPickup && scheduledFor) { setScheduledFor(null); setScheduledLabel(""); }
+  }, [isDelivery, isPickup, scheduledFor]);
 
 
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
@@ -978,6 +978,111 @@ export function PublicOrder({
     );
   }
 
+  // Intercept: pickup fuera de horario → pantalla para programar
+  if (
+    source === "online_menu" &&
+    isPickup &&
+    !readOnly &&
+    isClosedForService &&
+    !scheduledFor
+  ) {
+    return (
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-[#0b3a44] via-[#0e4a55] to-[#062a32] flex items-center justify-center px-4 py-8">
+        <div className="w-full max-w-xl">
+          <div
+            className="relative rounded-[32px] p-[3px] bg-gradient-to-b from-lime-300 via-lime-500 to-lime-700 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in duration-500"
+          >
+            <div
+              className="relative overflow-hidden rounded-[29px] px-6 py-8 sm:px-10 sm:py-12 text-center"
+              style={{
+                background:
+                  "linear-gradient(160deg, #1f6d78 0%, #16545e 50%, #0e3d47 100%)",
+              }}
+            >
+              <span className="pointer-events-none absolute inset-x-4 top-1 h-1/4 rounded-[24px] bg-gradient-to-b from-white/25 to-transparent" />
+              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent" />
+
+              <div className="relative flex flex-col items-center gap-5">
+                <div className="relative">
+                  <div className="absolute inset-0 rounded-2xl bg-lime-700/70 blur-[2px] translate-y-1" />
+                  <div
+                    className="relative h-20 w-20 sm:h-24 sm:w-24 rounded-2xl flex items-center justify-center ring-1 ring-lime-200/60"
+                    style={{
+                      background:
+                        "linear-gradient(160deg, #d4ff5a 0%, #a4e424 40%, #6fb31a 100%)",
+                      boxShadow:
+                        "inset 0 2px 4px rgba(255,255,255,0.55), inset 0 -6px 10px rgba(0,60,0,0.35), 0 4px 10px rgba(0,0,0,0.25)",
+                    }}
+                  >
+                    <CalendarClock className="h-10 w-10 sm:h-12 sm:w-12 text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.35)]" strokeWidth={2.2} />
+                  </div>
+                </div>
+
+                <h2
+                  className="font-display font-black text-2xl sm:text-3xl leading-tight text-lime-300 drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]"
+                  style={{ WebkitTextStroke: "0.5px rgba(0,0,0,0.35)" }}
+                >
+                  ¡No te quedes sin antojo!
+                </h2>
+                <p className="text-white/90 font-semibold text-base sm:text-lg -mt-2">
+                  Estamos fuera de horario.
+                </p>
+
+                <div className="w-full mt-2 flex flex-col items-center gap-1">
+                  <p
+                    className="font-display font-black text-xl sm:text-2xl text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]"
+                    style={{ WebkitTextStroke: "0.5px rgba(0,0,0,0.35)" }}
+                  >
+                    PROGRAMA TU PEDIDO AQUÍ
+                  </p>
+                  <p className="text-white/85 text-sm sm:text-base">
+                    Y pasa a recoger en cuanto abramos.
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setScheduleOpen(true)}
+                  className="mt-4 w-full max-w-sm rounded-2xl px-6 py-4 font-display font-black text-base sm:text-lg tracking-wide text-[#0e3d47] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0.5 focus:outline-none focus-visible:ring-4 focus-visible:ring-lime-300/60"
+                  style={{
+                    background:
+                      "linear-gradient(160deg, #d4ff5a 0%, #a4e424 40%, #6fb31a 100%)",
+                    boxShadow:
+                      "inset 0 2px 4px rgba(255,255,255,0.55), inset 0 -6px 10px rgba(0,60,0,0.35), 0 10px 24px -8px rgba(0,0,0,0.5)",
+                  }}
+                >
+                  <span className="inline-flex items-center justify-center gap-2">
+                    <CalendarClock className="h-5 w-5" />
+                    Programa tu pedido aquí
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => { setOnlineService(null); }}
+                  className="mt-1 inline-flex items-center gap-2 rounded-full px-5 py-2.5 text-sm font-semibold text-white/90 bg-white/10 hover:bg-white/20 ring-1 ring-white/20 transition"
+                >
+                  <ArrowLeft className="h-4 w-4" />
+                  Volver
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <ScheduleOrderDialog
+          open={scheduleOpen}
+          onOpenChange={setScheduleOpen}
+          schedules={branchSchedules}
+          channel="physical"
+          onConfirm={(iso, label) => { setScheduledFor(iso); setScheduledLabel(label); }}
+        />
+      </div>
+    );
+  }
+
+
+
 
 
 
@@ -1432,7 +1537,7 @@ export function PublicOrder({
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
         schedules={branchSchedules}
-        channel="online"
+        channel={isPickup ? "physical" : "online"}
         onConfirm={(iso, label) => { setScheduledFor(iso); setScheduledLabel(label); }}
       />
     </div>
