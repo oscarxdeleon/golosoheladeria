@@ -90,11 +90,33 @@ function UsuariosPage() {
 
   function showUserActionError(e: unknown, fallback: string) {
     const raw = e instanceof Error ? e.message : String(e ?? "");
-    const message = /Missing Supabase environment variable|SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY/i.test(raw)
-      ? "No se pudo completar la operación. Recarga la aplicación e intenta nuevamente."
-      : /violates foreign key constraint|sales_user_id_fkey|sales_delivery_user_id_fkey/i.test(raw)
-        ? "El usuario tiene historial de ventas o pedidos. Ya se ajustó la eliminación segura: recarga e intenta nuevamente."
-      : raw || fallback;
+    // Si el error menciona variables de entorno significa que hay JS cacheado
+    // por un service worker antiguo (el flujo actual usa RPC directo, no
+    // requiere SUPABASE_SERVICE_ROLE_KEY). Se limpia el caché y se recarga.
+    if (/Missing Supabase environment variable|SUPABASE_SERVICE_ROLE_KEY/i.test(raw)) {
+      toast.error("Actualizando la aplicación… vuelve a intentarlo en un momento.");
+      void (async () => {
+        try {
+          if ("serviceWorker" in navigator) {
+            const regs = await navigator.serviceWorker.getRegistrations();
+            await Promise.all(regs.map((r) => r.unregister()));
+          }
+          if ("caches" in window) {
+            const keys = await caches.keys();
+            await Promise.all(keys.map((k) => caches.delete(k)));
+          }
+        } catch { /* noop */ }
+        window.location.reload();
+      })();
+      return;
+    }
+    const message = /violates foreign key constraint|sales_user_id_fkey|sales_delivery_user_id_fkey/i.test(raw)
+      ? "El usuario tiene historial. Ya se ajustó la eliminación segura: recarga e intenta nuevamente."
+      : /permission denied|not authorized|Solo administradores/i.test(raw)
+        ? "No tienes permisos suficientes para esta acción."
+        : /Ya existe|already registered|duplicate key/i.test(raw)
+          ? "Ya existe un usuario con ese correo."
+          : raw || fallback;
     toast.error(message);
   }
 
