@@ -352,7 +352,7 @@ function CajaDetailPage() {
             <KpiTile label="Pedidos" value={String(summary.order_count)} tone="slate" />
             <KpiTile label="Ventas totales" value={formatMoney(summary.total_sales)} tone="emerald" />
             <KpiTile label="Ticket promedio" value={formatMoney(summary.avg_ticket)} tone="blue" />
-            <KpiTile label="Cancelados" value={String(summary.cancelled_count)} tone="amber" />
+            <KpiTile label="Anulados" value={String(summary.cancelled_count)} sub={formatMoney(summary.cancelled_value ?? 0)} tone="amber" />
           </div>
 
           <Section emoji="💳" title="VENTAS POR MÉTODO DE PAGO">
