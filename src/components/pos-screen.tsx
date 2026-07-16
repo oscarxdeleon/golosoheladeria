@@ -1020,7 +1020,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         .select("id,ticket_number,customer_name,notes,created_at,printed_at,status,sale_items(product_id,product_name,qty,unit_price)")
         .eq("table_id", tableId!)
         .in("status", ["pending", "confirmed", "ready"])
-        .order("created_at", { ascending: false })
+        // Si por alguna condición de carrera existieran duplicados, siempre
+        // hidratamos el pedido ORIGINAL (más antiguo) — nunca un fantasma
+        // creado después. El índice único `sales_unique_active_per_table`
+        // impide que se generen nuevos duplicados a nivel de BD.
+        .order("created_at", { ascending: true })
         .limit(1)
         .maybeSingle();
       if (error) throw error;
