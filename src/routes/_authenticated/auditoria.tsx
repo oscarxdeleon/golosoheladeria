@@ -123,6 +123,23 @@ export function AuditoriaPage() {
         </Button>
       </div>
 
+      <Tabs defaultValue="anulaciones" className="space-y-4">
+        <TabsList className="grid w-full grid-cols-2 max-w-md">
+          <TabsTrigger value="anulaciones" className="gap-2">
+            <Ban className="h-4 w-4" /> Anulaciones y cancelaciones
+          </TabsTrigger>
+          <TabsTrigger value="cambios" className="gap-2">
+            <History className="h-4 w-4" /> Cambios generales
+          </TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="anulaciones">
+          <CancelledSalesAuditPanel branchId={activeBranchId} />
+        </TabsContent>
+
+        <TabsContent value="cambios" className="space-y-4">
+
+
       <Card>
         <CardHeader>
           <CardTitle>Filtros</CardTitle>
