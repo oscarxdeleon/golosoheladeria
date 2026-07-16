@@ -63,7 +63,6 @@ function rangeFor(r: Range) {
 
 function DashboardPage() {
   const queryClient = useQueryClient();
-  const dashboardPayload = useServerFn(getSharedDashboardPayload);
   const { user, loading: authLoading, rolesLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
   const [range, setRange] = useState<Range>("hoy");
