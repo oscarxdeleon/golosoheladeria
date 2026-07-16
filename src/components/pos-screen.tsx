@@ -1746,6 +1746,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               status: "pending",
               source: "pos",
               order_type: orderType,
+              delivery_status: orderType === "domicilio" ? "pendiente" : null,
               table_id: tableId ?? null,
               branch_id: activeBranchId,
             })
