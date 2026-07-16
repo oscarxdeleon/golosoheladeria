@@ -115,6 +115,7 @@ const TABS: TabDef[] = [
   { value: "fidel",       label: "Fidelización",      icon: Award,        hint: "Sistema de puntos y recompensas para clientes",       group: "ventas",      accent: "from-pink-500 to-rose-600" },
   { value: "impr",        label: "Impresoras",        icon: Printer,      hint: "Configura impresoras térmicas por área",              group: "operaciones", accent: "from-fuchsia-500 to-purple-600" },
   { value: "kiosko-link", label: "Autopedido",        icon: QrCode,       hint: "Enlace y QR para el kiosco de autoservicio",          group: "operaciones", accent: "from-violet-500 to-indigo-600" },
+  { value: "mesero-app",  label: "Aplicación para Meseros", icon: Smartphone, hint: "Instalar app en tablets Android para meseros (PWA/APK)", group: "operaciones", accent: "from-teal-500 to-emerald-600" },
   { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Pantalla de cocina para ver comandas en vivo",        group: "operaciones", accent: "from-orange-500 to-red-600" },
   { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
   { value: "extras",      label: "Configuraciones adicionales", icon: Sparkles, hint: "Opciones extra del POS (propina y otros)",     group: "ventas",      accent: "from-yellow-400 to-amber-500" },
