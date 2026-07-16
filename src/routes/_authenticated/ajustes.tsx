@@ -153,6 +153,7 @@ function AjustesPage() {
           {tab === "suc"         && <SectionErrorBoundary label="Sucursales"><SucursalesTab disabled={false} onEditBranch={goEditBranch} /></SectionErrorBoundary>}
           {tab === "sede-edit"   && <SectionErrorBoundary label="Editar sede"><EditarSedeTab initialBranchId={editBranchId} /></SectionErrorBoundary>}
           {tab === "kiosko-link" && <SectionErrorBoundary label="Link de Autopedido"><AutopedidoLinkTab /></SectionErrorBoundary>}
+          {tab === "mesero-app"  && <SectionErrorBoundary label="Aplicación para Meseros"><MeseroAppTab /></SectionErrorBoundary>}
           {tab === "kds-link"    && <SectionErrorBoundary label="Link de KDS"><KdsLinkTab /></SectionErrorBoundary>}
           {tab === "impr"        && <SectionErrorBoundary label="Impresoras"><ImpresorasTab disabled={false} /></SectionErrorBoundary>}
           {tab === "pagos"       && <SectionErrorBoundary label="Medios de pago"><PagosTab disabled={false} /></SectionErrorBoundary>}
