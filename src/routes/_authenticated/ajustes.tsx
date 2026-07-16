@@ -2033,6 +2033,8 @@ function MeseroAppTab() {
   });
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
+  const [newUserId, setNewUserId] = useState<string>("");
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2045,14 +2047,26 @@ function MeseroAppTab() {
       ((await supabase.from("branches").select("*").order("is_main", { ascending: false }).order("name")).data ?? []) as unknown as Branch[],
   });
 
+  interface MeseroUser { id: string; full_name: string; email: string | null; branch_id: string | null; }
+  const { data: meseros = [] } = useQuery<MeseroUser[]>({
+    queryKey: ["mesero-users-for-tablets"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "mesero");
+      const ids = (roles ?? []).map((r: { user_id: string }) => r.user_id);
+      if (ids.length === 0) return [];
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, email, branch_id").in("id", ids);
+      return ((profs ?? []) as MeseroUser[]).sort((a, b) => a.full_name.localeCompare(b.full_name));
+    },
+  });
+
   interface TabletDevice {
-    id: string; branch_id: string; label: string; token: string;
+    id: string; branch_id: string; label: string; token: string; email: string;
     active: boolean; last_seen_at: string | null; created_at: string;
   }
   const { data: tablets = [], isLoading } = useQuery<TabletDevice[]>({
     queryKey: ["tablet_devices"],
     queryFn: async () =>
-      ((await supabase.from("tablet_devices").select("id,branch_id,label,token,active,last_seen_at,created_at").order("created_at")).data ?? []) as TabletDevice[],
+      ((await supabase.from("tablet_devices").select("id,branch_id,label,token,email,active,last_seen_at,created_at").order("created_at")).data ?? []) as TabletDevice[],
   });
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -2065,11 +2079,18 @@ function MeseroAppTab() {
   async function handleCreate(branchId: string) {
     const label = newLabel.trim();
     if (!label) return toast.error("Escribe un nombre para la tablet");
+    if (!newUserId) return toast.error("Selecciona el usuario mesero");
+    const mesero = meseros.find((m) => m.id === newUserId);
+    if (!mesero?.email) return toast.error("Ese mesero no tiene email registrado");
+    if (!newPassword.trim()) return toast.error("Escribe la contraseña actual de ese mesero");
     try {
       const { provisionTablet } = await import("@/lib/tablet-devices.functions");
-      await provisionTablet({ data: { branch_id: branchId, label } });
+      await provisionTablet({ data: {
+        branch_id: branchId, label,
+        email: mesero.email, password: newPassword.trim(), user_id: mesero.id,
+      } });
       toast.success("Tablet registrada");
-      setNewLabel("");
+      setNewLabel(""); setNewUserId(""); setNewPassword("");
       setCreatingFor(null);
       qc.invalidateQueries({ queryKey: ["tablet_devices"] });
     } catch (e) {
@@ -2150,18 +2171,42 @@ function MeseroAppTab() {
                     {b.is_main && <Badge variant="secondary" className="text-[10px]">Principal</Badge>}
                     <span className="text-xs text-muted-foreground">· {list.length} tablet{list.length === 1 ? "" : "s"}</span>
                   </div>
-                  {creatingFor === b.id ? (
-                    <div className="flex items-center gap-2">
-                      <Input autoFocus value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Ej: Tablet 1" className="h-8 w-40" />
-                      <Button size="sm" onClick={() => handleCreate(b.id)}>Crear</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setCreatingFor(null); setNewLabel(""); }}>Cancelar</Button>
-                    </div>
-                  ) : (
-                    <Button size="sm" onClick={() => setCreatingFor(b.id)}>
+                  {creatingFor === b.id ? null : (
+                    <Button size="sm" onClick={() => { setCreatingFor(b.id); setNewUserId(""); setNewPassword(""); setNewLabel(""); }}>
                       <Plus className="h-4 w-4" /> Registrar tablet
                     </Button>
                   )}
                 </div>
+
+                {creatingFor === b.id && (
+                  <div className="border-b bg-muted/20 p-3 grid gap-2 md:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">Nombre de la tablet</Label>
+                      <Input autoFocus value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Ej: Tablet 1" className="h-9" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Usuario mesero</Label>
+                      <Select value={newUserId} onValueChange={setNewUserId}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Selecciona…" /></SelectTrigger>
+                        <SelectContent>
+                          {meseros.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">Crea primero un usuario con rol Mesero en Usuarios.</div>}
+                          {meseros.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>{m.full_name} {m.email ? `· ${m.email}` : ""}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs">Contraseña actual de ese mesero</Label>
+                      <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="La que usa para entrar al POS" className="h-9" autoComplete="new-password" />
+                      <p className="mt-1 text-[11px] text-muted-foreground">Se guarda cifrada en la BD y se usa para el auto-login de la tablet. Si no la recuerdas, cámbiala primero en Usuarios.</p>
+                    </div>
+                    <div className="md:col-span-2 flex gap-2 justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => { setCreatingFor(null); setNewLabel(""); setNewUserId(""); setNewPassword(""); }}>Cancelar</Button>
+                      <Button size="sm" onClick={() => handleCreate(b.id)}>Crear enlace</Button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-3 space-y-3">
                   {isLoading && <p className="text-xs text-muted-foreground">Cargando…</p>}

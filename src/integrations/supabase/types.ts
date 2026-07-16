@@ -2288,7 +2288,7 @@ export type Database = {
           last_seen_at: string | null
           password: string
           token: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           active?: boolean
@@ -2300,7 +2300,7 @@ export type Database = {
           last_seen_at?: string | null
           password: string
           token: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           active?: boolean
@@ -2312,7 +2312,7 @@ export type Database = {
           last_seen_at?: string | null
           password?: string
           token?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: [
           {
@@ -2582,6 +2582,15 @@ export type Database = {
         Args: { _employee_id: string }
         Returns: string
       }
+      get_tablet_credentials: {
+        Args: { _token: string }
+        Returns: {
+          branch_name: string
+          branch_slug: string
+          email: string
+          password: string
+        }[]
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -2763,6 +2772,7 @@ export type Database = {
         }[]
       }
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
+      touch_tablet_last_seen: { Args: { _token: string }; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "cajero" | "mesero" | "domiciliario" | "supervisor"
