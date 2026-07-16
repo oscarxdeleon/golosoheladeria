@@ -3,6 +3,24 @@ import "./lib/error-capture";
 import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
+// Fallback: mirror VITE_* Supabase vars into their server counterparts.
+// Useful for deployments (e.g. Vercel) where only the VITE_* keys are set.
+function ensureServerSupabaseEnv() {
+  try {
+    const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
+    if (!env) return;
+    if (!env.SUPABASE_URL && env.VITE_SUPABASE_URL) env.SUPABASE_URL = env.VITE_SUPABASE_URL;
+    if (!env.SUPABASE_PUBLISHABLE_KEY && env.VITE_SUPABASE_PUBLISHABLE_KEY)
+      env.SUPABASE_PUBLISHABLE_KEY = env.VITE_SUPABASE_PUBLISHABLE_KEY;
+    if (!env.SUPABASE_PROJECT_ID && env.VITE_SUPABASE_PROJECT_ID)
+      env.SUPABASE_PROJECT_ID = env.VITE_SUPABASE_PROJECT_ID;
+  } catch {
+    /* noop */
+  }
+}
+ensureServerSupabaseEnv();
+
+
 type ServerEntry = {
   fetch: (request: Request, env: unknown, ctx: unknown) => Promise<Response> | Response;
 };
