@@ -562,6 +562,7 @@ function MesasPage() {
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
                   <UsersMini />
                   <span>{m.seats} puestos</span>
+                </div>
               </div>
 
               {/* Total del pedido activo (solo si la mesa está ocupada y tiene pedido) */}
