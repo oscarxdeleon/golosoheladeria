@@ -1,4 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
+function isNewKey(k: string) { return k.startsWith("sb_publishable_") || k.startsWith("sb_secret_"); }
 
 export const Route = createFileRoute("/api/public/tablet-auth/$token")({
   server: {
@@ -10,25 +14,43 @@ export const Route = createFileRoute("/api/public/tablet-auth/$token")({
             status: 400, headers: { "Content-Type": "application/json" },
           });
         }
-        const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-        const { data, error } = await supabaseAdmin
-          .from("tablet_devices")
-          .select("email, password, active, branch_id, branches:branch_id(slug, name)")
-          .eq("token", token)
-          .maybeSingle();
-        if (error || !data || !data.active) {
+        const url = process.env.SUPABASE_URL;
+        const key = process.env.SUPABASE_PUBLISHABLE_KEY;
+        if (!url || !key) {
+          return new Response(JSON.stringify({ error: "server_misconfigured" }), {
+            status: 500, headers: { "Content-Type": "application/json" },
+          });
+        }
+        const supa = createClient<Database>(url, key, {
+          auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+          global: {
+            fetch: (input, init) => {
+              const h = new Headers(init?.headers);
+              if (isNewKey(key) && h.get("Authorization") === `Bearer ${key}`) h.delete("Authorization");
+              h.set("apikey", key);
+              return fetch(input, { ...init, headers: h });
+            },
+          },
+        });
+        const { data, error } = await supa.rpc("get_tablet_credentials", { _token: token });
+        if (error) {
+          return new Response(JSON.stringify({ error: "lookup_failed", detail: error.message }), {
+            status: 500, headers: { "Content-Type": "application/json" },
+          });
+        }
+        const row = Array.isArray(data) ? data[0] : data;
+        if (!row) {
           return new Response(JSON.stringify({ error: "not_found" }), {
             status: 404, headers: { "Content-Type": "application/json" },
           });
         }
-        // best-effort update last_seen
-        await supabaseAdmin.from("tablet_devices").update({ last_seen_at: new Date().toISOString() }).eq("token", token);
-        const branch = Array.isArray(data.branches) ? data.branches[0] : data.branches;
+        // best-effort touch (ignore errors)
+        void supa.rpc("touch_tablet_last_seen", { _token: token });
         return new Response(JSON.stringify({
-          email: data.email,
-          password: data.password,
-          branch_slug: branch?.slug ?? null,
-          branch_name: branch?.name ?? null,
+          email: row.email,
+          password: row.password,
+          branch_slug: row.branch_slug,
+          branch_name: row.branch_name,
         }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
       },
     },
