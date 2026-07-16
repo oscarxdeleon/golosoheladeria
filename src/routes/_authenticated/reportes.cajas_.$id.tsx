@@ -154,6 +154,21 @@ function CajaDetailPage() {
 
   const sessionBranchId = detail?.session.branch_id ?? null;
 
+  const { data: cancelledSales = [] } = useQuery({
+    queryKey: ["reportes.session.cancelled", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("id,ticket_number,order_type,total,payment_method,customer_name,user_name,created_at,cancelled_at,cancelled_by_name,cancellation_reason,cancellation_previous_status,table_id")
+        .eq("cash_session_id", id)
+        .eq("status", "cancelled")
+        .order("cancelled_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as CancelledSaleRow[];
+    },
+  });
+
   useEffect(() => {
     if (!sessionBranchId) return;
     const invalidateDetail = () => {
