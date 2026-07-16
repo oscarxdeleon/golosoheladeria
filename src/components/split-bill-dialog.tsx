@@ -95,7 +95,9 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
     setCashPayments(next);
     const newPending = total - next.reduce((s, p) => s + p.amount, 0);
     setDraftAmount(newPending);
-    setShowDraft(newPending === 0 ? false : false); // ocultar hasta pulsar "Agregar pago"
+    // Mantener el formulario visible con el saldo restante pre-cargado para
+    // que el cajero solo tenga que elegir método y presionar aplicar.
+    setShowDraft(newPending > 0);
   }
 
   function removeCashPayment(idx: number) {
