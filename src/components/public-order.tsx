@@ -978,14 +978,15 @@ export function PublicOrder({
     );
   }
 
-  // Intercept: pickup fuera de horario → pantalla para programar
+  // Intercept: domicilio o recoger fuera de horario → pantalla para programar
   if (
     source === "online_menu" &&
-    isPickup &&
+    (isPickup || isDelivery) &&
     !readOnly &&
     isClosedForService &&
     !scheduledFor
   ) {
+    const subtitleLine = isDelivery ? "Y te lo enviaremos al abrir." : "Y pasa a recoger en cuanto abramos.";
     return (
       <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-[#0b3a44] via-[#0e4a55] to-[#062a32] flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-xl">
@@ -1022,7 +1023,7 @@ export function PublicOrder({
                   className="font-display font-black text-2xl sm:text-3xl leading-tight text-lime-300 drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]"
                   style={{ WebkitTextStroke: "0.5px rgba(0,0,0,0.35)" }}
                 >
-                  ¡No te quedes sin antojo!
+                  ¡No te quedes sin tu antojo!
                 </h2>
                 <p className="text-white/90 font-semibold text-base sm:text-lg -mt-2">
                   Estamos fuera de horario.
@@ -1033,10 +1034,10 @@ export function PublicOrder({
                     className="font-display font-black text-xl sm:text-2xl text-white drop-shadow-[0_2px_2px_rgba(0,0,0,0.5)]"
                     style={{ WebkitTextStroke: "0.5px rgba(0,0,0,0.35)" }}
                   >
-                    PROGRAMA TU PEDIDO AQUÍ
+                    PROGRAMA TU PEDIDO
                   </p>
                   <p className="text-white/85 text-sm sm:text-base">
-                    Y pasa a recoger en cuanto abramos.
+                    {subtitleLine}
                   </p>
                 </div>
 
@@ -1053,7 +1054,7 @@ export function PublicOrder({
                 >
                   <span className="inline-flex items-center justify-center gap-2">
                     <CalendarClock className="h-5 w-5" />
-                    Programa tu pedido aquí
+                    Programa tu pedido
                   </span>
                 </button>
 
@@ -1074,7 +1075,7 @@ export function PublicOrder({
           open={scheduleOpen}
           onOpenChange={setScheduleOpen}
           schedules={branchSchedules}
-          channel="physical"
+          channel={isPickup ? "physical" : "online"}
           onConfirm={(iso, label) => { setScheduledFor(iso); setScheduledLabel(label); }}
         />
       </div>
