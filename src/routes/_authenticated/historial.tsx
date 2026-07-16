@@ -77,10 +77,14 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 function HistorialPage() {
+  const { isAdmin, primaryRole } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "cancelled">("active");
   const [days, setDays] = useState<string>("7");
   const [selected, setSelected] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<SaleRow | null>(null);
 
   const { data: sales = [], refetch, isFetching } = useQuery({
     queryKey: ["sales-history", days],
