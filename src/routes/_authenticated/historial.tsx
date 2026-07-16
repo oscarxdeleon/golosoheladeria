@@ -92,7 +92,7 @@ function HistorialPage() {
       let q = supabase
         .from("sales")
         .select(
-          "id,ticket_number,total,subtotal,tax,delivery_fee,payment_method,customer_name,customer_phone,delivery_address,delivery_neighborhood,user_name,notes,order_type,status,source,branch_id,created_at",
+          "id,ticket_number,total,subtotal,tax,delivery_fee,payment_method,customer_name,customer_phone,delivery_address,delivery_neighborhood,user_name,notes,order_type,status,source,branch_id,created_at,cancelled_at,cancelled_by_name,cancellation_reason,cancellation_previous_status",
         )
         .order("created_at", { ascending: false })
         .limit(500);
@@ -109,6 +109,8 @@ function HistorialPage() {
   const filtered = useMemo(() => {
     return sales.filter((s) => {
       if (typeFilter !== "all" && (s.order_type ?? "") !== typeFilter) return false;
+      if (statusFilter === "active" && s.status === "cancelled") return false;
+      if (statusFilter === "cancelled" && s.status !== "cancelled") return false;
       if (!search.trim()) return true;
       const needle = search.toLowerCase();
       return (
@@ -118,9 +120,20 @@ function HistorialPage() {
         (s.user_name ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [sales, search, typeFilter]);
+  }, [sales, search, typeFilter, statusFilter]);
 
-  const totalSum = filtered.reduce((s, x) => s + Number(x.total ?? 0), 0);
+  const totalSum = filtered
+    .filter((x) => x.status !== "cancelled")
+    .reduce((s, x) => s + Number(x.total ?? 0), 0);
+  const cancelledCount = filtered.filter((x) => x.status === "cancelled").length;
+
+  function canCancel(sale: SaleRow): boolean {
+    if (sale.status === "cancelled") return false;
+    if (primaryRole === "supervisor" || primaryRole === "mesero" || primaryRole === "domiciliario") return false;
+    if (sale.status === "paid" && !isAdmin) return false;
+    return isAdmin || primaryRole === "cajero";
+  }
+
 
   async function reprintSale(saleId: string, kind: "comanda" | "ticket") {
     const t = toast.loading(kind === "comanda" ? "Reimprimiendo comanda…" : "Reimprimiendo ticket…");
