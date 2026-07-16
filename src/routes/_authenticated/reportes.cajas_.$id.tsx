@@ -512,6 +512,62 @@ function CajaDetailPage() {
           <AjusteBlock title="SALIDAS / GASTOS" tone="rose" rows={salidas} sign="-" />
           <AjusteBlock title="DEVOLUCIONES / REEMBOLSOS" tone="amber" rows={devoluciones} sign="-" />
         </TabsContent>
+
+        {/* -------- ANULADOS -------- */}
+        <TabsContent value="anulados" className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <KpiTile label="Pedidos anulados" value={String(cancelledSales.length)} tone="amber" />
+            <KpiTile
+              label="Valor anulado (informativo)"
+              value={formatMoney(cancelledSales.reduce((s, r) => s + Number(r.total ?? 0), 0))}
+              tone="amber"
+            />
+          </div>
+
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900">
+            ⚠️ Los pedidos anulados <b>no</b> se suman a ventas ni a caja. Este listado es únicamente informativo para auditoría.
+          </div>
+
+          <Card className="rounded-2xl">
+            <CardContent className="p-0">
+              <div className="divide-y">
+                <div className="hidden md:grid grid-cols-[80px_1fr_1fr_1fr_120px] gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <div>Ticket</div><div>Servicio / Cliente</div><div>Cajero → Anuló</div><div>Motivo</div><div className="text-right">Valor</div>
+                </div>
+                {cancelledSales.length === 0 && (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">Sin pedidos anulados en este turno.</div>
+                )}
+                {cancelledSales.map((c) => {
+                  const wasPaid = c.cancellation_previous_status === "paid";
+                  return (
+                    <div key={c.id} className="grid grid-cols-1 md:grid-cols-[80px_1fr_1fr_1fr_120px] gap-2 md:gap-3 px-4 py-3 text-sm">
+                      <div className="font-mono font-bold text-rose-600">#{c.ticket_number}</div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="capitalize">{c.order_type}</Badge>
+                          {wasPaid && <Badge variant="destructive" className="text-[10px]">Requiere reversión</Badge>}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {c.customer_name ?? "Cliente POS"} · {c.cancelled_at ? format(new Date(c.cancelled_at), "dd/MM HH:mm") : "—"}
+                        </div>
+                      </div>
+                      <div className="text-xs">
+                        <div className="text-muted-foreground">Registró: <span className="text-foreground">{c.user_name ?? "—"}</span></div>
+                        <div className="text-muted-foreground">Anuló: <span className="text-foreground font-medium">{c.cancelled_by_name ?? "—"}</span></div>
+                      </div>
+                      <div className="text-xs italic text-muted-foreground line-clamp-2">
+                        “{c.cancellation_reason ?? "—"}”
+                      </div>
+                      <div className={`text-right font-display font-bold whitespace-nowrap ${wasPaid ? "text-rose-600" : "text-muted-foreground line-through"}`}>
+                        {formatMoney(c.total)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
