@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/hooks/use-auth";
-import { getSharedDashboardPayload } from "@/lib/dashboard.functions";
 import {
   DollarSign, ShoppingBag, Target, TrendingUp, Calendar, Globe, CreditCard,
   Package, Clock, Lightbulb, Sparkles,
@@ -65,7 +63,6 @@ function rangeFor(r: Range) {
 
 function DashboardPage() {
   const queryClient = useQueryClient();
-  const dashboardPayload = useServerFn(getSharedDashboardPayload);
   const { user, loading: authLoading, rolesLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
   const [range, setRange] = useState<Range>("hoy");
@@ -104,9 +101,16 @@ function DashboardPage() {
       activeCash: { id: string | null; userName: string | null; openedAt: string | null; openingAmount: number; status: string | null };
       pending: { tablesOccupied: number; pendingLlevar: number; pendingDomicilio: number; preparing: number };
     }> => {
-      const raw = await dashboardPayload({
-        data: { branchId: activeBranchId!, range, origen, pago },
+      // Llamamos el RPC directamente desde el cliente autenticado. Así el
+      // Dashboard funciona igual en Lovable Cloud y en Vercel sin depender
+      // de un runtime de server functions. RLS aplica con el JWT del usuario.
+      const { data: raw, error } = await supabase.rpc("admin_dashboard_rpc", {
+        _branch_id: activeBranchId!,
+        _range: range,
+        _origen: origen,
+        _pago: pago,
       });
+      if (error) throw new Error(error.message);
       const p = (raw ?? {}) as any;
 
       const hourlyArr: { hour: number; total: number }[] = Array.isArray(p.hourly) ? p.hourly : [];
