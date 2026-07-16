@@ -2451,6 +2451,18 @@ export type Database = {
         Returns: Json
       }
       admin_delete_app_user: { Args: { _user_id: string }; Returns: undefined }
+      admin_update_app_user: {
+        Args: {
+          _active?: boolean
+          _branch_id?: string
+          _branch_id_set?: boolean
+          _full_name?: string
+          _password?: string
+          _role?: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: undefined
+      }
       assert_current_user_is_admin: { Args: never; Returns: string }
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
       cancel_sale: {
