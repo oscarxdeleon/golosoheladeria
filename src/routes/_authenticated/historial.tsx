@@ -240,7 +240,8 @@ function HistorialPage() {
         <div>
           <h1 className="font-display text-3xl">Historial de pedidos</h1>
           <p className="text-muted-foreground">
-            {filtered.length} pedidos · {formatMoney(totalSum)} · Reimprime ticket o comanda
+            {filtered.length} pedidos · {formatMoney(totalSum)} válidos
+            {cancelledCount > 0 && ` · ${cancelledCount} anulado(s)`}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
