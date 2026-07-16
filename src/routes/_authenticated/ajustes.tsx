@@ -2171,18 +2171,42 @@ function MeseroAppTab() {
                     {b.is_main && <Badge variant="secondary" className="text-[10px]">Principal</Badge>}
                     <span className="text-xs text-muted-foreground">· {list.length} tablet{list.length === 1 ? "" : "s"}</span>
                   </div>
-                  {creatingFor === b.id ? (
-                    <div className="flex items-center gap-2">
-                      <Input autoFocus value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Ej: Tablet 1" className="h-8 w-40" />
-                      <Button size="sm" onClick={() => handleCreate(b.id)}>Crear</Button>
-                      <Button size="sm" variant="ghost" onClick={() => { setCreatingFor(null); setNewLabel(""); }}>Cancelar</Button>
-                    </div>
-                  ) : (
-                    <Button size="sm" onClick={() => setCreatingFor(b.id)}>
+                  {creatingFor === b.id ? null : (
+                    <Button size="sm" onClick={() => { setCreatingFor(b.id); setNewUserId(""); setNewPassword(""); setNewLabel(""); }}>
                       <Plus className="h-4 w-4" /> Registrar tablet
                     </Button>
                   )}
                 </div>
+
+                {creatingFor === b.id && (
+                  <div className="border-b bg-muted/20 p-3 grid gap-2 md:grid-cols-2">
+                    <div>
+                      <Label className="text-xs">Nombre de la tablet</Label>
+                      <Input autoFocus value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Ej: Tablet 1" className="h-9" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Usuario mesero</Label>
+                      <Select value={newUserId} onValueChange={setNewUserId}>
+                        <SelectTrigger className="h-9"><SelectValue placeholder="Selecciona…" /></SelectTrigger>
+                        <SelectContent>
+                          {meseros.length === 0 && <div className="px-3 py-2 text-xs text-muted-foreground">Crea primero un usuario con rol Mesero en Usuarios.</div>}
+                          {meseros.map((m) => (
+                            <SelectItem key={m.id} value={m.id}>{m.full_name} {m.email ? `· ${m.email}` : ""}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="md:col-span-2">
+                      <Label className="text-xs">Contraseña actual de ese mesero</Label>
+                      <Input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="La que usa para entrar al POS" className="h-9" autoComplete="new-password" />
+                      <p className="mt-1 text-[11px] text-muted-foreground">Se guarda cifrada en la BD y se usa para el auto-login de la tablet. Si no la recuerdas, cámbiala primero en Usuarios.</p>
+                    </div>
+                    <div className="md:col-span-2 flex gap-2 justify-end">
+                      <Button size="sm" variant="ghost" onClick={() => { setCreatingFor(null); setNewLabel(""); setNewUserId(""); setNewPassword(""); }}>Cancelar</Button>
+                      <Button size="sm" onClick={() => handleCreate(b.id)}>Crear enlace</Button>
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-3 space-y-3">
                   {isLoading && <p className="text-xs text-muted-foreground">Cargando…</p>}
