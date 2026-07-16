@@ -1613,101 +1613,158 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     try {
 
       let sale: { id: string; ticket_number: number; created_at: string };
+
+      // Payload común para UPDATE / INSERT (evita divergencia entre ramas).
+      const salePayload = {
+        user_id: user.id,
+        user_name: profile?.full_name ?? user.email,
+        subtotal,
+        tax,
+        total,
+        customer_name: customer || null,
+        customer_phone: phone.trim() ? phone.trim() : null,
+        notes: notes || null,
+        delivery_address: orderType === "domicilio" ? address : null,
+        delivery_phone: orderType === "domicilio" ? phone : null,
+        delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
+        delivery_fee: deliveryFee,
+        cash_session_id: effectiveSessionId,
+      };
+
+      // Helper: para pedidos de MESA, garantiza que solo exista un pedido
+      // activo. Si ya hay uno para la mesa, devuelve su id (adopción). Si no,
+      // devuelve null y el flujo procederá a insertar uno nuevo. Consolida
+      // automáticamente cualquier duplicado remanente antes de decidir.
+      async function findOrAdoptActiveSaleForTable(): Promise<string | null> {
+        if (orderType !== "mesa" || !tableId) return null;
+        // Intenta consolidar duplicados heredados (no-op si no hay).
+        try {
+          await supabase.rpc("consolidate_active_sales_for_table", { _table_id: tableId });
+        } catch (e) {
+          console.warn("[pos] consolidate_active_sales_for_table falló (continuo)", e);
+        }
+        const { data } = await supabase
+          .from("sales")
+          .select("id")
+          .eq("table_id", tableId)
+          .in("status", ["pending", "confirmed", "ready"])
+          .order("created_at", { ascending: true })
+          .limit(1)
+          .maybeSingle();
+        return (data?.id as string | undefined) ?? null;
+      }
+
       if (pendingSaleId) {
-        // Actualizar pedido pendiente existente y reemplazar items
+        // Actualizar pedido pendiente existente.
         const { data, error } = await supabase
           .from("sales")
-          .update({
-            user_id: user.id,
-            user_name: profile?.full_name ?? user.email,
-            subtotal,
-            tax,
-
-            total,
-            customer_name: customer || null,
-            customer_phone: phone.trim() ? phone.trim() : null,
-            notes: notes || null,
-            delivery_address: orderType === "domicilio" ? address : null,
-            delivery_phone: orderType === "domicilio" ? phone : null,
-            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
-            delivery_fee: deliveryFee,
-            cash_session_id: effectiveSessionId,
-          })
+          .update(salePayload)
           .eq("id", pendingSaleId)
           .select("id,ticket_number,created_at")
           .maybeSingle();
         if (error) throw new Error(error.message || "No se pudo actualizar el pedido");
-        if (!data) {
-          // Sin permiso o el pedido pertenece a otro usuario — reiniciamos flujo como venta nueva
-          console.warn("[pos] update devolvió 0 filas (posible RLS), reintentando como INSERT");
-          setPendingSaleId(null);
+        if (data) {
+          sale = data;
+        } else {
+          // UPDATE devolvió 0 filas: el pedido ya no está activo (pagado,
+          // cancelado, fusionado) o RLS lo bloqueó. NUNCA insertamos un
+          // duplicado en silencio — buscamos primero si la mesa ya tiene
+          // otro pedido activo legítimo (fusión/adopción) y lo reintenta.
+          const adoptId = await findOrAdoptActiveSaleForTable();
+          if (adoptId && adoptId !== pendingSaleId) {
+            console.warn("[pos] pendingSaleId obsoleto, adoptando pedido activo real", adoptId);
+            setPendingSaleId(adoptId);
+            const retry = await supabase
+              .from("sales")
+              .update(salePayload)
+              .eq("id", adoptId)
+              .select("id,ticket_number,created_at")
+              .maybeSingle();
+            if (retry.error || !retry.data) {
+              throw new Error(
+                retry.error?.message ||
+                  "El pedido cambió de estado. Recarga la mesa e intenta de nuevo.",
+              );
+            }
+            sale = retry.data;
+          } else {
+            // Ningún pedido activo existe — el usuario probablemente cobró/
+            // canceló en otra sesión. Avisamos y detenemos el guardado en
+            // lugar de crear un pedido nuevo por accidente.
+            setPendingSaleId(null);
+            throw new Error(
+              "Este pedido ya no está activo (pagado, cancelado o fusionado). Recarga la mesa.",
+            );
+          }
+        }
+      } else {
+        // Creación de pedido nuevo. Para mesas, adoptamos si ya existe uno
+        // activo (evita generar un fantasma si dos cajeros abrieron la
+        // misma mesa en simultáneo, aunque el índice único ya lo previene).
+        const adoptId = await findOrAdoptActiveSaleForTable();
+        if (adoptId) {
+          console.warn("[pos] la mesa ya tiene un pedido activo, adoptándolo", adoptId);
+          setPendingSaleId(adoptId);
+          const upd = await supabase
+            .from("sales")
+            .update(salePayload)
+            .eq("id", adoptId)
+            .select("id,ticket_number,created_at")
+            .maybeSingle();
+          if (upd.error || !upd.data) {
+            throw new Error(
+              upd.error?.message || "No se pudo actualizar el pedido activo de la mesa",
+            );
+          }
+          sale = upd.data;
+        } else {
           const ins = await supabase
             .from("sales")
             .insert({
-              user_id: user.id,
-              user_name: profile?.full_name ?? user.email,
-              subtotal,
-              tax,
-              total,
+              ...salePayload,
               payment_method: "Pendiente",
               status: "pending",
               source: "pos",
-              customer_name: customer || null,
-              customer_phone: phone.trim() ? phone.trim() : null,
-              notes: notes || null,
               order_type: orderType,
               table_id: tableId ?? null,
               branch_id: activeBranchId,
-              delivery_address: orderType === "domicilio" ? address : null,
-              delivery_phone: orderType === "domicilio" ? phone : null,
-              delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
-              delivery_fee: deliveryFee,
-              cash_session_id: effectiveSessionId,
             })
             .select("id,ticket_number,created_at")
             .single();
-          if (ins.error) throw new Error(ins.error.message || "No se pudo guardar el pedido");
-          sale = ins.data;
-        } else {
-          sale = data;
-          // NO borramos items aquí — el reemplazo se hace de forma atómica
-          // más abajo vía RPC `replace_sale_items` para evitar que la venta
-          // quede momentáneamente vacía (lo que antes disparaba una
-          // cancelación automática y liberaba la mesa).
+          if (ins.error) {
+            // Violación del índice único → otra sesión creó el pedido antes.
+            // Adoptamos el existente en vez de fallar.
+            const isUniqueViolation =
+              ins.error.code === "23505" ||
+              /sales_unique_active_per_table/i.test(ins.error.message ?? "");
+            if (isUniqueViolation) {
+              const raceAdopt = await findOrAdoptActiveSaleForTable();
+              if (raceAdopt) {
+                setPendingSaleId(raceAdopt);
+                const upd = await supabase
+                  .from("sales")
+                  .update(salePayload)
+                  .eq("id", raceAdopt)
+                  .select("id,ticket_number,created_at")
+                  .maybeSingle();
+                if (upd.error || !upd.data) {
+                  throw new Error(
+                    upd.error?.message || "No se pudo adoptar el pedido activo existente",
+                  );
+                }
+                sale = upd.data;
+              } else {
+                throw new Error("Conflicto al crear el pedido. Reintenta.");
+              }
+            } else {
+              console.error("save sale error", ins.error);
+              throw new Error(ins.error.message || "No se pudo guardar el pedido");
+            }
+          } else {
+            sale = ins.data;
+            setPendingSaleId(sale.id);
+          }
         }
-      } else {
-        const { data, error } = await supabase
-          .from("sales")
-          .insert({
-            user_id: user.id,
-            user_name: profile?.full_name ?? user.email,
-            subtotal,
-            tax,
-
-            total,
-            payment_method: "Pendiente",
-            status: "pending",
-            source: "pos",
-            customer_name: customer || null,
-            customer_phone: phone.trim() ? phone.trim() : null,
-            notes: notes || null,
-            order_type: orderType,
-            table_id: tableId ?? null,
-            branch_id: activeBranchId,
-            delivery_address: orderType === "domicilio" ? address : null,
-            delivery_phone: orderType === "domicilio" ? phone : null,
-            delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
-            delivery_fee: deliveryFee,
-            cash_session_id: effectiveSessionId,
-          })
-          .select("id,ticket_number,created_at")
-          .single();
-        if (error) {
-          console.error("save sale error", error);
-          throw new Error(error.message || "No se pudo guardar el pedido");
-        }
-        sale = data;
-        setPendingSaleId(sale.id);
       }
 
       console.log("[pos] saveComanda · sale guardado #", sale.ticket_number);
