@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Minus, Plus, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
+import { toast } from "sonner";
 
 export interface SelectedModifier {
   id: string;
@@ -153,18 +154,28 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm, initialP
   }
 
   function confirm() {
-    if (validation) return;
-    const chosen: SelectedModifier[] = mods
-      .filter((m) => (picked[m.id] ?? 0) > 0)
-      .map((m) => ({
-        id: m.id,
-        group_id: m.group_id,
-        group_name: groups.find((g) => g.id === m.group_id)?.name ?? "",
-        name: m.name,
-        price: Number(m.price),
-        qty: picked[m.id]!,
-      }));
-    onConfirm(chosen, unitExtra, note.trim() || undefined);
+    if (validation) {
+      toast.error(validation, {
+        description: "Completa las opciones obligatorias para poder agregar el producto.",
+      });
+      return;
+    }
+    try {
+      const chosen: SelectedModifier[] = mods
+        .filter((m) => (picked[m.id] ?? 0) > 0)
+        .map((m) => ({
+          id: m.id,
+          group_id: m.group_id,
+          group_name: groups.find((g) => g.id === m.group_id)?.name ?? "",
+          name: m.name,
+          price: Number(m.price),
+          qty: picked[m.id]!,
+        }));
+      onConfirm(chosen, unitExtra, note.trim() || undefined);
+    } catch (err) {
+      console.error("[ModifiersModal] confirm error", err);
+      toast.error("No fue posible agregar el producto. Revisa la configuración de sus modificadores.");
+    }
   }
 
   // Detect "single optional modifier" case
@@ -244,14 +255,24 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm, initialP
               return parts.join(" · ");
             })();
 
+            const minRequired = g.required ? Math.max(1, g.min_select) : g.min_select;
+            const missing = Math.max(0, minRequired - count);
+            const isIncomplete = missing > 0;
             return (
               <div key={g.id} className="space-y-2">
-                <div className="flex items-center justify-between border-b pb-1">
+                <div className={`flex items-center justify-between border-b pb-1 ${isIncomplete ? "border-destructive/60" : ""}`}>
                   <div>
-                    <div className="font-medium">{g.name}</div>
-                    <div className="text-xs text-muted-foreground">{limitText}</div>
+                    <div className="font-medium flex items-center gap-2">
+                      {g.name}
+                      {isIncomplete && (
+                        <span className="text-[11px] font-semibold text-destructive">
+                          Falta{missing > 1 ? `n ${missing}` : ""}
+                        </span>
+                      )}
+                    </div>
+                    <div className={`text-xs ${isIncomplete ? "text-destructive" : "text-muted-foreground"}`}>{limitText}</div>
                   </div>
-                  <Badge variant={count > 0 ? "default" : "secondary"}>
+                  <Badge variant={isIncomplete ? "destructive" : count > 0 ? "default" : "secondary"}>
                     {g.max_select > 0 ? `${count}/${g.max_select}` : count}
                   </Badge>
                 </div>
@@ -391,7 +412,7 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm, initialP
             )}
           </div>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={confirm} disabled={!!validation}>
+          <Button onClick={confirm} aria-invalid={!!validation} title={validation ?? undefined}>
             {confirmLabel ?? "Agregar"} · {formatMoney(Number(product.price) + unitExtra)}
           </Button>
         </DialogFooter>
