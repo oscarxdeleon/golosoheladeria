@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -14,17 +15,28 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/format";
-import { Receipt, Printer, ChefHat, Search, RefreshCw } from "lucide-react";
+import { Receipt, Printer, ChefHat, Search, RefreshCw, Ban, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
   printComanda, printTicketFinal, type Branding,
 } from "@/components/pos-screen";
 import { normalizeModifiers } from "@/lib/print-client";
+import { useAuth } from "@/hooks/use-auth";
+import { cancelSaleRequest } from "@/lib/sales-cancellation";
 
 export const Route = createFileRoute("/_authenticated/historial")({
   head: () => ({ meta: [{ title: "Historial de pedidos · Goloso POS" }] }),
   component: HistorialPage,
 });
+
+const CANCEL_REASON_PRESETS = [
+  "Cliente desistió del pedido",
+  "Pedido registrado por error",
+  "Cliente no realizó el pago",
+  "Pedido duplicado",
+  "Error del cajero",
+  "Producto no disponible",
+];
 
 type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
 
@@ -47,6 +59,10 @@ interface SaleRow {
   source: string | null;
   branch_id: string | null;
   created_at: string;
+  cancelled_at?: string | null;
+  cancelled_by_name?: string | null;
+  cancellation_reason?: string | null;
+  cancellation_previous_status?: string | null;
 }
 
 interface SaleItem {
@@ -65,10 +81,14 @@ const TYPE_LABEL: Record<string, string> = {
 };
 
 function HistorialPage() {
+  const { isAdmin, primaryRole } = useAuth();
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "cancelled">("active");
   const [days, setDays] = useState<string>("7");
   const [selected, setSelected] = useState<string | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<SaleRow | null>(null);
 
   const { data: sales = [], refetch, isFetching } = useQuery({
     queryKey: ["sales-history", days],
@@ -76,7 +96,7 @@ function HistorialPage() {
       let q = supabase
         .from("sales")
         .select(
-          "id,ticket_number,total,subtotal,tax,delivery_fee,payment_method,customer_name,customer_phone,delivery_address,delivery_neighborhood,user_name,notes,order_type,status,source,branch_id,created_at",
+          "id,ticket_number,total,subtotal,tax,delivery_fee,payment_method,customer_name,customer_phone,delivery_address,delivery_neighborhood,user_name,notes,order_type,status,source,branch_id,created_at,cancelled_at,cancelled_by_name,cancellation_reason,cancellation_previous_status",
         )
         .order("created_at", { ascending: false })
         .limit(500);
@@ -93,6 +113,8 @@ function HistorialPage() {
   const filtered = useMemo(() => {
     return sales.filter((s) => {
       if (typeFilter !== "all" && (s.order_type ?? "") !== typeFilter) return false;
+      if (statusFilter === "active" && s.status === "cancelled") return false;
+      if (statusFilter === "cancelled" && s.status !== "cancelled") return false;
       if (!search.trim()) return true;
       const needle = search.toLowerCase();
       return (
@@ -102,9 +124,20 @@ function HistorialPage() {
         (s.user_name ?? "").toLowerCase().includes(needle)
       );
     });
-  }, [sales, search, typeFilter]);
+  }, [sales, search, typeFilter, statusFilter]);
 
-  const totalSum = filtered.reduce((s, x) => s + Number(x.total ?? 0), 0);
+  const totalSum = filtered
+    .filter((x) => x.status !== "cancelled")
+    .reduce((s, x) => s + Number(x.total ?? 0), 0);
+  const cancelledCount = filtered.filter((x) => x.status === "cancelled").length;
+
+  function canCancel(sale: SaleRow): boolean {
+    if (sale.status === "cancelled") return false;
+    if (primaryRole === "supervisor" || primaryRole === "mesero" || primaryRole === "domiciliario") return false;
+    if (sale.status === "paid" && !isAdmin) return false;
+    return isAdmin || primaryRole === "cajero";
+  }
+
 
   async function reprintSale(saleId: string, kind: "comanda" | "ticket") {
     const t = toast.loading(kind === "comanda" ? "Reimprimiendo comanda…" : "Reimprimiendo ticket…");
@@ -207,7 +240,8 @@ function HistorialPage() {
         <div>
           <h1 className="font-display text-3xl">Historial de pedidos</h1>
           <p className="text-muted-foreground">
-            {filtered.length} pedidos · {formatMoney(totalSum)} · Reimprime ticket o comanda
+            {filtered.length} pedidos · {formatMoney(totalSum)} válidos
+            {cancelledCount > 0 && ` · ${cancelledCount} anulado(s)`}
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
@@ -238,6 +272,14 @@ function HistorialPage() {
               <SelectItem value="online">En línea</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "active" | "cancelled")}>
+            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Solo válidos</SelectItem>
+              <SelectItem value="cancelled">Solo anulados</SelectItem>
+              <SelectItem value="all">Todos los estados</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={days} onValueChange={setDays}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -261,14 +303,17 @@ function HistorialPage() {
                 <TableHead>Tipo</TableHead>
                 <TableHead>Cliente</TableHead>
                 <TableHead>Cajero</TableHead>
+                <TableHead>Estado</TableHead>
                 <TableHead>Pago</TableHead>
                 <TableHead className="text-right">Total</TableHead>
                 <TableHead></TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {filtered.map((s) => (
-                <TableRow key={s.id}>
+              {filtered.map((s) => {
+                const isCancelled = s.status === "cancelled";
+                return (
+                <TableRow key={s.id} className={isCancelled ? "opacity-70" : undefined}>
                   <TableCell className="font-mono">#{s.ticket_number}</TableCell>
                   <TableCell className="whitespace-nowrap">{formatDate(s.created_at)}</TableCell>
                   <TableCell>
@@ -276,8 +321,19 @@ function HistorialPage() {
                   </TableCell>
                   <TableCell>{s.customer_name ?? "—"}</TableCell>
                   <TableCell>{s.user_name ?? "—"}</TableCell>
+                  <TableCell>
+                    {isCancelled ? (
+                      <Badge variant="destructive" title={s.cancellation_reason ?? undefined}>
+                        Anulado
+                      </Badge>
+                    ) : (
+                      <Badge variant="secondary">{s.status ?? "—"}</Badge>
+                    )}
+                  </TableCell>
                   <TableCell>{s.payment_method ?? "—"}</TableCell>
-                  <TableCell className="text-right font-medium">{formatMoney(s.total)}</TableCell>
+                  <TableCell className={`text-right font-medium ${isCancelled ? "line-through text-muted-foreground" : ""}`}>
+                    {formatMoney(s.total)}
+                  </TableCell>
                   <TableCell className="text-right">
                     <div className="flex flex-wrap justify-end gap-1">
                       <Button
@@ -293,13 +349,24 @@ function HistorialPage() {
                       <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
                         <Receipt className="h-4 w-4 mr-1" /> Ver
                       </Button>
+                      {canCancel(s) && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-destructive/40 text-destructive hover:bg-destructive/10"
+                          onClick={() => setCancelTarget(s)}
+                        >
+                          <Ban className="h-4 w-4 mr-1" /> Anular
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
-              ))}
+                );
+              })}
               {filtered.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} className="text-center text-muted-foreground py-10">
+                  <TableCell colSpan={9} className="text-center text-muted-foreground py-10">
                     Sin pedidos para los filtros seleccionados.
                   </TableCell>
                 </TableRow>
@@ -310,7 +377,132 @@ function HistorialPage() {
       </Card>
 
       <SaleDetailDialog saleId={selected} onClose={() => setSelected(null)} />
+      <CancelSaleDialog
+        sale={cancelTarget}
+        onClose={() => setCancelTarget(null)}
+        onCancelled={() => {
+          setCancelTarget(null);
+          void queryClient.invalidateQueries({ queryKey: ["sales-history"] });
+          void queryClient.invalidateQueries({ queryKey: ["sales"] });
+          void queryClient.invalidateQueries({ queryKey: ["tables"] });
+          void queryClient.invalidateQueries({ queryKey: ["inventory"] });
+        }}
+      />
     </div>
+  );
+}
+
+function CancelSaleDialog({
+  sale, onClose, onCancelled,
+}: {
+  sale: SaleRow | null;
+  onClose: () => void;
+  onCancelled: () => void;
+}) {
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const trimmed = reason.trim();
+  const valid = trimmed.length >= 5;
+  const wasPaid = sale?.status === "paid";
+
+  // Reset reason when opening for a new sale
+  const key = sale?.id ?? null;
+  const [lastKey, setLastKey] = useState<string | null>(null);
+  if (key !== lastKey) {
+    setLastKey(key);
+    setReason("");
+    setSubmitting(false);
+  }
+
+  async function handleConfirm() {
+    if (!sale || !valid || submitting) return;
+    setSubmitting(true);
+    const t = toast.loading("Anulando pedido…");
+    try {
+      const res = await cancelSaleRequest({ saleId: sale.id, reason: trimmed });
+      if (res.already_cancelled) {
+        toast.info("Este pedido ya estaba anulado", { id: t });
+      } else {
+        toast.success(
+          `Pedido #${sale.ticket_number} anulado${res.table_released ? " · Mesa liberada" : ""}`,
+          { id: t },
+        );
+      }
+      onCancelled();
+    } catch (e) {
+      console.error(e);
+      toast.error(e instanceof Error ? e.message : "No se pudo anular el pedido", { id: t });
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  return (
+    <Dialog open={!!sale} onOpenChange={(o) => !o && !submitting && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5 text-destructive" />
+            Anular pedido {sale ? `#${sale.ticket_number}` : ""}
+          </DialogTitle>
+          <DialogDescription>
+            Este pedido quedará marcado como <b>anulado</b> y no será contabilizado como una venta válida.
+            {wasPaid && (
+              <span className="block mt-2 text-destructive font-medium">
+                ⚠ Este pedido ya fue pagado. Solo el administrador puede anularlo. Recuerda registrar la reversión del pago.
+              </span>
+            )}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-3">
+          {sale && (
+            <div className="rounded-md border bg-muted/40 p-3 text-sm space-y-1">
+              <div className="flex justify-between"><span className="text-muted-foreground">Tipo</span><span>{TYPE_LABEL[sale.order_type] ?? sale.order_type}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Cliente</span><span>{sale.customer_name ?? "—"}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Total</span><span className="font-semibold">{formatMoney(sale.total)}</span></div>
+              <div className="flex justify-between"><span className="text-muted-foreground">Estado actual</span><span>{sale.status ?? "—"}</span></div>
+            </div>
+          )}
+
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Motivo de la anulación *</label>
+            <div className="flex flex-wrap gap-1">
+              {CANCEL_REASON_PRESETS.map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setReason(p)}
+                  className="text-xs px-2 py-1 rounded-full border hover:bg-muted transition-colors"
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
+            <Textarea
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Escribe por qué se anula este pedido (mín. 5 caracteres)…"
+              rows={3}
+              maxLength={500}
+              autoFocus
+            />
+            <div className="text-xs text-muted-foreground">
+              {trimmed.length}/500 · El motivo quedará registrado en auditoría.
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose} disabled={submitting}>
+            Volver
+          </Button>
+          <Button variant="destructive" onClick={handleConfirm} disabled={!valid || submitting}>
+            {submitting ? "Anulando…" : "Confirmar anulación"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
