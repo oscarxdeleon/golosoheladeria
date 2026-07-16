@@ -2487,6 +2487,10 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      consolidate_active_sales_for_table: {
+        Args: { _table_id: string }
+        Returns: string
+      }
       create_public_order: { Args: { _payload: Json }; Returns: Json }
       create_waiter_call: {
         Args: { _reason?: string; _table_id: string }
