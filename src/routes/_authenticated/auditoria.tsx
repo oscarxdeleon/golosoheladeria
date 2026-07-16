@@ -254,6 +254,161 @@ export function AuditoriaPage() {
           </Table>
         </CardContent>
       </Card>
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+interface CancelledSaleAudit {
+  id: string;
+  ticket_number: number;
+  order_type: string;
+  total: number;
+  branch_id: string | null;
+  payment_method: string | null;
+  customer_name: string | null;
+  user_name: string | null;
+  created_at: string;
+  cancelled_at: string | null;
+  cancelled_by_name: string | null;
+  cancellation_reason: string | null;
+  cancellation_previous_status: string | null;
+  table_id: string | null;
+}
+
+function CancelledSalesAuditPanel({ branchId }: { branchId: string | null }) {
+  const [days, setDays] = useState<string>("30");
+
+  const { data = [], isLoading, isFetching, refetch } = useQuery({
+    queryKey: ["audit.cancelled-sales", branchId, days],
+    queryFn: async () => {
+      let q = supabase
+        .from("sales")
+        .select("id,ticket_number,order_type,total,branch_id,payment_method,customer_name,user_name,created_at,cancelled_at,cancelled_by_name,cancellation_reason,cancellation_previous_status,table_id")
+        .eq("status", "cancelled")
+        .order("cancelled_at", { ascending: false })
+        .limit(500);
+      if (branchId) q = q.eq("branch_id", branchId);
+      if (days !== "all") {
+        const since = new Date(Date.now() - Number(days) * 86400000).toISOString();
+        q = q.gte("cancelled_at", since);
+      }
+      const { data, error } = await q;
+      if (error) throw error;
+      return (data ?? []) as CancelledSaleAudit[];
+    },
+  });
+
+  const paidCount = data.filter((r) => r.cancellation_previous_status === "paid").length;
+  const totalValue = data.reduce((s, r) => s + Number(r.total ?? 0), 0);
+  const paidValue = data
+    .filter((r) => r.cancellation_previous_status === "paid")
+    .reduce((s, r) => s + Number(r.total ?? 0), 0);
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-amber-200 bg-amber-50/40">
+        <CardContent className="p-4 grid gap-3 md:grid-cols-4 items-center">
+          <div>
+            <div className="text-[11px] font-bold uppercase text-amber-800/70">Anulaciones</div>
+            <div className="font-display text-2xl font-extrabold text-amber-700">{data.length}</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-bold uppercase text-amber-800/70">Valor anulado</div>
+            <div className="font-display text-2xl font-extrabold text-amber-700">{formatMoney(totalValue)}</div>
+            <div className="text-[11px] text-muted-foreground">Informativo — no afecta ventas</div>
+          </div>
+          <div>
+            <div className="text-[11px] font-bold uppercase text-rose-800/70">Con pago (requiere reversión)</div>
+            <div className="font-display text-2xl font-extrabold text-rose-600">{paidCount}</div>
+            <div className="text-[11px] text-muted-foreground">{formatMoney(paidValue)}</div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <Select value={days} onValueChange={setDays}>
+              <SelectTrigger className="w-[140px]"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="1">Hoy / 24h</SelectItem>
+                <SelectItem value="7">Últimos 7 días</SelectItem>
+                <SelectItem value="30">Últimos 30 días</SelectItem>
+                <SelectItem value="90">Últimos 90 días</SelectItem>
+                <SelectItem value="all">Todo</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {paidCount > 0 && (
+        <div className="flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-800">
+          <AlertTriangle className="h-4 w-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <b>{paidCount} pedido(s) anulado(s) que ya habían sido pagados.</b> Verifica que la reversión del pago haya quedado registrada en caja.
+          </div>
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="p-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-24">Ticket</TableHead>
+                <TableHead className="w-40">Anulado</TableHead>
+                <TableHead>Servicio / Cliente</TableHead>
+                <TableHead>Registró</TableHead>
+                <TableHead>Anuló</TableHead>
+                <TableHead>Motivo</TableHead>
+                <TableHead>Estado previo</TableHead>
+                <TableHead className="text-right">Valor</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {isLoading && (
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Cargando…</TableCell></TableRow>
+              )}
+              {!isLoading && data.length === 0 && (
+                <TableRow><TableCell colSpan={8} className="text-center py-8 text-muted-foreground">Sin anulaciones en este período.</TableCell></TableRow>
+              )}
+              {data.map((r) => {
+                const wasPaid = r.cancellation_previous_status === "paid";
+                return (
+                  <TableRow key={r.id} className={wasPaid ? "bg-rose-50/40" : undefined}>
+                    <TableCell className="font-mono font-bold text-rose-600">#{r.ticket_number}</TableCell>
+                    <TableCell className="text-xs whitespace-nowrap">
+                      {r.cancelled_at ? format(new Date(r.cancelled_at), "dd/MM/yy HH:mm") : "—"}
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline" className="capitalize">{r.order_type}</Badge>
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-0.5">{r.customer_name ?? "Cliente POS"}</div>
+                    </TableCell>
+                    <TableCell className="text-sm">{r.user_name ?? "—"}</TableCell>
+                    <TableCell className="text-sm font-medium">{r.cancelled_by_name ?? "—"}</TableCell>
+                    <TableCell className="text-xs italic max-w-xs truncate" title={r.cancellation_reason ?? ""}>
+                      “{r.cancellation_reason ?? "—"}”
+                    </TableCell>
+                    <TableCell>
+                      {wasPaid ? (
+                        <Badge variant="destructive" className="text-[10px]">Pagado</Badge>
+                      ) : (
+                        <Badge variant="secondary" className="text-[10px]">{r.cancellation_previous_status ?? "—"}</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell className={`text-right font-display font-bold ${wasPaid ? "text-rose-600" : "text-muted-foreground line-through"}`}>
+                      {formatMoney(r.total)}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
