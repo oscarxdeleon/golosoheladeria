@@ -556,14 +556,11 @@ function MesasPage() {
                   className="h-24 w-24 object-contain drop-shadow-none select-none"
                   draggable={false}
                 />
-                <div className={`mt-1 font-display text-4xl font-black leading-none tracking-tight tabular-nums drop-shadow-[0_1px_0_rgba(2,132,199,0.15)] ${styles.num}`}>
+                <div className={`mt-1 font-display text-5xl font-black leading-none tracking-tight tabular-nums drop-shadow-[0_1px_0_rgba(2,132,199,0.15)] ${styles.num}`}>
                   {m.number}
                 </div>
-                <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
-                  <UsersMini />
-                  <span>{m.seats} puestos</span>
-                </div>
               </div>
+
 
               {/* Total del pedido activo (solo si la mesa está ocupada y tiene pedido) */}
               {status === "occupied" && (mesaTotals[m.id] ?? 0) > 0 && (
