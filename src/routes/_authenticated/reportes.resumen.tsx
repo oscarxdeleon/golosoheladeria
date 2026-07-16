@@ -246,9 +246,10 @@ function ResumenPage() {
 
       {/* KPIs */}
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {kpis.map((k) => (
-          <div key={k.label} className={`rounded-2xl bg-gradient-to-br ${k.gradient} p-[1px] shadow-md`}>
-            <div className="rounded-2xl bg-background/95 p-4 h-full">
+        {kpis.map((k) => {
+          const clickable = !!k.onClick;
+          const inner = (
+            <div className="rounded-2xl bg-background/95 p-4 h-full text-left">
               <div className="flex items-center justify-between">
                 <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">{k.label}</div>
                 <div className={`grid h-9 w-9 place-items-center rounded-xl bg-gradient-to-br ${k.gradient} text-white shadow`}>
@@ -256,13 +257,37 @@ function ResumenPage() {
                 </div>
               </div>
               <div className="mt-2 font-display text-2xl font-extrabold tracking-tight">{k.value}</div>
+              {clickable && (
+                <div className="mt-1 text-[10px] uppercase tracking-wide text-muted-foreground">Ver detalle →</div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+          return clickable ? (
+            <button
+              key={k.label}
+              type="button"
+              onClick={k.onClick}
+              className={`rounded-2xl bg-gradient-to-br ${k.gradient} p-[1px] shadow-md text-left transition hover:scale-[1.01] hover:shadow-lg focus:outline-none focus:ring-2 focus:ring-rose-400`}
+            >
+              {inner}
+            </button>
+          ) : (
+            <div key={k.label} className={`rounded-2xl bg-gradient-to-br ${k.gradient} p-[1px] shadow-md`}>
+              {inner}
+            </div>
+          );
+        })}
       </div>
 
-      {/* Detalle de gastos */}
+      {/* Detalle de gastos (colapsable) */}
       <ExpensesDetail expenses={expenses as ExpenseRow[]} totalExpenses={summary.expenses} />
+
+      {/* Diálogo: gastos del turno activo */}
+      <GastosTurnoDialog
+        open={showGastosDialog}
+        onOpenChange={setShowGastosDialog}
+        branchId={filters.branchId}
+      />
     </div>
   );
 }
