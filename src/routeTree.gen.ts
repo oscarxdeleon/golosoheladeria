@@ -17,6 +17,7 @@ import { Route as KdsLiveRouteImport } from './routes/kds-live'
 import { Route as AuthRouteImport } from './routes/auth'
 import { Route as AuthenticatedRouteRouteImport } from './routes/_authenticated/route'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as TabletAutoTokenRouteImport } from './routes/tablet-auto.$token'
 import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
@@ -110,6 +111,11 @@ const AuthenticatedRouteRoute = AuthenticatedRouteRouteImport.update({
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TabletAutoTokenRoute = TabletAutoTokenRouteImport.update({
+  id: '/tablet-auto/$token',
+  path: '/tablet-auto/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const TTableNumberRoute = TTableNumberRouteImport.update({
@@ -452,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/ventas': typeof AuthenticatedVentasRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
+  '/tablet-auto/$token': typeof TabletAutoTokenRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
@@ -514,6 +521,7 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/t/$tableNumber': typeof TTableNumberRoute
+  '/tablet-auto/$token': typeof TabletAutoTokenRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
@@ -580,6 +588,7 @@ export interface FileRoutesById {
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
+  '/tablet-auto/$token': typeof TabletAutoTokenRoute
   '/_authenticated/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
   '/_authenticated/menu/insumos': typeof AuthenticatedMenuInsumosRoute
   '/_authenticated/menu/modificadores': typeof AuthenticatedMenuModificadoresRoute
@@ -646,6 +655,7 @@ export interface FileRouteTypes {
     | '/ventas'
     | '/s/$slug'
     | '/t/$tableNumber'
+    | '/tablet-auto/$token'
     | '/menu/categorias'
     | '/menu/insumos'
     | '/menu/modificadores'
@@ -708,6 +718,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/ventas'
     | '/t/$tableNumber'
+    | '/tablet-auto/$token'
     | '/menu/categorias'
     | '/menu/insumos'
     | '/menu/modificadores'
@@ -773,6 +784,7 @@ export interface FileRouteTypes {
     | '/_authenticated/ventas'
     | '/s/$slug'
     | '/t/$tableNumber'
+    | '/tablet-auto/$token'
     | '/_authenticated/menu/categorias'
     | '/_authenticated/menu/insumos'
     | '/_authenticated/menu/modificadores'
@@ -804,6 +816,7 @@ export interface RootRouteChildren {
   TabletPedidosRoute: typeof TabletPedidosRoute
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
+  TabletAutoTokenRoute: typeof TabletAutoTokenRoute
   AsistenciaTerminalSlugRoute: typeof AsistenciaTerminalSlugRoute
   ApiPublicTabletAuthTokenRoute: typeof ApiPublicTabletAuthTokenRoute
 }
@@ -864,6 +877,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/tablet-auto/$token': {
+      id: '/tablet-auto/$token'
+      path: '/tablet-auto/$token'
+      fullPath: '/tablet-auto/$token'
+      preLoaderRoute: typeof TabletAutoTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/t/$tableNumber': {
@@ -1395,6 +1415,7 @@ const rootRouteChildren: RootRouteChildren = {
   TabletPedidosRoute: TabletPedidosRoute,
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
+  TabletAutoTokenRoute: TabletAutoTokenRoute,
   AsistenciaTerminalSlugRoute: AsistenciaTerminalSlugRoute,
   ApiPublicTabletAuthTokenRoute: ApiPublicTabletAuthTokenRoute,
 }
