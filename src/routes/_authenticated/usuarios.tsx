@@ -45,7 +45,7 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 ];
 
 function UsuariosPage() {
-  const { isAdmin, loading: authLoading } = useAuth();
+  const { isAdmin, primaryRole, loading: authLoading } = useAuth();
   const { loading: permsLoading } = usePermissions();
   const qc = useQueryClient();
   const createFn = useServerFn(createAppUser);
@@ -88,11 +88,21 @@ function UsuariosPage() {
   const [editing, setEditing] = useState<UserRow | null>(null);
 
   if (authLoading || permsLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
-  if (!isAdmin) {
+  const canManageUsers = isAdmin || primaryRole === "supervisor";
+
+  function showUserActionError(e: unknown, fallback: string) {
+    const raw = e instanceof Error ? e.message : String(e ?? "");
+    const message = /Missing Supabase environment variable|SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY/i.test(raw)
+      ? "No se pudo completar la operación. Recarga la aplicación e intenta nuevamente."
+      : raw || fallback;
+    toast.error(message);
+  }
+
+  if (!canManageUsers) {
     return (
       <Card>
         <CardContent className="p-8 text-center text-muted-foreground">
-          Acceso denegado: Solo el administrador puede gestionar los usuarios del sistema.
+          Acceso denegado: Solo administradores o supervisores pueden gestionar los usuarios del sistema.
         </CardContent>
       </Card>
     );
@@ -105,7 +115,7 @@ function UsuariosPage() {
       toast.success("Usuario eliminado");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     } catch (e) {
-      toast.error((e as Error).message);
+      showUserActionError(e, "No se pudo eliminar el usuario");
     }
   }
 
@@ -163,7 +173,7 @@ function UsuariosPage() {
                 setOpen(false);
                 setEditing(null);
               } catch (e) {
-                toast.error((e as Error).message);
+                showUserActionError(e, editing ? "No se pudo actualizar el usuario" : "No se pudo crear el usuario");
               }
             }}
           />
