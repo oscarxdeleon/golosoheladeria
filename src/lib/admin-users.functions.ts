@@ -75,7 +75,7 @@ export const updateAppUser = createServerFn({ method: "POST" })
       _user_id: data.user_id,
       _full_name: data.full_name ?? undefined,
       _role: data.role ?? undefined,
-      _branch_id: branchIdSet ? (data.branch_id ?? null) : undefined,
+      _branch_id: branchIdSet ? ((data.branch_id ?? null) as unknown as string) : undefined,
       _branch_id_set: branchIdSet,
       _active: data.active ?? undefined,
       _password: data.password ?? undefined,
