@@ -2441,6 +2441,17 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_create_app_user: {
+        Args: {
+          _active?: boolean
+          _branch_id?: string
+          _email: string
+          _full_name: string
+          _password: string
+          _role: Database["public"]["Enums"]["app_role"]
+        }
+        Returns: string
+      }
       admin_dashboard_rpc: {
         Args: {
           _branch_id: string
