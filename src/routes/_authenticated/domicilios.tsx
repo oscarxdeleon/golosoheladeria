@@ -1,7 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useBranch } from "@/contexts/branch-context";
@@ -61,9 +60,6 @@ function DespachoDomiciliosPage() {
         .or("source.is.null,source.neq.online_menu")
         .order("created_at", { ascending: false })
         .limit(300);
-      if (!isAdmin && user && statusFilter === "mis-asignados") {
-        q = q.eq("delivery_user_id", user.id);
-      }
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as DeliverySale[];
@@ -71,13 +67,7 @@ function DespachoDomiciliosPage() {
     refetchInterval: 5000,
   });
 
-  useQuery({
-    queryKey: ["delivery-dispatch-realtime", activeBranchId],
-    enabled: !!activeBranchId,
-    queryFn: async () => null,
-  });
-
-  useMemo(() => {
+  useEffect(() => {
     if (!activeBranchId) return null;
     const ch = supabase
       .channel(`delivery-dispatch-${activeBranchId}`)
@@ -151,6 +141,7 @@ function DespachoDomiciliosPage() {
   const normalizedSearch = search.trim().toLowerCase();
   const filtered = data.filter((d) => {
     const deliveryState = d.delivery_status ?? "pendiente";
+    if (statusFilter === "mis-asignados" && d.delivery_user_id !== user?.id) return false;
     if (statusFilter !== "todos" && statusFilter !== "mis-asignados" && deliveryState !== statusFilter) return false;
     if (!normalizedSearch) return true;
     const haystack = [
