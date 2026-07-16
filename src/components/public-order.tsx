@@ -368,7 +368,7 @@ export function PublicOrder({
   const effectiveStatus = source === "online_menu"
     ? (isPickup ? physicalStatus : onlineStatus)
     : { isOpen: true, reason: "open" as const, closesAt: null, opensAt: null, minutesToClose: null };
-  const canSchedule = source === "online_menu" && isDelivery; // solo domicilio permite programar
+  const canSchedule = source === "online_menu" && (isDelivery || isPickup); // domicilio y recoger permiten programar
   const enforceOnlineSchedule = source === "online_menu";
   const isClosedForService = enforceOnlineSchedule && !effectiveStatus.isOpen;
   const onlineClosingSoon = enforceOnlineSchedule && effectiveStatus.isOpen && (effectiveStatus.minutesToClose ?? 999) <= 30;
