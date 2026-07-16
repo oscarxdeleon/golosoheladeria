@@ -582,12 +582,13 @@ const KPI_TONE: Record<string, { bg: string; label: string; value: string }> = {
   amber:   { bg: "bg-amber-50 border-amber-100",     label: "text-amber-800/70",     value: "text-amber-700" },
 };
 
-function KpiTile({ label, value, tone }: { label: string; value: string; tone: keyof typeof KPI_TONE }) {
+function KpiTile({ label, value, tone, sub }: { label: string; value: string; tone: keyof typeof KPI_TONE; sub?: string }) {
   const t = KPI_TONE[tone];
   return (
     <div className={`rounded-2xl border px-4 py-4 text-center ${t.bg}`}>
       <div className={`text-[11px] font-bold uppercase tracking-widest ${t.label}`}>{label}</div>
       <div className={`mt-1.5 font-display text-2xl font-extrabold ${t.value}`}>{value}</div>
+      {sub && <div className={`mt-0.5 text-[11px] font-semibold ${t.value} opacity-80`}>{sub}</div>}
     </div>
   );
 }
