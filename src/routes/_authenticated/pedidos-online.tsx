@@ -176,15 +176,19 @@ function OnlineOrdersPage() {
     if (!activeBranchId) return;
     const ch = supabase
       .channel(`po-page-${activeBranchId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: "source=eq.online_menu" },
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` },
         (payload) => {
-          const row = payload.new as { branch_id?: string | null } | null;
-          if (row?.branch_id && row.branch_id !== activeBranchId) return;
+          const row = (payload.new ?? payload.old) as { source?: string | null; order_type?: string | null; payment_method?: string | null } | null;
+          if (!row) return;
+          const isOnline = row.source === "online_menu";
+          const isPosDomicilioPending = row.order_type === "domicilio" && row.payment_method === "Pendiente";
+          if (!isOnline && !isPosDomicilioPending) return;
           qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
         })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [qc, activeBranchId]);
+
 
 
   async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
