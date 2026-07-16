@@ -257,6 +257,86 @@ function ResumenPage() {
           </div>
         ))}
       </div>
+
+      {/* Detalle de gastos */}
+      <ExpensesDetail expenses={expenses as ExpenseRow[]} totalExpenses={summary.expenses} />
     </div>
+  );
+}
+
+function ExpensesDetail({ expenses, totalExpenses }: { expenses: ExpenseRow[]; totalExpenses: number }) {
+  const [open, setOpen] = useState(true);
+  const rows = useMemo(() => {
+    const list = expenses.filter((e) => {
+      const c = (e.category || "").toLowerCase();
+      return !CATEGORY_INCOME.has(c) && !CATEGORY_WITHDRAWAL.has(c) && !CATEGORY_REFUND.has(c);
+    });
+    return list.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+  }, [expenses]);
+  const total = useMemo(() => rows.reduce((a, e) => a + (Number(e.amount) || 0), 0), [rows]);
+
+  return (
+    <Card>
+      <Collapsible open={open} onOpenChange={setOpen}>
+        <CollapsibleTrigger asChild>
+          <CardHeader className="cursor-pointer pb-3 flex flex-row items-center justify-between">
+            <div>
+              <CardTitle className="text-base flex items-center gap-2">
+                <TrendingDown className="h-4 w-4 text-rose-500" />
+                Detalle de gastos
+              </CardTitle>
+              <CardDescription>
+                {rows.length} {rows.length === 1 ? "gasto registrado" : "gastos registrados"} · Total {formatMoney(total || totalExpenses)}
+              </CardDescription>
+            </div>
+            <ChevronDown className={`h-5 w-5 transition-transform ${open ? "rotate-180" : ""}`} />
+          </CardHeader>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <CardContent className="pt-0">
+            {rows.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-6 text-center">
+                No hay gastos registrados en el periodo/turno seleccionado.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b text-xs uppercase text-muted-foreground">
+                      <th className="text-left py-2 px-2">Concepto</th>
+                      <th className="text-left py-2 px-2">Descripción</th>
+                      <th className="text-left py-2 px-2">Usuario</th>
+                      <th className="text-left py-2 px-2">Método</th>
+                      <th className="text-left py-2 px-2">Fecha</th>
+                      <th className="text-right py-2 px-2">Valor</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((e) => (
+                      <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
+                        <td className="py-2 px-2 font-medium">{e.category || "—"}</td>
+                        <td className="py-2 px-2 text-muted-foreground">{e.description || "—"}</td>
+                        <td className="py-2 px-2">{e.user_name || "—"}</td>
+                        <td className="py-2 px-2 capitalize">{e.payment_method || "—"}</td>
+                        <td className="py-2 px-2 whitespace-nowrap">{formatDate(e.created_at)}</td>
+                        <td className="py-2 px-2 text-right font-semibold text-rose-600">
+                          {formatMoney(Number(e.amount) || 0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2">
+                      <td colSpan={5} className="py-2 px-2 text-right font-semibold">Total</td>
+                      <td className="py-2 px-2 text-right font-extrabold text-rose-700">{formatMoney(total)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </CollapsibleContent>
+      </Collapsible>
+    </Card>
   );
 }
