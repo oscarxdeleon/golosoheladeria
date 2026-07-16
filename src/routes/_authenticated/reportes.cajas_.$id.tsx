@@ -90,6 +90,22 @@ type SessionDetail = {
   deposits: DepositRow[];
 };
 
+type CancelledSaleRow = {
+  id: string;
+  ticket_number: number;
+  order_type: string;
+  total: number;
+  payment_method: string | null;
+  customer_name: string | null;
+  user_name: string | null;
+  created_at: string;
+  cancelled_at: string | null;
+  cancelled_by_name: string | null;
+  cancellation_reason: string | null;
+  cancellation_previous_status: string | null;
+  table_id: string | null;
+};
+
 /* ---------------- Style maps ---------------- */
 
 const METHOD_DOT: Record<string, string> = {
