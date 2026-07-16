@@ -9,8 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
-import { History, ChevronDown, RefreshCw } from "lucide-react";
+import { History, ChevronDown, RefreshCw, Ban, AlertTriangle } from "lucide-react";
+import { formatMoney } from "@/lib/format";
+import { format } from "date-fns";
 
 export const Route = createFileRoute("/_authenticated/auditoria")({
   head: () => ({ meta: [{ title: "Auditoría · Goloso POS" }] }),
