@@ -1,10 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
@@ -14,17 +15,28 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/format";
-import { Receipt, Printer, ChefHat, Search, RefreshCw } from "lucide-react";
+import { Receipt, Printer, ChefHat, Search, RefreshCw, Ban, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
   printComanda, printTicketFinal, type Branding,
 } from "@/components/pos-screen";
 import { normalizeModifiers } from "@/lib/print-client";
+import { useAuth } from "@/hooks/use-auth";
+import { cancelSaleRequest } from "@/lib/sales-cancellation";
 
 export const Route = createFileRoute("/_authenticated/historial")({
   head: () => ({ meta: [{ title: "Historial de pedidos · Goloso POS" }] }),
   component: HistorialPage,
 });
+
+const CANCEL_REASON_PRESETS = [
+  "Cliente desistió del pedido",
+  "Pedido registrado por error",
+  "Cliente no realizó el pago",
+  "Pedido duplicado",
+  "Error del cajero",
+  "Producto no disponible",
+];
 
 type OrderType = "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
 
