@@ -101,9 +101,16 @@ function DashboardPage() {
       activeCash: { id: string | null; userName: string | null; openedAt: string | null; openingAmount: number; status: string | null };
       pending: { tablesOccupied: number; pendingLlevar: number; pendingDomicilio: number; preparing: number };
     }> => {
-      const raw = await dashboardPayload({
-        data: { branchId: activeBranchId!, range, origen, pago },
+      // Llamamos el RPC directamente desde el cliente autenticado. Así el
+      // Dashboard funciona igual en Lovable Cloud y en Vercel sin depender
+      // de un runtime de server functions. RLS aplica con el JWT del usuario.
+      const { data: raw, error } = await supabase.rpc("admin_dashboard_rpc", {
+        _branch_id: activeBranchId!,
+        _range: range,
+        _origen: origen,
+        _pago: pago,
       });
+      if (error) throw new Error(error.message);
       const p = (raw ?? {}) as any;
 
       const hourlyArr: { hour: number; total: number }[] = Array.isArray(p.hourly) ? p.hourly : [];
