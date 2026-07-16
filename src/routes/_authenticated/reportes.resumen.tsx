@@ -14,7 +14,11 @@ import { useBranch } from "@/contexts/branch-context";
 import { formatMoney } from "@/lib/format";
 import {
   fetchSales, fetchExpenses, fetchPurchases, fetchCashSessions, computeFinancialSummary,
+  CATEGORY_INCOME, CATEGORY_WITHDRAWAL, CATEGORY_REFUND, type ExpenseRow,
 } from "@/lib/reports";
+import { formatDate } from "@/lib/format";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ChevronDown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/_authenticated/reportes/resumen")({
