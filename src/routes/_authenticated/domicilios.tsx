@@ -68,7 +68,7 @@ function DespachoDomiciliosPage() {
   });
 
   useEffect(() => {
-    if (!activeBranchId) return null;
+    if (!activeBranchId) return;
     const ch = supabase
       .channel(`delivery-dispatch-${activeBranchId}`)
       .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, (payload) => {
