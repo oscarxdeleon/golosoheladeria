@@ -2213,30 +2213,30 @@ function MeseroAppTab() {
             Empaqueta la PWA como APK firmada (Google Play Trusted Web Activity) para distribuir en tablets.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3 p-6 pt-0 text-sm">
-          <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-amber-900 dark:bg-amber-900/20 dark:text-amber-200 dark:border-amber-700 flex gap-2">
-            <Info className="h-4 w-4 shrink-0 mt-0.5" />
-            <div>
-              El sistema no puede compilar APKs firmadas dentro del navegador (requiere Android SDK y keystore). Usa <strong>PWABuilder</strong> — un servicio gratuito que toma esta URL y te devuelve un APK listo para instalar o publicar en Play Store.
-            </div>
-          </div>
-          <ol className="list-decimal pl-5 space-y-1">
-            <li>Copia la URL de instalación de arriba.</li>
-            <li>Abre PWABuilder con el botón de abajo (ya viene con la URL cargada).</li>
-            <li>Elige <strong>Android → Generate Package</strong> y descarga el APK.</li>
-            <li>Transfiere el APK a la tablet y ábrelo para instalar (activa "Orígenes desconocidos").</li>
-          </ol>
-          <div className="flex gap-2 flex-wrap">
-            <Button asChild>
-              <a href={pwaBuilderUrl} target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" />Generar APK en PWABuilder
-              </a>
-            </Button>
-            <Button variant="outline" asChild>
-              <a href="https://chrome.google.com/webstore/detail/bubblewrap/" target="_blank" rel="noreferrer">
-                <ExternalLink className="h-4 w-4" />Alternativa: Bubblewrap CLI
-              </a>
-            </Button>
+        <CardContent className="space-y-4 p-6 pt-0 text-sm">
+          <Button
+            asChild
+            size="lg"
+            className="w-full h-16 text-base font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
+          >
+            <a
+              href={`https://www.pwabuilder.com/reportcard?site=${encodeURIComponent(url)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              <Download className="h-5 w-5 mr-2" />
+              Descargar APK para Android
+            </a>
+          </Button>
+          <div className="rounded-md border border-muted bg-muted/40 p-3 text-xs text-muted-foreground space-y-1.5">
+            <p className="font-medium text-foreground">Al presionar el botón:</p>
+            <ol className="list-decimal pl-4 space-y-1">
+              <li>Se abrirá PWABuilder con la URL de tu app ya cargada.</li>
+              <li>Espera unos segundos al análisis y presiona <strong>Package For Stores → Android</strong>.</li>
+              <li>Elige <strong>Generate Package</strong> y descarga el archivo <strong>.apk</strong>.</li>
+              <li>Transfiere el APK a la tablet (USB, WhatsApp o correo) y ábrelo para instalar. Activa "Orígenes desconocidos" si Android lo pide.</li>
+            </ol>
+            <p className="pt-1">Servicio 100% gratuito. No necesitas cuenta de Google Play para uso interno.</p>
           </div>
         </CardContent>
       </Card>
