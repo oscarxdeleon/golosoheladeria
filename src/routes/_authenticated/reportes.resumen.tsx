@@ -150,14 +150,16 @@ function ResumenPage() {
 
   const summary = useMemo(() => computeFinancialSummary(sales, expenses, sessions, purchases), [sales, expenses, sessions, purchases]);
 
-  const kpis: { label: string; value: string; icon: React.ElementType; gradient: string }[] = [
+  const [showGastosDialog, setShowGastosDialog] = useState(false);
+
+  const kpis: { label: string; value: string; icon: React.ElementType; gradient: string; onClick?: () => void }[] = [
     { label: "Ventas totales", value: formatMoney(summary.salesTotal), icon: DollarSign, gradient: "from-emerald-500 to-teal-500" },
     { label: "Transacciones", value: String(summary.transactions), icon: Receipt, gradient: "from-sky-500 to-cyan-500" },
     { label: "Ticket promedio", value: formatMoney(summary.averageTicket), icon: TrendingUp, gradient: "from-indigo-500 to-blue-500" },
     { label: "Propinas", value: formatMoney(summary.tips), icon: HandCoins, gradient: "from-fuchsia-500 to-pink-500" },
     { label: "Entradas", value: formatMoney(summary.entries), icon: ArrowDownLeft, gradient: "from-lime-500 to-emerald-500" },
     { label: "Salidas", value: formatMoney(summary.exits), icon: ArrowUpRight, gradient: "from-orange-500 to-red-500" },
-    { label: "Gastos", value: formatMoney(summary.expenses), icon: TrendingDown, gradient: "from-rose-500 to-red-500" },
+    { label: "Gastos", value: formatMoney(summary.expenses), icon: TrendingDown, gradient: "from-rose-500 to-red-500", onClick: () => setShowGastosDialog(true) },
     { label: "Retiros", value: formatMoney(summary.withdrawals), icon: PiggyBank, gradient: "from-amber-500 to-orange-500" },
     { label: "Devoluciones/Reembolsos", value: formatMoney(summary.refunds), icon: Coins, gradient: "from-slate-500 to-slate-700" },
     { label: "Cortesías", value: String(summary.courtesies), icon: Gift, gradient: "from-pink-500 to-rose-500" },
