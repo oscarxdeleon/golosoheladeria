@@ -364,37 +364,68 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
                   </div>
                   <Badge className="bg-sky-600 text-white">{visiblePendingOrders.length}</Badge>
                 </div>
-                <div className="grid gap-2 md:grid-cols-2">
-                  {visiblePendingOrders.map((o) => (
-                    <button
-                      key={o.id}
-                      type="button"
-                      onClick={() => navigate({ to: "/pos", search: { type: "domicilio", kioskSaleId: o.id } })}
-                      className="group rounded-xl border bg-card p-3 text-left transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
-                    >
-                      <div className="flex items-start gap-3">
-                        <div className="font-display text-3xl text-sky-600 leading-none w-16 shrink-0 text-center">#{o.ticket_number}</div>
-                        <div className="min-w-0 flex-1 space-y-1">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="font-bold uppercase truncate">{o.customer_name ?? "SIN NOMBRE"}</div>
-                            <Badge variant="secondary" className="shrink-0">
-                              {o.delivery_status === "entregado" ? "Entregado" : o.delivery_status === "en_camino" ? "En camino" : o.delivery_status === "asignado" ? "Asignado" : "Pendiente"}
-                            </Badge>
+                <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
+                  {visiblePendingOrders.map((o) => {
+                    const statusLabel = o.delivery_status === "entregado" ? "Entregado" : o.delivery_status === "en_camino" ? "En camino" : o.delivery_status === "asignado" ? "Asignado" : "Pendiente";
+                    const statusClass = o.delivery_status === "en_camino"
+                      ? "bg-amber-100 text-amber-800 ring-amber-200"
+                      : o.delivery_status === "asignado"
+                      ? "bg-sky-100 text-sky-800 ring-sky-200"
+                      : o.delivery_status === "entregado"
+                      ? "bg-emerald-100 text-emerald-800 ring-emerald-200"
+                      : "bg-slate-100 text-slate-700 ring-slate-200";
+                    return (
+                      <button
+                        key={o.id}
+                        type="button"
+                        onClick={() => navigate({ to: "/pos", search: { type: "domicilio", kioskSaleId: o.id } })}
+                        className="group flex flex-col rounded-2xl border bg-card p-4 text-left shadow-sm transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
+                      >
+                        {/* Header: ticket + status */}
+                        <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3">
+                          <div className="inline-flex items-center rounded-lg bg-sky-50 px-2.5 py-1 font-display text-lg font-bold text-sky-700 ring-1 ring-sky-200 dark:bg-sky-950/40 dark:text-sky-300 dark:ring-sky-800">
+                            #{o.ticket_number}
                           </div>
-                          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
-                            <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {o.customer_phone ?? "—"}</span>
-                            <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {new Date(o.created_at).toLocaleDateString("es-CO")}</span>
+                          <span className="min-w-0 truncate text-xs text-muted-foreground">
+                            {new Date(o.created_at).toLocaleString("es-CO", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-semibold ring-1 ${statusClass}`}>
+                            {statusLabel}
+                          </span>
+                        </div>
+
+                        {/* Customer */}
+                        <div className="mt-3 min-w-0">
+                          <div className="truncate font-bold uppercase leading-tight">{o.customer_name ?? "SIN NOMBRE"}</div>
+                        </div>
+
+                        {/* Contact details */}
+                        <div className="mt-2 space-y-1.5 text-xs text-muted-foreground">
+                          <div className="flex min-w-0 items-center gap-1.5">
+                            <Phone className="h-3.5 w-3.5 shrink-0" />
+                            <span className="truncate">{o.customer_phone ?? "—"}</span>
                           </div>
-                          <div className="text-xs text-muted-foreground truncate">{o.delivery_address ?? "Sin dirección"}{o.delivery_neighborhood ? ` · ${o.delivery_neighborhood}` : ""}</div>
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="font-display text-lg text-primary">{formatMoney(Number(o.total ?? 0))}</span>
-                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600"><Banknote className="h-3.5 w-3.5" /> Abrir / Cobrar</span>
+                          <div className="flex min-w-0 items-start gap-1.5">
+                            <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
+                            <span className="line-clamp-2 break-words">
+                              {o.delivery_address ?? "Sin dirección"}
+                              {o.delivery_neighborhood ? ` · ${o.delivery_neighborhood}` : ""}
+                            </span>
                           </div>
                         </div>
-                      </div>
-                    </button>
-                  ))}
+
+                        {/* Footer: total + CTA */}
+                        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
+                          <span className="font-display text-xl font-bold text-primary">{formatMoney(Number(o.total ?? 0))}</span>
+                          <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 group-hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800">
+                            <Banknote className="h-3.5 w-3.5" /> Abrir / Cobrar
+                          </span>
+                        </div>
+                      </button>
+                    );
+                  })}
                 </div>
+
               </CardContent>
             </Card>
           )}
