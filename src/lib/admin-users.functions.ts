@@ -69,27 +69,18 @@ export const updateAppUser = createServerFn({ method: "POST" })
     }).parse(data),
   )
   .handler(async ({ context, data }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const patch: { full_name?: string; branch_id?: string | null; active?: boolean } = {};
-    if (data.full_name !== undefined) patch.full_name = data.full_name;
-    if (data.branch_id !== undefined) patch.branch_id = data.branch_id;
-    if (data.active !== undefined) patch.active = data.active;
-    if (Object.keys(patch).length) {
-      await supabaseAdmin.from("profiles").update(patch).eq("id", data.user_id);
-    }
-
-
-    if (data.role) {
-      await supabaseAdmin.from("user_roles").delete().eq("user_id", data.user_id);
-      await supabaseAdmin.from("user_roles").insert({ user_id: data.user_id, role: data.role });
-    }
-
-    if (data.password) {
-      const { error } = await supabaseAdmin.auth.admin.updateUserById(data.user_id, { password: data.password });
-      if (error) throw new Error(error.message);
-    }
+    // Uses SECURITY DEFINER RPC so no service-role key is required at runtime.
+    const branchIdSet = Object.prototype.hasOwnProperty.call(data, "branch_id");
+    const { error } = await context.supabase.rpc("admin_update_app_user", {
+      _user_id: data.user_id,
+      _full_name: data.full_name ?? undefined,
+      _role: data.role ?? undefined,
+      _branch_id: branchIdSet ? (data.branch_id ?? null) : undefined,
+      _branch_id_set: branchIdSet,
+      _active: data.active ?? undefined,
+      _password: data.password ?? undefined,
+    });
+    if (error) throw new Error(error.message);
     return { ok: true };
   });
 
