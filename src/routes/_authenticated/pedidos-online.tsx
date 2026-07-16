@@ -146,17 +146,19 @@ function OnlineOrdersPage() {
     enabled: !!activeBranchId,
     queryFn: async () => {
       if (!activeBranchId) return [];
-      let q = supabase
+      // Incluye pedidos del menú en línea + domicilios creados en POS que quedaron pendientes por pagar.
+      const q = supabase
         .from("sales")
         .select("*")
-        .eq("source", "online_menu")
         .eq("branch_id", activeBranchId)
+        .or("source.eq.online_menu,and(order_type.eq.domicilio,payment_method.eq.Pendiente)")
         .order("created_at", { ascending: false })
         .limit(150);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as SaleRow[];
     },
+
   });
 
   const ids = orders.map((o) => o.id);
