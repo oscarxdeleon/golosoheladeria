@@ -17,7 +17,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight, ShieldAlert, Clock, Globe } from "lucide-react";
+import { Copy, ExternalLink, Plus, Trash2, Building2, Star, Upload, Receipt, Link as LinkIcon, QrCode, Download, Printer, AlertTriangle, RefreshCw, Pencil, Settings as SettingsIcon, Store, CreditCard, Bike, Award, ShieldCheck, Sparkles, ChefHat, Search, ArrowLeft, ChevronRight, ShieldAlert, Clock, Globe, Smartphone, MessageCircle, Share2, Info, Package } from "lucide-react";
 import { DAYS as SCHEDULE_DAYS, normalizeSchedules, type BranchSchedules, type DayKey, type ScheduleChannel, getChannelStatus, humanReason } from "@/lib/schedules";
 import printServerPkg from "../../../print-server/package.json";
 const PRINT_SERVER_VERSION = (printServerPkg as { version: string }).version;
