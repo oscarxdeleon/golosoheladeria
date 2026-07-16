@@ -154,18 +154,28 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm, initialP
   }
 
   function confirm() {
-    if (validation) return;
-    const chosen: SelectedModifier[] = mods
-      .filter((m) => (picked[m.id] ?? 0) > 0)
-      .map((m) => ({
-        id: m.id,
-        group_id: m.group_id,
-        group_name: groups.find((g) => g.id === m.group_id)?.name ?? "",
-        name: m.name,
-        price: Number(m.price),
-        qty: picked[m.id]!,
-      }));
-    onConfirm(chosen, unitExtra, note.trim() || undefined);
+    if (validation) {
+      toast.error(validation, {
+        description: "Completa las opciones obligatorias para poder agregar el producto.",
+      });
+      return;
+    }
+    try {
+      const chosen: SelectedModifier[] = mods
+        .filter((m) => (picked[m.id] ?? 0) > 0)
+        .map((m) => ({
+          id: m.id,
+          group_id: m.group_id,
+          group_name: groups.find((g) => g.id === m.group_id)?.name ?? "",
+          name: m.name,
+          price: Number(m.price),
+          qty: picked[m.id]!,
+        }));
+      onConfirm(chosen, unitExtra, note.trim() || undefined);
+    } catch (err) {
+      console.error("[ModifiersModal] confirm error", err);
+      toast.error("No fue posible agregar el producto. Revisa la configuración de sus modificadores.");
+    }
   }
 
   // Detect "single optional modifier" case
