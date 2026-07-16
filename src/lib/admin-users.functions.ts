@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
-import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { requireLovableCloudAuth } from "@/lib/lovable-cloud-auth";
 
 const ROLE = z.enum(["admin", "cajero", "mesero", "domiciliario", "supervisor"]);
 
@@ -17,7 +17,7 @@ async function assertAdmin(userId: string) {
 }
 
 export const createAppUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireLovableCloudAuth])
   .inputValidator((data) =>
     z.object({
       email: z.string().trim().email(),
@@ -57,7 +57,7 @@ export const createAppUser = createServerFn({ method: "POST" })
   });
 
 export const updateAppUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireLovableCloudAuth])
   .inputValidator((data) =>
     z.object({
       user_id: z.string().uuid(),
@@ -85,7 +85,7 @@ export const updateAppUser = createServerFn({ method: "POST" })
   });
 
 export const deleteAppUser = createServerFn({ method: "POST" })
-  .middleware([requireSupabaseAuth])
+  .middleware([requireLovableCloudAuth])
   .inputValidator((data) => z.object({ user_id: z.string().uuid() }).parse(data))
   .handler(async ({ context, data }) => {
     if (data.user_id === context.userId) throw new Error("No puedes eliminar tu propio usuario");
