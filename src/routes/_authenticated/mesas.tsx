@@ -20,6 +20,7 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check, ArrowRight, Utensils, Search, Mic, User } from "lucide-react";
 import { toast } from "sonner";
+import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
