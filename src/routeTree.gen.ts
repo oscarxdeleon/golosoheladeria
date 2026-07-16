@@ -70,6 +70,7 @@ import { Route as AuthenticatedMenuModificadoresRouteImport } from './routes/_au
 import { Route as AuthenticatedMenuInsumosRouteImport } from './routes/_authenticated/menu/insumos'
 import { Route as AuthenticatedMenuCategoriasRouteImport } from './routes/_authenticated/menu/categorias'
 import { Route as SSlugTTableNumberRouteImport } from './routes/s.$slug.t.$tableNumber'
+import { Route as ApiPublicTabletAuthTokenRouteImport } from './routes/api/public/tablet-auth.$token'
 import { Route as AuthenticatedReportesCajasIdRouteImport } from './routes/_authenticated/reportes.cajas_.$id'
 
 const TabletPedidosRoute = TabletPedidosRouteImport.update({
@@ -393,6 +394,12 @@ const SSlugTTableNumberRoute = SSlugTTableNumberRouteImport.update({
   path: '/t/$tableNumber',
   getParentRoute: () => SSlugRoute,
 } as any)
+const ApiPublicTabletAuthTokenRoute =
+  ApiPublicTabletAuthTokenRouteImport.update({
+    id: '/api/public/tablet-auth/$token',
+    path: '/api/public/tablet-auth/$token',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedReportesCajasIdRoute =
   AuthenticatedReportesCajasIdRouteImport.update({
     id: '/cajas_/$id',
@@ -461,6 +468,7 @@ export interface FileRoutesByFullPath {
   '/reportes/': typeof AuthenticatedReportesIndexRoute
   '/s/$slug/': typeof SSlugIndexRoute
   '/reportes/cajas/$id': typeof AuthenticatedReportesCajasIdRoute
+  '/api/public/tablet-auth/$token': typeof ApiPublicTabletAuthTokenRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRoutesByTo {
@@ -522,6 +530,7 @@ export interface FileRoutesByTo {
   '/reportes': typeof AuthenticatedReportesIndexRoute
   '/s/$slug': typeof SSlugIndexRoute
   '/reportes/cajas/$id': typeof AuthenticatedReportesCajasIdRoute
+  '/api/public/tablet-auth/$token': typeof ApiPublicTabletAuthTokenRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRoutesById {
@@ -587,6 +596,7 @@ export interface FileRoutesById {
   '/_authenticated/reportes/': typeof AuthenticatedReportesIndexRoute
   '/s/$slug/': typeof SSlugIndexRoute
   '/_authenticated/reportes/cajas_/$id': typeof AuthenticatedReportesCajasIdRoute
+  '/api/public/tablet-auth/$token': typeof ApiPublicTabletAuthTokenRoute
   '/s/$slug/t/$tableNumber': typeof SSlugTTableNumberRoute
 }
 export interface FileRouteTypes {
@@ -652,6 +662,7 @@ export interface FileRouteTypes {
     | '/reportes/'
     | '/s/$slug/'
     | '/reportes/cajas/$id'
+    | '/api/public/tablet-auth/$token'
     | '/s/$slug/t/$tableNumber'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -713,6 +724,7 @@ export interface FileRouteTypes {
     | '/reportes'
     | '/s/$slug'
     | '/reportes/cajas/$id'
+    | '/api/public/tablet-auth/$token'
     | '/s/$slug/t/$tableNumber'
   id:
     | '__root__'
@@ -777,6 +789,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reportes/'
     | '/s/$slug/'
     | '/_authenticated/reportes/cajas_/$id'
+    | '/api/public/tablet-auth/$token'
     | '/s/$slug/t/$tableNumber'
   fileRoutesById: FileRoutesById
 }
@@ -792,6 +805,7 @@ export interface RootRouteChildren {
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
   AsistenciaTerminalSlugRoute: typeof AsistenciaTerminalSlugRoute
+  ApiPublicTabletAuthTokenRoute: typeof ApiPublicTabletAuthTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1223,6 +1237,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SSlugTTableNumberRouteImport
       parentRoute: typeof SSlugRoute
     }
+    '/api/public/tablet-auth/$token': {
+      id: '/api/public/tablet-auth/$token'
+      path: '/api/public/tablet-auth/$token'
+      fullPath: '/api/public/tablet-auth/$token'
+      preLoaderRoute: typeof ApiPublicTabletAuthTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/reportes/cajas_/$id': {
       id: '/_authenticated/reportes/cajas_/$id'
       path: '/cajas/$id'
@@ -1375,6 +1396,7 @@ const rootRouteChildren: RootRouteChildren = {
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
   AsistenciaTerminalSlugRoute: AsistenciaTerminalSlugRoute,
+  ApiPublicTabletAuthTokenRoute: ApiPublicTabletAuthTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
