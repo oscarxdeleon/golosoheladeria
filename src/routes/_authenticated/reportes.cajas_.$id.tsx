@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
@@ -89,6 +90,22 @@ type SessionDetail = {
   deposits: DepositRow[];
 };
 
+type CancelledSaleRow = {
+  id: string;
+  ticket_number: number;
+  order_type: string;
+  total: number;
+  payment_method: string | null;
+  customer_name: string | null;
+  user_name: string | null;
+  created_at: string;
+  cancelled_at: string | null;
+  cancelled_by_name: string | null;
+  cancellation_reason: string | null;
+  cancellation_previous_status: string | null;
+  table_id: string | null;
+};
+
 /* ---------------- Style maps ---------------- */
 
 const METHOD_DOT: Record<string, string> = {
@@ -152,6 +169,21 @@ function CajaDetailPage() {
   });
 
   const sessionBranchId = detail?.session.branch_id ?? null;
+
+  const { data: cancelledSales = [] } = useQuery({
+    queryKey: ["reportes.session.cancelled", id],
+    enabled: !!id,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("id,ticket_number,order_type,total,payment_method,customer_name,user_name,created_at,cancelled_at,cancelled_by_name,cancellation_reason,cancellation_previous_status,table_id")
+        .eq("cash_session_id", id)
+        .eq("status", "cancelled")
+        .order("cancelled_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as CancelledSaleRow[];
+    },
+  });
 
   useEffect(() => {
     if (!sessionBranchId) return;
@@ -305,10 +337,13 @@ function CajaDetailPage() {
       </Card>
 
       <Tabs defaultValue="resumen" className="space-y-5">
-        <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/50 p-1 h-auto">
+        <TabsList className="grid w-full grid-cols-4 rounded-2xl bg-muted/50 p-1 h-auto">
           <TabsTrigger value="resumen" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Resumen</TabsTrigger>
           <TabsTrigger value="productos" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Productos</TabsTrigger>
           <TabsTrigger value="ajustes" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Ajustes</TabsTrigger>
+          <TabsTrigger value="anulados" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">
+            Anulados {cancelledSales.length > 0 && <span className="ml-1 rounded-full bg-destructive/15 px-1.5 text-[10px] text-destructive">{cancelledSales.length}</span>}
+          </TabsTrigger>
         </TabsList>
 
         {/* -------- RESUMEN -------- */}
@@ -317,7 +352,7 @@ function CajaDetailPage() {
             <KpiTile label="Pedidos" value={String(summary.order_count)} tone="slate" />
             <KpiTile label="Ventas totales" value={formatMoney(summary.total_sales)} tone="emerald" />
             <KpiTile label="Ticket promedio" value={formatMoney(summary.avg_ticket)} tone="blue" />
-            <KpiTile label="Cancelados" value={String(summary.cancelled_count)} tone="amber" />
+            <KpiTile label="Anulados" value={String(summary.cancelled_count)} sub={formatMoney(summary.cancelled_value ?? 0)} tone="amber" />
           </div>
 
           <Section emoji="💳" title="VENTAS POR MÉTODO DE PAGO">
@@ -477,6 +512,62 @@ function CajaDetailPage() {
           <AjusteBlock title="SALIDAS / GASTOS" tone="rose" rows={salidas} sign="-" />
           <AjusteBlock title="DEVOLUCIONES / REEMBOLSOS" tone="amber" rows={devoluciones} sign="-" />
         </TabsContent>
+
+        {/* -------- ANULADOS -------- */}
+        <TabsContent value="anulados" className="space-y-4">
+          <div className="grid grid-cols-2 gap-3">
+            <KpiTile label="Pedidos anulados" value={String(cancelledSales.length)} tone="amber" />
+            <KpiTile
+              label="Valor anulado (informativo)"
+              value={formatMoney(cancelledSales.reduce((s, r) => s + Number(r.total ?? 0), 0))}
+              tone="amber"
+            />
+          </div>
+
+          <div className="rounded-2xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900">
+            ⚠️ Los pedidos anulados <b>no</b> se suman a ventas ni a caja. Este listado es únicamente informativo para auditoría.
+          </div>
+
+          <Card className="rounded-2xl">
+            <CardContent className="p-0">
+              <div className="divide-y">
+                <div className="hidden md:grid grid-cols-[80px_1fr_1fr_1fr_120px] gap-3 px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
+                  <div>Ticket</div><div>Servicio / Cliente</div><div>Cajero → Anuló</div><div>Motivo</div><div className="text-right">Valor</div>
+                </div>
+                {cancelledSales.length === 0 && (
+                  <div className="px-4 py-8 text-center text-sm text-muted-foreground">Sin pedidos anulados en este turno.</div>
+                )}
+                {cancelledSales.map((c) => {
+                  const wasPaid = c.cancellation_previous_status === "paid";
+                  return (
+                    <div key={c.id} className="grid grid-cols-1 md:grid-cols-[80px_1fr_1fr_1fr_120px] gap-2 md:gap-3 px-4 py-3 text-sm">
+                      <div className="font-mono font-bold text-rose-600">#{c.ticket_number}</div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <Badge variant="outline" className="capitalize">{c.order_type}</Badge>
+                          {wasPaid && <Badge variant="destructive" className="text-[10px]">Requiere reversión</Badge>}
+                        </div>
+                        <div className="text-xs text-muted-foreground mt-0.5">
+                          {c.customer_name ?? "Cliente POS"} · {c.cancelled_at ? format(new Date(c.cancelled_at), "dd/MM HH:mm") : "—"}
+                        </div>
+                      </div>
+                      <div className="text-xs">
+                        <div className="text-muted-foreground">Registró: <span className="text-foreground">{c.user_name ?? "—"}</span></div>
+                        <div className="text-muted-foreground">Anuló: <span className="text-foreground font-medium">{c.cancelled_by_name ?? "—"}</span></div>
+                      </div>
+                      <div className="text-xs italic text-muted-foreground line-clamp-2">
+                        “{c.cancellation_reason ?? "—"}”
+                      </div>
+                      <div className={`text-right font-display font-bold whitespace-nowrap ${wasPaid ? "text-rose-600" : "text-muted-foreground line-through"}`}>
+                        {formatMoney(c.total)}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
     </div>
   );
@@ -491,12 +582,13 @@ const KPI_TONE: Record<string, { bg: string; label: string; value: string }> = {
   amber:   { bg: "bg-amber-50 border-amber-100",     label: "text-amber-800/70",     value: "text-amber-700" },
 };
 
-function KpiTile({ label, value, tone }: { label: string; value: string; tone: keyof typeof KPI_TONE }) {
+function KpiTile({ label, value, tone, sub }: { label: string; value: string; tone: keyof typeof KPI_TONE; sub?: string }) {
   const t = KPI_TONE[tone];
   return (
     <div className={`rounded-2xl border px-4 py-4 text-center ${t.bg}`}>
       <div className={`text-[11px] font-bold uppercase tracking-widest ${t.label}`}>{label}</div>
       <div className={`mt-1.5 font-display text-2xl font-extrabold ${t.value}`}>{value}</div>
+      {sub && <div className={`mt-0.5 text-[11px] font-semibold ${t.value} opacity-80`}>{sub}</div>}
     </div>
   );
 }
