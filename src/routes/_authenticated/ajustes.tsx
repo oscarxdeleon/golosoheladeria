@@ -2022,8 +2022,7 @@ function AutopedidoLinkTab() {
 }
 
 function MeseroAppTab() {
-  const [selectedId, setSelectedId] = useState<string>("");
-  const [size, setSize] = useState(320);
+  const qc = useQueryClient();
   const [pin, setPin] = useState<string>(() => {
     if (typeof window === "undefined") return "";
     return window.localStorage.getItem("goloso.mesero.kioskPin") ?? "";
@@ -2032,10 +2031,13 @@ function MeseroAppTab() {
     if (typeof window === "undefined") return true;
     return window.localStorage.getItem("goloso.mesero.kioskEnabled") !== "0";
   });
-  const [tokenVersion, setTokenVersion] = useState<number>(() => {
-    if (typeof window === "undefined") return 1;
-    return Number(window.localStorage.getItem("goloso.mesero.tokenVersion") ?? "1");
-  });
+  const [creatingFor, setCreatingFor] = useState<string | null>(null);
+  const [newLabel, setNewLabel] = useState("");
+
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("goloso.mesero.kioskEnabled", kioskEnabled ? "1" : "0");
+  }, [kioskEnabled]);
 
   const { data: branches = [] } = useQuery<Branch[]>({
     queryKey: ["branches"],
@@ -2043,253 +2045,234 @@ function MeseroAppTab() {
       ((await supabase.from("branches").select("*").order("is_main", { ascending: false }).order("name")).data ?? []) as unknown as Branch[],
   });
 
-  useEffect(() => {
-    if (!selectedId && branches.length) {
-      const main = branches.find((b) => b.is_main) ?? branches[0];
-      setSelectedId(main.id);
-    }
-  }, [branches, selectedId]);
+  interface TabletDevice {
+    id: string; branch_id: string; label: string; token: string;
+    active: boolean; last_seen_at: string | null; created_at: string;
+  }
+  const { data: tablets = [], isLoading } = useQuery<TabletDevice[]>({
+    queryKey: ["tablet_devices"],
+    queryFn: async () =>
+      ((await supabase.from("tablet_devices").select("id,branch_id,label,token,active,last_seen_at,created_at").order("created_at")).data ?? []) as TabletDevice[],
+  });
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    window.localStorage.setItem("goloso.mesero.kioskEnabled", kioskEnabled ? "1" : "0");
-  }, [kioskEnabled]);
-
-  const branch = branches.find((b) => b.id === selectedId);
   const origin = typeof window !== "undefined" ? window.location.origin : "";
-  const slug = branch?.slug ?? "";
-  const baseParams = new URLSearchParams();
-  if (slug) baseParams.set("sede", slug);
-  baseParams.set("src", "pwa");
-  baseParams.set("v", String(tokenVersion));
-  if (kioskEnabled) baseParams.set("kiosk", "1");
-  const url = branch ? `${origin}/tablet-pedidos?${baseParams.toString()}` : "";
-
-  const pwaBuilderUrl = url
-    ? `https://www.pwabuilder.com/reportcard?site=${encodeURIComponent(url)}`
-    : "https://www.pwabuilder.com/";
-
-  function copyLink() {
-    if (!url) return;
-    navigator.clipboard.writeText(url);
-    toast.success("Enlace copiado");
+  function tabletUrl(token: string) {
+    const params = new URLSearchParams({ src: "pwa" });
+    if (kioskEnabled) params.set("kiosk", "1");
+    return `${origin}/tablet-auto/${token}?${params.toString()}`;
   }
 
-  function shareWhatsApp() {
-    if (!url) return;
-    const msg = `Instala la app de Mesero de ${branch?.name ?? "Heladería Goloso"}:\n${url}\n\nAbre este enlace en Chrome y elige "Instalar app".`;
+  async function handleCreate(branchId: string) {
+    const label = newLabel.trim();
+    if (!label) return toast.error("Escribe un nombre para la tablet");
+    try {
+      const { provisionTablet } = await import("@/lib/tablet-devices.functions");
+      await provisionTablet({ data: { branch_id: branchId, label } });
+      toast.success("Tablet registrada");
+      setNewLabel("");
+      setCreatingFor(null);
+      qc.invalidateQueries({ queryKey: ["tablet_devices"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo registrar");
+    }
+  }
+
+  async function handleDelete(id: string) {
+    if (!confirm("¿Eliminar esta tablet? Su acceso quedará invalidado.")) return;
+    try {
+      const { deleteTablet } = await import("@/lib/tablet-devices.functions");
+      await deleteTablet({ data: { id } });
+      toast.success("Tablet eliminada");
+      qc.invalidateQueries({ queryKey: ["tablet_devices"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "No se pudo eliminar");
+    }
+  }
+
+  function copy(text: string) {
+    navigator.clipboard.writeText(text);
+    toast.success("Copiado");
+  }
+
+  function shareWA(url: string, branchName: string, label: string) {
+    const msg = `Instala la app de Mesero (${label} · ${branchName}):\n${url}\n\nAbre este enlace en Chrome de la tablet y elige "Instalar app". La app iniciará sesión automáticamente al abrirse.`;
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, "_blank", "noopener,noreferrer");
   }
 
-  async function shareNative() {
-    if (!url) return;
-    if (typeof navigator !== "undefined" && "share" in navigator) {
-      try {
-        await (navigator as Navigator & { share: (d: ShareData) => Promise<void> }).share({
-          title: "App Mesero · Heladería Goloso",
-          text: "Instala la app de Mesero en tu tablet",
-          url,
-        });
-      } catch { /* cancelled */ }
-    } else {
-      copyLink();
-    }
-  }
-
-  function regenerate() {
-    const next = tokenVersion + 1;
-    setTokenVersion(next);
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem("goloso.mesero.tokenVersion", String(next));
-    }
-    toast.success("Enlace regenerado. Los enlaces anteriores mostrarán una versión diferente.");
+  function downloadQR(id: string, filename: string) {
+    const canvas = document.getElementById(`tablet-qr-${id}`) as HTMLCanvasElement | null;
+    if (!canvas) return toast.error("QR no disponible");
+    const link = document.createElement("a");
+    link.download = filename;
+    link.href = canvas.toDataURL("image/png");
+    link.click();
   }
 
   function savePin() {
     if (typeof window === "undefined") return;
     const trimmed = pin.trim();
-    if (trimmed && !/^\d{4,8}$/.test(trimmed)) {
-      toast.error("El PIN debe tener entre 4 y 8 dígitos");
-      return;
-    }
+    if (trimmed && !/^\d{4,8}$/.test(trimmed)) return toast.error("El PIN debe tener 4-8 dígitos");
     if (trimmed) window.localStorage.setItem("goloso.mesero.kioskPin", trimmed);
     else window.localStorage.removeItem("goloso.mesero.kioskPin");
     toast.success(trimmed ? "PIN guardado en este equipo" : "PIN eliminado");
-  }
-
-  function downloadQR() {
-    const canvas = document.getElementById("mesero-qr-canvas") as HTMLCanvasElement | null;
-    if (!canvas) return toast.error("QR no disponible");
-    const link = document.createElement("a");
-    link.download = `mesero-${branch?.slug ?? branch?.name ?? "qr"}.png`;
-    link.href = canvas.toDataURL("image/png");
-    link.click();
   }
 
   return (
     <div className="space-y-5">
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5" /> Aplicación para Meseros</CardTitle>
+          <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5" /> Tablets de Meseros por sede</CardTitle>
           <CardDescription>
-            Genera un enlace de instalación e imprime un QR para tablets Android. La app abre directamente el módulo de Mesero.
+            Registra una tablet por sede. Se genera un enlace único que <strong>inicia sesión automáticamente</strong> al abrir la app — sin pedir usuario ni contraseña. Comparte el enlace, escanea el QR o descárgalo como APK.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-5 p-6 pt-0">
-          <div className="grid gap-3 sm:grid-cols-2 max-w-2xl">
-            <div>
-              <Label>Sede</Label>
-              <Select value={selectedId} onValueChange={setSelectedId}>
-                <SelectTrigger><SelectValue placeholder="Selecciona una sede…" /></SelectTrigger>
-                <SelectContent>
-                  {branches.map((b) => (
-                    <SelectItem key={b.id} value={b.id}>{b.name}{b.is_main ? " · Principal" : ""}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-end gap-3">
-              <div className="flex-1">
-                <Label className="text-xs">Modo Kiosco</Label>
-                <div className="flex items-center gap-2 h-9">
-                  <Switch checked={kioskEnabled} onCheckedChange={setKioskEnabled} />
-                  <span className="text-sm text-muted-foreground">{kioskEnabled ? "Activado" : "Desactivado"}</span>
-                </div>
-              </div>
+        <CardContent className="space-y-6 p-6 pt-0">
+          <div className="flex items-center gap-3 rounded-lg border bg-muted/30 p-3">
+            <Switch checked={kioskEnabled} onCheckedChange={setKioskEnabled} />
+            <div className="text-sm">
+              <div className="font-medium">Modo Kiosco en el enlace</div>
+              <div className="text-xs text-muted-foreground">Añade <code>?kiosk=1</code> a todos los enlaces generados.</div>
             </div>
           </div>
 
-          {branch && (
-            <div className="grid gap-6 md:grid-cols-2">
-              <div className="space-y-3">
-                <div>
-                  <Label>URL de instalación (PWA)</Label>
-                  <div className="flex gap-2 mt-1">
-                    <Input value={url} readOnly className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
-                    <Button onClick={copyLink} variant="outline"><Copy className="h-4 w-4" />Copiar</Button>
-                  </div>
-                  <p className="mt-2 text-xs text-muted-foreground">
-                    Abre este enlace en <strong>Chrome</strong> de la tablet Android → menú → <strong>"Instalar app"</strong>. Se creará un ícono independiente que abre directo el módulo Mesero.
-                  </p>
-                </div>
-                <div className="flex gap-2 flex-wrap">
-                  <Button variant="outline" asChild>
-                    <a href={url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" />Abrir</a>
-                  </Button>
-                  <Button onClick={shareWhatsApp} className="bg-emerald-600 hover:bg-emerald-700 text-white">
-                    <MessageCircle className="h-4 w-4" />WhatsApp
-                  </Button>
-                  <Button onClick={shareNative} variant="secondary"><Share2 className="h-4 w-4" />Compartir</Button>
-                  <Button onClick={downloadQR} variant="outline"><Download className="h-4 w-4" />Descargar QR</Button>
-                  <Button onClick={regenerate} variant="outline"><RefreshCw className="h-4 w-4" />Regenerar enlace</Button>
-                </div>
-                <div>
-                  <Label className="text-xs">Tamaño del QR (px)</Label>
-                  <Input type="number" min={160} max={800} step={16} value={size} onChange={(e) => setSize(Number(e.target.value) || 320)} />
-                </div>
-              </div>
-              <div className="flex flex-col items-center justify-center rounded-lg border bg-white p-6 dark:bg-white">
-                <QRCodeCanvas
-                  id="mesero-qr-canvas"
-                  value={url}
-                  size={size}
-                  level="H"
-                  includeMargin
-                  bgColor="#ffffff"
-                  fgColor="#0e8a5a"
-                />
-                <p className="mt-3 text-xs text-center text-neutral-700">{branch.name} · App Mesero</p>
-                <p className="text-[10px] text-center text-neutral-500 break-all max-w-[280px]">{url}</p>
-              </div>
-            </div>
+          {branches.length === 0 && (
+            <p className="text-sm text-muted-foreground">No hay sedes registradas todavía.</p>
           )}
+
+          {branches.map((b) => {
+            const list = tablets.filter((t) => t.branch_id === b.id);
+            return (
+              <div key={b.id} className="rounded-xl border">
+                <div className="flex items-center justify-between gap-2 border-b bg-muted/30 p-3">
+                  <div className="flex items-center gap-2">
+                    <Building2 className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-semibold">{b.name}</span>
+                    {b.is_main && <Badge variant="secondary" className="text-[10px]">Principal</Badge>}
+                    <span className="text-xs text-muted-foreground">· {list.length} tablet{list.length === 1 ? "" : "s"}</span>
+                  </div>
+                  {creatingFor === b.id ? (
+                    <div className="flex items-center gap-2">
+                      <Input autoFocus value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Ej: Tablet 1" className="h-8 w-40" />
+                      <Button size="sm" onClick={() => handleCreate(b.id)}>Crear</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setCreatingFor(null); setNewLabel(""); }}>Cancelar</Button>
+                    </div>
+                  ) : (
+                    <Button size="sm" onClick={() => setCreatingFor(b.id)}>
+                      <Plus className="h-4 w-4" /> Registrar tablet
+                    </Button>
+                  )}
+                </div>
+
+                <div className="p-3 space-y-3">
+                  {isLoading && <p className="text-xs text-muted-foreground">Cargando…</p>}
+                  {!isLoading && list.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Aún no hay tablets registradas para esta sede.</p>
+                  )}
+                  {list.map((t) => {
+                    const url = tabletUrl(t.token);
+                    const pwaBuilder = `https://www.pwabuilder.com/reportcard?site=${encodeURIComponent(url)}`;
+                    return (
+                      <div key={t.id} className="grid gap-3 rounded-lg border bg-background p-3 md:grid-cols-[1fr_auto]">
+                        <div className="space-y-2 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold">{t.label}</span>
+                            {t.active ? <Badge variant="secondary" className="text-[10px]">Activa</Badge> : <Badge variant="destructive" className="text-[10px]">Inactiva</Badge>}
+                            {t.last_seen_at && (
+                              <span className="text-[10px] text-muted-foreground">Última conexión: {new Date(t.last_seen_at).toLocaleString()}</span>
+                            )}
+                          </div>
+                          <div className="flex gap-2">
+                            <Input value={url} readOnly className="font-mono text-xs" onFocus={(e) => e.currentTarget.select()} />
+                            <Button variant="outline" size="sm" onClick={() => copy(url)}><Copy className="h-4 w-4" /></Button>
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            <Button size="sm" variant="outline" asChild>
+                              <a href={url} target="_blank" rel="noreferrer"><ExternalLink className="h-4 w-4" /> Probar</a>
+                            </Button>
+                            <Button size="sm" className="bg-emerald-600 hover:bg-emerald-700 text-white" onClick={() => shareWA(url, b.name, t.label)}>
+                              <MessageCircle className="h-4 w-4" /> WhatsApp
+                            </Button>
+                            <Button size="sm" variant="outline" onClick={() => downloadQR(t.id, `tablet-${b.slug ?? b.name}-${t.label}.png`)}>
+                              <QrCode className="h-4 w-4" /> QR
+                            </Button>
+                            <Button size="sm" className="bg-gradient-to-r from-emerald-600 to-teal-600 text-white" asChild>
+                              <a href={pwaBuilder} target="_blank" rel="noreferrer"><Package className="h-4 w-4" /> Descargar APK</a>
+                            </Button>
+                            <Button size="sm" variant="ghost" className="text-destructive ml-auto" onClick={() => handleDelete(t.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                          <p className="text-[11px] text-muted-foreground leading-snug">
+                            Al abrir este enlace o el APK, la tablet <strong>iniciará sesión sola</strong> como mesero de {b.name} y abrirá el mapa de mesas.
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-center justify-center rounded-md border bg-white p-3 dark:bg-white">
+                          <QRCodeCanvas
+                            id={`tablet-qr-${t.id}`}
+                            value={url}
+                            size={140}
+                            level="H"
+                            includeMargin
+                            bgColor="#ffffff"
+                            fgColor="#0e8a5a"
+                          />
+                          <p className="mt-1 text-[10px] text-center text-neutral-700">{t.label}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            );
+          })}
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" /> APK nativa para Android</CardTitle>
-          <CardDescription>
-            Empaqueta la PWA como APK firmada (Google Play Trusted Web Activity) para distribuir en tablets.
-          </CardDescription>
+          <CardTitle className="flex items-center gap-2"><Package className="h-5 w-5" /> Cómo convertir el enlace en APK</CardTitle>
+          <CardDescription>Empaqueta el enlace de cada tablet como APK firmada para instalarla directamente en Android.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4 p-6 pt-0 text-sm">
-          <Button
-            asChild
-            size="lg"
-            className="w-full h-16 text-base font-semibold bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg"
-          >
-            <a
-              href={`https://www.pwabuilder.com/reportcard?site=${encodeURIComponent(url)}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              <Download className="h-5 w-5 mr-2" />
-              Descargar APK para Android
-            </a>
-          </Button>
-          <div className="rounded-md border border-muted bg-muted/40 p-3 text-xs text-muted-foreground space-y-1.5">
-            <p className="font-medium text-foreground">Al presionar el botón:</p>
-            <ol className="list-decimal pl-4 space-y-1">
-              <li>Se abrirá PWABuilder con la URL de tu app ya cargada.</li>
-              <li>Espera unos segundos al análisis y presiona <strong>Package For Stores → Android</strong>.</li>
-              <li>Elige <strong>Generate Package</strong> y descarga el archivo <strong>.apk</strong>.</li>
-              <li>Transfiere el APK a la tablet (USB, WhatsApp o correo) y ábrelo para instalar. Activa "Orígenes desconocidos" si Android lo pide.</li>
-            </ol>
-            <p className="pt-1">Servicio 100% gratuito. No necesitas cuenta de Google Play para uso interno.</p>
-          </div>
+        <CardContent className="p-6 pt-0 text-sm space-y-2">
+          <ol className="list-decimal pl-5 space-y-1 text-muted-foreground">
+            <li>Presiona <strong>Descargar APK</strong> junto a la tablet correspondiente. Se abrirá PWABuilder con la URL de auto-login precargada.</li>
+            <li>Espera el análisis y pulsa <strong>Package For Stores → Android → Generate Package</strong>.</li>
+            <li>Descarga el <strong>.apk</strong> y transfiérelo a la tablet (USB, correo, WhatsApp).</li>
+            <li>Ábrelo en la tablet, permite "Orígenes desconocidos" e instala. La app quedará instalada como <strong>Goloso Mesero</strong>.</li>
+            <li>Al abrirla por primera vez inicia sesión sola y va directo al mapa de mesas.</li>
+          </ol>
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2"><ShieldCheck className="h-5 w-5" /> Modo Kiosco y arranque automático</CardTitle>
-          <CardDescription>Configuración para bloquear la tablet en la app del mesero.</CardDescription>
+          <CardDescription>Configuración de la tablet para bloquearla en la app.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4 p-6 pt-0 text-sm">
           <div className="max-w-md">
             <Label>PIN para salir del modo kiosco</Label>
             <div className="flex gap-2 mt-1">
-              <Input
-                type="password"
-                inputMode="numeric"
-                maxLength={8}
-                placeholder="4-8 dígitos"
-                value={pin}
-                onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))}
-              />
+              <Input type="password" inputMode="numeric" maxLength={8} placeholder="4-8 dígitos" value={pin} onChange={(e) => setPin(e.target.value.replace(/\D/g, ""))} />
               <Button onClick={savePin}>Guardar</Button>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Se guarda solo en este equipo. Configúralo en cada tablet la primera vez.
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground">Se guarda solo en este equipo. Configúralo en cada tablet la primera vez.</p>
           </div>
-
           <div>
             <p className="font-semibold mb-1">Anclar pantalla (Android — recomendado)</p>
             <ol className="list-decimal pl-5 space-y-1 text-muted-foreground">
-              <li>Ajustes → <strong>Seguridad → Anclar pantalla / Screen Pinning</strong>.</li>
-              <li>Actívalo y marca "Pedir PIN al desanclar".</li>
-              <li>Abre la app de Mesero, pulsa "Vista general" y toca el ícono de anclar.</li>
-              <li>Para salir: mantén pulsados "Atrás + Vista general" e ingresa el PIN.</li>
+              <li>Ajustes → <strong>Seguridad → Anclar pantalla</strong>. Activa "Pedir PIN al desanclar".</li>
+              <li>Abre Goloso Mesero, pulsa "Vista general" y toca el ícono de anclar.</li>
+              <li>Para salir: mantén "Atrás + Vista general" e ingresa el PIN.</li>
             </ol>
           </div>
-
           <div>
             <p className="font-semibold mb-1">Inicio automático al encender</p>
             <ol className="list-decimal pl-5 space-y-1 text-muted-foreground">
-              <li>Instala una app tipo <em>AutoStart</em> (F-Droid o Play Store).</li>
-              <li>Añade "Goloso Mesero" a la lista de inicio automático.</li>
-              <li>Desactiva optimización de batería para esta app: Ajustes → Batería → sin restricciones.</li>
-              <li>Si prefieres un bloqueo total: usa una app MDM como <strong>Fully Kiosk Browser</strong> apuntando a esta URL.</li>
+              <li>Instala <em>AutoStart</em> (F-Droid/Play) y añade Goloso Mesero.</li>
+              <li>Desactiva optimización de batería para la app.</li>
+              <li>Alternativa completa: usa <strong>Fully Kiosk Browser</strong> apuntando al enlace de la tablet.</li>
             </ol>
-          </div>
-
-          <div>
-            <p className="font-semibold mb-1">Sesión persistente</p>
-            <p className="text-muted-foreground">
-              La sesión del mesero queda guardada en la tablet y no se pide contraseña tras reiniciar, siempre que no se cierre sesión manualmente.
-            </p>
           </div>
         </CardContent>
       </Card>
