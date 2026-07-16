@@ -117,12 +117,23 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
       const { data } = await supabase
         .from("couriers")
         .select("id,name")
-        .eq("active", true)
         .or(`branch_id.is.null,branch_id.eq.${activeBranchId}`)
         .order("name");
       return (data ?? []) as { id: string; name: string }[];
     },
   });
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    const ch = supabase
+      .channel(`domicilio-pending-${activeBranchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, (payload) => {
+        const row = (payload.new ?? payload.old) as { order_type?: string | null } | null;
+        if (row?.order_type === "domicilio") qc.invalidateQueries({ queryKey: ["domicilio-pending", activeBranchId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeBranchId, qc]);
 
   const { data: pendingOrders = [] } = useQuery<PendingDeliveryOrder[]>({
     queryKey: ["domicilio-pending", activeBranchId],
