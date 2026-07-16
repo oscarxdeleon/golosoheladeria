@@ -23,6 +23,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
 import { BranchAutoDetectBadge } from "@/components/branch-auto-detect-badge";
+import { useKioskLock, isKioskContext } from "@/hooks/use-kiosk-lock";
 
 import logoUrl from "@/assets/logo-goloso.webp";
 import tableFree from "@/assets/mesa_libre.webp";
@@ -68,6 +69,7 @@ function TabletPage() {
 function TabletShell() {
   const { profile, user } = useAuth();
   const [tab, setTab] = useState<TabKey>("mesas");
+  useKioskLock(isKioskContext());
   const [selected, setSelected] = useState<
     | { orderType: OrderType; tableId?: string | null; title?: string }
     | null
