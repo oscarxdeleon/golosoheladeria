@@ -415,6 +415,7 @@ function GastosTurnoDialog({
     },
   });
 
+  const qc = useQueryClient();
   useEffect(() => {
     if (!open || !sessionId) return;
     const ch = supabase
@@ -423,14 +424,14 @@ function GastosTurnoDialog({
         "postgres_changes",
         { event: "*", schema: "public", table: "expenses", filter: `cash_session_id=eq.${sessionId}` },
         () => {
-          void supabase.auth.getSession();
+          void qc.invalidateQueries({ queryKey: ["reportes.gastos-turno", sessionId] });
         },
       )
       .subscribe();
     return () => {
       void supabase.removeChannel(ch);
     };
-  }, [open, sessionId]);
+  }, [open, sessionId, qc]);
 
   const rows = useMemo(
     () =>
