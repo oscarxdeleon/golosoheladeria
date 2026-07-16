@@ -146,17 +146,19 @@ function OnlineOrdersPage() {
     enabled: !!activeBranchId,
     queryFn: async () => {
       if (!activeBranchId) return [];
-      let q = supabase
+      // Incluye pedidos del menú en línea + domicilios creados en POS que quedaron pendientes por pagar.
+      const q = supabase
         .from("sales")
         .select("*")
-        .eq("source", "online_menu")
         .eq("branch_id", activeBranchId)
+        .or("source.eq.online_menu,and(order_type.eq.domicilio,payment_method.eq.Pendiente)")
         .order("created_at", { ascending: false })
         .limit(150);
       const { data, error } = await q;
       if (error) throw error;
       return (data ?? []) as SaleRow[];
     },
+
   });
 
   const ids = orders.map((o) => o.id);
@@ -174,15 +176,19 @@ function OnlineOrdersPage() {
     if (!activeBranchId) return;
     const ch = supabase
       .channel(`po-page-${activeBranchId}`)
-      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: "source=eq.online_menu" },
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` },
         (payload) => {
-          const row = payload.new as { branch_id?: string | null } | null;
-          if (row?.branch_id && row.branch_id !== activeBranchId) return;
+          const row = (payload.new ?? payload.old) as { source?: string | null; order_type?: string | null; payment_method?: string | null } | null;
+          if (!row) return;
+          const isOnline = row.source === "online_menu";
+          const isPosDomicilioPending = row.order_type === "domicilio" && row.payment_method === "Pendiente";
+          if (!isOnline && !isPosDomicilioPending) return;
           qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
         })
       .subscribe();
     return () => { supabase.removeChannel(ch); };
   }, [qc, activeBranchId]);
+
 
 
   async function confirmAndPrint(o: SaleRow, its: ItemRow[]) {
