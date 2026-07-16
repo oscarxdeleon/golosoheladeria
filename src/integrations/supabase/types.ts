@@ -2277,6 +2277,53 @@ export type Database = {
           },
         ]
       }
+      tablet_devices: {
+        Row: {
+          active: boolean
+          branch_id: string
+          created_at: string
+          email: string
+          id: string
+          label: string
+          last_seen_at: string | null
+          password: string
+          token: string
+          user_id: string
+        }
+        Insert: {
+          active?: boolean
+          branch_id: string
+          created_at?: string
+          email: string
+          id?: string
+          label: string
+          last_seen_at?: string | null
+          password: string
+          token: string
+          user_id: string
+        }
+        Update: {
+          active?: boolean
+          branch_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          label?: string
+          last_seen_at?: string | null
+          password?: string
+          token?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tablet_devices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           id: string
