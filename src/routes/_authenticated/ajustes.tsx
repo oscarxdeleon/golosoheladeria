@@ -2033,6 +2033,8 @@ function MeseroAppTab() {
   });
   const [creatingFor, setCreatingFor] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("");
+  const [newUserId, setNewUserId] = useState<string>("");
+  const [newPassword, setNewPassword] = useState("");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -2045,14 +2047,26 @@ function MeseroAppTab() {
       ((await supabase.from("branches").select("*").order("is_main", { ascending: false }).order("name")).data ?? []) as unknown as Branch[],
   });
 
+  interface MeseroUser { id: string; full_name: string; email: string | null; branch_id: string | null; }
+  const { data: meseros = [] } = useQuery<MeseroUser[]>({
+    queryKey: ["mesero-users-for-tablets"],
+    queryFn: async () => {
+      const { data: roles } = await supabase.from("user_roles").select("user_id").eq("role", "mesero");
+      const ids = (roles ?? []).map((r: { user_id: string }) => r.user_id);
+      if (ids.length === 0) return [];
+      const { data: profs } = await supabase.from("profiles").select("id, full_name, email, branch_id").in("id", ids);
+      return ((profs ?? []) as MeseroUser[]).sort((a, b) => a.full_name.localeCompare(b.full_name));
+    },
+  });
+
   interface TabletDevice {
-    id: string; branch_id: string; label: string; token: string;
+    id: string; branch_id: string; label: string; token: string; email: string;
     active: boolean; last_seen_at: string | null; created_at: string;
   }
   const { data: tablets = [], isLoading } = useQuery<TabletDevice[]>({
     queryKey: ["tablet_devices"],
     queryFn: async () =>
-      ((await supabase.from("tablet_devices").select("id,branch_id,label,token,active,last_seen_at,created_at").order("created_at")).data ?? []) as TabletDevice[],
+      ((await supabase.from("tablet_devices").select("id,branch_id,label,token,email,active,last_seen_at,created_at").order("created_at")).data ?? []) as TabletDevice[],
   });
 
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -2065,11 +2079,18 @@ function MeseroAppTab() {
   async function handleCreate(branchId: string) {
     const label = newLabel.trim();
     if (!label) return toast.error("Escribe un nombre para la tablet");
+    if (!newUserId) return toast.error("Selecciona el usuario mesero");
+    const mesero = meseros.find((m) => m.id === newUserId);
+    if (!mesero?.email) return toast.error("Ese mesero no tiene email registrado");
+    if (!newPassword.trim()) return toast.error("Escribe la contraseña actual de ese mesero");
     try {
       const { provisionTablet } = await import("@/lib/tablet-devices.functions");
-      await provisionTablet({ data: { branch_id: branchId, label } });
+      await provisionTablet({ data: {
+        branch_id: branchId, label,
+        email: mesero.email, password: newPassword.trim(), user_id: mesero.id,
+      } });
       toast.success("Tablet registrada");
-      setNewLabel("");
+      setNewLabel(""); setNewUserId(""); setNewPassword("");
       setCreatingFor(null);
       qc.invalidateQueries({ queryKey: ["tablet_devices"] });
     } catch (e) {
