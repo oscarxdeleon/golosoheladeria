@@ -18,6 +18,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Utensils, ShoppingBag, ArrowLeft, LogOut } from "lucide-react";
+import { formatMoney } from "@/lib/format";
 import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
@@ -205,6 +206,27 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
     },
   });
 
+  // Total en vivo del pedido activo por mesa. La key empieza con "sales" para
+  // que useRealtimeBranchSync la invalide al agregar/eliminar ítems.
+  const { data: mesaTotals = {} as Record<string, number> } = useQuery({
+    queryKey: ["sales", "mesa-totals", activeBranchId],
+    enabled: !!activeBranchId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("sales")
+        .select("table_id,total")
+        .eq("branch_id", activeBranchId!)
+        .not("table_id", "is", null)
+        .not("status", "in", "(paid,cancelled)");
+      const map: Record<string, number> = {};
+      for (const r of (data ?? []) as { table_id: string; total: number | string | null }[]) {
+        const t = Number(r.total ?? 0);
+        map[r.table_id] = (map[r.table_id] ?? 0) + (Number.isFinite(t) ? t : 0);
+      }
+      return map;
+    },
+  });
+
   useEffect(() => {
     if (!activeBranchId) return;
     let cancelled = false;
@@ -301,6 +323,16 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
                   >
                     {occupied ? "Ocupada" : reserved ? "Reservada" : "Libre"}
                   </Badge>
+                  {occupied && (mesaTotals[m.id] ?? 0) > 0 && (
+                    <div className="mt-2 w-full rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-center">
+                      <div className="text-[9px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        Total pedido
+                      </div>
+                      <div className="font-display text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-300">
+                        {formatMoney(mesaTotals[m.id])}
+                      </div>
+                    </div>
+                  )}
                 </button>
               );
             })}
