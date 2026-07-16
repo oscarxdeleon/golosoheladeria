@@ -4,17 +4,18 @@ import { requireLovableCloudAuth } from "@/lib/lovable-cloud-auth";
 
 const ROLE = z.enum(["admin", "cajero", "mesero", "domiciliario", "supervisor"]);
 
-async function assertAdmin(userId: string) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-  const { data, error } = await supabaseAdmin
-    .from("user_roles")
-    .select("role")
-    .eq("user_id", userId)
-    .eq("role", "admin")
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) throw new Error("Solo administradores pueden gestionar usuarios");
+function friendlyUserError(error: unknown, fallback: string) {
+  const message = error instanceof Error ? error.message : String(error ?? "");
+  if (/Missing Supabase environment variable|SUPABASE_URL|SUPABASE_PUBLISHABLE_KEY|SUPABASE_SERVICE_ROLE_KEY/i.test(message)) {
+    return new Error("No se pudo completar la operación por configuración del backend. Ya se ajustó el flujo para no depender de esa configuración; recarga e intenta de nuevo.");
+  }
+  if (/duplicate key|already registered|already exists|Ya existe/i.test(message)) {
+    return new Error("Ya existe un usuario con ese correo.");
+  }
+  return new Error(message || fallback);
 }
+
+type RpcResult<T> = Promise<{ data: T | null; error: { message: string } | null }>;
 
 export const createAppUser = createServerFn({ method: "POST" })
   .middleware([requireLovableCloudAuth])
@@ -28,32 +29,25 @@ export const createAppUser = createServerFn({ method: "POST" })
     }).parse(data),
   )
   .handler(async ({ context, data }) => {
-    await assertAdmin(context.userId);
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-
-    const { data: created, error: createErr } = await supabaseAdmin.auth.admin.createUser({
-      email: data.email,
-      password: data.password,
-      email_confirm: true,
-      user_metadata: { full_name: data.full_name },
-    });
-    if (createErr || !created.user) throw new Error(createErr?.message ?? "No se pudo crear el usuario");
-    const newId = created.user.id;
-
-    // Profile is auto-created by trigger; upsert metadata
-    await supabaseAdmin.from("profiles").upsert({
-      id: newId,
-      full_name: data.full_name,
-      email: data.email,
-      branch_id: data.branch_id ?? null,
-      active: true,
-    });
-
-    // Replace roles (trigger may have inserted a default)
-    await supabaseAdmin.from("user_roles").delete().eq("user_id", newId);
-    await supabaseAdmin.from("user_roles").insert({ user_id: newId, role: data.role });
-
-    return { id: newId };
+    try {
+      const rpc = context.supabase.rpc as unknown as (
+        fn: string,
+        args: Record<string, unknown>,
+      ) => RpcResult<string>;
+      const { data: newId, error } = await rpc("admin_create_app_user", {
+        _email: data.email,
+        _password: data.password,
+        _full_name: data.full_name,
+        _role: data.role,
+        _branch_id: data.branch_id ?? null,
+        _active: true,
+      });
+      if (error) throw new Error(error.message);
+      if (!newId) throw new Error("No se pudo crear el usuario");
+      return { id: newId };
+    } catch (error) {
+      throw friendlyUserError(error, "No se pudo crear el usuario");
+    }
   });
 
 export const updateAppUser = createServerFn({ method: "POST" })
@@ -70,18 +64,22 @@ export const updateAppUser = createServerFn({ method: "POST" })
   )
   .handler(async ({ context, data }) => {
     // Uses SECURITY DEFINER RPC so no service-role key is required at runtime.
-    const branchIdSet = Object.prototype.hasOwnProperty.call(data, "branch_id");
-    const { error } = await context.supabase.rpc("admin_update_app_user", {
-      _user_id: data.user_id,
-      _full_name: data.full_name ?? undefined,
-      _role: data.role ?? undefined,
-      _branch_id: branchIdSet ? ((data.branch_id ?? null) as unknown as string) : undefined,
-      _branch_id_set: branchIdSet,
-      _active: data.active ?? undefined,
-      _password: data.password ?? undefined,
-    });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    try {
+      const branchIdSet = Object.prototype.hasOwnProperty.call(data, "branch_id");
+      const { error } = await context.supabase.rpc("admin_update_app_user", {
+        _user_id: data.user_id,
+        _full_name: data.full_name ?? undefined,
+        _role: data.role ?? undefined,
+        _branch_id: branchIdSet ? ((data.branch_id ?? null) as unknown as string) : undefined,
+        _branch_id_set: branchIdSet,
+        _active: data.active ?? undefined,
+        _password: data.password ?? undefined,
+      });
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    } catch (error) {
+      throw friendlyUserError(error, "No se pudo actualizar el usuario");
+    }
   });
 
 export const deleteAppUser = createServerFn({ method: "POST" })
@@ -90,8 +88,12 @@ export const deleteAppUser = createServerFn({ method: "POST" })
   .handler(async ({ context, data }) => {
     if (data.user_id === context.userId) throw new Error("No puedes eliminar tu propio usuario");
     // Uses SECURITY DEFINER RPC so no service-role key is required at runtime.
-    const { error } = await context.supabase.rpc("admin_delete_app_user", { _user_id: data.user_id });
-    if (error) throw new Error(error.message);
-    return { ok: true };
+    try {
+      const { error } = await context.supabase.rpc("admin_delete_app_user", { _user_id: data.user_id });
+      if (error) throw new Error(error.message);
+      return { ok: true };
+    } catch (error) {
+      throw friendlyUserError(error, "No se pudo eliminar el usuario");
+    }
   });
 
