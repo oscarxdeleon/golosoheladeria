@@ -42,6 +42,66 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
   { value: "domiciliario", label: "Domiciliario", icon: Bike, tone: "bg-sky-600 text-white" },
 ];
 
+type UserAdminRpcName = "admin_create_app_user" | "admin_update_app_user" | "admin_delete_app_user";
+
+function getPublicBackendConfig() {
+  const backendUrl = import.meta.env.VITE_SUPABASE_URL;
+  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+
+  if (!backendUrl || !publishableKey) {
+    throw new Error("No se encontró la configuración pública del backend. Recarga la aplicación e intenta de nuevo.");
+  }
+
+  return {
+    backendUrl: backendUrl.replace(/\/$/, ""),
+    publishableKey,
+  };
+}
+
+function extractBackendMessage(body: unknown, fallback: string) {
+  if (body && typeof body === "object") {
+    const record = body as Record<string, unknown>;
+    return String(record.message ?? record.details ?? record.hint ?? fallback);
+  }
+  return String(body || fallback);
+}
+
+async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string, unknown>): Promise<T> {
+  const { data, error: sessionError } = await supabase.auth.getSession();
+  const accessToken = data.session?.access_token;
+
+  if (sessionError || !accessToken) {
+    throw new Error("Tu sesión no está activa. Vuelve a iniciar sesión e intenta de nuevo.");
+  }
+
+  const { backendUrl, publishableKey } = getPublicBackendConfig();
+  const response = await fetch(`${backendUrl}/rest/v1/rpc/${fn}`, {
+    method: "POST",
+    headers: {
+      apikey: publishableKey,
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const raw = await response.text();
+  let body: unknown = raw;
+  if (raw) {
+    try {
+      body = JSON.parse(raw);
+    } catch {
+      body = raw;
+    }
+  }
+
+  if (!response.ok) {
+    throw new Error(extractBackendMessage(body, "No se pudo completar la operación de usuarios"));
+  }
+
+  return body as T;
+}
+
 function UsuariosPage() {
   const { isAdmin, primaryRole, loading: authLoading } = useAuth();
   const { loading: permsLoading } = usePermissions();
@@ -112,6 +172,17 @@ function UsuariosPage() {
       })();
       return;
     }
+    if (/Cannot read properties of undefined \(reading ['"]rest['"]\)|reading ['"]rest['"]/i.test(raw)) {
+      toast.error("Se detectó un cliente anterior del POS. Actualizando la pantalla de usuarios…");
+      void (async () => {
+        await clearLegacyAppCaches();
+        const url = new URL(window.location.href);
+        url.searchParams.set("users", "rpc-direct");
+        url.searchParams.set("refresh", Date.now().toString());
+        window.location.replace(url.toString());
+      })();
+      return;
+    }
     const message = /violates foreign key constraint|sales_user_id_fkey|sales_delivery_user_id_fkey/i.test(raw)
       ? "El usuario tiene historial. Ya se ajustó la eliminación segura: recarga e intenta nuevamente."
       : /permission denied|not authorized|Solo administradores/i.test(raw)
@@ -135,8 +206,7 @@ function UsuariosPage() {
   async function handleDelete(u: UserRow) {
     if (!confirm(`¿Eliminar al usuario "${u.full_name}"? Esta acción no se puede deshacer.`)) return;
     try {
-      const { error } = await supabase.rpc("admin_delete_app_user", { _user_id: u.id });
-      if (error) throw error;
+      await callUserAdminRpc("admin_delete_app_user", { _user_id: u.id });
       toast.success("Usuario retirado del sistema");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     } catch (e) {
@@ -167,23 +237,22 @@ function UsuariosPage() {
             onSubmit={async (payload) => {
               try {
                 if (editing) {
-                  const { error } = await supabase.rpc("admin_update_app_user", {
+                  await callUserAdminRpc("admin_update_app_user", {
                     _user_id: editing.id,
                     _full_name: payload.full_name,
                     _role: payload.role,
                     _branch_id: payload.branch_id as string,
                     _branch_id_set: true,
                     _active: payload.active,
-                    _password: payload.password || undefined,
+                    _password: payload.password || null,
                   });
-                  if (error) throw error;
                   toast.success("Usuario actualizado");
                 } else {
                   if (!payload.email || !payload.password) {
                     toast.error("Correo y contraseña son obligatorios");
                     return;
                   }
-                  const { data: newId, error } = await supabase.rpc("admin_create_app_user", {
+                  const newId = await callUserAdminRpc<string>("admin_create_app_user", {
                     _email: payload.email,
                     _password: payload.password,
                     _full_name: payload.full_name,
@@ -191,7 +260,6 @@ function UsuariosPage() {
                     _branch_id: payload.branch_id as string,
                     _active: true,
                   });
-                  if (error) throw error;
                   if (!newId) throw new Error("No se pudo crear el usuario");
                   toast.success("Usuario creado");
                 }
