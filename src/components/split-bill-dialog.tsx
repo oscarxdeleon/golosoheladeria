@@ -152,9 +152,19 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
 
   async function handleConfirm() {
     if (tab === "cantidad") {
-      if (cantidadPending !== 0) return toast.error(`Aún faltan ${formatMoney(cantidadPending)} por cobrar`);
-      if (cashPayments.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
-      await onConfirm(cashPayments.map((p) => ({ method: p.method, amount: p.amount })));
+      // Auto-aplicar el borrador si el usuario dejó un monto escrito que
+      // completa exactamente el saldo pendiente y no presionó "Aplicar".
+      // Es la fuente #1 de "presiono Cobrar y dice que falta dinero".
+      let effective = cashPayments;
+      const draft = round0(draftAmount);
+      if (showDraft && draft > 0 && draft === cantidadPending) {
+        effective = [...cashPayments, { method: draftMethod, amount: draft }];
+      }
+      const applied = effective.reduce((s, p) => s + p.amount, 0);
+      const pending = total - applied;
+      if (pending !== 0) return toast.error(`Aún faltan ${formatMoney(Math.max(0, pending))} por asignar`);
+      if (effective.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
+      await onConfirm(effective.map((p) => ({ method: p.method, amount: p.amount })));
     } else {
       if (staged.length > 0) return toast.error("Aún tienes productos sin cobrar. Presiona COBRAR para asignarles un método de pago.");
       const all = committedBuckets;
