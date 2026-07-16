@@ -562,8 +562,19 @@ function MesasPage() {
                 <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
                   <UsersMini />
                   <span>{m.seats} puestos</span>
-                </div>
               </div>
+
+              {/* Total del pedido activo (solo si la mesa está ocupada y tiene pedido) */}
+              {status === "occupied" && (mesaTotals[m.id] ?? 0) > 0 && (
+                <div className="mt-1 w-full rounded-xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 px-2.5 py-1.5 text-center shadow-sm">
+                  <div className="text-[9px] font-semibold uppercase tracking-wider text-emerald-700/80 dark:text-emerald-400/80">
+                    Total pedido
+                  </div>
+                  <div className="font-display text-base font-black leading-tight tabular-nums text-emerald-700 dark:text-emerald-300">
+                    {formatMoney(mesaTotals[m.id])}
+                  </div>
+                </div>
+              )}
 
               {/* acciones flotantes */}
               {status === "occupied" && (
