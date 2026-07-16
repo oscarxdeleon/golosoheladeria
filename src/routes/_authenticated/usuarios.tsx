@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
@@ -85,6 +85,14 @@ function UsuariosPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<UserRow | null>(null);
 
+  useEffect(() => {
+    // La pantalla de usuarios debe usar siempre el bundle actual: versiones
+    // antiguas del POS tenían un flujo de creación que intentaba usar una llave
+    // privada del backend. Limpiamos cualquier Service Worker/caché heredado al
+    // entrar aquí para que "Nuevo usuario" ejecute únicamente el RPC actual.
+    void clearLegacyAppCaches();
+  }, []);
+
   if (authLoading || permsLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
   const canManageUsers = isAdmin || primaryRole === "supervisor";
 
@@ -96,17 +104,11 @@ function UsuariosPage() {
     if (/Missing Supabase environment variable|SUPABASE_SERVICE_ROLE_KEY/i.test(raw)) {
       toast.error("Actualizando la aplicación… vuelve a intentarlo en un momento.");
       void (async () => {
-        try {
-          if ("serviceWorker" in navigator) {
-            const regs = await navigator.serviceWorker.getRegistrations();
-            await Promise.all(regs.map((r) => r.unregister()));
-          }
-          if ("caches" in window) {
-            const keys = await caches.keys();
-            await Promise.all(keys.map((k) => caches.delete(k)));
-          }
-        } catch { /* noop */ }
-        window.location.reload();
+        await clearLegacyAppCaches();
+        const url = new URL(window.location.href);
+        url.searchParams.set("sw", "off");
+        url.searchParams.set("refresh", Date.now().toString());
+        window.location.replace(url.toString());
       })();
       return;
     }
@@ -262,6 +264,22 @@ function UsuariosPage() {
 
     </div>
   );
+}
+
+async function clearLegacyAppCaches() {
+  if (typeof window === "undefined") return;
+  try {
+    if ("serviceWorker" in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+    if ("caches" in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch {
+    /* noop */
+  }
 }
 
 

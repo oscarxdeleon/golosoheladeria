@@ -16,6 +16,10 @@ export default defineConfig({
   vite: {
     plugins: [
       VitePWA({
+        // El modo offline quedó desactivado en la app. Generamos un /sw.js
+        // autodestructivo para reemplazar cualquier Service Worker viejo que
+        // siga sirviendo bundles cacheados con flujos antiguos de usuarios.
+        selfDestroying: true,
         // El registro lo hace nuestro wrapper con guardas Lovable. No dejar que
         // el plugin inyecte su propio registrador.
         injectRegister: null,

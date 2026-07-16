@@ -49,6 +49,9 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   const stack = (error?.stack ?? "").split("\n").slice(0, 8).join("\n");
+  const visibleMessage = /Missing Supabase environment variable|SUPABASE_SERVICE_ROLE_KEY/i.test(String(error?.message ?? error ?? ""))
+    ? "La aplicación estaba usando una versión anterior. Recarga la página e intenta nuevamente."
+    : String(error?.message ?? error ?? "Error desconocido");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-8">
@@ -66,7 +69,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
             Detalle técnico
           </summary>
           <p className="mt-2 text-xs font-medium text-foreground break-words">
-            {String(error?.message ?? error ?? "Error desconocido")}
+            {visibleMessage}
           </p>
           {stack ? (
             <pre className="mt-2 max-h-48 overflow-auto whitespace-pre-wrap break-words rounded bg-background/60 p-2 text-[11px] leading-snug text-muted-foreground">
