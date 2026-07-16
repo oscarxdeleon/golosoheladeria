@@ -322,6 +322,16 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
                   >
                     {occupied ? "Ocupada" : reserved ? "Reservada" : "Libre"}
                   </Badge>
+                  {occupied && (mesaTotals[m.id] ?? 0) > 0 && (
+                    <div className="mt-2 w-full rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-center">
+                      <div className="text-[9px] font-semibold uppercase tracking-wider text-emerald-700 dark:text-emerald-400">
+                        Total pedido
+                      </div>
+                      <div className="font-display text-sm font-black tabular-nums text-emerald-700 dark:text-emerald-300">
+                        {formatMoney(mesaTotals[m.id])}
+                      </div>
+                    </div>
+                  )}
                 </button>
               );
             })}
