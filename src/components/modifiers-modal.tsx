@@ -402,7 +402,7 @@ export function ModifiersModal({ product, branchId, onClose, onConfirm, initialP
             )}
           </div>
           <Button variant="outline" onClick={onClose}>Cancelar</Button>
-          <Button onClick={confirm} disabled={!!validation}>
+          <Button onClick={confirm} aria-invalid={!!validation} title={validation ?? undefined}>
             {confirmLabel ?? "Agregar"} · {formatMoney(Number(product.price) + unitExtra)}
           </Button>
         </DialogFooter>
