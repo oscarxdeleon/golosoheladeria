@@ -97,10 +97,10 @@ export const deleteAppUser = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data) => z.object({ user_id: z.string().uuid() }).parse(data))
   .handler(async ({ context, data }) => {
-    await assertAdmin(context.userId);
     if (data.user_id === context.userId) throw new Error("No puedes eliminar tu propio usuario");
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(data.user_id);
+    // Uses SECURITY DEFINER RPC so no service-role key is required at runtime.
+    const { error } = await context.supabase.rpc("admin_delete_app_user", { _user_id: data.user_id });
     if (error) throw new Error(error.message);
     return { ok: true };
   });
+

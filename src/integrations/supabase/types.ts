@@ -2450,6 +2450,7 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_delete_app_user: { Args: { _user_id: string }; Returns: undefined }
       assert_current_user_is_admin: { Args: never; Returns: string }
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
       cancel_sale: {
