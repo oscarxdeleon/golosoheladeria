@@ -337,10 +337,13 @@ function CajaDetailPage() {
       </Card>
 
       <Tabs defaultValue="resumen" className="space-y-5">
-        <TabsList className="grid w-full grid-cols-3 rounded-2xl bg-muted/50 p-1 h-auto">
+        <TabsList className="grid w-full grid-cols-4 rounded-2xl bg-muted/50 p-1 h-auto">
           <TabsTrigger value="resumen" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Resumen</TabsTrigger>
           <TabsTrigger value="productos" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Productos</TabsTrigger>
           <TabsTrigger value="ajustes" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">Ajustes</TabsTrigger>
+          <TabsTrigger value="anulados" className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow font-semibold">
+            Anulados {cancelledSales.length > 0 && <span className="ml-1 rounded-full bg-destructive/15 px-1.5 text-[10px] text-destructive">{cancelledSales.length}</span>}
+          </TabsTrigger>
         </TabsList>
 
         {/* -------- RESUMEN -------- */}
