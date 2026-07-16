@@ -117,6 +117,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
       const { data } = await supabase
         .from("couriers")
         .select("id,name")
+        .eq("active", true)
         .or(`branch_id.is.null,branch_id.eq.${activeBranchId}`)
         .order("name");
       return (data ?? []) as { id: string; name: string }[];
