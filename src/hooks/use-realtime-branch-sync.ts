@@ -54,58 +54,65 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
       void qc.invalidateQueries({ queryKey: ["kds-pending"] });
     };
 
-    const channel = supabase
-      .channel(`branch-sync-${branchId}`)
-      .on(
+    let channel: ReturnType<typeof supabase.channel> | null = null;
+
+    try {
+      // Cada montaje usa un tópico único. Así evitamos reutilizar accidentalmente
+      // un canal ya suscrito (Realtime no permite agregar callbacks después de
+      // `subscribe()` y eso estaba tumbando /mesas en GOLOSO PARQUE).
+      channel = supabase.channel(`branch-sync-${branchId}-${Date.now()}-${Math.random().toString(36).slice(2)}`);
+
+      channel
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "restaurant_tables", filter: `branch_id=eq.${branchId}` },
         invalidateTables,
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${branchId}` },
         invalidateBoth,
-      )
-      // sale_items no tiene branch_id; el filtro por sede lo aplican las queries que se invaliden.
-      .on(
+        )
+        // sale_items no tiene branch_id; el filtro por sede lo aplican las queries que se invaliden.
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sale_items" },
         invalidateSales,
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "expenses", filter: `branch_id=eq.${branchId}` },
         invalidateMoney,
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "cash_deposits", filter: `branch_id=eq.${branchId}` },
         invalidateMoney,
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "purchases", filter: `branch_id=eq.${branchId}` },
         invalidateMoney,
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "purchase_items" },
         invalidateMoney,
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "cash_sessions", filter: `branch_id=eq.${branchId}` },
         invalidateMoney,
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "table_events", filter: `branch_id=eq.${branchId}` },
         invalidateTables,
-      )
-      // Catálogo: si el Admin activa/desactiva una categoría o producto,
-      // el POS del Cajero y la tablet de Meseros deben reflejarlo al instante
-      // sin necesidad de recargar.
-      .on(
+        )
+        // Catálogo: si el Admin activa/desactiva una categoría o producto,
+        // el POS del Cajero y la tablet de Meseros deben reflejarlo al instante
+        // sin necesidad de recargar.
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "categories" },
         () => {
@@ -113,8 +120,8 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
           void qc.invalidateQueries({ queryKey: ["categories-all"] });
           void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
         },
-      )
-      .on(
+        )
+        .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "products" },
         () => {
@@ -124,11 +131,21 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
           void qc.invalidateQueries({ queryKey: ["dash-inv-alerts"] });
           void qc.invalidateQueries({ queryKey: ["stats-all"] });
         },
-      )
-      .subscribe();
+        );
+
+      void channel.subscribe();
+    } catch (error) {
+      console.error("No se pudo iniciar la sincronización realtime de la sede", error);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
+      return;
+    }
 
     return () => {
-      void supabase.removeChannel(channel);
+      if (channel) {
+        void supabase.removeChannel(channel);
+      }
     };
   }, [branchId, qc, invalidatePendingSale]);
 }
