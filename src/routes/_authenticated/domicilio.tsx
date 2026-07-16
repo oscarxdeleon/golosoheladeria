@@ -66,9 +66,9 @@ interface PendingDeliveryOrder {
   total: number;
   payment_method: string;
   delivery_status: string | null;
+  courier_id: string | null;
   status: string;
   created_at: string;
-  couriers?: { name: string | null } | null;
 }
 
 function DeliveryFlow() {
@@ -110,6 +110,20 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
   const { activeBranchId } = useBranch();
   const navigate = useNavigate();
 
+  const { data: couriers = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["couriers", "active", activeBranchId],
+    enabled: !!activeBranchId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("couriers")
+        .select("id,name")
+        .eq("active", true)
+        .or(`branch_id.is.null,branch_id.eq.${activeBranchId}`)
+        .order("name");
+      return (data ?? []) as { id: string; name: string }[];
+    },
+  });
+
   const { data: pendingOrders = [] } = useQuery<PendingDeliveryOrder[]>({
     queryKey: ["domicilio-pending", activeBranchId],
     enabled: !!activeBranchId,
@@ -117,7 +131,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,payment_method,delivery_status,status,created_at,couriers(name)")
+        .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,payment_method,delivery_status,courier_id,status,created_at")
         .eq("branch_id", activeBranchId!)
         .eq("order_type", "domicilio")
         .in("status", ["pending", "confirmed", "ready"])
@@ -158,6 +172,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
   const visiblePendingOrders = useMemo(() => {
     const s = q.trim().toLowerCase();
     const active = pendingOrders.filter((o) => o.delivery_status !== "entregado");
+    const courierName = (id: string | null) => couriers.find((c) => c.id === id)?.name ?? "";
     if (!s) return active.slice(0, 12);
     return active
       .filter((o) => {
@@ -170,14 +185,14 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
           o.payment_method,
           o.status,
           o.delivery_status ?? "pendiente",
-          o.couriers?.name,
+          courierName(o.courier_id),
           new Date(o.created_at).toLocaleDateString("es-CO"),
           formatDate(o.created_at),
         ].filter(Boolean).join(" ").toLowerCase();
         return haystack.includes(s);
       })
       .slice(0, 20);
-  }, [pendingOrders, q]);
+  }, [pendingOrders, q, couriers]);
 
   useEffect(() => {
     if (mode === "new" && q) setForm((f) => ({ ...f, name: /^\d/.test(q) ? f.name : q, phone: /^\d/.test(q) ? q : f.phone }));
