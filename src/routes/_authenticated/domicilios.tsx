@@ -102,7 +102,7 @@ function DespachoDomiciliosPage() {
     const { error } = await supabase.from("sales").update(patch as never).eq("id", sale.id);
     if (error) return toast.error(error.message);
     toast.success(courierId ? "Repartidor asignado" : "Asignación quitada");
-    qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+    qc.invalidateQueries({ queryKey: ["delivery-dispatch", activeBranchId] });
   }
 
   function sendWhatsAppTo(sale: DeliverySale, courier: Courier) {
@@ -125,7 +125,7 @@ function DespachoDomiciliosPage() {
     if (error) return toast.error(error.message);
     sendWhatsAppTo(sale, courier);
     toast.success(`Enviando pedido a ${courier.name} por WhatsApp`);
-    qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+    qc.invalidateQueries({ queryKey: ["delivery-dispatch", activeBranchId] });
   }
 
   async function markEntregado(id: string) {
@@ -134,7 +134,7 @@ function DespachoDomiciliosPage() {
     const { error } = await supabase.from("sales").update(patch as never).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Pedido entregado");
-    qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+    qc.invalidateQueries({ queryKey: ["delivery-dispatch", activeBranchId] });
   }
 
   const courierName = (id: string | null) => couriers.find((c) => c.id === id)?.name ?? "";
