@@ -272,6 +272,14 @@ function HistorialPage() {
               <SelectItem value="online">En línea</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as "all" | "active" | "cancelled")}>
+            <SelectTrigger className="w-[170px]"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="active">Solo válidos</SelectItem>
+              <SelectItem value="cancelled">Solo anulados</SelectItem>
+              <SelectItem value="all">Todos los estados</SelectItem>
+            </SelectContent>
+          </Select>
           <Select value={days} onValueChange={setDays}>
             <SelectTrigger className="w-[160px]"><SelectValue /></SelectTrigger>
             <SelectContent>
