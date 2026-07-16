@@ -8,10 +8,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Search, UserPlus, ArrowLeft, Bike, Phone, MapPin, User } from "lucide-react";
+import { Search, UserPlus, ArrowLeft, Bike, Phone, MapPin, User, Banknote, CalendarDays } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import { VoiceMicButton } from "@/components/voice-input";
+import { useBranch } from "@/contexts/branch-context";
+import { formatMoney, formatDate } from "@/lib/format";
 
 import domicilioMotoImg from "@/assets/delivery-goloso-3d.webp";
 import golosoLogo from "@/assets/goloso-logo-official.webp";
@@ -54,6 +56,21 @@ interface Selected {
   neighborhood: string;
 }
 
+interface PendingDeliveryOrder {
+  id: string;
+  ticket_number: number;
+  customer_name: string | null;
+  customer_phone: string | null;
+  delivery_address: string | null;
+  delivery_neighborhood: string | null;
+  total: number;
+  payment_method: string;
+  delivery_status: string | null;
+  courier_id: string | null;
+  status: string;
+  created_at: string;
+}
+
 function DeliveryFlow() {
   const [selected, setSelected] = useState<Selected | null>(null);
 
@@ -90,6 +107,53 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
   const [form, setForm] = useState<Selected>({ name: "", phone: "", address: "", neighborhood: "" });
   const [saving, setSaving] = useState(false);
   const qc = useQueryClient();
+  const { activeBranchId } = useBranch();
+  const navigate = useNavigate();
+
+  const { data: couriers = [] } = useQuery<{ id: string; name: string }[]>({
+    queryKey: ["couriers", "active", activeBranchId],
+    enabled: !!activeBranchId,
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("couriers")
+        .select("id,name")
+        .eq("active", true)
+        .or(`branch_id.is.null,branch_id.eq.${activeBranchId}`)
+        .order("name");
+      return (data ?? []) as { id: string; name: string }[];
+    },
+  });
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    const ch = supabase
+      .channel(`domicilio-pending-${activeBranchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, (payload) => {
+        const row = (payload.new ?? payload.old) as { order_type?: string | null } | null;
+        if (row?.order_type === "domicilio") qc.invalidateQueries({ queryKey: ["domicilio-pending", activeBranchId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeBranchId, qc]);
+
+  const { data: pendingOrders = [] } = useQuery<PendingDeliveryOrder[]>({
+    queryKey: ["domicilio-pending", activeBranchId],
+    enabled: !!activeBranchId,
+    refetchInterval: 5000,
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("sales")
+        .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,payment_method,delivery_status,courier_id,status,created_at")
+        .eq("branch_id", activeBranchId!)
+        .eq("order_type", "domicilio")
+        .in("status", ["pending", "confirmed", "ready"])
+        .or("source.is.null,source.neq.online_menu")
+        .order("created_at", { ascending: false })
+        .limit(100);
+      if (error) throw error;
+      return (data ?? []) as PendingDeliveryOrder[];
+    },
+  });
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ["customers-picker"],
@@ -116,6 +180,31 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
       )
       .slice(0, 50);
   }, [customers, q]);
+
+  const visiblePendingOrders = useMemo(() => {
+    const s = q.trim().toLowerCase();
+    const active = pendingOrders;
+    const courierName = (id: string | null) => couriers.find((c) => c.id === id)?.name ?? "";
+    if (!s) return active.slice(0, 12);
+    return active
+      .filter((o) => {
+        const haystack = [
+          String(o.ticket_number),
+          o.customer_name,
+          o.customer_phone,
+          o.delivery_address,
+          o.delivery_neighborhood,
+          o.payment_method,
+          o.status,
+          o.delivery_status ?? "pendiente",
+          courierName(o.courier_id),
+          new Date(o.created_at).toLocaleDateString("es-CO"),
+          formatDate(o.created_at),
+        ].filter(Boolean).join(" ").toLowerCase();
+        return haystack.includes(s);
+      })
+      .slice(0, 20);
+  }, [pendingOrders, q, couriers]);
 
   useEffect(() => {
     if (mode === "new" && q) setForm((f) => ({ ...f, name: /^\d/.test(q) ? f.name : q, phone: /^\d/.test(q) ? q : f.phone }));
@@ -175,9 +264,6 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
       setSaving(false);
     }
   }
-
-
-  const navigate = useNavigate();
   return (
     <div className="mx-auto max-w-4xl p-4 space-y-6 premium-scope">
       {/* Header compacto premium — alineado como Mesas / Para Llevar */}
@@ -269,6 +355,49 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
               <UserPlus className="w-4 h-4" /> Nuevo cliente
             </Button>
           </div>
+          {visiblePendingOrders.length > 0 && (
+            <Card className="rounded-2xl border-0 bg-white/90 dark:bg-slate-900/70 backdrop-blur shadow-[0_10px_30px_-15px_rgba(15,23,42,0.18)] ring-1 ring-sky-200/70 dark:ring-white/5">
+              <CardContent className="p-3 space-y-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 font-display text-xl">
+                    <Bike className="h-5 w-5 text-sky-600" /> Pedidos activos de domicilio
+                  </div>
+                  <Badge className="bg-sky-600 text-white">{visiblePendingOrders.length}</Badge>
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                  {visiblePendingOrders.map((o) => (
+                    <button
+                      key={o.id}
+                      type="button"
+                      onClick={() => navigate({ to: "/pos", search: { type: "domicilio", kioskSaleId: o.id } })}
+                      className="group rounded-xl border bg-card p-3 text-left transition hover:border-sky-500 hover:shadow-md active:scale-[0.99]"
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="font-display text-3xl text-sky-600 leading-none w-16 shrink-0 text-center">#{o.ticket_number}</div>
+                        <div className="min-w-0 flex-1 space-y-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="font-bold uppercase truncate">{o.customer_name ?? "SIN NOMBRE"}</div>
+                            <Badge variant="secondary" className="shrink-0">
+                              {o.delivery_status === "entregado" ? "Entregado" : o.delivery_status === "en_camino" ? "En camino" : o.delivery_status === "asignado" ? "Asignado" : "Pendiente"}
+                            </Badge>
+                          </div>
+                          <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-1">
+                            <span className="inline-flex items-center gap-1"><Phone className="h-3 w-3" /> {o.customer_phone ?? "—"}</span>
+                            <span className="inline-flex items-center gap-1"><CalendarDays className="h-3 w-3" /> {new Date(o.created_at).toLocaleDateString("es-CO")}</span>
+                          </div>
+                          <div className="text-xs text-muted-foreground truncate">{o.delivery_address ?? "Sin dirección"}{o.delivery_neighborhood ? ` · ${o.delivery_neighborhood}` : ""}</div>
+                          <div className="flex items-center justify-between pt-1">
+                            <span className="font-display text-lg text-primary">{formatMoney(Number(o.total ?? 0))}</span>
+                            <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-600"><Banknote className="h-3.5 w-3.5" /> Abrir / Cobrar</span>
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           <Card className="rounded-2xl border-0 bg-white/80 dark:bg-slate-900/60 backdrop-blur shadow-[0_10px_30px_-15px_rgba(15,23,42,0.15)] ring-1 ring-slate-200/60 dark:ring-white/5">
             <CardContent className="p-3">
 

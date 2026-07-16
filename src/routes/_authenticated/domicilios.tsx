@@ -1,11 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
+import { useBranch } from "@/contexts/branch-context";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Bike, Phone, MapPin, Home, CheckCircle2, Truck, MessageCircle } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Bike, Phone, MapPin, Home, CheckCircle2, Truck, MessageCircle, Search, Banknote, CalendarDays, UserRound } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney, formatDate } from "@/lib/format";
 import { buildCourierMessage, openWhatsAppTo } from "@/lib/courier-whatsapp";
@@ -38,28 +41,43 @@ interface DeliverySale {
 
 function DespachoDomiciliosPage() {
   const { user, isAdmin } = useAuth();
+  const { activeBranchId } = useBranch();
+  const navigate = useNavigate();
   const qc = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [statusFilter, setStatusFilter] = useState("todos");
 
   const { data = [] } = useQuery({
-    queryKey: ["delivery-dispatch", user?.id, isAdmin],
-    enabled: !!user,
+    queryKey: ["delivery-dispatch", activeBranchId, user?.id, isAdmin],
+    enabled: !!user && !!activeBranchId,
     queryFn: async (): Promise<DeliverySale[]> => {
       let q = supabase
         .from("sales")
         .select("id,ticket_number,customer_name,customer_phone,delivery_address,delivery_neighborhood,total,payment_method,payment_details,delivery_status,delivery_user_id,courier_id,status,created_at,notes,source,branch_id")
+        .eq("branch_id", activeBranchId!)
         .eq("order_type", "domicilio")
-        .neq("status", "cancelled")
+        .in("status", ["pending", "confirmed", "ready"])
         .or("source.is.null,source.neq.online_menu")
         .order("created_at", { ascending: false })
-        .limit(100);
-      if (!isAdmin && user) {
-        q = q.eq("delivery_user_id", user.id);
-      }
-      const { data } = await q;
+        .limit(300);
+      const { data, error } = await q;
+      if (error) throw error;
       return (data ?? []) as DeliverySale[];
     },
-    refetchInterval: 15000,
+    refetchInterval: 5000,
   });
+
+  useEffect(() => {
+    if (!activeBranchId) return;
+    const ch = supabase
+      .channel(`delivery-dispatch-${activeBranchId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${activeBranchId}` }, (payload) => {
+        const row = (payload.new ?? payload.old) as { order_type?: string | null } | null;
+        if (row?.order_type === "domicilio") qc.invalidateQueries({ queryKey: ["delivery-dispatch", activeBranchId] });
+      })
+      .subscribe();
+    return () => { supabase.removeChannel(ch); };
+  }, [activeBranchId, qc]);
 
   const { data: couriers = [] } = useQuery({
     queryKey: ["couriers", "active"],
@@ -84,7 +102,7 @@ function DespachoDomiciliosPage() {
     const { error } = await supabase.from("sales").update(patch as never).eq("id", sale.id);
     if (error) return toast.error(error.message);
     toast.success(courierId ? "Repartidor asignado" : "Asignación quitada");
-    qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+    qc.invalidateQueries({ queryKey: ["delivery-dispatch", activeBranchId] });
   }
 
   function sendWhatsAppTo(sale: DeliverySale, courier: Courier) {
@@ -107,7 +125,7 @@ function DespachoDomiciliosPage() {
     if (error) return toast.error(error.message);
     sendWhatsAppTo(sale, courier);
     toast.success(`Enviando pedido a ${courier.name} por WhatsApp`);
-    qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+    qc.invalidateQueries({ queryKey: ["delivery-dispatch", activeBranchId] });
   }
 
   async function markEntregado(id: string) {
@@ -116,11 +134,37 @@ function DespachoDomiciliosPage() {
     const { error } = await supabase.from("sales").update(patch as never).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Pedido entregado");
-    qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+    qc.invalidateQueries({ queryKey: ["delivery-dispatch", activeBranchId] });
   }
 
-  const pending = data.filter((d) => d.delivery_status !== "entregado");
-  const done = data.filter((d) => d.delivery_status === "entregado");
+  const courierName = (id: string | null) => couriers.find((c) => c.id === id)?.name ?? "";
+  const normalizedSearch = search.trim().toLowerCase();
+  const filtered = data.filter((d) => {
+    const deliveryState = d.delivery_status ?? "pendiente";
+    if (statusFilter === "mis-asignados" && d.delivery_user_id !== user?.id) return false;
+    if (statusFilter !== "todos" && statusFilter !== "mis-asignados" && deliveryState !== statusFilter) return false;
+    if (!normalizedSearch) return true;
+    const haystack = [
+      String(d.ticket_number),
+      d.customer_name,
+      d.customer_phone,
+      d.delivery_address,
+      d.delivery_neighborhood,
+      d.payment_method,
+      d.status,
+      deliveryState,
+      courierName(d.courier_id),
+      new Date(d.created_at).toLocaleDateString("es-CO"),
+      formatDate(d.created_at),
+    ].filter(Boolean).join(" ").toLowerCase();
+    return haystack.includes(normalizedSearch);
+  });
+  const pending = filtered.filter((d) => d.delivery_status !== "entregado");
+  const done = filtered.filter((d) => d.delivery_status === "entregado");
+
+  function openForPayment(sale: DeliverySale) {
+    navigate({ to: "/pos", search: { type: "domicilio", kioskSaleId: sale.id } });
+  }
 
   return (
     <div className="space-y-4 premium-scope">
@@ -133,6 +177,35 @@ function DespachoDomiciliosPage() {
           </p>
         </div>
       </div>
+
+      <Card>
+        <CardContent className="p-3 space-y-3">
+          <div className="flex flex-col gap-2 md:flex-row md:items-center">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="pl-9"
+                placeholder="Buscar por pedido, cliente, teléfono, fecha, estado o domiciliario"
+              />
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {[
+                ["todos", "Todos"],
+                ["pendiente", "Pendientes"],
+                ["asignado", "Asignados"],
+                ["en_camino", "En camino"],
+                ["mis-asignados", "Mis asignados"],
+              ].map(([value, label]) => (
+                <Button key={value} size="sm" variant={statusFilter === value ? "default" : "outline"} onClick={() => setStatusFilter(value)}>
+                  {label}
+                </Button>
+              ))}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
       {couriers.length === 0 && (
         <Card><CardContent className="py-4 text-sm text-muted-foreground">
@@ -176,6 +249,10 @@ function DespachoDomiciliosPage() {
                     <div className="text-lg font-bold text-primary">{formatMoney(s.total)}</div>
                     <div className="text-xs uppercase text-muted-foreground">{s.payment_method}</div>
                   </div>
+                  <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {new Date(s.created_at).toLocaleDateString("es-CO")}</span>
+                    <span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" /> {courierName(s.courier_id) || "Sin domiciliario"}</span>
+                  </div>
 
                   <div className="pt-2 border-t">
                     <label className="text-xs font-medium text-muted-foreground">Repartidor</label>
@@ -192,6 +269,9 @@ function DespachoDomiciliosPage() {
                   </div>
 
                   <div className="flex flex-wrap gap-2 pt-2">
+                    <Button size="sm" variant="default" onClick={() => openForPayment(s)}>
+                      <Banknote className="h-4 w-4 mr-1" /> Abrir / Cobrar
+                    </Button>
                     {courier && (
                       <Button size="sm" variant="outline" onClick={() => sendWhatsAppTo(s, courier)}>
                         <MessageCircle className="h-4 w-4 mr-1" /> Reenviar WhatsApp

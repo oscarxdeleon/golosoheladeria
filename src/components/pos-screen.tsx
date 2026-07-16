@@ -1082,24 +1082,33 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   }, [pendingSale, paying, pendingSaleId, cart.length]);
 
 
-  // Cargar pedido pendiente del Autopedido (al ser seleccionado desde el panel)
+  // Cargar pedido pendiente seleccionado desde un panel (Autopedido, Llevar o Domicilio)
   const { data: kioskSale } = useQuery({
-    queryKey: ["kiosk-sale", kioskSaleId],
+    queryKey: ["kiosk-sale", orderType, kioskSaleId],
     enabled: !!kioskSaleId,
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,notes,created_at,payment_method,sale_items(product_id,product_name,qty,unit_price)")
+        .select("id,ticket_number,customer_name,customer_phone,delivery_phone,delivery_address,delivery_neighborhood,notes,created_at,payment_method,printed_at,status,order_type,sale_items(product_id,product_name,qty,unit_price,modifiers,notes)")
         .eq("id", kioskSaleId!)
+        .eq("order_type", orderType)
+        .in("status", ["pending", "confirmed", "ready"])
         .maybeSingle();
       return data as null | {
         id: string;
         ticket_number: number;
         customer_name: string | null;
+        customer_phone: string | null;
+        delivery_phone: string | null;
+        delivery_address: string | null;
+        delivery_neighborhood: string | null;
         notes: string | null;
         created_at: string;
         payment_method: string | null;
-        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
+        printed_at: string | null;
+        status: string | null;
+        order_type: string | null;
+        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number; modifiers?: unknown; notes?: string | null }[];
       };
     },
   });
@@ -1108,17 +1117,25 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     if (!kioskSale) return;
     setPendingSaleId(kioskSale.id);
     setCustomer(kioskSale.customer_name ?? "");
+    setPhone(kioskSale.customer_phone ?? kioskSale.delivery_phone ?? "");
+    setAddress(kioskSale.delivery_address ?? "");
+    setNeighborhood(kioskSale.delivery_neighborhood ?? "");
     setNotes(kioskSale.notes ?? "");
-    setCart(
-      (kioskSale.sale_items ?? []).map((i) => ({
+    const hydrated = (kioskSale.sale_items ?? []).map((i) => ({
         key: i.product_id,
         product_id: i.product_id,
         name: i.product_name,
         unit_price: Number(i.unit_price),
         qty: Number(i.qty),
-        modifiers: [],
-      })),
-    );
+        modifiers: Array.isArray(i.modifiers) ? (i.modifiers as SaleModifier[]) : [],
+        notes: i.notes ?? undefined,
+      }));
+    setCart(hydrated);
+    const printed: Record<string, number> = {};
+    if (kioskSale.printed_at) {
+      for (const l of hydrated) printed[l.key] = (printed[l.key] ?? 0) + l.qty;
+    }
+    printedQtyRef.current = printed;
   }, [kioskSale]);
 
 
@@ -1520,6 +1537,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["kiosk-pending"] });
       qc.invalidateQueries({ queryKey: ["kiosk-orders"] });
+      qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+      qc.invalidateQueries({ queryKey: ["domicilio-pending"] });
+      qc.invalidateQueries({ queryKey: ["online-orders"] });
 
       toast.success(`Venta #${sale.ticket_number} cobrada con ${method}`);
 
@@ -1726,6 +1746,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               status: "pending",
               source: "pos",
               order_type: orderType,
+              delivery_status: orderType === "domicilio" ? "pendiente" : null,
               table_id: tableId ?? null,
               branch_id: activeBranchId,
             })
@@ -1875,6 +1896,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // 1º DB ya guardada · 2º KDS realtime · 3º Impresión física en background.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
+      qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
+      qc.invalidateQueries({ queryKey: ["domicilio-pending"] });
+      qc.invalidateQueries({ queryKey: ["online-orders"] });
 
       if (printItems.length === 0) {
         toast.success(`Pedido #${sale.ticket_number} actualizado (sin ítems nuevos para imprimir)`);
