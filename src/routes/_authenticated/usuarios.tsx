@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +15,6 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, EyeOff, Glasses } from "lucide-react";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
-import { createAppUser, updateAppUser, deleteAppUser } from "@/lib/admin-users.functions";
 
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
@@ -48,9 +46,6 @@ function UsuariosPage() {
   const { isAdmin, primaryRole, loading: authLoading } = useAuth();
   const { loading: permsLoading } = usePermissions();
   const qc = useQueryClient();
-  const createFn = useServerFn(createAppUser);
-  const updateFn = useServerFn(updateAppUser);
-  const deleteFn = useServerFn(deleteAppUser);
 
   const { data: branches = [] } = useQuery({
     queryKey: ["branches-for-users"],
@@ -111,7 +106,8 @@ function UsuariosPage() {
   async function handleDelete(u: UserRow) {
     if (!confirm(`¿Eliminar al usuario "${u.full_name}"? Esta acción no se puede deshacer.`)) return;
     try {
-      await deleteFn({ data: { user_id: u.id } });
+      const { error } = await supabase.rpc("admin_delete_app_user", { _user_id: u.id });
+      if (error) throw error;
       toast.success("Usuario eliminado");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     } catch (e) {
@@ -142,31 +138,32 @@ function UsuariosPage() {
             onSubmit={async (payload) => {
               try {
                 if (editing) {
-                  await updateFn({
-                    data: {
-                      user_id: editing.id,
-                      full_name: payload.full_name,
-                      role: payload.role,
-                      branch_id: payload.branch_id,
-                      active: payload.active,
-                      password: payload.password || undefined,
-                    },
+                  const { error } = await supabase.rpc("admin_update_app_user", {
+                    _user_id: editing.id,
+                    _full_name: payload.full_name,
+                    _role: payload.role,
+                    _branch_id: payload.branch_id as string,
+                    _branch_id_set: true,
+                    _active: payload.active,
+                    _password: payload.password || undefined,
                   });
+                  if (error) throw error;
                   toast.success("Usuario actualizado");
                 } else {
                   if (!payload.email || !payload.password) {
                     toast.error("Correo y contraseña son obligatorios");
                     return;
                   }
-                  await createFn({
-                    data: {
-                      email: payload.email,
-                      password: payload.password,
-                      full_name: payload.full_name,
-                      role: payload.role,
-                      branch_id: payload.branch_id,
-                    },
+                  const { data: newId, error } = await supabase.rpc("admin_create_app_user", {
+                    _email: payload.email,
+                    _password: payload.password,
+                    _full_name: payload.full_name,
+                    _role: payload.role,
+                    _branch_id: payload.branch_id as string,
+                    _active: true,
                   });
+                  if (error) throw error;
+                  if (!newId) throw new Error("No se pudo crear el usuario");
                   toast.success("Usuario creado");
                 }
                 qc.invalidateQueries({ queryKey: ["users-list"] });

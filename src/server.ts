@@ -5,10 +5,15 @@ import { renderErrorPage } from "./lib/error-page";
 
 // Fallback: mirror VITE_* Supabase vars into their server counterparts.
 // Useful for deployments (e.g. Vercel) where only the VITE_* keys are set.
-function ensureServerSupabaseEnv() {
+function ensureServerSupabaseEnv(bindingEnv?: unknown) {
   try {
     const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
     if (!env) return;
+    if (bindingEnv && typeof bindingEnv === "object") {
+      Object.entries(bindingEnv as Record<string, unknown>).forEach(([key, value]) => {
+        if (typeof value === "string" && env[key] == null) env[key] = value;
+      });
+    }
     if (!env.SUPABASE_URL && env.VITE_SUPABASE_URL) env.SUPABASE_URL = env.VITE_SUPABASE_URL;
     if (!env.SUPABASE_PUBLISHABLE_KEY && env.VITE_SUPABASE_PUBLISHABLE_KEY)
       env.SUPABASE_PUBLISHABLE_KEY = env.VITE_SUPABASE_PUBLISHABLE_KEY;
@@ -58,6 +63,7 @@ async function normalizeCatastrophicSsrResponse(response: Response): Promise<Res
 export default {
   async fetch(request: Request, env: unknown, ctx: unknown) {
     try {
+      ensureServerSupabaseEnv(env);
       const handler = await getServerEntry();
       const response = await handler.fetch(request, env, ctx);
       return await normalizeCatastrophicSsrResponse(response);
