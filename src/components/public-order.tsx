@@ -1432,7 +1432,7 @@ export function PublicOrder({
         open={scheduleOpen}
         onOpenChange={setScheduleOpen}
         schedules={branchSchedules}
-        channel="online"
+        channel={isPickup ? "physical" : "online"}
         onConfirm={(iso, label) => { setScheduledFor(iso); setScheduledLabel(label); }}
       />
     </div>
