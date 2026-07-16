@@ -388,8 +388,8 @@ export function PublicOrder({
   const [scheduledLabel, setScheduledLabel] = useState<string>("");
   // Cuando cambia el servicio, limpiar cualquier programación previa incompatible
   useEffect(() => {
-    if (!isDelivery && scheduledFor) { setScheduledFor(null); setScheduledLabel(""); }
-  }, [isDelivery, scheduledFor]);
+    if (!isDelivery && !isPickup && scheduledFor) { setScheduledFor(null); setScheduledLabel(""); }
+  }, [isDelivery, isPickup, scheduledFor]);
 
 
   const nequiNum = (settings as { nequi_number?: string | null } | null | undefined)?.nequi_number ?? "";
