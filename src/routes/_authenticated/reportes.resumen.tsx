@@ -368,3 +368,146 @@ function ExpensesDetail({ expenses, totalExpenses }: { expenses: ExpenseRow[]; t
     </Card>
   );
 }
+
+function GastosTurnoDialog({
+  open,
+  onOpenChange,
+  branchId,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  branchId: string | null;
+}) {
+  const { data: activeSession, isLoading: loadingSession } = useQuery({
+    queryKey: ["reportes.active-session", branchId],
+    enabled: open,
+    staleTime: 0,
+    refetchOnMount: "always",
+    queryFn: async () => {
+      let q = supabase
+        .from("cash_sessions")
+        .select("id,opened_at,user_name,branch_id")
+        .eq("status", "open")
+        .order("opened_at", { ascending: false })
+        .limit(1);
+      if (branchId) q = q.eq("branch_id", branchId);
+      const { data } = await q;
+      return (data && data[0]) || null;
+    },
+  });
+
+  const sessionId = activeSession?.id ?? null;
+
+  const { data: gastos = [], isLoading: loadingGastos } = useQuery({
+    queryKey: ["reportes.gastos-turno", sessionId],
+    enabled: open && !!sessionId,
+    staleTime: 0,
+    refetchOnMount: "always",
+    refetchOnWindowFocus: "always",
+    queryFn: async (): Promise<ExpenseRow[]> => {
+      const { data, error } = await supabase
+        .from("expenses")
+        .select("*")
+        .eq("cash_session_id", sessionId!)
+        .order("created_at", { ascending: false });
+      if (error) throw error;
+      return (data ?? []) as ExpenseRow[];
+    },
+  });
+
+  useEffect(() => {
+    if (!open || !sessionId) return;
+    const ch = supabase
+      .channel(`gastos-turno-${sessionId}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "expenses", filter: `cash_session_id=eq.${sessionId}` },
+        () => {
+          void supabase.auth.getSession();
+        },
+      )
+      .subscribe();
+    return () => {
+      void supabase.removeChannel(ch);
+    };
+  }, [open, sessionId]);
+
+  const rows = useMemo(
+    () =>
+      gastos.filter((e) => {
+        const c = (e.category || "").toLowerCase();
+        return !CATEGORY_INCOME.has(c) && !CATEGORY_WITHDRAWAL.has(c) && !CATEGORY_REFUND.has(c);
+      }),
+    [gastos],
+  );
+  const total = useMemo(() => rows.reduce((a, e) => a + (Number(e.amount) || 0), 0), [rows]);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-3xl max-h-[85vh] overflow-y-auto">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-rose-500" />
+            Gastos del turno activo
+          </DialogTitle>
+          <DialogDescription>
+            {loadingSession
+              ? "Buscando turno abierto…"
+              : activeSession
+              ? `Turno abierto el ${formatDate(activeSession.opened_at)} · ${activeSession.user_name ?? "—"}`
+              : "No hay ningún turno abierto en esta sede."}
+          </DialogDescription>
+        </DialogHeader>
+
+        {!activeSession && !loadingSession ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">
+            No hay un turno de caja abierto actualmente. Abre una caja para registrar y consultar gastos.
+          </div>
+        ) : loadingGastos ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">Cargando gastos…</div>
+        ) : rows.length === 0 ? (
+          <div className="text-sm text-muted-foreground py-8 text-center">
+            No hay gastos registrados en el turno actual.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b text-xs uppercase text-muted-foreground">
+                  <th className="text-left py-2 px-2">Fecha</th>
+                  <th className="text-left py-2 px-2">Concepto</th>
+                  <th className="text-left py-2 px-2">Descripción</th>
+                  <th className="text-left py-2 px-2">Usuario</th>
+                  <th className="text-left py-2 px-2">Método</th>
+                  <th className="text-right py-2 px-2">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((e) => (
+                  <tr key={e.id} className="border-b last:border-0 hover:bg-muted/40">
+                    <td className="py-2 px-2 whitespace-nowrap">{formatDate(e.created_at)}</td>
+                    <td className="py-2 px-2 font-medium">{e.category || "—"}</td>
+                    <td className="py-2 px-2 text-muted-foreground">{e.description || "—"}</td>
+                    <td className="py-2 px-2">{e.user_name || "—"}</td>
+                    <td className="py-2 px-2 capitalize">{e.payment_method || "—"}</td>
+                    <td className="py-2 px-2 text-right font-semibold text-rose-600">
+                      {formatMoney(Number(e.amount) || 0)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2">
+                  <td colSpan={5} className="py-2 px-2 text-right font-semibold">
+                    Total del turno
+                  </td>
+                  <td className="py-2 px-2 text-right font-extrabold text-rose-700">{formatMoney(total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
