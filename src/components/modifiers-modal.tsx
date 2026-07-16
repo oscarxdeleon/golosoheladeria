@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Minus, Plus, StickyNote } from "lucide-react";
 import { formatMoney } from "@/lib/format";
+import { toast } from "sonner";
 
 export interface SelectedModifier {
   id: string;
