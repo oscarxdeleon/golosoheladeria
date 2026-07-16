@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -12,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/hooks/use-auth";
-import { getSharedDashboardPayload } from "@/lib/dashboard.functions";
 import {
   DollarSign, ShoppingBag, Target, TrendingUp, Calendar, Globe, CreditCard,
   Package, Clock, Lightbulb, Sparkles,
