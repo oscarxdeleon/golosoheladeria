@@ -59,6 +59,10 @@ interface SaleRow {
   source: string | null;
   branch_id: string | null;
   created_at: string;
+  cancelled_at?: string | null;
+  cancelled_by_name?: string | null;
+  cancellation_reason?: string | null;
+  cancellation_previous_status?: string | null;
 }
 
 interface SaleItem {
