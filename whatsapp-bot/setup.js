@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "config.json");
+const SETUP_OK_PATH = path.join(__dirname, ".setup-ok");
 const DEFAULT_API = "https://golosoheladeria.lovable.app";
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
@@ -81,6 +82,7 @@ async function validateToken(token, apiUrl) {
     console.log(`✅ Token válido para sede: ${remote.branch_name || remote.branch_id || "Goloso"}`);
     const canonicalToken = remote.device_token || token;
     fs.writeFileSync(CONFIG_PATH, JSON.stringify({ token: canonicalToken, apiUrl }, null, 2));
+    fs.writeFileSync(SETUP_OK_PATH, new Date().toISOString());
     console.log(`\n✅ Guardado en ${CONFIG_PATH}\n`);
   } catch (error) {
     console.error("\n[ERROR] No se pudo validar el token con el POS.");

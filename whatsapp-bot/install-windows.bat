@@ -61,11 +61,13 @@ goto npm_ok
 echo.
 echo === Configuracion de la sede ===
 echo Pega solo el token de la sede. La URL del POS se configura automaticamente.
+if exist ".setup-ok" del ".setup-ok" >nul 2>nul
 node setup.js
 if errorlevel 1 (
   pause
   exit /b 1
 )
+if not exist ".setup-ok" goto setup_failed
 
 echo.
 echo Registrando inicio automatico con Windows...
@@ -113,6 +115,13 @@ echo.
 pause
 endlocal
 exit /b 0
+
+:setup_failed
+  echo.
+  echo [ERROR] La configuracion no quedo validada.
+  echo Copia de nuevo el token completo desde Ajustes - WhatsApp Bot y vuelve a ejecutar este instalador.
+  pause
+  exit /b 1
 
 :start_failed
   echo.
