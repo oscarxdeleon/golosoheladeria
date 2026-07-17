@@ -192,11 +192,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             {cfg.connected_phone && <div className="text-xs text-muted-foreground">Número: {cfg.connected_phone}</div>}
           </div>
           <div className="flex items-center gap-2">
-            {cfg.qr_code && (
-              <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
-                <QrCode className="mr-2 h-4 w-4" /> Ver QR
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
+              <QrCode className="mr-2 h-4 w-4" /> Ver QR
+            </Button>
             <div className="flex items-center gap-2">
               <Switch id="bot-enabled" checked={cfg.enabled} onCheckedChange={toggleEnabled} />
               <Label htmlFor="bot-enabled" className="text-sm font-semibold">Bot activo</Label>
@@ -213,11 +211,15 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                 <li>Menú (⋮) → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b>.</li>
                 <li>Escanea este código.</li>
               </ol>
-              <div className="grid place-items-center rounded-xl border bg-white p-4">
+              <div className="grid place-items-center rounded-xl border bg-white p-4 min-h-[320px]">
                 {cfg.qr_code ? (
                   <QRCodeCanvas value={cfg.qr_code} size={280} includeMargin />
                 ) : (
-                  <div className="p-8 text-sm text-muted-foreground">Esperando QR del bot…</div>
+                  <div className="space-y-2 p-6 text-center text-sm text-muted-foreground">
+                    <QrCode className="mx-auto h-10 w-10 opacity-40" />
+                    <p className="font-semibold text-foreground">Aún no hay QR disponible</p>
+                    <p>Instala el bot en el PC de la sede (sección de abajo). Cuando arranque enviará el QR aquí automáticamente.</p>
+                  </div>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">El QR se refresca solo mientras el bot está en modo de vinculación.</p>
