@@ -44,6 +44,8 @@ interface MessageRow {
   received_at: string;
 }
 
+const WHATSAPP_BOT_DOWNLOAD_URL = "/__l5e/assets-v1/38cf1cfb-76aa-4943-806c-cb08f5235652/whatsapp-bot.zip";
+
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   connected:    { label: "Conectado",     color: "bg-emerald-500", icon: Wifi },
   connecting:   { label: "Conectando…",   color: "bg-amber-500",   icon: RefreshCw },
@@ -218,7 +220,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                   <div className="space-y-2 p-6 text-center text-sm text-muted-foreground">
                     <QrCode className="mx-auto h-10 w-10 opacity-40" />
                     <p className="font-semibold text-foreground">Aún no hay QR disponible</p>
-                    <p>Instala el bot en el PC de la sede (sección de abajo). Cuando arranque enviará el QR aquí automáticamente.</p>
+                    <p>Instala el bot en el PC de la sede. Si ya lo instalaste, abre <b>http://localhost:8790</b> en ese mismo PC: allí debe aparecer el QR o el error exacto.</p>
                   </div>
                 )}
               </div>
@@ -279,7 +281,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
-              <a href="/downloads/whatsapp-bot.zip?v=qr-install-fix" download>
+              <a href={WHATSAPP_BOT_DOWNLOAD_URL} download="whatsapp-bot.zip">
                 <Download className="mr-2 h-4 w-4" /> Descargar bot para Windows
               </a>
             </Button>
@@ -289,7 +291,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            Si la instalación anterior mostró “npm error spawn git”, descarga de nuevo el ZIP desde este botón y ejecuta otra vez install-windows.bat.
+            Esta versión valida el token antes de iniciar y muestra el QR o el error exacto en http://localhost:8790 del PC donde corre el bot.
           </p>
         </div>
       </CardContent>

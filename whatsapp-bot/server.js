@@ -54,8 +54,18 @@ let state = {
   qrDataUrl: null,           // dataURL para servir en localhost
   phone: null,
   lastError: null,
+  lastPushError: null,
   lastPushAt: null,
 };
+
+function escapeHtml(value) {
+  return String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
 
 async function pushStatus() {
   try {
@@ -73,11 +83,22 @@ async function pushStatus() {
     });
     if (!res.ok) {
       const txt = await res.text();
+      state.lastPushError = `POS respondió ${res.status}: ${txt.slice(0, 250)}`;
       logger.warn({ status: res.status, body: txt }, "status push failed");
     } else {
+      const txt = await res.text();
+      let data = null;
+      try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt.slice(0, 250) }; }
+      if (data?.error) {
+        state.lastPushError = `POS rechazó estado: ${data.error}`;
+        logger.warn({ body: data }, "status push rejected");
+        return;
+      }
+      state.lastPushError = null;
       state.lastPushAt = Date.now();
     }
   } catch (e) {
+    state.lastPushError = String(e);
     logger.warn({ err: String(e) }, "status push error");
   }
 }
@@ -183,21 +204,23 @@ function startLocalUI() {
       const html = `<!doctype html><html><head><meta charset="utf-8"><title>Goloso Bot</title>
 <meta http-equiv="refresh" content="5">
 <style>body{font-family:system-ui,-apple-system,sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh;margin:0;display:grid;place-items:center;padding:2rem}
-.card{background:#1e293b;border-radius:16px;padding:2rem;max-width:420px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center}
+.card{background:#1e293b;border-radius:16px;padding:2rem;max-width:460px;width:100%;box-shadow:0 20px 60px rgba(0,0,0,.4);text-align:center}
 h1{margin:0 0 .5rem;font-size:1.5rem}
 .status{display:inline-flex;align-items:center;gap:.5rem;padding:.5rem 1rem;border-radius:999px;background:${statusColor};color:white;font-weight:600;margin:.75rem 0}
 .phone{color:#94a3b8;font-size:.875rem}
 img{max-width:100%;background:white;padding:1rem;border-radius:12px;margin-top:1rem}
-.note{color:#94a3b8;font-size:.8rem;margin-top:1.5rem;line-height:1.5}
+.note{color:#94a3b8;font-size:.8rem;margin-top:1.5rem;line-height:1.5}.ok{color:#86efac}.err{color:#fecaca;background:#7f1d1d66;border:1px solid #ef444466;border-radius:10px;padding:.75rem;margin-top:1rem;text-align:left;word-break:break-word}
 </style></head><body>
 <div class="card">
 <h1>🍨 Goloso — WhatsApp Bot</h1>
 <div class="status">● ${state.status.toUpperCase()}</div>
-${state.phone ? `<div class="phone">Número: +${state.phone}</div>` : ""}
+${state.phone ? `<div class="phone">Número: +${escapeHtml(state.phone)}</div>` : ""}
 ${state.qrDataUrl ? `<img src="${state.qrDataUrl}" alt="QR">` : ""}
 ${state.status === "qr" ? `<p class="note">Abre WhatsApp Business → menú → Dispositivos vinculados → Vincular un dispositivo, y escanea este código.</p>` : ""}
 ${state.status === "connected" ? `<p class="note">Todo funcionando. Puedes cerrar esta ventana. El bot corre en segundo plano.</p>` : ""}
 ${state.status === "disconnected" ? `<p class="note">Intentando reconectar automáticamente…</p>` : ""}
+${state.lastPushAt ? `<p class="note ok">Panel POS sincronizado.</p>` : ""}
+${state.lastPushError ? `<div class="err"><b>No se pudo sincronizar con el POS.</b><br>${escapeHtml(state.lastPushError)}<br><br>Revisa que el token sea el de la sede seleccionada y que la app esté publicada.</div>` : ""}
 <p class="note">Este panel se actualiza solo cada 5s.<br>Config y bienvenidas se editan desde el POS.</p>
 </div></body></html>`;
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -206,7 +229,7 @@ ${state.status === "disconnected" ? `<p class="note">Intentando reconectar autom
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: state.status, phone: state.phone, lastPushAt: state.lastPushAt }));
+      res.end(JSON.stringify({ status: state.status, phone: state.phone, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError }));
       return;
     }
     res.writeHead(404); res.end();
@@ -222,6 +245,7 @@ async function main() {
   console.log(`   Token   : ${config.token.slice(0, 6)}…${config.token.slice(-4)}`);
   startLocalUI();
   setInterval(pushStatus, HEARTBEAT_MS);
+  void pushStatus();
   await startSocket().catch((e) => {
     logger.error(e);
     state.status = "error";
