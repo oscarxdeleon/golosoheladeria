@@ -4,11 +4,22 @@ import { consumeLastCapturedError } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
 // Fallback: mirror VITE_* Supabase vars into their server counterparts.
-// Useful for deployments (e.g. Vercel) where only the VITE_* keys are set.
+// Useful for deployments (e.g. Vercel) where only the VITE_* keys are set,
+// or where runtime `process.env` doesn't carry them at all (Edge runtime).
+// `import.meta.env.VITE_*` is inlined by Vite at build time, so it works
+// even when the runtime env is empty.
+const BUILD_ENV = {
+  SUPABASE_URL: import.meta.env.VITE_SUPABASE_URL as string | undefined,
+  SUPABASE_PUBLISHABLE_KEY: import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined,
+  SUPABASE_PROJECT_ID: import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined,
+} as const;
+
 function ensureServerSupabaseEnv(bindingEnv?: unknown) {
   try {
-    const env = (globalThis as { process?: { env?: Record<string, string | undefined> } }).process?.env;
-    if (!env) return;
+    const g = globalThis as { process?: { env?: Record<string, string | undefined> } };
+    if (!g.process) g.process = { env: {} };
+    if (!g.process.env) g.process.env = {};
+    const env = g.process.env;
     if (bindingEnv && typeof bindingEnv === "object") {
       Object.entries(bindingEnv as Record<string, unknown>).forEach(([key, value]) => {
         if (typeof value === "string" && env[key] == null) env[key] = value;
@@ -19,6 +30,14 @@ function ensureServerSupabaseEnv(bindingEnv?: unknown) {
       env.SUPABASE_PUBLISHABLE_KEY = env.VITE_SUPABASE_PUBLISHABLE_KEY;
     if (!env.SUPABASE_PROJECT_ID && env.VITE_SUPABASE_PROJECT_ID)
       env.SUPABASE_PROJECT_ID = env.VITE_SUPABASE_PROJECT_ID;
+    // Final fallback: values inlined at build time by Vite. These always
+    // exist when the client-side Supabase works, so this fully covers
+    // Vercel deployments that only configured the VITE_* names.
+    if (!env.SUPABASE_URL && BUILD_ENV.SUPABASE_URL) env.SUPABASE_URL = BUILD_ENV.SUPABASE_URL;
+    if (!env.SUPABASE_PUBLISHABLE_KEY && BUILD_ENV.SUPABASE_PUBLISHABLE_KEY)
+      env.SUPABASE_PUBLISHABLE_KEY = BUILD_ENV.SUPABASE_PUBLISHABLE_KEY;
+    if (!env.SUPABASE_PROJECT_ID && BUILD_ENV.SUPABASE_PROJECT_ID)
+      env.SUPABASE_PROJECT_ID = BUILD_ENV.SUPABASE_PROJECT_ID;
   } catch {
     /* noop */
   }
