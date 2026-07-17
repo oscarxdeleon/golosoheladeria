@@ -41,6 +41,10 @@ function normalizeBackendError(body: unknown, fallback: string) {
   const text = String(body || "").trim();
   if (!text) return fallback;
 
+  if (/JWT|token|authorization|bearer/i.test(text)) {
+    return "Tu sesión no está activa. Vuelve a iniciar sesión e intenta de nuevo.";
+  }
+
   if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
     return "El servidor devolvió una página de error en lugar de una respuesta válida. Recarga la app e intenta de nuevo.";
   }
