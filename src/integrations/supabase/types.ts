@@ -2924,6 +2924,19 @@ export type Database = {
       }
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
       touch_tablet_last_seen: { Args: { _token: string }; Returns: undefined }
+      whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
+      whatsapp_bot_handle_incoming: {
+        Args: { _body: string; _from: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_report_status: {
+        Args: { _phone?: string; _qr?: string; _status: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_rotate_token: {
+        Args: { _branch_id: string }
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "cajero" | "mesero" | "domiciliario" | "supervisor"
