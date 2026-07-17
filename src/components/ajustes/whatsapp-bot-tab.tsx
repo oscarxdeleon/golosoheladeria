@@ -44,6 +44,8 @@ interface MessageRow {
   received_at: string;
 }
 
+const WHATSAPP_BOT_DOWNLOAD_URL = "/__l5e/assets-v1/38cf1cfb-76aa-4943-806c-cb08f5235652/whatsapp-bot.zip";
+
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   connected:    { label: "Conectado",     color: "bg-emerald-500", icon: Wifi },
   connecting:   { label: "Conectando…",   color: "bg-amber-500",   icon: RefreshCw },
@@ -279,7 +281,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
-              <a href="/downloads/whatsapp-bot.zip?v=qr-sync-diagnostics" download>
+              <a href={WHATSAPP_BOT_DOWNLOAD_URL} download="whatsapp-bot.zip">
                 <Download className="mr-2 h-4 w-4" /> Descargar bot para Windows
               </a>
             </Button>
