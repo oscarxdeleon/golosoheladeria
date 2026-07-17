@@ -1,0 +1,2 @@
+ALTER TABLE public.restaurant_tables REPLICA IDENTITY FULL;
+ALTER TABLE public.table_events REPLICA IDENTITY FULL;

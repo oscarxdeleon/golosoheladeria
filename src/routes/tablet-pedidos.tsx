@@ -68,9 +68,15 @@ function TabletPage() {
 
 function TabletShell() {
   const { profile, user } = useAuth();
+  const { activeBranchId } = useBranch();
+  // Mantener la suscripción realtime activa en TODA la sesión de tablet
+  // (mesas, pedido en curso, etc.) para que el mapa de mesas ya esté
+  // actualizado cuando el mesero regrese después de guardar un pedido.
+  useRealtimeBranchSync(activeBranchId);
   const [tab, setTab] = useState<TabKey>("mesas");
   // Tablet de meseros: kiosco siempre activo (fullscreen automático al primer toque)
   useKioskLock(true);
+
   const [fsHint, setFsHint] = useState(typeof document !== "undefined" && !document.fullscreenElement);
   useEffect(() => {
     const on = () => setFsHint(!document.fullscreenElement);
