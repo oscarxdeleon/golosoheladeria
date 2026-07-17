@@ -119,6 +119,7 @@ const TABS: TabDef[] = [
   { value: "mesero-app",  label: "Aplicación para Meseros", icon: Smartphone, hint: "Instalar app en tablets Android para meseros (PWA/APK)", group: "operaciones", accent: "from-teal-500 to-emerald-600" },
   { value: "kds-link",    label: "KDS",               icon: ChefHat,      hint: "Pantalla de cocina para ver comandas en vivo",        group: "operaciones", accent: "from-orange-500 to-red-600" },
   { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
+  { value: "whatsapp-bot",label: "WhatsApp Bot",      icon: MessageCircle,hint: "Asistente virtual: bienvenida automática y envío del menú por WhatsApp", group: "operaciones", accent: "from-emerald-500 to-green-600" },
   { value: "extras",      label: "Configuraciones adicionales", icon: Sparkles, hint: "Opciones extra del POS (propina y otros)",     group: "ventas",      accent: "from-yellow-400 to-amber-500" },
   { value: "descargas",   label: "Descargas e Instaladores", icon: Download,  hint: "Instaladores POS, apps de mesero, quiosco y Print Server", group: "sistema", accent: "from-cyan-500 to-blue-600", adminOnly: true },
   { value: "reset-data",  label: "Reiniciar datos", icon: ShieldAlert, hint: "Eliminar datos operativos para iniciar un nuevo periodo (crítico)", group: "sistema", accent: "from-red-500 to-rose-600", adminOnly: true },
