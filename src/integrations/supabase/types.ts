@@ -2404,6 +2404,8 @@ export type Database = {
       }
       whatsapp_bot_config: {
         Row: {
+          after_hours_enabled: boolean
+          after_hours_messages: string[]
           branch_id: string
           connected_phone: string | null
           connection_status: string
@@ -2419,6 +2421,8 @@ export type Database = {
           welcome_messages: string[]
         }
         Insert: {
+          after_hours_enabled?: boolean
+          after_hours_messages?: string[]
           branch_id: string
           connected_phone?: string | null
           connection_status?: string
@@ -2434,6 +2438,8 @@ export type Database = {
           welcome_messages?: string[]
         }
         Update: {
+          after_hours_enabled?: boolean
+          after_hours_messages?: string[]
           branch_id?: string
           connected_phone?: string | null
           connection_status?: string
@@ -2928,6 +2934,10 @@ export type Database = {
       whatsapp_bot_handle_incoming: {
         Args: { _body: string; _from: string; _token: string }
         Returns: Json
+      }
+      whatsapp_bot_is_online_open: {
+        Args: { _branch_id: string }
+        Returns: boolean
       }
       whatsapp_bot_report_status: {
         Args: { _phone?: string; _qr?: string; _status: string; _token: string }
