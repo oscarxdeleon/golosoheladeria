@@ -279,7 +279,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
-              <a href="/downloads/whatsapp-bot.zip" download>
+              <a href="/downloads/whatsapp-bot.zip?v=qr-install-fix" download>
                 <Download className="mr-2 h-4 w-4" /> Descargar bot para Windows
               </a>
             </Button>
@@ -289,7 +289,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            El bot corre sobre WhatsApp Web. Al apagar el PC el bot se detiene; al encenderlo arranca solo y recupera la sesión sin volver a escanear el QR.
+            Si la instalación anterior mostró “npm error spawn git”, descarga de nuevo el ZIP desde este botón y ejecuta otra vez install-windows.bat.
           </p>
         </div>
       </CardContent>
