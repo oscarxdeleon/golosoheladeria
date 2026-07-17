@@ -136,9 +136,10 @@ export function ScheduleOrderDialog({ open, onOpenChange, schedules, channel, on
                       onClick={() => setSlot(s)}
                       className={`rounded-md border py-2 text-sm font-medium transition ${active ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted"}`}
                     >
-                      {s}
+                      {to12h(s)}
                     </button>
                   );
+
                 })}
                 {slots.length === 0 && (
                   <div className="col-span-4 text-xs text-muted-foreground text-center py-4">
