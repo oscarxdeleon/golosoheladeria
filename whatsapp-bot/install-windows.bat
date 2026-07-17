@@ -40,14 +40,19 @@ timeout /t 2 /nobreak >nul
 
 echo Instalando dependencias (puede tardar 1-2 minutos)...
 call npm install --omit=dev --no-audit --no-fund
-if errorlevel 1 (
+if errorlevel 1 goto npm_failed
+if not exist "node_modules\@whiskeysockets\baileys" goto npm_failed
+goto npm_ok
+
+:npm_failed
   echo.
   echo [ERROR] Fallo npm install.
   echo Si ves "spawn git" o "ENOENT", descarga de nuevo el ZIP desde el POS y vuelve a intentarlo.
   echo Tambien puedes instalar Git para Windows y ejecutar este archivo otra vez.
   pause
   exit /b 1
-)
+
+:npm_ok
 
 echo.
 echo === Configuracion de la sede ===
