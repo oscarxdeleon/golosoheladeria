@@ -61,6 +61,7 @@ import { Route as SSlugMenuRouteImport } from './routes/s.$slug.menu'
 import { Route as SSlugManifestDotwebmanifestRouteImport } from './routes/s.$slug.manifest[.]webmanifest'
 import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
 import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
+import { Route as ApiPublicUserAdminRouteImport } from './routes/api/public/user-admin'
 import { Route as AuthenticatedReportesVentasRouteImport } from './routes/_authenticated/reportes.ventas'
 import { Route as AuthenticatedReportesResumenRouteImport } from './routes/_authenticated/reportes.resumen'
 import { Route as AuthenticatedReportesCajasRouteImport } from './routes/_authenticated/reportes.cajas'
@@ -341,6 +342,11 @@ const AsistenciaTerminalSlugRoute = AsistenciaTerminalSlugRouteImport.update({
   path: '/asistencia/terminal/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicUserAdminRoute = ApiPublicUserAdminRouteImport.update({
+  id: '/api/public/user-admin',
+  path: '/api/public/user-admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedReportesVentasRoute =
   AuthenticatedReportesVentasRouteImport.update({
     id: '/ventas',
@@ -468,6 +474,7 @@ export interface FileRoutesByFullPath {
   '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -531,6 +538,7 @@ export interface FileRoutesByTo {
   '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -598,6 +606,7 @@ export interface FileRoutesById {
   '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/_authenticated/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/_authenticated/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -665,6 +674,7 @@ export interface FileRouteTypes {
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
+    | '/api/public/user-admin'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
+    | '/api/public/user-admin'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -794,6 +805,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reportes/cajas'
     | '/_authenticated/reportes/resumen'
     | '/_authenticated/reportes/ventas'
+    | '/api/public/user-admin'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -817,6 +829,7 @@ export interface RootRouteChildren {
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
   TabletAutoTokenRoute: typeof TabletAutoTokenRoute
+  ApiPublicUserAdminRoute: typeof ApiPublicUserAdminRoute
   AsistenciaTerminalSlugRoute: typeof AsistenciaTerminalSlugRoute
   ApiPublicTabletAuthTokenRoute: typeof ApiPublicTabletAuthTokenRoute
 }
@@ -1187,6 +1200,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AsistenciaTerminalSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/user-admin': {
+      id: '/api/public/user-admin'
+      path: '/api/public/user-admin'
+      fullPath: '/api/public/user-admin'
+      preLoaderRoute: typeof ApiPublicUserAdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/reportes/ventas': {
       id: '/_authenticated/reportes/ventas'
       path: '/ventas'
@@ -1416,6 +1436,7 @@ const rootRouteChildren: RootRouteChildren = {
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
   TabletAutoTokenRoute: TabletAutoTokenRoute,
+  ApiPublicUserAdminRoute: ApiPublicUserAdminRoute,
   AsistenciaTerminalSlugRoute: AsistenciaTerminalSlugRoute,
   ApiPublicTabletAuthTokenRoute: ApiPublicTabletAuthTokenRoute,
 }
