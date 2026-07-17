@@ -44,7 +44,7 @@ interface MessageRow {
   received_at: string;
 }
 
-const WHATSAPP_BOT_DOWNLOAD_URL = "https://golosoheladeria.lovable.app/__l5e/assets-v1/b76beb19-0466-482d-b2bf-3da7046a9425/whatsapp-bot.zip";
+const WHATSAPP_BOT_DOWNLOAD_URL = "https://golosoheladeria.lovable.app/__l5e/assets-v1/5ade7bec-c0ba-4427-9e00-e782c3522b60/whatsapp-bot.zip";
 
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   connected:    { label: "Conectado",     color: "bg-emerald-500", icon: Wifi },
