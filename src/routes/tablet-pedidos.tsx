@@ -104,6 +104,16 @@ function TabletShell() {
             <div className="font-medium truncate">{profile?.full_name ?? user?.email}</div>
             <div className="text-xs text-muted-foreground">Mesero</div>
           </div>
+          {fsHint && (
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => undefined)}
+              title="Ocultar barra del navegador"
+            >
+              Pantalla completa
+            </Button>
+          )}
           <Button
             variant="ghost"
             size="sm"
