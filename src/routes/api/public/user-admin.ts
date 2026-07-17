@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { normalizeUserAdminError } from "@/lib/user-admin-errors";
 
 type UserAdminRpcName = "admin_create_app_user" | "admin_update_app_user" | "admin_delete_app_user";
 
@@ -30,48 +31,6 @@ function jsonResponse(body: unknown, status = 200) {
       "Cache-Control": "no-store",
     },
   });
-}
-
-function normalizeBackendError(body: unknown, fallback: string) {
-  const messageFromObject = (value: Record<string, unknown>): unknown => {
-    const direct = value.message ?? value.details ?? value.hint ?? value.error ?? value.msg;
-    if (direct && typeof direct === "object") return messageFromObject(direct as Record<string, unknown>);
-    return direct;
-  };
-
-  const cleanText = (value: string) => {
-    const text = value.trim();
-    if (!text || text === "[object Object]") return fallback;
-
-    if (/Ya existe|already registered|duplicate key|users_email_partial_key|identities_provider_id_provider_unique/i.test(text)) {
-      return "Ya existe un usuario con ese correo";
-    }
-
-    if (/Failed to fetch|NetworkError|Load failed|fetch failed|ECONN|timeout/i.test(text)) {
-      return "Error de conexión";
-    }
-
-    if (/permission denied|not authorized|forbidden|Solo administradores|supervisores/i.test(text)) {
-      return "No tienes permisos suficientes";
-    }
-
-    if (/JWT|token|authorization|bearer/i.test(text)) {
-      return "Tu sesión no está activa. Vuelve a iniciar sesión e intenta de nuevo.";
-    }
-
-    if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
-      return "El servidor devolvió una página de error en lugar de una respuesta válida. Recarga la app e intenta de nuevo.";
-    }
-
-    return text;
-  };
-
-  if (body && typeof body === "object") {
-    const extracted = messageFromObject(body as Record<string, unknown>);
-    return cleanText(typeof extracted === "string" ? extracted : fallback);
-  }
-
-  return cleanText(String(body || ""));
 }
 
 export const Route = createFileRoute("/api/public/user-admin")({
@@ -117,13 +76,13 @@ export const Route = createFileRoute("/api/public/user-admin")({
           }
 
           if (!response.ok) {
-            return jsonResponse({ error: normalizeBackendError(parsed, "No se pudo completar la operación de usuarios") }, response.status);
+            return jsonResponse({ error: normalizeUserAdminError(parsed, "No se pudo completar la operación de usuarios") }, response.status);
           }
 
           return jsonResponse({ data: parsed ?? null });
         } catch (error) {
           return jsonResponse({
-            error: normalizeBackendError(error instanceof Error ? error.message : error, "No se pudo completar la operación de usuarios"),
+            error: normalizeUserAdminError(error, "No se pudo completar la operación de usuarios"),
           }, 500);
         }
       },

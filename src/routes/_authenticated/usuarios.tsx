@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, EyeOff, Glasses } from "lucide-react";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
+import { normalizeUserAdminError } from "@/lib/user-admin-errors";
 
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
@@ -43,44 +44,6 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 ];
 
 type UserAdminRpcName = "admin_create_app_user" | "admin_update_app_user" | "admin_delete_app_user";
-
-function extractBackendMessage(body: unknown, fallback: string) {
-  const cleanText = (value: string) => {
-    const text = value.trim();
-    if (!text || text === "[object Object]") return fallback;
-
-    if (/Ya existe|already registered|duplicate key|users_email_partial_key|identities_provider_id_provider_unique/i.test(text)) {
-      return "Ya existe un usuario con ese correo";
-    }
-
-    if (/Failed to fetch|NetworkError|Load failed|fetch failed|ECONN|timeout/i.test(text)) {
-      return "Error de conexión";
-    }
-
-    if (/permission denied|not authorized|forbidden|Solo administradores|supervisores/i.test(text)) {
-      return "No tienes permisos suficientes";
-    }
-
-    if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
-      return "El servidor devolvió una página de error. Recarga la pantalla de usuarios e intenta nuevamente.";
-    }
-
-    return text;
-  };
-
-  const messageFromObject = (value: Record<string, unknown>): unknown => {
-    const direct = value.error ?? value.message ?? value.details ?? value.hint ?? value.msg;
-    if (direct && typeof direct === "object") return messageFromObject(direct as Record<string, unknown>);
-    return direct;
-  };
-
-  if (body && typeof body === "object") {
-    const extracted = messageFromObject(body as Record<string, unknown>);
-    return cleanText(typeof extracted === "string" ? extracted : fallback);
-  }
-
-  return cleanText(String(body || ""));
-}
 
 async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string, unknown>): Promise<T> {
   const { data, error: sessionError } = await supabase.auth.getSession();
@@ -111,7 +74,7 @@ async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string,
   }
 
   if (!response.ok) {
-    throw new Error(extractBackendMessage(body, "No se pudo completar la operación de usuarios"));
+    throw new Error(normalizeUserAdminError(body, "No se pudo completar la operación de usuarios"));
   }
 
   if (body && typeof body === "object" && "data" in body) {
@@ -176,7 +139,7 @@ function UsuariosPage() {
   const canManageUsers = isAdmin || primaryRole === "supervisor";
 
   function showUserActionError(e: unknown, fallback: string) {
-    const raw = e instanceof Error ? e.message : String(e ?? "");
+    const raw = normalizeUserAdminError(e, fallback);
     // Si el error menciona variables de entorno significa que hay JS cacheado
     // por un service worker antiguo (el flujo actual usa RPC directo, no
     // requiere SUPABASE_SERVICE_ROLE_KEY). Se limpia el caché y se recarga.
