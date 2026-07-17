@@ -21,6 +21,17 @@ interface Props {
   minLeadMinutes?: number;
 }
 
+/** "14:30" -> "2:30 p. m." */
+function to12h(hhmm: string): string {
+  const [hStr, mStr] = hhmm.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  const suffix = h < 12 ? "a. m." : "p. m.";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+
 const DAY_LABEL: Record<string, string> = {
   lun: "Lun", mar: "Mar", mie: "Mié", jue: "Jue", vie: "Vie", sab: "Sáb", dom: "Dom",
 };
