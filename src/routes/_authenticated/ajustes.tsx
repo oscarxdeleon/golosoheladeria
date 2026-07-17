@@ -28,6 +28,7 @@ import { FidelizacionTab } from "@/components/ajustes/fidelizacion-tab";
 import { ComandasFormatTab } from "@/components/ajustes/comandas-format-tab";
 import { DescargasTab } from "@/components/ajustes/descargas-tab";
 import { ResetDataTab } from "@/components/ajustes/reset-data-tab";
+import { WhatsAppBotTab } from "@/components/ajustes/whatsapp-bot-tab";
 import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
