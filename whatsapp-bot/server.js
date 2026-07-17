@@ -30,6 +30,7 @@ const LOCAL_PORT = 8790;
 const HEARTBEAT_MS = 30_000;
 const REPLY_DELAY_MIN = 2000;
 const REPLY_DELAY_MAX = 5000;
+const VERSION_FETCH_TIMEOUT_MS = 7_000;
 
 const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: false }));
 
@@ -56,6 +57,7 @@ let state = {
   lastError: null,
   lastPushError: null,
   lastPushAt: null,
+  detail: "Iniciando conexión con WhatsApp...",
 };
 
 function escapeHtml(value) {
@@ -126,16 +128,44 @@ function humanDelay() {
   return Math.floor(REPLY_DELAY_MIN + Math.random() * (REPLY_DELAY_MAX - REPLY_DELAY_MIN));
 }
 
+function withTimeout(promise, ms, label) {
+  let timer;
+  const timeout = new Promise((_, reject) => {
+    timer = setTimeout(() => reject(new Error(`${label} tardó más de ${Math.round(ms / 1000)}s`)), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function getSafeBaileysVersion() {
+  try {
+    const { version } = await withTimeout(fetchLatestBaileysVersion(), VERSION_FETCH_TIMEOUT_MS, "La consulta de versión de WhatsApp");
+    logger.info({ version }, "using latest WhatsApp Web version");
+    return version;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn({ err: message }, "could not fetch latest WhatsApp Web version; using bundled Baileys version");
+    state.lastError = `${message}. Se continúa con la versión incluida en el bot.`;
+    return undefined;
+  }
+}
+
 async function startSocket() {
+  state.status = "connecting";
+  state.detail = "Preparando sesión de WhatsApp...";
+  console.log("\nConectando con WhatsApp. El QR puede tardar unos segundos...\n");
   const { state: authState, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const { version } = await fetchLatestBaileysVersion();
-  const sock = makeWASocket({
-    version,
+  const version = await getSafeBaileysVersion();
+  state.detail = "Esperando respuesta de WhatsApp para generar el QR...";
+  const socketConfig = {
     auth: authState,
     printQRInTerminal: false,
     logger: pino({ level: "silent" }),
     browser: ["Goloso Bot", "Chrome", "1.0"],
-  });
+    connectTimeoutMs: 30_000,
+    defaultQueryTimeoutMs: 60_000,
+  };
+  if (version) socketConfig.version = version;
+  const sock = makeWASocket(socketConfig);
 
   sock.ev.on("creds.update", saveCreds);
 
@@ -145,7 +175,14 @@ async function startSocket() {
       state.status = "qr";
       state.qr = qr;
       state.qrDataUrl = await QRCode.toDataURL(qr, { width: 320, margin: 1 });
+      state.detail = "QR generado. Escanéalo con WhatsApp Business.";
       logger.info("QR generated");
+      console.log("\n✅ QR generado. Escanéalo desde WhatsApp Business.\n");
+      try {
+        console.log(await QRCode.toString(qr, { type: "terminal", small: true }));
+      } catch {
+        console.log("Abre http://localhost:8790 para ver el QR.");
+      }
       pushStatus();
     }
     if (connection === "open") {
@@ -153,7 +190,9 @@ async function startSocket() {
       state.qr = null;
       state.qrDataUrl = null;
       state.phone = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
+      state.detail = "Conectado correctamente.";
       logger.info({ phone: state.phone }, "connected");
+      console.log(`\n✅ WhatsApp conectado${state.phone ? `: +${state.phone}` : ""}.\n`);
       pushStatus();
     } else if (connection === "close") {
       const code = lastDisconnect?.error?.output?.statusCode;
@@ -162,6 +201,7 @@ async function startSocket() {
       state.status = "disconnected";
       state.qr = null;
       state.qrDataUrl = null;
+      state.detail = shouldReconnect ? "Conexión cerrada. Reintentando automáticamente..." : "Sesión cerrada desde WhatsApp. Borra auth_state y vuelve a instalar para generar un QR nuevo.";
       pushStatus();
       if (shouldReconnect) setTimeout(() => startSocket().catch((e) => logger.error(e)), 5000);
     }
@@ -215,11 +255,14 @@ img{max-width:100%;background:white;padding:1rem;border-radius:12px;margin-top:1
 <h1>🍨 Goloso — WhatsApp Bot</h1>
 <div class="status">● ${state.status.toUpperCase()}</div>
 ${state.phone ? `<div class="phone">Número: +${escapeHtml(state.phone)}</div>` : ""}
+${state.detail ? `<p class="note">${escapeHtml(state.detail)}</p>` : ""}
 ${state.qrDataUrl ? `<img src="${state.qrDataUrl}" alt="QR">` : ""}
 ${state.status === "qr" ? `<p class="note">Abre WhatsApp Business → menú → Dispositivos vinculados → Vincular un dispositivo, y escanea este código.</p>` : ""}
 ${state.status === "connected" ? `<p class="note">Todo funcionando. Puedes cerrar esta ventana. El bot corre en segundo plano.</p>` : ""}
 ${state.status === "disconnected" ? `<p class="note">Intentando reconectar automáticamente…</p>` : ""}
+${state.status === "connecting" && !state.qrDataUrl ? `<p class="note">Si pasan más de 60 segundos, revisa que el PC tenga internet y que WhatsApp Web no esté bloqueado por antivirus/firewall.</p>` : ""}
 ${state.lastPushAt ? `<p class="note ok">Panel POS sincronizado.</p>` : ""}
+${state.lastError ? `<div class="err"><b>Aviso de conexión.</b><br>${escapeHtml(state.lastError)}</div>` : ""}
 ${state.lastPushError ? `<div class="err"><b>No se pudo sincronizar con el POS.</b><br>${escapeHtml(state.lastPushError)}<br><br>Revisa que el token sea el de la sede seleccionada y que la app esté publicada.</div>` : ""}
 <p class="note">Este panel se actualiza solo cada 5s.<br>Config y bienvenidas se editan desde el POS.</p>
 </div></body></html>`;
@@ -229,7 +272,7 @@ ${state.lastPushError ? `<div class="err"><b>No se pudo sincronizar con el POS.<
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: state.status, phone: state.phone, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError }));
+      res.end(JSON.stringify({ status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, hasQr: Boolean(state.qr) }));
       return;
     }
     res.writeHead(404); res.end();

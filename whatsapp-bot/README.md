@@ -7,11 +7,11 @@ Bot local que corre en el **PC de cada sede** y responde automáticamente a los 
 1. Requisitos: [Node.js 18+](https://nodejs.org) instalado en el PC.
 2. Descomprime esta carpeta en un directorio **permanente** (no el escritorio ni Descargas).
 3. En el POS, abre **Ajustes → WhatsApp Bot**, elige la sede y copia el **Token**.
-4. Doble-click a `install-windows.bat`. Cuando pida el token, pégalo.
+4. Doble-click a `install-windows.bat`. Cuando pida el token, pégalo. No pide URL: usa automáticamente la URL publicada del POS.
 5. Se abre `http://localhost:8790`. Cuando salga el QR, escanéalo con WhatsApp Business del celular de la sede (Menú → Dispositivos vinculados → Vincular un dispositivo).
 6. Estado pasa a **Conectado**. Listo.
 
-Si el QR no aparece en el POS, abre `http://localhost:8790` en el mismo PC donde instalaste el bot. Ese panel local muestra el QR y también indica si el token no coincide o si no pudo sincronizar con el POS.
+Si el QR no aparece en el POS, abre `http://localhost:8790` en el mismo PC donde instalaste el bot. Ese panel local muestra el QR y también indica si el token no coincide o si no pudo sincronizar con el POS. Como respaldo, el QR también se dibuja en la consola cuando WhatsApp lo entrega.
 
 Si durante la instalación aparece `npm error enoent spawn git`, descarga nuevamente el ZIP desde el POS. Esta versión valida el token antes de iniciar y evita reinstalar dependencias si ya vienen incluidas.
 

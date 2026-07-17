@@ -43,7 +43,8 @@ async function validateToken(token, apiUrl) {
     process.exit(1);
   }
 
-  const apiUrl = normalizeApiUrl((await ask(`URL del POS [${existing.apiUrl || DEFAULT_API}]: `)).trim() || existing.apiUrl || DEFAULT_API);
+  const apiUrl = normalizeApiUrl(process.env.GOLOSO_POS_URL || existing.apiUrl || DEFAULT_API);
+  console.log(`URL del POS: ${apiUrl}`);
 
   console.log("\nValidando token con el POS...");
   try {
