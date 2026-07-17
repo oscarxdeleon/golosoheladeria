@@ -8,6 +8,18 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
+type TableRealtimeRow = {
+  id?: string;
+  branch_id?: string | null;
+  [key: string]: unknown;
+};
+
+type TableRealtimePayload = {
+  eventType: "INSERT" | "UPDATE" | "DELETE" | string;
+  new: TableRealtimeRow;
+  old: TableRealtimeRow;
+};
+
 interface Opts {
   /** Si es true, además invalida `pending-sale` (usado por PosScreen). */
   invalidatePendingSale?: boolean;
@@ -20,8 +32,36 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
   useEffect(() => {
     if (!branchId) return;
 
+    const scopedTablesKey = ["restaurant_tables", branchId] as const;
+
+    const syncTableCache = (payload: TableRealtimePayload) => {
+      qc.setQueryData<TableRealtimeRow[]>(scopedTablesKey, (current) => {
+        if (!current) return current;
+
+        const row = payload.eventType === "DELETE" ? payload.old : payload.new;
+        const id = row?.id;
+        if (!id) return current;
+
+        if (payload.eventType === "DELETE") {
+          return current.filter((table) => table.id !== id);
+        }
+
+        if (payload.new?.branch_id && payload.new.branch_id !== branchId) {
+          return current.filter((table) => table.id !== id);
+        }
+
+        const nextRow = payload.new;
+        const existingIndex = current.findIndex((table) => table.id === id);
+        if (existingIndex === -1) return [...current, nextRow];
+
+        const next = [...current];
+        next[existingIndex] = { ...next[existingIndex], ...nextRow };
+        return next;
+      });
+    };
+
     const invalidateTables = () => {
-      void qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+      void qc.invalidateQueries({ queryKey: scopedTablesKey });
       void qc.invalidateQueries({ queryKey: ["dashboard-shared"] });
     };
     const invalidateSales = () => {
@@ -66,17 +106,19 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
         .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "restaurant_tables", filter: `branch_id=eq.${branchId}` },
-        invalidateTables,
+        (payload) => {
+          syncTableCache(payload as TableRealtimePayload);
+          invalidateTables();
+        },
         )
         .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "sales", filter: `branch_id=eq.${branchId}` },
         invalidateBoth,
         )
-        // sale_items no tiene branch_id; el filtro por sede lo aplican las queries que se invaliden.
         .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "sale_items" },
+        { event: "*", schema: "public", table: "sale_items", filter: `branch_id=eq.${branchId}` },
         invalidateSales,
         )
         .on(
@@ -133,7 +175,21 @@ export function useRealtimeBranchSync(branchId: string | null | undefined, opts:
         },
         );
 
-      void channel.subscribe();
+      void channel.subscribe((status) => {
+        if (status === "SUBSCRIBED") {
+          // Al reconectar, fuerza una lectura limpia por si hubo eventos perdidos
+          // mientras la tablet estuvo suspendida o la red WiFi cambió.
+          void qc.refetchQueries({ queryKey: scopedTablesKey, type: "active" });
+          void qc.refetchQueries({ queryKey: ["sales"], type: "active" });
+          return;
+        }
+
+        if (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") {
+          console.warn("Sincronización realtime intermitente; usando refresco automático", status);
+          invalidateTables();
+          invalidateSales();
+        }
+      });
     } catch (error) {
       console.error("No se pudo iniciar la sincronización realtime de la sede", error);
       if (channel) {
