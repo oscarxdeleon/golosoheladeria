@@ -41,12 +41,14 @@ export function useBranchAutoDetect(opts: Options = {}): BranchAutoDetectState {
   const activeBranchIdRef = useRef(activeBranchId);
   const branchesRef = useRef(branches);
   const lockedToBranchRef = useRef(lockedToBranch);
+  const setActiveBranchIdRef = useRef(setActiveBranchId);
 
   useEffect(() => {
     activeBranchIdRef.current = activeBranchId;
     branchesRef.current = branches;
     lockedToBranchRef.current = lockedToBranch;
-  }, [activeBranchId, branches, lockedToBranch]);
+    setActiveBranchIdRef.current = setActiveBranchId;
+  }, [activeBranchId, branches, lockedToBranch, setActiveBranchId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -83,7 +85,7 @@ export function useBranchAutoDetect(opts: Options = {}): BranchAutoDetectState {
         // Meseros están "lockedToBranch" a su perfil; setActiveBranchId
         // ignora cambios que no coincidan. En ese caso solo informamos.
         if (!lockedToBranchRef.current) {
-          setActiveBranchId(detected.branchId);
+          setActiveBranchIdRef.current(detected.branchId);
         }
       }
 
@@ -137,7 +139,7 @@ export function useBranchAutoDetect(opts: Options = {}): BranchAutoDetectState {
         if (detected) {
           const exists = branchesRef.current.some((b) => b.id === detected.branchId);
           if (autoSwitch && exists && !lockedToBranchRef.current) {
-            setActiveBranchId(detected.branchId);
+            setActiveBranchIdRef.current(detected.branchId);
           }
           setState({ status: "detected", detected, lastCheckAt: now, reprobe: () => {} });
         } else {
