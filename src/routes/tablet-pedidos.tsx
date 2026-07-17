@@ -161,6 +161,7 @@ function TabletShell() {
             tableId={selected.tableId ?? null}
             title={selected.title}
             meseroMode
+            externalRealtimeSync
             onSaved={backToList}
           />
         )}
@@ -198,11 +199,14 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
   const qc = useQueryClient();
   const { activeBranchId, activeBranch } = useBranch();
 
-  useRealtimeBranchSync(activeBranchId);
-
   const { data: mesas = [] } = useQuery({
     queryKey: ["restaurant_tables", activeBranchId],
     enabled: !!activeBranchId,
+    staleTime: 2_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: async () => {
       const { data } = await supabase
         .from("restaurant_tables")
@@ -219,6 +223,11 @@ function MesasGrid({ onSelect }: { onSelect: (m: Mesa) => void }) {
   const { data: mesaTotals = {} as Record<string, number> } = useQuery({
     queryKey: ["sales", "mesa-totals", activeBranchId],
     enabled: !!activeBranchId,
+    staleTime: 2_000,
+    refetchInterval: 10_000,
+    refetchIntervalInBackground: true,
+    refetchOnWindowFocus: "always",
+    refetchOnReconnect: "always",
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")

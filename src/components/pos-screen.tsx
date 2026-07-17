@@ -616,6 +616,8 @@ interface Props {
   title?: string;
   /** Modo mesero (tablet): oculta pagos, precuenta y caja. Solo Guardar/KDS. */
   meseroMode?: boolean;
+  /** Evita abrir un segundo canal realtime cuando el contenedor ya mantiene la sincronización activa. */
+  externalRealtimeSync?: boolean;
   /** Callback ejecutado después de guardar la comanda; si se provee, suplanta el redirect interno. */
   onSaved?: () => void;
   /** Datos iniciales del cliente (usado por el selector de domicilio). */
@@ -631,7 +633,7 @@ interface Props {
   hideTitle?: boolean;
 }
 
-export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: meseroModeProp = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt, hideTitle = false }: Props) {
+export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: meseroModeProp = false, externalRealtimeSync = false, onSaved, initialCustomer, initialPhone, initialAddress, initialNeighborhood, headerImage, headerImageAlt, hideTitle = false }: Props) {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const { user, profile, primaryRole, isAdmin } = useAuth();
@@ -641,7 +643,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const { activeBranchId, activeBranch } = useBranch();
   // Sincronización realtime: refresca mesas y pedidos pendientes al instante
   // cuando la tablet del mesero (u otro POS) guarda cambios.
-  useRealtimeBranchSync(activeBranchId, { invalidatePendingSale: true });
+  useRealtimeBranchSync(externalRealtimeSync ? null : activeBranchId, { invalidatePendingSale: true });
   const physicalStatus = usePhysicalChannelStatus(activeBranchId);
   const physicalClosedMsg = "El horario de atención en el punto físico ha finalizado. No es posible registrar nuevos pedidos.";
   const [activeCat, setActiveCat] = useState<string>("all");
@@ -1478,7 +1480,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           .update({ status: "free", current_guests: null, occupied_at: null })
           .eq("id", tableId);
         if (tErr) console.warn("[pay] no se pudo liberar mesa", tErr);
-        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+        qc.invalidateQueries({ queryKey: ["restaurant_tables", activeBranchId] });
       }
 
       const snapshotItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
@@ -1838,7 +1840,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // No hacemos UPDATE manual aquí para evitar dejar mesas ocupadas si el
       // flujo se interrumpe antes de guardar productos.
       if (orderType === "mesa" && tableId) {
-        qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
+        qc.invalidateQueries({ queryKey: ["restaurant_tables", activeBranchId] });
+        qc.invalidateQueries({ queryKey: ["pending-sale", orderType, tableId] });
       }
 
 
@@ -1896,9 +1899,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // 1º DB ya guardada · 2º KDS realtime · 3º Impresión física en background.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });
+      qc.invalidateQueries({ queryKey: ["sales", "mesa-totals", activeBranchId] });
+      qc.invalidateQueries({ queryKey: ["pending-sale"] });
       qc.invalidateQueries({ queryKey: ["delivery-dispatch"] });
       qc.invalidateQueries({ queryKey: ["domicilio-pending"] });
       qc.invalidateQueries({ queryKey: ["online-orders"] });
+
+      if (orderType === "mesa" && tableId) {
+        void qc.refetchQueries({ queryKey: ["restaurant_tables", activeBranchId], type: "active" });
+        void qc.refetchQueries({ queryKey: ["sales", "mesa-totals", activeBranchId], type: "active" });
+      }
 
       if (printItems.length === 0) {
         toast.success(`Pedido #${sale.ticket_number} actualizado (sin ítems nuevos para imprimir)`);
@@ -2021,7 +2031,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
       await Promise.all([
         qc.invalidateQueries({ queryKey: ["pending-sale"] }),
-        qc.invalidateQueries({ queryKey: ["restaurant_tables"] }),
+        qc.invalidateQueries({ queryKey: ["restaurant_tables", activeBranchId] }),
         qc.invalidateQueries({ queryKey: ["sales"] }),
         qc.invalidateQueries({ queryKey: ["kds-pending"] }),
         qc.invalidateQueries({ queryKey: ["llevar-pending"] }),

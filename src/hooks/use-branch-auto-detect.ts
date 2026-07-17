@@ -38,6 +38,15 @@ export function useBranchAutoDetect(opts: Options = {}): BranchAutoDetectState {
     reprobe: () => {},
   });
   const lastLoggedBranchRef = useRef<string | null>(null);
+  const activeBranchIdRef = useRef(activeBranchId);
+  const branchesRef = useRef(branches);
+  const lockedToBranchRef = useRef(lockedToBranch);
+
+  useEffect(() => {
+    activeBranchIdRef.current = activeBranchId;
+    branchesRef.current = branches;
+    lockedToBranchRef.current = lockedToBranch;
+  }, [activeBranchId, branches, lockedToBranch]);
 
   useEffect(() => {
     let cancelled = false;
@@ -68,11 +77,12 @@ export function useBranchAutoDetect(opts: Options = {}): BranchAutoDetectState {
         /* noop */
       }
 
-      const exists = branches.some((b) => b.id === detected.branchId);
-      if (autoSwitch && exists && detected.branchId !== activeBranchId) {
+      const currentBranchId = activeBranchIdRef.current;
+      const exists = branchesRef.current.some((b) => b.id === detected.branchId);
+      if (autoSwitch && exists && detected.branchId !== currentBranchId) {
         // Meseros están "lockedToBranch" a su perfil; setActiveBranchId
         // ignora cambios que no coincidan. En ese caso solo informamos.
-        if (!lockedToBranch || detected.branchId === activeBranchId) {
+        if (!lockedToBranchRef.current) {
           setActiveBranchId(detected.branchId);
         }
       }
@@ -120,8 +130,20 @@ export function useBranchAutoDetect(opts: Options = {}): BranchAutoDetectState {
     ...state,
     reprobe: () => {
       lastLoggedBranchRef.current = null;
-      // trigger via cache clear + re-render tick
-      import("@/lib/branch-detector").then((m) => m.clearBranchDetectionCache());
+      import("@/lib/branch-detector").then(async (m) => {
+        m.clearBranchDetectionCache();
+        const detected = await m.detectBranchByLocalPrintServer({ force: true });
+        const now = Date.now();
+        if (detected) {
+          const exists = branchesRef.current.some((b) => b.id === detected.branchId);
+          if (autoSwitch && exists && !lockedToBranchRef.current) {
+            setActiveBranchId(detected.branchId);
+          }
+          setState({ status: "detected", detected, lastCheckAt: now, reprobe: () => {} });
+        } else {
+          setState((s) => ({ ...s, status: "not-found", detected: null, lastCheckAt: now }));
+        }
+      });
       setState((s) => ({ ...s, status: "probing" }));
     },
   };

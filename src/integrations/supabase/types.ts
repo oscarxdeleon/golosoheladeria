@@ -1726,6 +1726,7 @@ export type Database = {
       }
       sale_items: {
         Row: {
+          branch_id: string | null
           id: string
           modifiers: Json
           notes: string | null
@@ -1739,6 +1740,7 @@ export type Database = {
           unit_price: number
         }
         Insert: {
+          branch_id?: string | null
           id?: string
           modifiers?: Json
           notes?: string | null
@@ -1752,6 +1754,7 @@ export type Database = {
           unit_price?: number
         }
         Update: {
+          branch_id?: string | null
           id?: string
           modifiers?: Json
           notes?: string | null
