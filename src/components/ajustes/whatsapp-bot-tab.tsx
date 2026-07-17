@@ -31,6 +31,8 @@ interface BotConfigRow {
   last_seen_at: string | null;
   device_token: string;
   connected_phone: string | null;
+  after_hours_enabled: boolean;
+  after_hours_messages: string[];
 }
 
 interface BranchRow { id: string; name: string; slug: string | null; }
