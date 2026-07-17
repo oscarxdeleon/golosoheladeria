@@ -2415,6 +2415,8 @@ export type Database = {
           last_seen_at: string | null
           menu_message: string
           menu_triggers: string[]
+          pickup_after_hours_enabled: boolean
+          pickup_after_hours_messages: string[]
           qr_code: string | null
           qr_generated_at: string | null
           updated_at: string
@@ -2432,6 +2434,8 @@ export type Database = {
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
+          pickup_after_hours_enabled?: boolean
+          pickup_after_hours_messages?: string[]
           qr_code?: string | null
           qr_generated_at?: string | null
           updated_at?: string
@@ -2449,6 +2453,8 @@ export type Database = {
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
+          pickup_after_hours_enabled?: boolean
+          pickup_after_hours_messages?: string[]
           qr_code?: string | null
           qr_generated_at?: string | null
           updated_at?: string
@@ -2936,6 +2942,10 @@ export type Database = {
         Returns: Json
       }
       whatsapp_bot_is_online_open: {
+        Args: { _branch_id: string }
+        Returns: boolean
+      }
+      whatsapp_bot_is_physical_open: {
         Args: { _branch_id: string }
         Returns: boolean
       }
