@@ -2,22 +2,39 @@ import { useEffect } from "react";
 
 /**
  * Modo kiosco para tablets:
- *  - Fullscreen automático al primer gesto (los navegadores exigen user activation).
+ *  - Fullscreen automático en cualquier gesto del usuario (los navegadores
+ *    exigen user activation; no existe forma de saltarse esa restricción).
+ *  - Re-solicita fullscreen al volver del background o al salir accidentalmente.
  *  - Wake Lock para evitar suspensión de pantalla.
  *  - Bloqueo de menú contextual, arrastre y selección accidental.
  *  - Aviso antes de cerrar la pestaña.
+ *
+ * Nota: cuando la app se abre como PWA/APK/TWA o desde un launcher tipo
+ * FreeKiosk el navegador ya oculta su barra superior y esta lógica se
+ * vuelve innecesaria — igual queda como red de seguridad.
  */
 export function useKioskLock(enabled: boolean) {
   useEffect(() => {
     if (!enabled || typeof window === "undefined") return;
 
-    const goFullscreen = async () => {
+    const isStandalone = () => {
       try {
-        if (!document.fullscreenElement && document.documentElement.requestFullscreen) {
-          await document.documentElement
-            .requestFullscreen({ navigationUI: "hide" })
-            .catch(() => undefined);
-        }
+        if (window.matchMedia?.("(display-mode: standalone)")?.matches) return true;
+        if (window.matchMedia?.("(display-mode: fullscreen)")?.matches) return true;
+      } catch {
+        /* noop */
+      }
+      const navAny = navigator as Navigator & { standalone?: boolean };
+      return !!navAny.standalone;
+    };
+
+    const goFullscreen = async () => {
+      if (isStandalone()) return; // ya ocupa toda la pantalla
+      if (document.fullscreenElement) return;
+      try {
+        await document.documentElement
+          .requestFullscreen?.({ navigationUI: "hide" })
+          .catch(() => undefined);
       } catch {
         /* noop */
       }
@@ -36,12 +53,20 @@ export function useKioskLock(enabled: boolean) {
       }
     };
 
-    const onFirstGesture = () => {
+    // Cualquier gesto reintenta fullscreen si aún no lo estamos. Esto cubre
+    // el caso en que el usuario salga con la tecla Esc o el gesto del
+    // sistema — al tocar la pantalla de nuevo volvemos a modo kiosco.
+    const onGesture = () => {
       void goFullscreen();
       void requestWake();
     };
     const onVisibility = () => {
-      if (document.visibilityState === "visible") void requestWake();
+      if (document.visibilityState === "visible") {
+        void requestWake();
+        // Al volver del background, intentamos fullscreen; muchos navegadores
+        // aceptan esta llamada porque la reactivación cuenta como user activation.
+        void goFullscreen();
+      }
     };
     const blockContext = (e: Event) => e.preventDefault();
     const beforeUnload = (e: BeforeUnloadEvent) => {
@@ -49,16 +74,23 @@ export function useKioskLock(enabled: boolean) {
       e.returnValue = "";
     };
 
-    window.addEventListener("pointerdown", onFirstGesture, { once: true });
-    window.addEventListener("keydown", onFirstGesture, { once: true });
+    // Escuchamos siempre (no `once`) para reintentar hasta lograrlo.
+    window.addEventListener("pointerdown", onGesture);
+    window.addEventListener("touchstart", onGesture, { passive: true });
+    window.addEventListener("keydown", onGesture);
     document.addEventListener("visibilitychange", onVisibility);
     document.addEventListener("contextmenu", blockContext);
     document.addEventListener("dragstart", blockContext);
     window.addEventListener("beforeunload", beforeUnload);
 
+    // Intento inicial (puede fallar sin user activation, pero es gratis probar).
+    void goFullscreen();
+    void requestWake();
+
     return () => {
-      window.removeEventListener("pointerdown", onFirstGesture);
-      window.removeEventListener("keydown", onFirstGesture);
+      window.removeEventListener("pointerdown", onGesture);
+      window.removeEventListener("touchstart", onGesture);
+      window.removeEventListener("keydown", onGesture);
       document.removeEventListener("visibilitychange", onVisibility);
       document.removeEventListener("contextmenu", blockContext);
       document.removeEventListener("dragstart", blockContext);
@@ -80,7 +112,6 @@ export function isKioskContext(): boolean {
   } catch {
     /* noop */
   }
-  // iOS Safari
   const navAny = navigator as Navigator & { standalone?: boolean };
   if (navAny.standalone) return true;
   return false;

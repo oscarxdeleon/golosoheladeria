@@ -76,13 +76,6 @@ function TabletShell() {
   const [tab, setTab] = useState<TabKey>("mesas");
   // Tablet de meseros: kiosco siempre activo (fullscreen automático al primer toque)
   useKioskLock(true);
-
-  const [fsHint, setFsHint] = useState(typeof document !== "undefined" && !document.fullscreenElement);
-  useEffect(() => {
-    const on = () => setFsHint(!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", on);
-    return () => document.removeEventListener("fullscreenchange", on);
-  }, []);
   const [selected, setSelected] = useState<
     | { orderType: OrderType; tableId?: string | null; title?: string }
     | null
@@ -110,16 +103,6 @@ function TabletShell() {
             <div className="font-medium truncate">{profile?.full_name ?? user?.email}</div>
             <div className="text-xs text-muted-foreground">Mesero</div>
           </div>
-          {fsHint && (
-            <Button
-              variant="secondary"
-              size="sm"
-              onClick={() => document.documentElement.requestFullscreen({ navigationUI: "hide" }).catch(() => undefined)}
-              title="Ocultar barra del navegador"
-            >
-              Pantalla completa
-            </Button>
-          )}
           <Button
             variant="ghost"
             size="sm"
