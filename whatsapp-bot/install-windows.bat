@@ -39,8 +39,12 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8790 " ^| findstr LISTENING
 timeout /t 2 /nobreak >nul
 
 echo Instalando dependencias (puede tardar 1-2 minutos)...
-call npm install --omit=dev --no-audit --no-fund
-if errorlevel 1 goto npm_failed
+if exist "node_modules\@whiskeysockets\baileys" (
+  echo Dependencias ya incluidas en el ZIP. Se omite npm install.
+) else (
+  call npm install --omit=dev --no-audit --no-fund
+  if errorlevel 1 goto npm_failed
+)
 if not exist "node_modules\@whiskeysockets\baileys" goto npm_failed
 goto npm_ok
 
@@ -92,7 +96,9 @@ echo.
 echo Iniciando el bot en segundo plano...
 start "" wscript.exe //nologo "%~dp0start-hidden.vbs"
 
-timeout /t 3 /nobreak >nul
+echo Esperando panel local del bot...
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ok=$false; for($i=0;$i -lt 30;$i++){ try { Invoke-WebRequest -UseBasicParsing http://localhost:8790/status.json -TimeoutSec 1 | Out-Null; $ok=$true; break } catch { Start-Sleep -Seconds 1 } }; if(-not $ok){ exit 1 }"
+if errorlevel 1 goto start_failed
 start "" http://localhost:8790
 
 echo.
@@ -104,3 +110,16 @@ echo El bot arrancara solo cada vez que enciendas el PC.
 echo.
 pause
 endlocal
+exit /b 0
+
+:start_failed
+  echo.
+  echo [ERROR] El bot no pudo iniciar el panel local en http://localhost:8790.
+  echo Revisa el archivo bot-out.log en esta misma carpeta para ver el detalle.
+  if exist bot-out.log (
+    echo.
+    echo Ultimas lineas de bot-out.log:
+    powershell -NoProfile -Command "Get-Content -Path 'bot-out.log' -Tail 30"
+  )
+  pause
+  exit /b 1
