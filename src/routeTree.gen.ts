@@ -20,6 +20,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as TabletAutoTokenRouteImport } from './routes/tablet-auto.$token'
 import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
+import { Route as DownloadsWhatsappBotDotzipRouteImport } from './routes/downloads.whatsapp-bot[.]zip'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedTodosPedidosRouteImport } from './routes/_authenticated/todos-pedidos'
@@ -130,6 +131,12 @@ const SSlugRoute = SSlugRouteImport.update({
   path: '/s/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DownloadsWhatsappBotDotzipRoute =
+  DownloadsWhatsappBotDotzipRouteImport.update({
+    id: '/downloads/whatsapp-bot.zip',
+    path: '/downloads/whatsapp-bot.zip',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const AuthenticatedVentasRoute = AuthenticatedVentasRouteImport.update({
   id: '/ventas',
   path: '/ventas',
@@ -468,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
+  '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
   '/tablet-auto/$token': typeof TabletAutoTokenRoute
@@ -534,6 +542,7 @@ export interface FileRoutesByTo {
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
+  '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/t/$tableNumber': typeof TTableNumberRoute
   '/tablet-auto/$token': typeof TabletAutoTokenRoute
   '/menu/categorias': typeof AuthenticatedMenuCategoriasRoute
@@ -602,6 +611,7 @@ export interface FileRoutesById {
   '/_authenticated/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
+  '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
   '/tablet-auto/$token': typeof TabletAutoTokenRoute
@@ -671,6 +681,7 @@ export interface FileRouteTypes {
     | '/todos-pedidos'
     | '/usuarios'
     | '/ventas'
+    | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
     | '/t/$tableNumber'
     | '/tablet-auto/$token'
@@ -737,6 +748,7 @@ export interface FileRouteTypes {
     | '/todos-pedidos'
     | '/usuarios'
     | '/ventas'
+    | '/downloads/whatsapp-bot.zip'
     | '/t/$tableNumber'
     | '/tablet-auto/$token'
     | '/menu/categorias'
@@ -804,6 +816,7 @@ export interface FileRouteTypes {
     | '/_authenticated/todos-pedidos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
+    | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
     | '/t/$tableNumber'
     | '/tablet-auto/$token'
@@ -838,6 +851,7 @@ export interface RootRouteChildren {
   MenuRoute: typeof MenuRoute
   MisPuntosRoute: typeof MisPuntosRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
+  DownloadsWhatsappBotDotzipRoute: typeof DownloadsWhatsappBotDotzipRoute
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
   TabletAutoTokenRoute: typeof TabletAutoTokenRoute
@@ -924,6 +938,13 @@ declare module '@tanstack/react-router' {
       path: '/s/$slug'
       fullPath: '/s/$slug'
       preLoaderRoute: typeof SSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/downloads/whatsapp-bot.zip': {
+      id: '/downloads/whatsapp-bot.zip'
+      path: '/downloads/whatsapp-bot.zip'
+      fullPath: '/downloads/whatsapp-bot.zip'
+      preLoaderRoute: typeof DownloadsWhatsappBotDotzipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/ventas': {
@@ -1453,6 +1474,7 @@ const rootRouteChildren: RootRouteChildren = {
   MenuRoute: MenuRoute,
   MisPuntosRoute: MisPuntosRoute,
   TabletPedidosRoute: TabletPedidosRoute,
+  DownloadsWhatsappBotDotzipRoute: DownloadsWhatsappBotDotzipRoute,
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
   TabletAutoTokenRoute: TabletAutoTokenRoute,
