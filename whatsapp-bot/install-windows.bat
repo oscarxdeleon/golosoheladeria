@@ -20,6 +20,18 @@ if errorlevel 1 (
   exit /b 1
 )
 
+where npm >nul 2>nul
+if errorlevel 1 (
+  echo [ERROR] npm no esta disponible. Reinstala Node.js marcando la opcion "npm package manager".
+  pause
+  exit /b 1
+)
+
+where git >nul 2>nul
+if errorlevel 1 (
+  echo [AVISO] Git no esta instalado. No pasa nada: este instalador usa dependencias preparadas sin Git.
+)
+
 echo Cerrando bot anterior si existe...
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8790 " ^| findstr LISTENING') do (
   taskkill /F /PID %%P /T >nul 2>nul
@@ -27,9 +39,12 @@ for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8790 " ^| findstr LISTENING
 timeout /t 2 /nobreak >nul
 
 echo Instalando dependencias (puede tardar 1-2 minutos)...
-call npm install --omit=dev
+call npm install --omit=dev --no-audit --no-fund
 if errorlevel 1 (
+  echo.
   echo [ERROR] Fallo npm install.
+  echo Si ves "spawn git" o "ENOENT", descarga de nuevo el ZIP desde el POS y vuelve a intentarlo.
+  echo Tambien puedes instalar Git para Windows y ejecutar este archivo otra vez.
   pause
   exit /b 1
 )
