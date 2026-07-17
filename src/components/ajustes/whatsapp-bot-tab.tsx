@@ -33,6 +33,8 @@ interface BotConfigRow {
   connected_phone: string | null;
   after_hours_enabled: boolean;
   after_hours_messages: string[];
+  pickup_after_hours_enabled: boolean;
+  pickup_after_hours_messages: string[];
 }
 
 interface BranchRow { id: string; name: string; slug: string | null; }
@@ -150,6 +152,7 @@ export function WhatsAppBotTab() {
       <InstallCard cfg={cfg} />
       <WelcomeCard cfg={cfg} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <AfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
+      <PickupAfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <MenuTriggersCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <MessagesCard messages={messages} />
     </div>
@@ -405,6 +408,81 @@ function AfterHoursCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?: 
               onChange={(e) => setMessages((arr) => arr.map((x, ix) => ix === i ? e.target.value : x))}
               rows={3}
               placeholder="Ej: ¡Hola! Ahora estamos cerrados. Programa tu pedido en {menu_link}"
+              disabled={!enabled}
+            />
+            <Button variant="ghost" size="icon" onClick={() => setMessages((arr) => arr.filter((_, ix) => ix !== i))} disabled={messages.length <= 1 || !enabled}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="sm" onClick={() => setMessages((arr) => [...arr, ""])} disabled={!enabled}>
+            <Plus className="mr-2 h-4 w-4" /> Agregar mensaje
+          </Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar cambios"}</Button>
+        </div>
+        <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <b>Link que reemplaza <code>{"{menu_link}"}</code>:</b> {menuLink}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- */
+
+function PickupAfterHoursCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?: BranchRow; onSaved: () => void }) {
+  const [enabled, setEnabled] = useState<boolean>(cfg.pickup_after_hours_enabled);
+  const [messages, setMessages] = useState<string[]>(cfg.pickup_after_hours_messages ?? []);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setEnabled(cfg.pickup_after_hours_enabled);
+    setMessages(cfg.pickup_after_hours_messages ?? []);
+  }, [cfg.pickup_after_hours_enabled, cfg.pickup_after_hours_messages]);
+
+  const menuLink = branch?.slug ? `https://golosoheladeria.lovable.app/s/${branch.slug}` : "(sin slug de sede)";
+
+  const save = async () => {
+    const clean = messages.map((s) => s.trim()).filter(Boolean);
+    if (enabled && clean.length === 0) { toast.error("Debe haber al menos 1 mensaje si está activo"); return; }
+    setSaving(true);
+    const { error } = await supabase
+      .from("whatsapp_bot_config")
+      .update({ pickup_after_hours_enabled: enabled, pickup_after_hours_messages: clean })
+      .eq("branch_id", cfg.branch_id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Mensajes de 'solo recoger / consumir en local' guardados");
+    onSaved();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>Domicilio cerrado, heladería abierta</CardTitle>
+            <CardDescription>
+              Cuando el <b>servicio a domicilio</b> ya cerró pero la <b>heladería sigue atendiendo</b> (recoger o consumir en el local),
+              el bot responderá con uno de estos mensajes. Usa <code>{"{menu_link}"}</code> para insertar el link del menú online.
+              Si la heladería también está cerrada, se usan los mensajes de "fuera de horario" de arriba.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Switch id="pah-enabled" checked={enabled} onCheckedChange={setEnabled} />
+            <Label htmlFor="pah-enabled" className="text-sm font-semibold">Activo</Label>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {messages.map((m, i) => (
+          <div key={i} className="flex gap-2">
+            <span className="mt-2 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-emerald-500/10 text-xs font-bold text-emerald-600">{i + 1}</span>
+            <Textarea
+              value={m}
+              onChange={(e) => setMessages((arr) => arr.map((x, ix) => ix === i ? e.target.value : x))}
+              rows={3}
+              placeholder="Ej: Domicilios cerrados, pero puedes pasar a recoger. Menú: {menu_link}"
               disabled={!enabled}
             />
             <Button variant="ghost" size="icon" onClick={() => setMessages((arr) => arr.filter((_, ix) => ix !== i))} disabled={messages.length <= 1 || !enabled}>
