@@ -45,17 +45,41 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 type UserAdminRpcName = "admin_create_app_user" | "admin_update_app_user" | "admin_delete_app_user";
 
 function extractBackendMessage(body: unknown, fallback: string) {
+  const cleanText = (value: string) => {
+    const text = value.trim();
+    if (!text || text === "[object Object]") return fallback;
+
+    if (/Ya existe|already registered|duplicate key|users_email_partial_key|identities_provider_id_provider_unique/i.test(text)) {
+      return "Ya existe un usuario con ese correo";
+    }
+
+    if (/Failed to fetch|NetworkError|Load failed|fetch failed|ECONN|timeout/i.test(text)) {
+      return "Error de conexión";
+    }
+
+    if (/permission denied|not authorized|forbidden|Solo administradores|supervisores/i.test(text)) {
+      return "No tienes permisos suficientes";
+    }
+
+    if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
+      return "El servidor devolvió una página de error. Recarga la pantalla de usuarios e intenta nuevamente.";
+    }
+
+    return text;
+  };
+
+  const messageFromObject = (value: Record<string, unknown>): unknown => {
+    const direct = value.error ?? value.message ?? value.details ?? value.hint ?? value.msg;
+    if (direct && typeof direct === "object") return messageFromObject(direct as Record<string, unknown>);
+    return direct;
+  };
+
   if (body && typeof body === "object") {
-    const record = body as Record<string, unknown>;
-    return String(record.error ?? record.message ?? record.details ?? record.hint ?? fallback);
+    const extracted = messageFromObject(body as Record<string, unknown>);
+    return cleanText(typeof extracted === "string" ? extracted : fallback);
   }
 
-  const text = String(body || "").trim();
-  if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
-    return "El servidor devolvió una página de error. Recarga la pantalla de usuarios e intenta nuevamente.";
-  }
-
-  return text || fallback;
+  return cleanText(String(body || ""));
 }
 
 async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string, unknown>): Promise<T> {
@@ -181,10 +205,12 @@ function UsuariosPage() {
     const message = /violates foreign key constraint|sales_user_id_fkey|sales_delivery_user_id_fkey/i.test(raw)
       ? "El usuario tiene historial. Ya se ajustó la eliminación segura: recarga e intenta nuevamente."
       : /permission denied|not authorized|Solo administradores/i.test(raw)
-        ? "No tienes permisos suficientes para esta acción."
+        ? "No tienes permisos suficientes"
         : /Ya existe|already registered|duplicate key/i.test(raw)
-          ? "Ya existe un usuario con ese correo."
-          : raw || fallback;
+          ? "Ya existe un usuario con ese correo"
+          : /Failed to fetch|NetworkError|Load failed|fetch failed|ECONN|timeout/i.test(raw)
+            ? "Error de conexión"
+            : (!raw || raw === "[object Object]" ? fallback : raw);
     toast.error(message);
   }
 
@@ -202,7 +228,7 @@ function UsuariosPage() {
     if (!confirm(`¿Eliminar al usuario "${u.full_name}"? Esta acción no se puede deshacer.`)) return;
     try {
       await callUserAdminRpc("admin_delete_app_user", { _user_id: u.id });
-      toast.success("Usuario retirado del sistema");
+      toast.success("Usuario eliminado correctamente");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     } catch (e) {
       showUserActionError(e, "No se pudo eliminar el usuario");
