@@ -21,6 +21,17 @@ interface Props {
   minLeadMinutes?: number;
 }
 
+/** "14:30" -> "2:30 p. m." */
+function to12h(hhmm: string): string {
+  const [hStr, mStr] = hhmm.split(":");
+  const h = Number(hStr);
+  const m = Number(mStr);
+  const suffix = h < 12 ? "a. m." : "p. m.";
+  const h12 = h % 12 === 0 ? 12 : h % 12;
+  return `${h12}:${String(m).padStart(2, "0")} ${suffix}`;
+}
+
+
 const DAY_LABEL: Record<string, string> = {
   lun: "Lun", mar: "Mar", mie: "Mié", jue: "Jue", vie: "Vie", sab: "Sáb", dom: "Dom",
 };
@@ -66,11 +77,12 @@ export function ScheduleOrderDialog({ open, onOpenChange, schedules, channel, on
   function handleConfirm() {
     if (!currentDateStr || !slot) return;
     const utc = bogotaDateTimeToUTC(currentDateStr, slot);
-    const label = `${selectedDay?.day} ${selectedDay?.month} · ${slot}`;
+    const label = `${selectedDay?.day} ${selectedDay?.month} · ${to12h(slot)}`;
     onConfirm(utc.toISOString(), label);
     onOpenChange(false);
     setSlot(null);
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -124,9 +136,10 @@ export function ScheduleOrderDialog({ open, onOpenChange, schedules, channel, on
                       onClick={() => setSlot(s)}
                       className={`rounded-md border py-2 text-sm font-medium transition ${active ? "border-primary bg-primary text-primary-foreground" : "border-border hover:bg-muted"}`}
                     >
-                      {s}
+                      {to12h(s)}
                     </button>
                   );
+
                 })}
                 {slots.length === 0 && (
                   <div className="col-span-4 text-xs text-muted-foreground text-center py-4">
