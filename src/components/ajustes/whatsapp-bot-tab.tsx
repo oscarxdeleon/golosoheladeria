@@ -33,6 +33,8 @@ interface BotConfigRow {
   connected_phone: string | null;
   after_hours_enabled: boolean;
   after_hours_messages: string[];
+  pickup_after_hours_enabled: boolean;
+  pickup_after_hours_messages: string[];
 }
 
 interface BranchRow { id: string; name: string; slug: string | null; }
