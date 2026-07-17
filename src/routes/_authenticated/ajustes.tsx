@@ -162,6 +162,7 @@ function AjustesPage() {
           {tab === "domi"        && <SectionErrorBoundary label="Domicilio"><DomicilioTab disabled={false} /></SectionErrorBoundary>}
           {tab === "fidel"       && <SectionErrorBoundary label="Fidelización"><FidelizacionTab /></SectionErrorBoundary>}
           {tab === "roles"       && <SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary>}
+          {tab === "whatsapp-bot" && <SectionErrorBoundary label="WhatsApp Bot"><WhatsAppBotTab /></SectionErrorBoundary>}
           {tab === "extras"      && <SectionErrorBoundary label="Configuraciones adicionales"><ExtrasTab /></SectionErrorBoundary>}
           {tab === "descargas"   && isAdmin && <SectionErrorBoundary label="Descargas"><DescargasTab /></SectionErrorBoundary>}
           {tab === "reset-data"  && isAdmin && <SectionErrorBoundary label="Reiniciar datos"><ResetDataTab /></SectionErrorBoundary>}
