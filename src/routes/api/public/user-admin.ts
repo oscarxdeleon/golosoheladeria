@@ -33,23 +33,27 @@ function jsonResponse(body: unknown, status = 200) {
 }
 
 function normalizeBackendError(body: unknown, fallback: string) {
+  const cleanText = (value: string) => {
+    const text = value.trim();
+    if (!text) return fallback;
+
+    if (/JWT|token|authorization|bearer/i.test(text)) {
+      return "Tu sesión no está activa. Vuelve a iniciar sesión e intenta de nuevo.";
+    }
+
+    if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
+      return "El servidor devolvió una página de error en lugar de una respuesta válida. Recarga la app e intenta de nuevo.";
+    }
+
+    return text;
+  };
+
   if (body && typeof body === "object") {
     const record = body as Record<string, unknown>;
-    return String(record.message ?? record.details ?? record.hint ?? record.error ?? fallback);
+    return cleanText(String(record.message ?? record.details ?? record.hint ?? record.error ?? fallback));
   }
 
-  const text = String(body || "").trim();
-  if (!text) return fallback;
-
-  if (/JWT|token|authorization|bearer/i.test(text)) {
-    return "Tu sesión no está activa. Vuelve a iniciar sesión e intenta de nuevo.";
-  }
-
-  if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
-    return "El servidor devolvió una página de error en lugar de una respuesta válida. Recarga la app e intenta de nuevo.";
-  }
-
-  return text;
+  return cleanText(String(body || ""));
 }
 
 export const Route = createFileRoute("/api/public/user-admin")({
