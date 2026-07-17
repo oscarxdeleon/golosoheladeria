@@ -31,6 +31,8 @@ interface BotConfigRow {
   last_seen_at: string | null;
   device_token: string;
   connected_phone: string | null;
+  after_hours_enabled: boolean;
+  after_hours_messages: string[];
 }
 
 interface BranchRow { id: string; name: string; slug: string | null; }
@@ -147,6 +149,7 @@ export function WhatsAppBotTab() {
       <StatusCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <InstallCard cfg={cfg} />
       <WelcomeCard cfg={cfg} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
+      <AfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <MenuTriggersCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <MessagesCard messages={messages} />
     </div>
@@ -350,6 +353,81 @@ function WelcomeCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => void 
 }
 
 /* --------------------------------------------------------- */
+
+function AfterHoursCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?: BranchRow; onSaved: () => void }) {
+  const [enabled, setEnabled] = useState<boolean>(cfg.after_hours_enabled);
+  const [messages, setMessages] = useState<string[]>(cfg.after_hours_messages ?? []);
+  const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    setEnabled(cfg.after_hours_enabled);
+    setMessages(cfg.after_hours_messages ?? []);
+  }, [cfg.after_hours_enabled, cfg.after_hours_messages]);
+
+  const menuLink = branch?.slug ? `https://golosoheladeria.lovable.app/s/${branch.slug}` : "(sin slug de sede)";
+
+  const save = async () => {
+    const clean = messages.map((s) => s.trim()).filter(Boolean);
+    if (enabled && clean.length === 0) { toast.error("Debe haber al menos 1 mensaje si está activo"); return; }
+    setSaving(true);
+    const { error } = await supabase
+      .from("whatsapp_bot_config")
+      .update({ after_hours_enabled: enabled, after_hours_messages: clean })
+      .eq("branch_id", cfg.branch_id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Mensajes fuera de horario guardados");
+    onSaved();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <CardTitle>Mensajes fuera de horario</CardTitle>
+            <CardDescription>
+              Cuando el <b>servicio a domicilio</b> de esta sede está cerrado (según los horarios de la sede),
+              el bot responde con uno de estos mensajes e invita al cliente a programar su pedido. Usa <code>{"{menu_link}"}</code> para insertar el link del menú online.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Switch id="ah-enabled" checked={enabled} onCheckedChange={setEnabled} />
+            <Label htmlFor="ah-enabled" className="text-sm font-semibold">Activo</Label>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {messages.map((m, i) => (
+          <div key={i} className="flex gap-2">
+            <span className="mt-2 grid h-7 w-7 shrink-0 place-items-center rounded-full bg-amber-500/10 text-xs font-bold text-amber-600">{i + 1}</span>
+            <Textarea
+              value={m}
+              onChange={(e) => setMessages((arr) => arr.map((x, ix) => ix === i ? e.target.value : x))}
+              rows={3}
+              placeholder="Ej: ¡Hola! Ahora estamos cerrados. Programa tu pedido en {menu_link}"
+              disabled={!enabled}
+            />
+            <Button variant="ghost" size="icon" onClick={() => setMessages((arr) => arr.filter((_, ix) => ix !== i))} disabled={messages.length <= 1 || !enabled}>
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex items-center justify-between">
+          <Button variant="outline" size="sm" onClick={() => setMessages((arr) => [...arr, ""])} disabled={!enabled}>
+            <Plus className="mr-2 h-4 w-4" /> Agregar mensaje
+          </Button>
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar cambios"}</Button>
+        </div>
+        <div className="rounded-lg border bg-muted/40 p-3 text-xs text-muted-foreground">
+          <b>Link que reemplaza <code>{"{menu_link}"}</code>:</b> {menuLink}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- */
+
 
 function MenuTriggersCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?: BranchRow; onSaved: () => void }) {
   const [triggers, setTriggers] = useState<string[]>(cfg.menu_triggers ?? []);
