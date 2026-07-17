@@ -192,11 +192,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             {cfg.connected_phone && <div className="text-xs text-muted-foreground">Número: {cfg.connected_phone}</div>}
           </div>
           <div className="flex items-center gap-2">
-            {cfg.qr_code && (
-              <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
-                <QrCode className="mr-2 h-4 w-4" /> Ver QR
-              </Button>
-            )}
+            <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
+              <QrCode className="mr-2 h-4 w-4" /> Ver QR
+            </Button>
             <div className="flex items-center gap-2">
               <Switch id="bot-enabled" checked={cfg.enabled} onCheckedChange={toggleEnabled} />
               <Label htmlFor="bot-enabled" className="text-sm font-semibold">Bot activo</Label>
