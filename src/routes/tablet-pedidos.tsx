@@ -23,7 +23,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { BranchCashGuard } from "@/components/branch-cash-guard";
 import { useRealtimeBranchSync } from "@/hooks/use-realtime-branch-sync";
 import { BranchAutoDetectBadge } from "@/components/branch-auto-detect-badge";
-import { useKioskLock, isKioskContext } from "@/hooks/use-kiosk-lock";
+import { useKioskLock } from "@/hooks/use-kiosk-lock";
 
 import logoUrl from "@/assets/logo-goloso.webp";
 import tableFree from "@/assets/mesa_libre.webp";
