@@ -76,13 +76,6 @@ function TabletShell() {
   const [tab, setTab] = useState<TabKey>("mesas");
   // Tablet de meseros: kiosco siempre activo (fullscreen automático al primer toque)
   useKioskLock(true);
-
-  const [fsHint, setFsHint] = useState(typeof document !== "undefined" && !document.fullscreenElement);
-  useEffect(() => {
-    const on = () => setFsHint(!document.fullscreenElement);
-    document.addEventListener("fullscreenchange", on);
-    return () => document.removeEventListener("fullscreenchange", on);
-  }, []);
   const [selected, setSelected] = useState<
     | { orderType: OrderType; tableId?: string | null; title?: string }
     | null
