@@ -15,6 +15,7 @@ import { toast } from "sonner";
 import { Plus, Pencil, Trash2, ShieldCheck, ShoppingCart, Utensils, Bike, Eye, EyeOff, Glasses } from "lucide-react";
 import { useAuth, type AppRole } from "@/hooks/use-auth";
 import { usePermissions } from "@/hooks/use-permissions";
+import { normalizeUserAdminError } from "@/lib/user-admin-errors";
 
 
 export const Route = createFileRoute("/_authenticated/usuarios")({
@@ -43,20 +44,6 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 ];
 
 type UserAdminRpcName = "admin_create_app_user" | "admin_update_app_user" | "admin_delete_app_user";
-
-function extractBackendMessage(body: unknown, fallback: string) {
-  if (body && typeof body === "object") {
-    const record = body as Record<string, unknown>;
-    return String(record.error ?? record.message ?? record.details ?? record.hint ?? fallback);
-  }
-
-  const text = String(body || "").trim();
-  if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
-    return "El servidor devolvió una página de error. Recarga la pantalla de usuarios e intenta nuevamente.";
-  }
-
-  return text || fallback;
-}
 
 async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string, unknown>): Promise<T> {
   const { data, error: sessionError } = await supabase.auth.getSession();
@@ -87,7 +74,7 @@ async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string,
   }
 
   if (!response.ok) {
-    throw new Error(extractBackendMessage(body, "No se pudo completar la operación de usuarios"));
+    throw new Error(normalizeUserAdminError(body, "No se pudo completar la operación de usuarios"));
   }
 
   if (body && typeof body === "object" && "data" in body) {
@@ -152,7 +139,7 @@ function UsuariosPage() {
   const canManageUsers = isAdmin || primaryRole === "supervisor";
 
   function showUserActionError(e: unknown, fallback: string) {
-    const raw = e instanceof Error ? e.message : String(e ?? "");
+    const raw = normalizeUserAdminError(e, fallback);
     // Si el error menciona variables de entorno significa que hay JS cacheado
     // por un service worker antiguo (el flujo actual usa RPC directo, no
     // requiere SUPABASE_SERVICE_ROLE_KEY). Se limpia el caché y se recarga.
@@ -181,10 +168,12 @@ function UsuariosPage() {
     const message = /violates foreign key constraint|sales_user_id_fkey|sales_delivery_user_id_fkey/i.test(raw)
       ? "El usuario tiene historial. Ya se ajustó la eliminación segura: recarga e intenta nuevamente."
       : /permission denied|not authorized|Solo administradores/i.test(raw)
-        ? "No tienes permisos suficientes para esta acción."
+        ? "No tienes permisos suficientes"
         : /Ya existe|already registered|duplicate key/i.test(raw)
-          ? "Ya existe un usuario con ese correo."
-          : raw || fallback;
+          ? "Ya existe un usuario con ese correo"
+          : /Failed to fetch|NetworkError|Load failed|fetch failed|ECONN|timeout/i.test(raw)
+            ? "Error de conexión"
+            : (!raw || raw === "[object Object]" ? fallback : raw);
     toast.error(message);
   }
 
@@ -202,7 +191,7 @@ function UsuariosPage() {
     if (!confirm(`¿Eliminar al usuario "${u.full_name}"? Esta acción no se puede deshacer.`)) return;
     try {
       await callUserAdminRpc("admin_delete_app_user", { _user_id: u.id });
-      toast.success("Usuario retirado del sistema");
+      toast.success("Usuario eliminado correctamente");
       qc.invalidateQueries({ queryKey: ["users-list"] });
     } catch (e) {
       showUserActionError(e, "No se pudo eliminar el usuario");
