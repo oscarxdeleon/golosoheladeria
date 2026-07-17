@@ -11,6 +11,8 @@ Bot local que corre en el **PC de cada sede** y responde automáticamente a los 
 5. Se abre `http://localhost:8790`. Cuando salga el QR, escanéalo con WhatsApp Business del celular de la sede (Menú → Dispositivos vinculados → Vincular un dispositivo).
 6. Estado pasa a **Conectado**. Listo.
 
+Si durante la instalación aparece `npm error enoent spawn git`, descarga nuevamente el ZIP desde el POS. Esta versión ya incluye una configuración para instalar las dependencias sin depender de Git.
+
 El bot queda registrado para **arrancar solo con Windows**. Al apagar el PC se detiene; al encenderlo se recupera sin volver a escanear.
 
 ## Estructura
