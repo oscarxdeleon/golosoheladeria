@@ -44,7 +44,7 @@ interface MessageRow {
   received_at: string;
 }
 
-const WHATSAPP_BOT_DOWNLOAD_URL = "https://golosoheladeria.lovable.app/__l5e/assets-v1/38cf1cfb-76aa-4943-806c-cb08f5235652/whatsapp-bot.zip";
+const WHATSAPP_BOT_DOWNLOAD_URL = "https://golosoheladeria.lovable.app/__l5e/assets-v1/b76beb19-0466-482d-b2bf-3da7046a9425/whatsapp-bot.zip";
 
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   connected:    { label: "Conectado",     color: "bg-emerald-500", icon: Wifi },
@@ -259,7 +259,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
         <ol className="space-y-2 text-sm">
           <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">1</span> Descarga el bot para Windows y descomprímelo en una carpeta permanente del PC.</li>
           <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">2</span> Copia el <b>Token de esta sede</b> (abajo) y pégalo cuando el instalador te lo pida.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">3</span> Doble-click a <code>install-windows.bat</code>. Espera 1–2 min.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">3</span> Doble-click a <code>install-windows.bat</code>, pega el token y presiona Enter. La URL del POS se configura sola.</li>
           <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">4</span> Vuelve a este panel: verás <b>Esperando QR</b>. Toca <b>Ver QR</b> y escanea con el WhatsApp Business del celular de la sede.</li>
           <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">5</span> Estado pasa a <b>Conectado</b>. ¡Listo! Al reiniciar el PC el bot se recupera solo, sin volver a escanear.</li>
         </ol>

@@ -60,6 +60,7 @@ goto npm_ok
 
 echo.
 echo === Configuracion de la sede ===
+echo Pega solo el token de la sede. La URL del POS se configura automaticamente.
 node setup.js
 if errorlevel 1 (
   pause
@@ -106,6 +107,7 @@ echo === Instalacion completa ===
 echo.
 echo Se abrio el panel local: http://localhost:8790
 echo Si el estado dice "QR", escanea el codigo con WhatsApp Business del celular de la sede.
+echo Si el QR tarda, tambien puede aparecer dibujado en la consola del bot.
 echo El bot arrancara solo cada vez que enciendas el PC.
 echo.
 pause
