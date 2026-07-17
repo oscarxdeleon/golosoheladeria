@@ -211,11 +211,15 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                 <li>Menú (⋮) → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b>.</li>
                 <li>Escanea este código.</li>
               </ol>
-              <div className="grid place-items-center rounded-xl border bg-white p-4">
+              <div className="grid place-items-center rounded-xl border bg-white p-4 min-h-[320px]">
                 {cfg.qr_code ? (
                   <QRCodeCanvas value={cfg.qr_code} size={280} includeMargin />
                 ) : (
-                  <div className="p-8 text-sm text-muted-foreground">Esperando QR del bot…</div>
+                  <div className="space-y-2 p-6 text-center text-sm text-muted-foreground">
+                    <QrCode className="mx-auto h-10 w-10 opacity-40" />
+                    <p className="font-semibold text-foreground">Aún no hay QR disponible</p>
+                    <p>Instala el bot en el PC de la sede (sección de abajo). Cuando arranque enviará el QR aquí automáticamente.</p>
+                  </div>
                 )}
               </div>
               <p className="text-xs text-muted-foreground">El QR se refresca solo mientras el bot está en modo de vinculación.</p>
