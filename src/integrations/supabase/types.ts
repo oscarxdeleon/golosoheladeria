@@ -2402,6 +2402,126 @@ export type Database = {
           },
         ]
       }
+      whatsapp_bot_config: {
+        Row: {
+          branch_id: string
+          connected_phone: string | null
+          connection_status: string
+          created_at: string
+          device_token: string
+          enabled: boolean
+          last_seen_at: string | null
+          menu_message: string
+          menu_triggers: string[]
+          qr_code: string | null
+          qr_generated_at: string | null
+          updated_at: string
+          welcome_messages: string[]
+        }
+        Insert: {
+          branch_id: string
+          connected_phone?: string | null
+          connection_status?: string
+          created_at?: string
+          device_token?: string
+          enabled?: boolean
+          last_seen_at?: string | null
+          menu_message?: string
+          menu_triggers?: string[]
+          qr_code?: string | null
+          qr_generated_at?: string | null
+          updated_at?: string
+          welcome_messages?: string[]
+        }
+        Update: {
+          branch_id?: string
+          connected_phone?: string | null
+          connection_status?: string
+          created_at?: string
+          device_token?: string
+          enabled?: boolean
+          last_seen_at?: string | null
+          menu_message?: string
+          menu_triggers?: string[]
+          qr_code?: string | null
+          qr_generated_at?: string | null
+          updated_at?: string
+          welcome_messages?: string[]
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_bot_config_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_bot_greeted: {
+        Row: {
+          branch_id: string
+          greeted_date: string
+          phone: string
+        }
+        Insert: {
+          branch_id: string
+          greeted_date?: string
+          phone: string
+        }
+        Update: {
+          branch_id?: string
+          greeted_date?: string
+          phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_bot_greeted_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_bot_messages: {
+        Row: {
+          body: string | null
+          branch_id: string
+          direction: string
+          from_number: string
+          id: string
+          matched_trigger: string | null
+          received_at: string
+        }
+        Insert: {
+          body?: string | null
+          branch_id: string
+          direction: string
+          from_number: string
+          id?: string
+          matched_trigger?: string | null
+          received_at?: string
+        }
+        Update: {
+          body?: string | null
+          branch_id?: string
+          direction?: string
+          from_number?: string
+          id?: string
+          matched_trigger?: string | null
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_bot_messages_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
