@@ -44,26 +44,18 @@ const ROLES: { value: AppRole; label: string; icon: typeof ShieldCheck; tone: st
 
 type UserAdminRpcName = "admin_create_app_user" | "admin_update_app_user" | "admin_delete_app_user";
 
-function getPublicBackendConfig() {
-  const backendUrl = import.meta.env.VITE_SUPABASE_URL;
-  const publishableKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-  if (!backendUrl || !publishableKey) {
-    throw new Error("No se encontró la configuración pública del backend. Recarga la aplicación e intenta de nuevo.");
-  }
-
-  return {
-    backendUrl: backendUrl.replace(/\/$/, ""),
-    publishableKey,
-  };
-}
-
 function extractBackendMessage(body: unknown, fallback: string) {
   if (body && typeof body === "object") {
     const record = body as Record<string, unknown>;
-    return String(record.message ?? record.details ?? record.hint ?? fallback);
+    return String(record.error ?? record.message ?? record.details ?? record.hint ?? fallback);
   }
-  return String(body || fallback);
+
+  const text = String(body || "").trim();
+  if (/^\s*<!doctype html|^\s*<html/i.test(text)) {
+    return "El servidor devolvió una página de error. Recarga la pantalla de usuarios e intenta nuevamente.";
+  }
+
+  return text || fallback;
 }
 
 async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string, unknown>): Promise<T> {
@@ -74,15 +66,14 @@ async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string,
     throw new Error("Tu sesión no está activa. Vuelve a iniciar sesión e intenta de nuevo.");
   }
 
-  const { backendUrl, publishableKey } = getPublicBackendConfig();
-  const response = await fetch(`${backendUrl}/rest/v1/rpc/${fn}`, {
+  const response = await fetch("/api/public/user-admin", {
     method: "POST",
     headers: {
-      apikey: publishableKey,
       Authorization: `Bearer ${accessToken}`,
+      Accept: "application/json",
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({ action: fn, payload }),
   });
 
   const raw = await response.text();
@@ -97,6 +88,10 @@ async function callUserAdminRpc<T>(fn: UserAdminRpcName, payload: Record<string,
 
   if (!response.ok) {
     throw new Error(extractBackendMessage(body, "No se pudo completar la operación de usuarios"));
+  }
+
+  if (body && typeof body === "object" && "data" in body) {
+    return (body as { data: T }).data;
   }
 
   return body as T;
