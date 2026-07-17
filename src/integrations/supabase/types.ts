@@ -2933,6 +2933,10 @@ export type Database = {
         Args: { _phone?: string; _qr?: string; _status: string; _token: string }
         Returns: Json
       }
+      whatsapp_bot_resolve_branch_id: {
+        Args: { _token: string }
+        Returns: string
+      }
       whatsapp_bot_rotate_token: {
         Args: { _branch_id: string }
         Returns: string
