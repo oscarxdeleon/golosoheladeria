@@ -77,11 +77,12 @@ export function ScheduleOrderDialog({ open, onOpenChange, schedules, channel, on
   function handleConfirm() {
     if (!currentDateStr || !slot) return;
     const utc = bogotaDateTimeToUTC(currentDateStr, slot);
-    const label = `${selectedDay?.day} ${selectedDay?.month} · ${slot}`;
+    const label = `${selectedDay?.day} ${selectedDay?.month} · ${to12h(slot)}`;
     onConfirm(utc.toISOString(), label);
     onOpenChange(false);
     setSlot(null);
   }
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
