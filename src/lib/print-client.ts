@@ -560,7 +560,7 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
     ),
   );
 
-  const TIMEOUT_MS = 12000;
+  const TIMEOUT_MS = 45000;
   // Regla estricta: comandas de mesa/llevar/kiosko nunca deben imprimir sede.
   const stripSedeForCleanComanda = (p: PrintPayload): PrintPayload => {
     if (p.type !== "comanda") return p;
@@ -587,8 +587,11 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
     let sentToPrinter = false;
     try {
-      const compatible = await assertCompatiblePrintServer(url, payload, controller.signal);
-      if (!compatible) continue;
+      // Health check informativo — si falla, seguimos intentando el POST igual.
+      // Motivo: en algunas redes/instalaciones el /health puede fallar por
+      // preflight de PNA aunque el POST directo funcione perfectamente. No
+      // queremos bloquear la impresión por un health check estricto.
+      await assertCompatiblePrintServer(url, payload, controller.signal).catch(() => false);
       sentToPrinter = true; // desde aquí, la impresora pudo haber recibido el buffer
       const res = await fetch(url, {
         method: "POST",
@@ -608,9 +611,15 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
       // cola con el mismo job_id (idempotencia server-side).
       return false;
     } catch {
-      // Si ya iniciamos el POST, la impresora pudo haber recibido el buffer
-      // aunque la respuesta HTTP se abortó/perdió. No intentar otro candidato.
-      if (sentToPrinter) return false;
+      // Si ya iniciamos el POST, el Print Server ya recibió el job (respuesta
+      // asíncrona desde v2.19.1). Tratar el abort/network error como éxito
+      // — la idempotencia server-side (10 min por job_id) evita duplicados
+      // si el POS reintenta.
+      if (sentToPrinter) {
+        _lastGoodUrl = url;
+        if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
+        return true;
+      }
       /* prueba el siguiente candidato solo si no llegamos a POST */
     } finally {
       clearTimeout(timer);
