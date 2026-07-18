@@ -994,6 +994,41 @@ async function printJob(payload) {
   return sendRaw(buf, PRINTER_IP, PRINTER_PORT);
 }
 
+// ---------- Idempotencia y cola serializada ----------
+// Evita que la MISMA orden se imprima varias veces cuando el cliente reintenta
+// tras un timeout HTTP aunque la impresora ya recibió el buffer, o cuando la
+// cola en Supabase reprocesa un job cuyo UPDATE a "printed" no llegó.
+// Ventana: 10 minutos. Clave: job_id (preferido) o hash(type|ticket|items).
+const _recentJobs = new Map(); // key -> { at, result }
+const IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
+
+function idempotencyKey(payload) {
+  if (payload && typeof payload.job_id === "string" && payload.job_id.length > 0) {
+    return `id:${payload.job_id}`;
+  }
+  const items = (payload?.items ?? [])
+    .map((i) => `${i?.name ?? ""}#${i?.qty ?? ""}#${i?.unit_price ?? ""}`)
+    .join("|");
+  return `h:${payload?.type ?? ""}|${payload?.ticket ?? payload?.ticket_number ?? ""}|${payload?.total ?? ""}|${items}`;
+}
+
+function purgeIdempotency() {
+  const now = Date.now();
+  for (const [k, v] of _recentJobs) if (now - v.at > IDEMPOTENCY_WINDOW_MS) _recentJobs.delete(k);
+}
+
+// Cola serializada: garantiza que nunca dos jobs se envían al puerto USB /
+// socket a la vez. Impresiones concurrentes son la causa clásica de "letras
+// gigantes repetidas": los buffers se intercalan y la impresora queda con
+// modo doble tamaño activado a mitad de un ticket.
+let _chain = Promise.resolve();
+function enqueuePrint(fn) {
+  const p = _chain.then(fn, fn);
+  _chain = p.catch(() => {});
+  return p;
+}
+
+
 // ---------- HTTP ----------
 const CORS = {
   "Access-Control-Allow-Origin": "*",
