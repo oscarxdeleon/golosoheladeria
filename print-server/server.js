@@ -1155,33 +1155,43 @@ const server = http.createServer(async (req, res) => {
     let body = "";
     req.on("data", (c) => (body += c));
     req.on("end", async () => {
+      let payload;
       try {
-        const payload = JSON.parse(body || "{}");
-        purgeIdempotency();
-        // Nunca deduplicar apertura de cajón — es acción explícita repetible.
-        if (payload?.type !== "drawer") {
-          const key = idempotencyKey(payload);
-          const prev = _recentJobs.get(key);
-          if (prev && Date.now() - prev.at < IDEMPOTENCY_WINDOW_MS) {
-            console.log(`[print] IDEMPOTENTE — job ya impreso (job_id=${payload.job_id ?? "-"} tipo=${payload.type} ticket=${payload.ticket ?? "-"})`);
-            return send(200, { ok: true, deduped: true });
-          }
-          // Marca ANTES de imprimir para que un reintento paralelo del cliente
-          // no dispare una segunda impresión mientras la primera aún corre.
-          _recentJobs.set(key, { at: Date.now() });
-        }
-        console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length} dst=${payload.printer_ip ?? "(default)"} job=${payload.job_id ?? "-"}`);
-        await enqueuePrint(() => printJob(payload));
-        send(200, { ok: true });
+        payload = JSON.parse(body || "{}");
       } catch (e) {
-        console.error("[print] ERROR:", e?.message || e);
-        // En error real, liberamos la clave para permitir un reintento legítimo.
+        console.error("[print] JSON inválido:", e?.message || e);
+        return send(400, { ok: false, error: "Invalid JSON" });
+      }
+      purgeIdempotency();
+      // Nunca deduplicar apertura de cajón — es acción explícita repetible.
+      if (payload?.type !== "drawer") {
+        const key = idempotencyKey(payload);
+        const prev = _recentJobs.get(key);
+        if (prev && Date.now() - prev.at < IDEMPOTENCY_WINDOW_MS) {
+          console.log(`[print] IDEMPOTENTE — job ya impreso (job_id=${payload.job_id ?? "-"} tipo=${payload.type} ticket=${payload.ticket ?? "-"})`);
+          return send(200, { ok: true, deduped: true });
+        }
+        // Marca ANTES de imprimir para que un reintento paralelo del cliente
+        // no dispare una segunda impresión mientras la primera aún corre.
+        _recentJobs.set(key, { at: Date.now() });
+      }
+      console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length} dst=${payload.printer_ip ?? "(default)"} job=${payload.job_id ?? "-"}`);
+
+      // Respuesta INMEDIATA: el POS no debe esperar a que la impresora termine
+      // (renderizado de logo + socket puede tomar 5-15 s, superando el timeout
+      // del cliente y provocando falsos negativos que disparan retries y hasta
+      // suprimen la impresión). La cola `enqueuePrint` garantiza serialización
+      // y `_recentJobs` garantiza idempotencia, así que es seguro responder
+      // antes de que el buffer haya terminado de fluir a la impresora.
+      send(200, { ok: true, queued: true });
+
+      enqueuePrint(() => printJob(payload)).catch((e) => {
+        console.error(`[print] fallo asíncrono job=${payload?.job_id ?? "-"} tipo=${payload?.type ?? "-"}:`, e?.message || e);
+        // Liberamos la clave para permitir un reintento legítimo desde el POS.
         try {
-          const payload = JSON.parse(body || "{}");
           if (payload?.type !== "drawer") _recentJobs.delete(idempotencyKey(payload));
         } catch {}
-        send(500, { ok: false, error: String(e?.message || e) });
-      }
+      });
     });
     return;
   }
