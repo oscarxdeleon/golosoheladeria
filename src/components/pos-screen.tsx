@@ -1327,7 +1327,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     if (!pendingSaleId && !physicalStatus.isOpen) {
       return toast.error(physicalClosedMsg);
     }
-    if (orderType === "llevar" && cart.length > 0 && !pendingSaleId) {
+    // Antes de abrir el diálogo de cobro, si es un pedido NUEVO (sin
+    // pendingSaleId), guardamos primero como pendiente para que la comanda
+    // de cocina se imprima YA. Aplica a "Para llevar" y "A domicilio" —
+    // ambos flujos suelen registrarse y cobrarse en un mismo paso, por lo
+    // que sin este save-first la cocina nunca recibía la comanda del
+    // pedido a domicilio (solo salía el ticket al cliente en `pay()`).
+    if ((orderType === "llevar" || orderType === "domicilio") && cart.length > 0 && !pendingSaleId) {
       const ok = await saveComanda({ stayForPayment: true });
       if (!ok) return; // saveComanda ya notificó el error
     }
