@@ -97,15 +97,17 @@ const MAX_TRIES = 3;
 const STALE_PENDING_MS = 15 * 60 * 1000; // 15 min → jobs viejos se cancelan
 const UPDATE_RETRIES = 5;
 
-async function updateJobWithRetry(id: string, patch: Record<string, unknown>): Promise<boolean> {
+type PrintJobUpdate = Partial<Omit<PrintJobRow, "payload">>;
+async function updateJobWithRetry(id: string, patch: PrintJobUpdate): Promise<boolean> {
   for (let i = 0; i < UPDATE_RETRIES; i += 1) {
-    const { error } = await supabase.from("print_jobs").update(patch).eq("id", id);
+    const { error } = await supabase.from("print_jobs").update(patch as never).eq("id", id);
     if (!error) return true;
     await new Promise((r) => setTimeout(r, 500 * (i + 1)));
   }
   console.warn("[print-queue] no se pudo actualizar job", id, patch);
   return false;
 }
+
 
 async function tryClaimJob(job: PrintJobRow): Promise<boolean> {
   // Optimistic locking: solo reclamamos si nadie más lo tiene o el lock expiró.
