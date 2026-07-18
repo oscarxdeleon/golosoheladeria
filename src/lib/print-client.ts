@@ -9,6 +9,10 @@ import { DEFAULT_FORMATS, normalizeFormat } from "@/lib/command-format";
 
 export type PrintPayload = {
   type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
+  /** Identificador único del trabajo — el Print Server lo usa para idempotencia
+   *  (ventana de 10 min). Si no se provee, el cliente genera uno estable a
+   *  partir del contenido para evitar impresiones duplicadas ante reintentos. */
+  job_id?: string;
   /** Cuando true, se imprime como "ADICIÓN AL PEDIDO" (solo comandas). */
   is_addition?: boolean;
   ticket?: number | null;
@@ -54,7 +58,7 @@ export type PrintPayload = {
 
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
-const MIN_PRINT_SERVER_VERSION = "2.17.0";
+const MIN_PRINT_SERVER_VERSION = "2.19.0";
 
 /**
  * Normaliza texto para el servidor ESC/POS sin quitar tildes ni ñ. El servidor
