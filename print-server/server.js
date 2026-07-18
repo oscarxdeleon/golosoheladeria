@@ -994,6 +994,41 @@ async function printJob(payload) {
   return sendRaw(buf, PRINTER_IP, PRINTER_PORT);
 }
 
+// ---------- Idempotencia y cola serializada ----------
+// Evita que la MISMA orden se imprima varias veces cuando el cliente reintenta
+// tras un timeout HTTP aunque la impresora ya recibió el buffer, o cuando la
+// cola en Supabase reprocesa un job cuyo UPDATE a "printed" no llegó.
+// Ventana: 10 minutos. Clave: job_id (preferido) o hash(type|ticket|items).
+const _recentJobs = new Map(); // key -> { at, result }
+const IDEMPOTENCY_WINDOW_MS = 10 * 60 * 1000;
+
+function idempotencyKey(payload) {
+  if (payload && typeof payload.job_id === "string" && payload.job_id.length > 0) {
+    return `id:${payload.job_id}`;
+  }
+  const items = (payload?.items ?? [])
+    .map((i) => `${i?.name ?? ""}#${i?.qty ?? ""}#${i?.unit_price ?? ""}`)
+    .join("|");
+  return `h:${payload?.type ?? ""}|${payload?.ticket ?? payload?.ticket_number ?? ""}|${payload?.total ?? ""}|${items}`;
+}
+
+function purgeIdempotency() {
+  const now = Date.now();
+  for (const [k, v] of _recentJobs) if (now - v.at > IDEMPOTENCY_WINDOW_MS) _recentJobs.delete(k);
+}
+
+// Cola serializada: garantiza que nunca dos jobs se envían al puerto USB /
+// socket a la vez. Impresiones concurrentes son la causa clásica de "letras
+// gigantes repetidas": los buffers se intercalan y la impresora queda con
+// modo doble tamaño activado a mitad de un ticket.
+let _chain = Promise.resolve();
+function enqueuePrint(fn) {
+  const p = _chain.then(fn, fn);
+  _chain = p.catch(() => {});
+  return p;
+}
+
+
 // ---------- HTTP ----------
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -1122,16 +1157,35 @@ const server = http.createServer(async (req, res) => {
     req.on("end", async () => {
       try {
         const payload = JSON.parse(body || "{}");
-        console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length} dst=${payload.printer_ip ?? "(default)"}`);
-        await printJob(payload);
+        purgeIdempotency();
+        // Nunca deduplicar apertura de cajón — es acción explícita repetible.
+        if (payload?.type !== "drawer") {
+          const key = idempotencyKey(payload);
+          const prev = _recentJobs.get(key);
+          if (prev && Date.now() - prev.at < IDEMPOTENCY_WINDOW_MS) {
+            console.log(`[print] IDEMPOTENTE — job ya impreso (job_id=${payload.job_id ?? "-"} tipo=${payload.type} ticket=${payload.ticket ?? "-"})`);
+            return send(200, { ok: true, deduped: true });
+          }
+          // Marca ANTES de imprimir para que un reintento paralelo del cliente
+          // no dispare una segunda impresión mientras la primera aún corre.
+          _recentJobs.set(key, { at: Date.now() });
+        }
+        console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length} dst=${payload.printer_ip ?? "(default)"} job=${payload.job_id ?? "-"}`);
+        await enqueuePrint(() => printJob(payload));
         send(200, { ok: true });
       } catch (e) {
         console.error("[print] ERROR:", e?.message || e);
+        // En error real, liberamos la clave para permitir un reintento legítimo.
+        try {
+          const payload = JSON.parse(body || "{}");
+          if (payload?.type !== "drawer") _recentJobs.delete(idempotencyKey(payload));
+        } catch {}
         send(500, { ok: false, error: String(e?.message || e) });
       }
     });
     return;
   }
+
 
   res.writeHead(404, CORS); res.end();
 });
