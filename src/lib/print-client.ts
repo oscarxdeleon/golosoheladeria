@@ -530,6 +530,18 @@ if (typeof window !== "undefined") {
   setInterval(() => { if (_retryQueue.length > 0) void flushRetryQueue(); }, 30_000);
 }
 
+function ensureJobId(payload: PrintPayload): PrintPayload {
+  if (payload.job_id && payload.job_id.length > 0) return payload;
+  // Genera un job_id estable por contenido — mismos items+ticket+tipo
+  // dentro de la ventana de idempotencia del servidor (10 min) contarán
+  // como el mismo trabajo aunque el cliente reintente por timeout.
+  const seed = hashPayload(payload);
+  let h = 0;
+  for (let i = 0; i < seed.length; i += 1) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  const job_id = `c_${Math.abs(h).toString(36)}_${Math.floor(Date.now() / 1000)}`;
+  return { ...payload, job_id };
+}
+
 async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolean> {
   let configuredUrl = getLocalPrintUrl();
   if (!configuredUrl) {
@@ -559,11 +571,12 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
     void _omit;
     return rest as PrintPayload;
   };
+  const withJobId = ensureJobId(payload);
   const body = JSON.stringify(
     sanitizePayloadForPrinter(
       await withClientRasterLogo(
         await withActiveCommandFormat(
-          await withDefaultPrinterTarget(stripSedeForCleanComanda(payload)),
+          await withDefaultPrinterTarget(stripSedeForCleanComanda(withJobId)),
         ),
       ),
     ),
@@ -572,9 +585,11 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
   for (const url of candidates) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
+    let sentToPrinter = false;
     try {
       const compatible = await assertCompatiblePrintServer(url, payload, controller.signal);
       if (!compatible) continue;
+      sentToPrinter = true; // desde aquí, la impresora pudo haber recibido el buffer
       const res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -587,8 +602,16 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
         if (url !== getLocalPrintUrl()) setLocalPrintUrl(url);
         return true;
       }
+      // Servidor local respondió con error: NO probar el siguiente candidato
+      // porque suele apuntar al MISMO servidor (localhost vs 127.0.0.1) y
+      // provocaría doble impresión. El job se reintentará más tarde por la
+      // cola con el mismo job_id (idempotencia server-side).
+      return false;
     } catch {
-      /* prueba el siguiente candidato */
+      // Si ya iniciamos el POST, la impresora pudo haber recibido el buffer
+      // aunque la respuesta HTTP se abortó/perdió. No intentar otro candidato.
+      if (sentToPrinter) return false;
+      /* prueba el siguiente candidato solo si no llegamos a POST */
     } finally {
       clearTimeout(timer);
     }
@@ -596,6 +619,7 @@ async function sendToLocalPrinterInternal(payload: PrintPayload): Promise<boolea
 
   return false;
 }
+
 
 export async function sendToLocalPrinter(payload: PrintPayload): Promise<boolean> {
   // Dedupe primero — barato y evita rasterizar logo dos veces.
