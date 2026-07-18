@@ -1157,16 +1157,35 @@ const server = http.createServer(async (req, res) => {
     req.on("end", async () => {
       try {
         const payload = JSON.parse(body || "{}");
-        console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length} dst=${payload.printer_ip ?? "(default)"}`);
-        await printJob(payload);
+        purgeIdempotency();
+        // Nunca deduplicar apertura de cajón — es acción explícita repetible.
+        if (payload?.type !== "drawer") {
+          const key = idempotencyKey(payload);
+          const prev = _recentJobs.get(key);
+          if (prev && Date.now() - prev.at < IDEMPOTENCY_WINDOW_MS) {
+            console.log(`[print] IDEMPOTENTE — job ya impreso (job_id=${payload.job_id ?? "-"} tipo=${payload.type} ticket=${payload.ticket ?? "-"})`);
+            return send(200, { ok: true, deduped: true });
+          }
+          // Marca ANTES de imprimir para que un reintento paralelo del cliente
+          // no dispare una segunda impresión mientras la primera aún corre.
+          _recentJobs.set(key, { at: Date.now() });
+        }
+        console.log(`[print] tipo=${payload.type} ticket=${payload.ticket} items=${(payload.items||[]).length} dst=${payload.printer_ip ?? "(default)"} job=${payload.job_id ?? "-"}`);
+        await enqueuePrint(() => printJob(payload));
         send(200, { ok: true });
       } catch (e) {
         console.error("[print] ERROR:", e?.message || e);
+        // En error real, liberamos la clave para permitir un reintento legítimo.
+        try {
+          const payload = JSON.parse(body || "{}");
+          if (payload?.type !== "drawer") _recentJobs.delete(idempotencyKey(payload));
+        } catch {}
         send(500, { ok: false, error: String(e?.message || e) });
       }
     });
     return;
   }
+
 
   res.writeHead(404, CORS); res.end();
 });
