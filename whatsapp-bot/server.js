@@ -232,7 +232,7 @@ let outboundInFlight = false;
 function normalizeOutboundPhone(raw) {
   let digits = String(raw || "").replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
-  if (digits.length === 10 && digits.startsWith("3")) digits = `57${digits}`;
+  if (digits.length === 10) digits = `57${digits}`;
   return digits;
 }
 
@@ -283,6 +283,7 @@ async function pollOutbound() {
     state.lastOutboundPollAt = Date.now();
     state.lastOutboundCount = pending.length;
     state.lastOutboundError = null;
+    await reportOutboundPoll("ok", pending.length, null);
     if (pending.length === 0) return;
     const sent = [];
     const failed = [];
