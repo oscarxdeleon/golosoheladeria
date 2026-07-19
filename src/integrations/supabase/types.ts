@@ -1306,6 +1306,208 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_late_rules: {
+        Row: {
+          active: boolean
+          brackets: Json
+          branch_id: string | null
+          created_at: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          brackets?: Json
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          brackets?: Json
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_late_rules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_manual_deductions: {
+        Row: {
+          amount: number
+          applied_to_payment_id: string | null
+          branch_id: string | null
+          concept: string
+          created_at: string
+          created_by: string | null
+          deduction_date: string
+          employee_id: string
+          id: string
+          notes: string | null
+        }
+        Insert: {
+          amount: number
+          applied_to_payment_id?: string | null
+          branch_id?: string | null
+          concept: string
+          created_at?: string
+          created_by?: string | null
+          deduction_date?: string
+          employee_id: string
+          id?: string
+          notes?: string | null
+        }
+        Update: {
+          amount?: number
+          applied_to_payment_id?: string | null
+          branch_id?: string | null
+          concept?: string
+          created_at?: string
+          created_by?: string | null
+          deduction_date?: string
+          employee_id?: string
+          id?: string
+          notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_manual_deductions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_manual_deductions_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_payment_items: {
+        Row: {
+          day_type: string
+          id: string
+          late_deduction: number
+          late_minutes: number
+          payment_id: string
+          shift_rate: number
+          work_date: string
+          worked: boolean
+        }
+        Insert: {
+          day_type: string
+          id?: string
+          late_deduction?: number
+          late_minutes?: number
+          payment_id: string
+          shift_rate?: number
+          work_date: string
+          worked?: boolean
+        }
+        Update: {
+          day_type?: string
+          id?: string
+          late_deduction?: number
+          late_minutes?: number
+          payment_id?: string
+          shift_rate?: number
+          work_date?: string
+          worked?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payment_items_payment_id_fkey"
+            columns: ["payment_id"]
+            isOneToOne: false
+            referencedRelation: "payroll_payments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payroll_payments: {
+        Row: {
+          branch_id: string | null
+          employee_id: string
+          gross_amount: number
+          id: string
+          late_deduction: number
+          manual_deduction: number
+          net_amount: number
+          notes: string | null
+          paid_at: string
+          paid_by: string | null
+          paid_by_name: string | null
+          payment_method: string
+          period_end: string
+          period_start: string
+          receipt_number: number
+          shifts_count: number
+        }
+        Insert: {
+          branch_id?: string | null
+          employee_id: string
+          gross_amount?: number
+          id?: string
+          late_deduction?: number
+          manual_deduction?: number
+          net_amount?: number
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          paid_by_name?: string | null
+          payment_method: string
+          period_end: string
+          period_start: string
+          receipt_number?: number
+          shifts_count?: number
+        }
+        Update: {
+          branch_id?: string | null
+          employee_id?: string
+          gross_amount?: number
+          id?: string
+          late_deduction?: number
+          manual_deduction?: number
+          net_amount?: number
+          notes?: string | null
+          paid_at?: string
+          paid_by?: string | null
+          paid_by_name?: string | null
+          payment_method?: string
+          period_end?: string
+          period_start?: string
+          receipt_number?: number
+          shifts_count?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_payments_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       print_jobs: {
         Row: {
           branch_id: string | null
@@ -2700,6 +2902,10 @@ export type Database = {
     Functions: {
       _daykey_from_date: { Args: { _d: string }; Returns: string }
       _normalize_payment_method: { Args: { _m: string }; Returns: string }
+      _resolve_bracket_deduct_minutes: {
+        Args: { _branch_id: string; _late_min: number }
+        Returns: number
+      }
       _shared_cash_session_detail: {
         Args: { _cash_session_id: string }
         Returns: Json
@@ -3023,6 +3229,24 @@ export type Database = {
           net_pay: number
           pay_mode: string
         }[]
+      }
+      payroll_register_payment: {
+        Args: {
+          _employee_id: string
+          _notes?: string
+          _payment_method: string
+          _period_end: string
+          _period_start: string
+        }
+        Returns: Json
+      }
+      payroll_weekly_liquidation: {
+        Args: {
+          _employee_id: string
+          _period_end: string
+          _period_start: string
+        }
+        Returns: Json
       }
       reconcile_restaurant_tables: {
         Args: { _branch_id?: string }
