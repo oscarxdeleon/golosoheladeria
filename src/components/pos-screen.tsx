@@ -1976,6 +1976,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       for (const l of cart) newBaseline[l.key] = (newBaseline[l.key] ?? 0) + l.qty;
       printedQtyRef.current = newBaseline;
 
+      // Auditoría: si se agregaron productos a un pedido ya existente,
+      // registra qué usuario los añadió, cuándo y qué productos fueron.
+      if (!isFirstSave && deltaLines.length > 0) {
+        const addedItems = deltaLines.map(({ line, newQty }) => ({
+          product_id: line.product_id,
+          product_name: line.name,
+          qty: newQty,
+          unit_price: line.unit_price,
+          subtotal: line.unit_price * newQty,
+          modifiers: normalizeModifiers(line.modifiers),
+          notes: line.notes ?? null,
+        }));
+        void supabase.rpc("log_sale_modification", {
+          _sale_id: sale.id,
+          _added_items: addedItems as unknown as never,
+          _kind: "add_items",
+          _notes: orderType === "domicilio" ? "Adición a pedido de domicilio" : undefined,
+        });
+      }
+
       // 1º DB ya guardada · 2º KDS realtime · 3º Impresión física en background.
       qc.invalidateQueries({ queryKey: ["kds-pending"] });
       qc.invalidateQueries({ queryKey: ["sales"] });

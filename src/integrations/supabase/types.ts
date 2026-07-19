@@ -2093,6 +2093,57 @@ export type Database = {
           },
         ]
       }
+      sale_modifications: {
+        Row: {
+          added_items: Json
+          branch_id: string | null
+          created_at: string
+          id: string
+          kind: string
+          notes: string | null
+          sale_id: string
+          user_id: string | null
+          user_name: string | null
+        }
+        Insert: {
+          added_items?: Json
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          sale_id: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Update: {
+          added_items?: Json
+          branch_id?: string | null
+          created_at?: string
+          id?: string
+          kind?: string
+          notes?: string | null
+          sale_id?: string
+          user_id?: string | null
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sale_modifications_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_modifications_sale_id_fkey"
+            columns: ["sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       sales: {
         Row: {
           branch_id: string | null
@@ -3183,6 +3234,15 @@ export type Database = {
       log_reimpression: {
         Args: { _kind?: string; _reason?: string; _sale_id: string }
         Returns: Json
+      }
+      log_sale_modification: {
+        Args: {
+          _added_items: Json
+          _kind?: string
+          _notes?: string
+          _sale_id: string
+        }
+        Returns: string
       }
       lookup_customer_loyalty: { Args: { _phone: string }; Returns: Json }
       merge_tables: {

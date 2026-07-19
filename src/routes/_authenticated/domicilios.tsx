@@ -270,7 +270,7 @@ function DespachoDomiciliosPage() {
 
                   <div className="flex flex-wrap gap-2 pt-2">
                     <Button size="sm" variant="default" onClick={() => openForPayment(s)}>
-                      <Banknote className="h-4 w-4 mr-1" /> Abrir / Cobrar
+                      <Banknote className="h-4 w-4 mr-1" /> Editar / Agregar / Cobrar
                     </Button>
                     {courier && (
                       <Button size="sm" variant="outline" onClick={() => sendWhatsAppTo(s, courier)}>
