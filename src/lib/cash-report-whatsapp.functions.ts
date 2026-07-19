@@ -28,8 +28,8 @@ function padRight(s: string, len: number) {
 function normalizePhone(raw: string): string | null {
   const digits = String(raw ?? "").replace(/\D+/g, "");
   if (!digits) return null;
-  // Colombia: si viene con 10 dígitos empezando en 3, agregar 57
-  if (digits.length === 10 && digits.startsWith("3")) return "57" + digits;
+  // Colombia: si viene local de 10 dígitos, agregar 57 automáticamente.
+  if (digits.length === 10) return "57" + digits;
   if (digits.length >= 10 && digits.length <= 15) return digits;
   return null;
 }

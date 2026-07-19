@@ -62,6 +62,11 @@ interface MessageRow {
 
 const WHATSAPP_BOT_DOWNLOAD_URL = "/downloads/whatsapp-bot.zip";
 
+function normalizeColombiaWhatsApp(raw: string): string {
+  const digits = String(raw ?? "").replace(/\D+/g, "");
+  return digits.length === 10 ? `57${digits}` : digits;
+}
+
 const STATUS_META: Record<string, { label: string; color: string; icon: React.ComponentType<{ className?: string }> }> = {
   connected:    { label: "Conectado",     color: "bg-emerald-500", icon: Wifi },
   connecting:   { label: "Conectando…",   color: "bg-amber-500",   icon: RefreshCw },
@@ -847,7 +852,7 @@ function ReportRecipientsCard({ branchId }: { branchId: string }) {
 
   const save = async () => {
     const clean = rows
-      .map((r) => ({ phone: r.phone.replace(/\D+/g, ""), label: r.label.trim(), enabled: !!r.enabled }))
+      .map((r) => ({ phone: normalizeColombiaWhatsApp(r.phone), label: r.label.trim(), enabled: !!r.enabled }))
       .filter((r) => r.phone.length >= 10);
     setSaving(true);
     const { error } = await supabase
@@ -862,14 +867,13 @@ function ReportRecipientsCard({ branchId }: { branchId: string }) {
 
   const sendTest = async (i: number) => {
     const row = rows[i];
-    const phone = row.phone.replace(/\D+/g, "");
+    const phone = normalizeColombiaWhatsApp(row.phone);
     if (phone.length < 10) { toast.error("Número inválido"); return; }
     setTestingIdx(i);
     const body = `🍦 *Prueba de envío · Goloso*\n\nEste es un mensaje de prueba del reporte de cierre de caja.\nSi lo recibes, la configuración está correcta.\n\n_Goloso POS_`;
-    const to = phone.length === 10 && phone.startsWith("3") ? "57" + phone : phone;
     const { error } = await supabase
       .from("whatsapp_outbound_queue")
-      .insert({ branch_id: branchId, to_phone: to, body, purpose: "test" } as never);
+      .insert({ branch_id: branchId, to_phone: phone, body, purpose: "test" } as never);
     setTestingIdx(null);
     if (error) { toast.error(error.message); return; }
     toast.success("Prueba encolada. Debe llegar en menos de 30s si el bot está conectado.");
