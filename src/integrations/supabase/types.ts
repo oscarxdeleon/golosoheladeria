@@ -2537,6 +2537,53 @@ export type Database = {
           },
         ]
       }
+      whatsapp_outbound_queue: {
+        Row: {
+          attempts: number
+          body: string
+          branch_id: string
+          created_at: string
+          id: string
+          last_error: string | null
+          purpose: string
+          sent_at: string | null
+          status: string
+          to_phone: string
+        }
+        Insert: {
+          attempts?: number
+          body: string
+          branch_id: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          purpose?: string
+          sent_at?: string | null
+          status?: string
+          to_phone: string
+        }
+        Update: {
+          attempts?: number
+          body?: string
+          branch_id?: string
+          created_at?: string
+          id?: string
+          last_error?: string | null
+          purpose?: string
+          sent_at?: string | null
+          status?: string
+          to_phone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_outbound_queue_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -2939,7 +2986,17 @@ export type Database = {
       }
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
       touch_tablet_last_seen: { Args: { _token: string }; Returns: undefined }
+      whatsapp_bot_ack_outbound: {
+        Args: {
+          _error?: string
+          _failed: string[]
+          _sent: string[]
+          _token: string
+        }
+        Returns: Json
+      }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
+      whatsapp_bot_get_pending: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_handle_incoming: {
         Args: { _body: string; _from: string; _token: string }
         Returns: Json
