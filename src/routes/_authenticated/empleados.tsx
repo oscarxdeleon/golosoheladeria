@@ -785,6 +785,24 @@ function NominaTab() {
           </Table>
         </div>
       </CardContent>
+
+      {payFor && (
+        <PaymentDialog
+          employeeId={payFor.id}
+          employeeName={payFor.name}
+          defaultFrom={from}
+          defaultTo={to}
+          onClose={() => setPayFor(null)}
+          onPaid={() => {
+            qc.invalidateQueries({ queryKey: ["payroll-summary"] });
+            qc.invalidateQueries({ queryKey: ["payroll-payments"] });
+            qc.invalidateQueries({ queryKey: ["manual-deductions"] });
+            setPayFor(null);
+          }}
+        />
+      )}
+
+      <LateRulesDialog open={rulesOpen} onClose={() => setRulesOpen(false)} branches={branches} />
     </Card>
   );
 }
