@@ -590,24 +590,28 @@ type LateRow = {
 };
 
 function NominaTab() {
+  const qc = useQueryClient();
   const { data: employees = [] } = useEmployees();
   const { data: branches = [] } = useBranches();
   const today = new Date();
-  const firstOfWeek = new Date(today);
-  firstOfWeek.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-  const [from, setFrom] = useState(format(firstOfWeek, "yyyy-MM-dd"));
-  const [to, setTo] = useState(format(today, "yyyy-MM-dd"));
+  const monday = new Date(today);
+  monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+  const sunday = new Date(monday); sunday.setDate(monday.getDate() + 6);
+  const [from, setFrom] = useState(format(monday, "yyyy-MM-dd"));
+  const [to, setTo] = useState(format(sunday, "yyyy-MM-dd"));
   const [branchId, setBranchId] = useState<string>("all");
   const [employeeId, setEmployeeId] = useState<string>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [payFor, setPayFor] = useState<{ id: string; name: string } | null>(null);
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   const { data: rows = [], isFetching, refetch } = useQuery({
     queryKey: ["payroll-summary", from, to, branchId, employeeId],
     queryFn: async () => {
-      const args: any = { _from: from, _to: to };
+      const args: Record<string, unknown> = { _from: from, _to: to };
       if (employeeId !== "all") args._employee_id = employeeId;
       if (branchId !== "all") args._branch_id = branchId;
-      const { data, error } = await supabase.rpc("payroll_period_summary", args);
+      const { data, error } = await supabase.rpc("payroll_period_summary", args as never);
       if (error) throw error;
       return (data ?? []) as SummaryRow[];
     },
