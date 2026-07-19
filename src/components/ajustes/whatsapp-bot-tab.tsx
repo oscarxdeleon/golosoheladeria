@@ -265,14 +265,14 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-primary" /> Instalación en el PC de la sede</CardTitle>
-        <CardDescription>Descarga el bot, instálalo una vez y arrancará solo con el PC.</CardDescription>
+          <CardDescription>Descarga el bot. Si ya estaba vinculado, actualízalo sin token y sin QR.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         <ol className="space-y-2 text-sm">
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">1</span> Si el bot ya estaba vinculado, descarga el ZIP nuevo y ejecuta <code>update-windows.bat</code>. Conserva la sesión actual y no pide QR.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">2</span> Para instalación nueva, descomprímelo en una carpeta permanente del PC.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">3</span> Solo en instalación nueva: copia el <b>Token de esta sede</b> y ejecuta <code>install-windows.bat</code>.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">4</span> El actualizador reemplaza el código, mantiene <code>auth_state</code> y reinicia el bot automáticamente.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">1</span> Si el bot ya estaba vinculado, descarga el ZIP nuevo y ejecuta <code>ACTUALIZAR-SIN-QR.bat</code>.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">2</span> El actualizador busca la instalación anterior, conserva <code>config.json</code> y <code>auth_state</code>, y no pide token ni QR.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">3</span> Si por error ejecutas <code>install-windows.bat</code>, también intentará actualizar automáticamente antes de pedir token.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">4</span> Solo una instalación totalmente nueva necesita token y vinculación por QR.</li>
           <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">5</span> Estado pasa a <b>Conectado</b>. Al reiniciar el PC el bot se recupera solo.</li>
         </ol>
 
@@ -294,7 +294,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
               <a href={WHATSAPP_BOT_DOWNLOAD_URL} download="whatsapp-bot.zip">
-                <Download className="mr-2 h-4 w-4" /> Descargar bot para Windows
+                <Download className="mr-2 h-4 w-4" /> Descargar actualización sin QR
               </a>
             </Button>
             <Button variant="ghost" size="sm" onClick={rotateToken}>
@@ -303,7 +303,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            Para actualizar sin volver a vincular WhatsApp, usa update-windows.bat y no borres la carpeta auth_state del bot anterior.
+            Para actualizar sin volver a vincular WhatsApp, usa ACTUALIZAR-SIN-QR.bat. Solo se pedirá QR si la carpeta auth_state anterior fue borrada o WhatsApp cerró la sesión.
           </p>
         </div>
       </CardContent>

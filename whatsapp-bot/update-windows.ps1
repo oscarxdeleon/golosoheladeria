@@ -1,3 +1,7 @@
+param(
+  [switch]$AutoFromInstaller
+)
+
 $ErrorActionPreference = "Stop"
 
 $SourceDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -15,6 +19,11 @@ function Resolve-StartHiddenFolderFromValue($value) {
   $match = [regex]::Match($value, '([^\s"]*start-hidden\.vbs)')
   if ($match.Success) { return Split-Path -Parent $match.Groups[1].Value }
   return $null
+}
+
+function Test-ValidBotFolder($folder) {
+  if ([string]::IsNullOrWhiteSpace($folder) -or -not (Test-Path $folder)) { return $false }
+  return (Test-Path (Join-Path $folder "config.json")) -or (Test-Path (Join-Path $folder "auth_state")) -or (Test-Path (Join-Path $folder "server.js"))
 }
 
 function Find-InstalledBotFolder {
@@ -42,8 +51,17 @@ function Find-InstalledBotFolder {
     $candidates.Add($SourceDir)
   }
 
+  $commonRoots = @(
+    (Join-Path ([Environment]::GetFolderPath("ProgramFiles")) "Goloso WhatsApp Bot"),
+    (Join-Path ([Environment]::GetFolderPath("LocalApplicationData")) "Goloso WhatsApp Bot"),
+    (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Goloso WhatsApp Bot"),
+    (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Documents\Goloso WhatsApp Bot"),
+    (Join-Path ([Environment]::GetFolderPath("Desktop")) "Goloso WhatsApp Bot")
+  )
+  foreach ($root in $commonRoots) { $candidates.Add($root) }
+
   foreach ($candidate in $candidates) {
-    if (-not [string]::IsNullOrWhiteSpace($candidate) -and (Test-Path $candidate)) {
+    if (Test-ValidBotFolder $candidate) {
       return (Resolve-Path $candidate).Path
     }
   }
@@ -74,6 +92,7 @@ function Copy-BotFiles($target) {
     "install-windows.bat",
     "update-windows.bat",
     "update-windows.ps1",
+    "ACTUALIZAR-SIN-QR.bat",
     "start-hidden.vbs",
     "uninstall-windows.bat",
     "README.md",
@@ -83,7 +102,10 @@ function Copy-BotFiles($target) {
   foreach ($file in $files) {
     $src = Join-Path $SourceDir $file
     if (Test-Path $src) {
-      Copy-Item $src -Destination (Join-Path $target $file) -Force
+      $dest = Join-Path $target $file
+      if ((Resolve-Path $src).Path -ne (Resolve-Path -LiteralPath $dest -ErrorAction SilentlyContinue).Path) {
+        Copy-Item $src -Destination $dest -Force
+      }
     }
   }
 }
@@ -101,6 +123,12 @@ function Update-Config($target) {
 
 function Ensure-Dependencies($target) {
   if (Test-Path (Join-Path $target "node_modules\@whiskeysockets\baileys")) { return }
+  $sourceModules = Join-Path $SourceDir "node_modules"
+  if (Test-Path (Join-Path $sourceModules "@whiskeysockets\baileys")) {
+    Write-Step "Copiando dependencias incluidas"
+    Copy-Item $sourceModules -Destination (Join-Path $target "node_modules") -Recurse -Force
+    return
+  }
   Write-Step "Instalando dependencias faltantes"
   Push-Location $target
   try {
@@ -154,6 +182,10 @@ Write-Host "Este proceso conserva config.json y auth_state para no volver a vinc
 
 $TargetDir = Find-InstalledBotFolder
 if (-not $TargetDir) {
+  if ($AutoFromInstaller) {
+    Write-Host "No se encontro instalacion anterior para actualizar automaticamente." -ForegroundColor Yellow
+    exit 2
+  }
   Write-Host ""
   Write-Host "No pude encontrar automaticamente la carpeta anterior del bot." -ForegroundColor Yellow
   $manual = Read-Host "Pega la ruta de la carpeta donde estaba instalado el bot anterior"
@@ -166,6 +198,7 @@ if (-not $TargetDir) {
 Write-Host "Carpeta detectada: $TargetDir"
 if (-not (Test-Path (Join-Path $TargetDir "auth_state"))) {
   Write-Host "AVISO: No se encontro auth_state en esa carpeta. Si WhatsApp ya estaba vinculado, revisa que sea la carpeta correcta." -ForegroundColor Yellow
+  if ($AutoFromInstaller) { exit 3 }
   $answer = Read-Host "Continuar de todos modos? (S/N)"
   if ($answer -notmatch '^[sS]') { throw "Actualizacion cancelada." }
 }
