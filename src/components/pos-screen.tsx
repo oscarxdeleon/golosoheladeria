@@ -335,25 +335,35 @@ function precuentaHTML(o: {
   customer: string; user_name: string;
   ticket?: number | null;
   created_at?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  neighborhood?: string | null;
+  notes?: string | null;
+  orderType?: string | null;
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
   const rows = o.items
-    .map((i) => `<tr><td style="white-space:pre-line">${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap;vertical-align:top">${money(i.unit_price * i.qty)}</td></tr>`)
+    .map((i) => `<tr><td style="white-space:pre-line">${i.qty} × ${esc(i.name)}</td><td style="text-align:right;white-space:nowrap;vertical-align:top">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
   const when = o.created_at ? new Date(o.created_at) : new Date();
   const ticketStr = o.ticket ? String(o.ticket).padStart(6, "0") : "PENDIENTE";
+  const isDelivery = String(o.orderType ?? "").toLowerCase() === "domicilio";
   return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
     ${brandHeaderHTML(b)}
     <hr/>
-    <h2>PRECUENTA</h2>
+    <h2>PRECUENTA${isDelivery ? " · DOMICILIO" : ""}</h2>
     <div class="muted">No. ${ticketStr}</div>
     <div class="muted">${when.toLocaleString("es-CO")}</div>
-    <div class="muted">${o.header}</div>
-    ${o.customer ? `<div class="muted">Cliente: ${o.customer}</div>` : ""}
-    <div class="muted">Cajero: ${o.user_name}</div>
+    <div class="muted">${esc(o.header)}</div>
+    ${o.customer ? `<div class="muted">Cliente: ${esc(o.customer)}</div>` : ""}
+    ${o.phone ? `<div class="muted">Teléfono: ${esc(o.phone)}</div>` : ""}
+    ${o.address ? `<div class="muted">Dirección: ${esc(o.address)}</div>` : ""}
+    ${o.neighborhood ? `<div class="muted">Barrio: ${esc(o.neighborhood)}</div>` : ""}
+    <div class="muted">Cajero: ${esc(o.user_name)}</div>
     <hr/>
     <table>${rows}</table>
     <hr/>
@@ -361,6 +371,7 @@ function precuentaHTML(o: {
     ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="row total"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    ${o.notes ? `<hr/><div class="muted"><b>OBSERVACIONES:</b><br/>${esc(o.notes)}</div>` : ""}
     <hr/>
     <div class="muted">Documento no fiscal</div>
   </body></html>`;
@@ -596,6 +607,25 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
 
 
 function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
+  const b = o.branding ?? DEFAULT_BRANDING;
+  // Combina dirección + barrio para el ESC/POS (el print server no tiene campo
+  // aparte de barrio). En el HTML se muestran por separado.
+  const addressForEscpos = [o.address?.trim(), o.neighborhood?.trim() ? `Barrio: ${o.neighborhood.trim()}` : ""]
+    .filter(Boolean)
+    .join(" · ") || undefined;
+  // Fuerza los flags necesarios para que la precuenta muestre siempre los
+  // datos del cliente en el print server, aunque el ticket_config del negocio
+  // los tenga desactivados para el ticket final.
+  const baseCfg = { ...DEFAULT_TICKET_CONFIG, ...(b.ticket_config ?? {}) };
+  const precuentaCfg = {
+    ...baseCfg,
+    show_date: true,
+    show_customer: true,
+    show_customer_address: true,
+    show_customer_phone: true,
+    show_payment_method: false,
+    show_cash_received: false,
+  };
   const payload: PrintPayload = {
     type: "precuenta", header: o.header, items: o.items,
     subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
@@ -603,6 +633,15 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
     ticket: o.ticket ?? undefined,
     ticket_number: o.ticket ?? undefined,
     created_at: o.created_at ?? undefined,
+    address: addressForEscpos,
+    phone: o.phone ?? undefined,
+    notes: o.notes ?? undefined,
+    business_name: b.business_name,
+    nit: b.nit ?? undefined,
+    address_biz: b.address ?? undefined,
+    phone_biz: b.phone ?? undefined,
+    email_biz: b.email ?? undefined,
+    ticket_config: precuentaCfg,
   };
   printSilent(payload, precuentaHTML(o), { silent: true });
 }
@@ -2108,10 +2147,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     let dFee = deliveryFee;
     let ticketNum: number | null = null;
     let createdAt: string | null = null;
+    let precCustomer = customer;
+    let precAddress: string | null = orderType === "domicilio" ? (address || null) : null;
+    let precPhone: string | null = orderType === "domicilio" ? (phone || null) : null;
+    let precNeighborhood: string | null = orderType === "domicilio" ? (neighborhood || null) : null;
+    let precNotes: string | null = notes || null;
     if (pendingSaleId) {
       const { data } = await supabase
         .from("sales")
-        .select("ticket_number,created_at,delivery_fee,sale_items(product_name,qty,unit_price)")
+        .select("ticket_number,created_at,delivery_fee,customer_name,customer_phone,delivery_address,delivery_phone,delivery_neighborhood,notes,sale_items(product_name,qty,unit_price)")
         .eq("id", pendingSaleId)
         .maybeSingle();
       if (data) {
@@ -2119,6 +2163,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         dFee = Number(data.delivery_fee ?? 0);
         ticketNum = data.ticket_number ?? null;
         createdAt = data.created_at ?? null;
+        precCustomer = data.customer_name ?? precCustomer;
+        if (orderType === "domicilio") {
+          precAddress = data.delivery_address ?? precAddress;
+          precPhone = data.delivery_phone ?? data.customer_phone ?? precPhone;
+          precNeighborhood = data.delivery_neighborhood ?? precNeighborhood;
+        }
+        precNotes = data.notes ?? precNotes;
       }
     }
     if (items.length === 0) return toast.error("Carrito vacío");
@@ -2137,10 +2188,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       tax: tx,
       deliveryFee: dFee,
       total: tot,
-      customer,
+      customer: precCustomer,
       user_name: profile?.full_name ?? user?.email ?? "",
       ticket: ticketNum,
       created_at: createdAt,
+      address: precAddress,
+      phone: precPhone,
+      neighborhood: precNeighborhood,
+      notes: precNotes,
+      orderType,
       branding,
     });
 
