@@ -1,5 +1,7 @@
 param(
-  [switch]$AutoFromInstaller
+  [switch]$AutoFromInstaller,
+  [string]$TargetPath = "",
+  [switch]$Force
 )
 
 $ErrorActionPreference = "Stop"
