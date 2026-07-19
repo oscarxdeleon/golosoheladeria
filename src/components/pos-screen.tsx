@@ -2257,7 +2257,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               />
             </div>
           </div>
+          <Button
+            variant="outline"
+            className="col-span-2 sm:col-auto gap-2 rounded-full border-primary/40 text-primary hover:bg-primary/10"
+            onClick={() => setAiOpen(true)}
+          >
+            <Sparkles className="h-4 w-4" /> Comanda con IA
+          </Button>
         </div>
+
+
 
         {orderType === "llevar" && (
           <LlevarContactPanel
