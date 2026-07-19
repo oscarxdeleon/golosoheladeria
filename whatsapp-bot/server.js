@@ -28,8 +28,11 @@ const CONFIG_PATH = path.join(__dirname, "config.json");
 const AUTH_DIR = path.join(__dirname, "auth_state");
 const LOCAL_PORT = 8790;
 const HEARTBEAT_MS = 30_000;
+const OUTBOUND_POLL_MS = 20_000;
 const REPLY_DELAY_MIN = 2000;
 const REPLY_DELAY_MAX = 5000;
+const OUTBOUND_DELAY_MIN = 1500;
+const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 
 const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: false }));
