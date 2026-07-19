@@ -1354,7 +1354,7 @@ function LateRulesDialog({ open, onClose, branches }: {
   const save = async () => {
     const payload = {
       branch_id: branchId === "global" ? null : branchId,
-      brackets: brackets as unknown as object,
+      brackets: brackets as unknown as import("@/integrations/supabase/types").Json,
       active: true,
       updated_at: new Date().toISOString(),
     };
