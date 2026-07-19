@@ -2708,6 +2708,7 @@ export type Database = {
         Row: {
           after_hours_enabled: boolean
           after_hours_messages: string[]
+          bot_version: string | null
           branch_id: string
           command_ack_at: string | null
           command_requested_at: string | null
@@ -2717,6 +2718,10 @@ export type Database = {
           device_token: string
           enabled: boolean
           greet_cooldown_hours: number
+          last_outbound_error: string | null
+          last_outbound_poll_at: string | null
+          last_outbound_poll_count: number
+          last_outbound_poll_status: string | null
           last_seen_at: string | null
           menu_message: string
           menu_triggers: string[]
@@ -2732,6 +2737,7 @@ export type Database = {
         Insert: {
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          bot_version?: string | null
           branch_id: string
           command_ack_at?: string | null
           command_requested_at?: string | null
@@ -2741,6 +2747,10 @@ export type Database = {
           device_token?: string
           enabled?: boolean
           greet_cooldown_hours?: number
+          last_outbound_error?: string | null
+          last_outbound_poll_at?: string | null
+          last_outbound_poll_count?: number
+          last_outbound_poll_status?: string | null
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
@@ -2756,6 +2766,7 @@ export type Database = {
         Update: {
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          bot_version?: string | null
           branch_id?: string
           command_ack_at?: string | null
           command_requested_at?: string | null
@@ -2765,6 +2776,10 @@ export type Database = {
           device_token?: string
           enabled?: boolean
           greet_cooldown_hours?: number
+          last_outbound_error?: string | null
+          last_outbound_poll_at?: string | null
+          last_outbound_poll_count?: number
+          last_outbound_poll_status?: string | null
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
@@ -3383,6 +3398,16 @@ export type Database = {
       whatsapp_bot_is_physical_open: {
         Args: { _branch_id: string }
         Returns: boolean
+      }
+      whatsapp_bot_report_outbound_poll: {
+        Args: {
+          _error?: string
+          _poll_count?: number
+          _poll_status?: string
+          _token: string
+          _version?: string
+        }
+        Returns: Json
       }
       whatsapp_bot_report_status: {
         Args: { _phone?: string; _qr?: string; _status: string; _token: string }
