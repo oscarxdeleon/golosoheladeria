@@ -67,6 +67,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           phone?: string;
           from?: string;
           message?: string;
+          sent?: string[];
+          failed?: string[];
+          error?: string;
         } | null = null;
         try {
           body = await request.json();
@@ -105,6 +108,21 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 _token: token,
                 _from: from,
                 _body: msg,
+              });
+              if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
+              return json(r.data);
+            }
+            case "pending": {
+              const r = await callRpc("whatsapp_bot_get_pending", { _token: token });
+              if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
+              return json(r.data);
+            }
+            case "ack": {
+              const r = await callRpc("whatsapp_bot_ack_outbound", {
+                _token: token,
+                _sent: Array.isArray(body.sent) ? body.sent : [],
+                _failed: Array.isArray(body.failed) ? body.failed : [],
+                _error: body.error ?? null,
               });
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               return json(r.data);

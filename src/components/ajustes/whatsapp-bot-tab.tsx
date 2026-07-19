@@ -154,6 +154,7 @@ export function WhatsAppBotTab() {
       <AfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <PickupAfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <MenuTriggersCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
+      <ReportRecipientsCard branchId={cfg.branch_id} />
       <MessagesCard messages={messages} />
     </div>
   );
@@ -614,6 +615,130 @@ function MessagesCard({ messages }: { messages: MessageRow[] }) {
             </div>
           ))}
         </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- */
+
+interface ReportNumber { phone: string; label: string; enabled: boolean }
+
+function ReportRecipientsCard({ branchId }: { branchId: string }) {
+  const qc = useQueryClient();
+  const [rows, setRows] = useState<ReportNumber[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [testingIdx, setTestingIdx] = useState<number | null>(null);
+
+  const { data: branch } = useQuery({
+    queryKey: ["branch-report-wa", branchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("branches")
+        .select("id, name, report_whatsapp_numbers")
+        .eq("id", branchId)
+        .single();
+      if (error) throw error;
+      return data as { id: string; name: string; report_whatsapp_numbers: unknown };
+    },
+  });
+
+  useEffect(() => {
+    const raw = (branch?.report_whatsapp_numbers ?? []) as unknown;
+    const arr = Array.isArray(raw) ? (raw as Array<Partial<ReportNumber>>) : [];
+    setRows(arr.map((n) => ({
+      phone: String(n.phone ?? ""),
+      label: String(n.label ?? ""),
+      enabled: n.enabled !== false,
+    })));
+  }, [branch?.report_whatsapp_numbers]);
+
+  const addRow = () => {
+    if (rows.length >= 5) { toast.error("Máximo 5 destinatarios"); return; }
+    setRows((prev) => [...prev, { phone: "", label: "", enabled: true }]);
+  };
+  const removeRow = (i: number) => setRows((prev) => prev.filter((_, idx) => idx !== i));
+  const updateRow = (i: number, patch: Partial<ReportNumber>) => {
+    setRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+  };
+
+  const save = async () => {
+    const clean = rows
+      .map((r) => ({ phone: r.phone.replace(/\D+/g, ""), label: r.label.trim(), enabled: !!r.enabled }))
+      .filter((r) => r.phone.length >= 10);
+    setSaving(true);
+    const { error } = await supabase
+      .from("branches")
+      .update({ report_whatsapp_numbers: clean } as never)
+      .eq("id", branchId);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Destinatarios guardados");
+    qc.invalidateQueries({ queryKey: ["branch-report-wa", branchId] });
+  };
+
+  const sendTest = async (i: number) => {
+    const row = rows[i];
+    const phone = row.phone.replace(/\D+/g, "");
+    if (phone.length < 10) { toast.error("Número inválido"); return; }
+    setTestingIdx(i);
+    const body = `🍦 *Prueba de envío · Goloso*\n\nEste es un mensaje de prueba del reporte de cierre de caja.\nSi lo recibes, la configuración está correcta.\n\n_Goloso POS_`;
+    const to = phone.length === 10 && phone.startsWith("3") ? "57" + phone : phone;
+    const { error } = await supabase
+      .from("whatsapp_outbound_queue")
+      .insert({ branch_id: branchId, to_phone: to, body, purpose: "test" } as never);
+    setTestingIdx(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Prueba encolada. Debe llegar en menos de 30s si el bot está conectado.");
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2"><MessageCircle className="h-5 w-5 text-emerald-600" /> Reporte de Cierre de Caja</CardTitle>
+        <CardDescription>Al cerrar caja, el sistema envía automáticamente el resumen por WhatsApp a estos números. Máx 5.</CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {rows.length === 0 && (
+          <p className="text-sm text-muted-foreground italic">Aún no has agregado destinatarios.</p>
+        )}
+        {rows.map((r, i) => (
+          <div key={i} className="grid grid-cols-1 sm:grid-cols-[1fr_180px_auto_auto_auto] gap-2 items-center">
+            <Input
+              placeholder="Número (ej: 3001234567)"
+              value={r.phone}
+              onChange={(e) => updateRow(i, { phone: e.target.value })}
+              inputMode="tel"
+            />
+            <Input
+              placeholder="Etiqueta (ej: Dueño)"
+              value={r.label}
+              onChange={(e) => updateRow(i, { label: e.target.value })}
+            />
+            <div className="flex items-center gap-1.5">
+              <Switch checked={r.enabled} onCheckedChange={(v) => updateRow(i, { enabled: v })} />
+              <span className="text-xs text-muted-foreground">{r.enabled ? "Activo" : "Pausado"}</span>
+            </div>
+            <Button variant="outline" size="sm" onClick={() => sendTest(i)} disabled={testingIdx === i}>
+              {testingIdx === i ? "…" : "Prueba"}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={() => removeRow(i)}>
+              <Trash2 className="h-4 w-4 text-rose-600" />
+            </Button>
+          </div>
+        ))}
+        <div className="flex items-center justify-between pt-2">
+          <Button variant="outline" size="sm" onClick={addRow} disabled={rows.length >= 5}>
+            <Plus className="mr-2 h-4 w-4" /> Agregar número
+          </Button>
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+        <p className="text-xs text-muted-foreground flex gap-1.5 items-start pt-1">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          El mensaje se envía desde el bot local de la sede. El cajero nunca ve el contenido enviado.
+        </p>
       </CardContent>
     </Card>
   );
