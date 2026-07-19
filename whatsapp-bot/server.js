@@ -256,15 +256,21 @@ async function startSocket() {
     if (type !== "notify") return;
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
-      if (msg.key.remoteJid?.endsWith("@g.us")) continue; // ignorar grupos
+      const jid = msg.key.remoteJid || "";
+      // Ignorar grupos, estados/historias, broadcasts y newsletters de WhatsApp.
+      if (jid.endsWith("@g.us")) continue;
+      if (jid.endsWith("@broadcast")) continue;
+      if (jid.endsWith("@newsletter")) continue;
+      if (jid.startsWith("status@")) continue;
       const text =
         msg.message.conversation ||
         msg.message.extendedTextMessage?.text ||
         msg.message.imageMessage?.caption ||
         msg.message.videoMessage?.caption ||
         "";
-      const from = (msg.key.remoteJid || "").split("@")[0];
-      if (!from) continue;
+      const from = jid.split("@")[0];
+      // Solo procesar mensajes de números reales (JID de usuario `@s.whatsapp.net`).
+      if (!from || !/^\d{6,}$/.test(from)) continue;
       logger.info({ from, textLen: text.length }, "incoming");
       const reply = await handleIncoming(from, text);
       if (reply) {
