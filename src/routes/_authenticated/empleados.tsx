@@ -88,17 +88,21 @@ function EmpleadosPage() {
       </div>
 
       <Tabs defaultValue="empleados" className="w-full">
-        <TabsList className="grid w-full grid-cols-4 max-w-2xl">
+        <TabsList className="grid w-full grid-cols-6 max-w-4xl">
           <TabsTrigger value="empleados"><Users className="mr-2 h-4 w-4" />Empleados</TabsTrigger>
           <TabsTrigger value="horarios"><Clock className="mr-2 h-4 w-4" />Horarios</TabsTrigger>
           <TabsTrigger value="festivos"><CalendarDays className="mr-2 h-4 w-4" />Festivos</TabsTrigger>
           <TabsTrigger value="nomina"><DollarSign className="mr-2 h-4 w-4" />Nómina</TabsTrigger>
+          <TabsTrigger value="descuentos"><Wallet className="mr-2 h-4 w-4" />Descuentos</TabsTrigger>
+          <TabsTrigger value="historial"><History className="mr-2 h-4 w-4" />Historial</TabsTrigger>
         </TabsList>
 
         <TabsContent value="empleados"><EmpleadosTab /></TabsContent>
         <TabsContent value="horarios"><HorariosTab /></TabsContent>
         <TabsContent value="festivos"><FestivosTab /></TabsContent>
         <TabsContent value="nomina"><NominaTab /></TabsContent>
+        <TabsContent value="descuentos"><DescuentosTab /></TabsContent>
+        <TabsContent value="historial"><HistorialTab /></TabsContent>
       </Tabs>
     </div>
   );
