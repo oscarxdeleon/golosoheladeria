@@ -30,6 +30,8 @@ import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
 import { VoiceMicButton } from "@/components/voice-input";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
+import { AiOrderDialog } from "@/components/ai-order-dialog";
+import type { ParsedOrderItem, ParsedOrder } from "@/lib/ai-order-parser.functions";
 
 
 
