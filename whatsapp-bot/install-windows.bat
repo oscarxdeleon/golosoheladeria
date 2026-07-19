@@ -38,6 +38,33 @@ if errorlevel 1 (
   echo [AVISO] Git no esta instalado. No pasa nada: este instalador usa dependencias preparadas sin Git.
 )
 
+echo.
+echo Buscando una instalacion anterior para actualizar sin pedir token ni QR...
+if not exist "config.json" if not exist "auth_state" (
+  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-windows.ps1" -AutoFromInstaller
+  set "UPDATE_EC=%ERRORLEVEL%"
+  if "%UPDATE_EC%"=="0" (
+    echo.
+    echo === Actualizacion completa ===
+    echo Se conservo la sesion de WhatsApp anterior. No debes escanear QR.
+    pause
+    endlocal
+    exit /b 0
+  )
+  if not "%UPDATE_EC%"=="2" (
+    echo.
+    echo [AVISO] No se pudo completar la actualizacion automatica.
+    echo Si este PC ya tenia el bot vinculado, ejecuta ACTUALIZAR-SIN-QR.bat y selecciona la carpeta anterior.
+    echo Si continuas como instalacion nueva, WhatsApp pedira QR.
+    choice /C SN /M "Continuar como instalacion nueva"
+    if errorlevel 2 exit /b %UPDATE_EC%
+  ) else (
+    echo No se encontro una instalacion anterior registrada. Continuando como instalacion nueva.
+  )
+) else (
+  echo Esta carpeta ya tiene config.json o auth_state; se usara como instalacion existente.
+)
+
 echo Cerrando bot anterior si existe...
 for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8790 " ^| findstr LISTENING') do (
   taskkill /F /PID %%P /T >nul 2>nul
@@ -66,14 +93,20 @@ goto npm_ok
 
 echo.
 echo === Configuracion de la sede ===
-echo Pega solo el token de la sede. La URL del POS se configura automaticamente.
-if exist ".setup-ok" del ".setup-ok" >nul 2>nul
-node setup.js
-if errorlevel 1 (
-  pause
-  exit /b 1
+if exist "config.json" (
+  echo Se encontro config.json existente. Se conserva el token guardado y NO se pide token nuevo.
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='config.json'; $cfg=Get-Content $p -Raw | ConvertFrom-Json; $cfg | Add-Member -NotePropertyName apiUrl -NotePropertyValue 'https://golosoheladeria.vercel.app' -Force; $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $p -Encoding UTF8"
+) else (
+  echo Pega solo el token de la sede. La URL del POS se configura automaticamente.
+  echo Si este PC ya tenia el bot vinculado, cancela y usa ACTUALIZAR-SIN-QR.bat para conservar la sesion.
+  if exist ".setup-ok" del ".setup-ok" >nul 2>nul
+  node setup.js
+  if errorlevel 1 (
+    pause
+    exit /b 1
+  )
+  if not exist ".setup-ok" goto setup_failed
 )
-if not exist ".setup-ok" goto setup_failed
 
 echo.
 echo Registrando inicio automatico con Windows...
@@ -114,8 +147,8 @@ echo.
 echo === Instalacion completa ===
 echo.
 echo Se abrio el panel local: http://localhost:8790
-echo Si el estado dice "QR", escanea el codigo con WhatsApp Business del celular de la sede.
-echo Si el QR tarda, tambien puede aparecer dibujado en la consola del bot.
+echo Si esta instalacion ya tenia auth_state, no debe pedir QR.
+echo Solo una instalacion nueva o una sesion cerrada desde WhatsApp mostrara QR.
 echo El bot arrancara solo cada vez que enciendas el PC.
 echo.
 pause
