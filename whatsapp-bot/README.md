@@ -2,7 +2,17 @@
 
 Bot local que corre en el **PC de cada sede** y responde automáticamente a los clientes que escriben al WhatsApp de esa sede. Se configura desde el POS de Goloso.
 
-## Instalación (Windows)
+## Actualizar sin volver a escanear QR
+
+Si el bot ya estaba conectado en ese PC, **no borres la carpeta anterior** ni la carpeta `auth_state/`.
+
+1. Descarga y descomprime el ZIP nuevo.
+2. Ejecuta `update-windows.bat`.
+3. El actualizador buscará la instalación anterior, conservará `config.json` y `auth_state/`, reemplazará solo el código del bot y lo iniciará de nuevo.
+
+Mientras `auth_state/` exista y WhatsApp no haya cerrado la sesión desde el celular, **no tendrás que vincular nuevamente con QR**.
+
+## Instalación nueva (Windows)
 
 1. Requisitos: [Node.js 18+](https://nodejs.org) instalado en el PC.
 2. Descomprime esta carpeta en un directorio **permanente** (no el escritorio ni Descargas).

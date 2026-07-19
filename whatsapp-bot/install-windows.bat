@@ -4,12 +4,18 @@ REM  Goloso WhatsApp Bot — Instalador Windows
 REM  - Instala dependencias
 REM  - Pide token de la sede
 REM  - Configura arranque automatico con Windows
+REM  - Si ya existe auth_state en esta carpeta, conserva la vinculacion de WhatsApp
 REM ============================================================
 setlocal
 cd /d "%~dp0"
 
 echo.
 echo === Goloso WhatsApp Bot: instalacion ===
+echo.
+echo IMPORTANTE:
+echo - Si este PC ya tenia el bot vinculado, usa update-windows.bat para actualizar sin QR.
+echo - Si ejecutas este instalador en la misma carpeta anterior, se conserva auth_state.
+echo - Si lo ejecutas en una carpeta nueva, WhatsApp pedira QR nuevamente.
 echo.
 
 where node >nul 2>nul
