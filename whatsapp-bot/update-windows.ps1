@@ -182,27 +182,36 @@ Write-Host ""
 Write-Host "Goloso WhatsApp Bot — actualizacion sin QR" -ForegroundColor Green
 Write-Host "Este proceso conserva config.json y auth_state para no volver a vincular WhatsApp."
 
-$TargetDir = Find-InstalledBotFolder
+$TargetDir = $null
+if (-not [string]::IsNullOrWhiteSpace($TargetPath)) {
+  if (-not (Test-Path $TargetPath)) {
+    Write-Host "La ruta indicada no existe: $TargetPath" -ForegroundColor Red
+    exit 4
+  }
+  $TargetDir = (Resolve-Path $TargetPath).Path
+} else {
+  $TargetDir = Find-InstalledBotFolder
+}
+
 if (-not $TargetDir) {
   if ($AutoFromInstaller) {
     Write-Host "No se encontro instalacion anterior para actualizar automaticamente." -ForegroundColor Yellow
     exit 2
   }
-  Write-Host ""
-  Write-Host "No pude encontrar automaticamente la carpeta anterior del bot." -ForegroundColor Yellow
-  $manual = Read-Host "Pega la ruta de la carpeta donde estaba instalado el bot anterior"
-  if ([string]::IsNullOrWhiteSpace($manual) -or -not (Test-Path $manual)) {
-    throw "Ruta invalida. Ejecuta este actualizador de nuevo y pega la carpeta correcta."
-  }
-  $TargetDir = (Resolve-Path $manual).Path
+  Write-Host "No se encontro automaticamente la carpeta anterior del bot." -ForegroundColor Yellow
+  exit 2
 }
 
 Write-Host "Carpeta detectada: $TargetDir"
 if (-not (Test-Path (Join-Path $TargetDir "auth_state"))) {
-  Write-Host "AVISO: No se encontro auth_state en esa carpeta. Si WhatsApp ya estaba vinculado, revisa que sea la carpeta correcta." -ForegroundColor Yellow
+  Write-Host "AVISO: No se encontro auth_state en esa carpeta." -ForegroundColor Yellow
   if ($AutoFromInstaller) { exit 3 }
-  $answer = Read-Host "Continuar de todos modos? (S/N)"
-  if ($answer -notmatch '^[sS]') { throw "Actualizacion cancelada." }
+  if (-not $Force) {
+    Write-Host "Este PC no tiene una sesion de WhatsApp previa que conservar." -ForegroundColor Yellow
+    Write-Host "Cancelando actualizacion sin QR. Usa install-windows.bat para una instalacion nueva." -ForegroundColor Yellow
+    exit 3
+  }
+  Write-Host "Continuando por bandera -Force. Es posible que WhatsApp pida QR." -ForegroundColor Yellow
 }
 
 $backupDir = Join-Path $TargetDir ("backup-before-update-" + (Get-Date -Format "yyyyMMdd-HHmmss"))
