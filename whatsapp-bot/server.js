@@ -28,12 +28,13 @@ const CONFIG_PATH = path.join(__dirname, "config.json");
 const AUTH_DIR = path.join(__dirname, "auth_state");
 const LOCAL_PORT = 8790;
 const HEARTBEAT_MS = 10_000;
-const OUTBOUND_POLL_MS = 20_000;
+const OUTBOUND_POLL_MS = 5_000;
 const REPLY_DELAY_MIN = 2000;
 const REPLY_DELAY_MAX = 5000;
 const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
+const BOT_VERSION = "7.0.0";
 
 const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: false }));
 
@@ -60,6 +61,9 @@ let state = {
   lastError: null,
   lastPushError: null,
   lastPushAt: null,
+  lastOutboundPollAt: null,
+  lastOutboundCount: 0,
+  lastOutboundError: null,
   detail: "Iniciando conexión con WhatsApp...",
 };
 
@@ -80,6 +84,7 @@ async function pushStatus() {
       status: state.status,
       qr: state.qr,
       phone: state.phone,
+      version: BOT_VERSION,
     };
     const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
@@ -222,27 +227,75 @@ async function getSafeBaileysVersion() {
 }
 
 let currentSock = null;
+let outboundInFlight = false;
+
+function normalizeOutboundPhone(raw) {
+  let digits = String(raw || "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.length === 10 && digits.startsWith("3")) digits = `57${digits}`;
+  return digits;
+}
+
+async function reportOutboundPoll(status, count = 0, error = null) {
+  try {
+    await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "poll_status",
+        token: config.token,
+        version: BOT_VERSION,
+        pollStatus: status,
+        pollCount: count,
+        error,
+      }),
+    });
+  } catch (e) {
+    logger.warn({ err: String(e) }, "poll status report failed");
+  }
+}
 
 async function pollOutbound() {
   if (!currentSock || state.status !== "connected") return;
+  if (outboundInFlight) return;
+  outboundInFlight = true;
   try {
     const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "pending", token: config.token }),
+      body: JSON.stringify({ action: "pending", token: config.token, version: BOT_VERSION }),
     });
-    if (!res.ok) return;
+    if (!res.ok) {
+      const txt = await res.text();
+      const message = `pending respondió ${res.status}: ${txt.slice(0, 250)}`;
+      state.lastOutboundError = message;
+      await reportOutboundPoll("error", 0, message);
+      return;
+    }
     const data = await res.json();
+    if (data?.error) {
+      const message = `pending rechazado: ${data.error}`;
+      state.lastOutboundError = message;
+      await reportOutboundPoll("error", 0, message);
+      return;
+    }
     const pending = Array.isArray(data?.pending) ? data.pending : [];
+    state.lastOutboundPollAt = Date.now();
+    state.lastOutboundCount = pending.length;
+    state.lastOutboundError = null;
     if (pending.length === 0) return;
     const sent = [];
     const failed = [];
     let lastErr = null;
     for (const item of pending) {
-      const to = String(item.to || "").replace(/\D/g, "");
+      const to = normalizeOutboundPhone(item.to);
       if (!to || !item.body) { failed.push(item.id); continue; }
       const jid = `${to}@s.whatsapp.net`;
       try {
+        const exists = await currentSock.onWhatsApp(jid).catch(() => null);
+        if (Array.isArray(exists) && exists.length > 0 && exists[0]?.exists === false) {
+          throw new Error(`El número ${to} no aparece activo en WhatsApp`);
+        }
         await currentSock.sendMessage(jid, { text: String(item.body) });
         sent.push(item.id);
         logger.info({ to }, "outbound sent");
@@ -253,13 +306,19 @@ async function pollOutbound() {
         logger.warn({ err: lastErr, to }, "outbound send failed");
       }
     }
+    state.lastOutboundError = lastErr;
     await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "ack", token: config.token, sent, failed, error: lastErr }),
+      body: JSON.stringify({ action: "ack", token: config.token, sent, failed, error: lastErr, version: BOT_VERSION }),
     });
   } catch (e) {
-    logger.warn({ err: String(e) }, "poll outbound error");
+    const message = String(e);
+    state.lastOutboundError = message;
+    await reportOutboundPoll("error", 0, message);
+    logger.warn({ err: message }, "poll outbound error");
+  } finally {
+    outboundInFlight = false;
   }
 }
 
@@ -308,6 +367,7 @@ async function startSocket() {
       logger.info({ phone: state.phone }, "connected");
       console.log(`\n✅ WhatsApp conectado${state.phone ? `: +${state.phone}` : ""}.\n`);
       pushStatus();
+      setTimeout(() => pollOutbound().catch((e) => logger.warn({ err: String(e) }, "initial outbound poll failed")), 1200);
     } else if (connection === "close") {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
@@ -383,8 +443,10 @@ ${state.status === "connected" ? `<p class="note">Todo funcionando. Puedes cerra
 ${state.status === "disconnected" ? `<p class="note">Intentando reconectar automáticamente…</p>` : ""}
 ${state.status === "connecting" && !state.qrDataUrl ? `<p class="note">Si pasan más de 60 segundos, revisa que el PC tenga internet y que WhatsApp Web no esté bloqueado por antivirus/firewall.</p>` : ""}
 ${state.lastPushAt ? `<p class="note ok">Panel POS sincronizado.</p>` : ""}
+${state.lastOutboundPollAt ? `<p class="note ok">Cola de reportes revisada: ${escapeHtml(new Date(state.lastOutboundPollAt).toLocaleTimeString())}${state.lastOutboundCount ? ` · ${state.lastOutboundCount} pendiente(s)` : ""}</p>` : ""}
 ${state.lastError ? `<div class="err"><b>Aviso de conexión.</b><br>${escapeHtml(state.lastError)}</div>` : ""}
 ${state.lastPushError ? `<div class="err"><b>No se pudo sincronizar con el POS.</b><br>${escapeHtml(state.lastPushError)}<br><br>Revisa que el token sea el de la sede seleccionada y que la app esté publicada.</div>` : ""}
+${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de reportes.</b><br>${escapeHtml(state.lastOutboundError)}</div>` : ""}
 <p class="note">Este panel se actualiza solo cada 5s.<br>Config y bienvenidas se editan desde el POS.</p>
 </div></body></html>`;
       res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
@@ -405,6 +467,7 @@ ${state.lastPushError ? `<div class="err"><b>No se pudo sincronizar con el POS.<
 
 async function main() {
   console.log(`\n🍨 Goloso WhatsApp Bot`);
+  console.log(`   Versión : ${BOT_VERSION}`);
   console.log(`   API POS : ${config.apiUrl}`);
   console.log(`   Token   : ${config.token.slice(0, 6)}…${config.token.slice(-4)}`);
   startLocalUI();
