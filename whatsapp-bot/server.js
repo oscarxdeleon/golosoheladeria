@@ -279,6 +279,7 @@ async function startSocket() {
     }
   });
 
+  currentSock = sock;
   return sock;
 }
 
