@@ -152,6 +152,48 @@ async function getSafeBaileysVersion() {
   }
 }
 
+let currentSock = null;
+
+async function pollOutbound() {
+  if (!currentSock || state.status !== "connected") return;
+  try {
+    const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "pending", token: config.token }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    const pending = Array.isArray(data?.pending) ? data.pending : [];
+    if (pending.length === 0) return;
+    const sent = [];
+    const failed = [];
+    let lastErr = null;
+    for (const item of pending) {
+      const to = String(item.to || "").replace(/\D/g, "");
+      if (!to || !item.body) { failed.push(item.id); continue; }
+      const jid = `${to}@s.whatsapp.net`;
+      try {
+        await currentSock.sendMessage(jid, { text: String(item.body) });
+        sent.push(item.id);
+        logger.info({ to }, "outbound sent");
+        await new Promise((r) => setTimeout(r, OUTBOUND_DELAY_MIN + Math.random() * (OUTBOUND_DELAY_MAX - OUTBOUND_DELAY_MIN)));
+      } catch (e) {
+        failed.push(item.id);
+        lastErr = String(e);
+        logger.warn({ err: lastErr, to }, "outbound send failed");
+      }
+    }
+    await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "ack", token: config.token, sent, failed, error: lastErr }),
+    });
+  } catch (e) {
+    logger.warn({ err: String(e) }, "poll outbound error");
+  }
+}
+
 async function startSocket() {
   state.status = "connecting";
   state.detail = "Preparando sesión de WhatsApp...";
