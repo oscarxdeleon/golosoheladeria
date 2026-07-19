@@ -1069,14 +1069,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     setPendingSaleId(pendingSale.id);
     setCustomer(pendingSale.customer_name ?? "");
     setNotes(pendingSale.notes ?? "");
-    const hydrated = incoming.map((i) => ({
-      key: i.product_id,
-      product_id: i.product_id,
-      name: i.product_name,
-      unit_price: Number(i.unit_price),
-      qty: Number(i.qty),
-      modifiers: [] as SaleModifier[],
-    }));
+    const hydrated = incoming.map((i, idx) => {
+      const mods = Array.isArray(i.modifiers) ? (i.modifiers as SaleModifier[]) : [];
+      // Clave única por línea. Si dos líneas tienen el mismo product_id pero
+      // distintos modificadores/notas, deben permanecer independientes para
+      // que se puedan editar/eliminar por separado.
+      const key = `${i.product_id}::${idx}`;
+      return {
+        key,
+        product_id: i.product_id,
+        name: i.product_name,
+        unit_price: Number(i.unit_price),
+        qty: Number(i.qty),
+        modifiers: mods,
+        notes: i.notes ?? undefined,
+      };
+    });
     setCart(hydrated);
     // Solo asumimos ítems ya enviados si el registro tiene confirmación real
     // de impresión. Si el primer envío falló, el siguiente Guardar imprimirá todo.
@@ -1086,6 +1094,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     }
     printedQtyRef.current = printed;
   }, [pendingSale, paying, pendingSaleId]);
+
 
 
 
