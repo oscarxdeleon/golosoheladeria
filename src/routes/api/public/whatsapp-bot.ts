@@ -127,6 +127,13 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               return json(r.data);
             }
+            case "command_ack": {
+              const cmd = String((body as { command?: string }).command ?? "").trim();
+              if (!cmd) return json({ error: "missing_command" }, 400);
+              const r = await callRpc("whatsapp_bot_ack_command", { _token: token, _command: cmd });
+              if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
+              return json(r.data);
+            }
             default:
               return json({ error: "unknown_action" }, 400);
           }
