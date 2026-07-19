@@ -2147,10 +2147,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     let dFee = deliveryFee;
     let ticketNum: number | null = null;
     let createdAt: string | null = null;
+    let precCustomer = customer;
+    let precAddress: string | null = orderType === "domicilio" ? (address || null) : null;
+    let precPhone: string | null = orderType === "domicilio" ? (phone || null) : null;
+    let precNeighborhood: string | null = orderType === "domicilio" ? (neighborhood || null) : null;
+    let precNotes: string | null = notes || null;
     if (pendingSaleId) {
       const { data } = await supabase
         .from("sales")
-        .select("ticket_number,created_at,delivery_fee,sale_items(product_name,qty,unit_price)")
+        .select("ticket_number,created_at,delivery_fee,customer_name,customer_phone,delivery_address,delivery_phone,delivery_neighborhood,notes,sale_items(product_name,qty,unit_price)")
         .eq("id", pendingSaleId)
         .maybeSingle();
       if (data) {
@@ -2158,6 +2163,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         dFee = Number(data.delivery_fee ?? 0);
         ticketNum = data.ticket_number ?? null;
         createdAt = data.created_at ?? null;
+        precCustomer = data.customer_name ?? precCustomer;
+        if (orderType === "domicilio") {
+          precAddress = data.delivery_address ?? precAddress;
+          precPhone = data.delivery_phone ?? data.customer_phone ?? precPhone;
+          precNeighborhood = data.delivery_neighborhood ?? precNeighborhood;
+        }
+        precNotes = data.notes ?? precNotes;
       }
     }
     if (items.length === 0) return toast.error("Carrito vacío");
@@ -2176,10 +2188,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       tax: tx,
       deliveryFee: dFee,
       total: tot,
-      customer,
+      customer: precCustomer,
       user_name: profile?.full_name ?? user?.email ?? "",
       ticket: ticketNum,
       created_at: createdAt,
+      address: precAddress,
+      phone: precPhone,
+      neighborhood: precNeighborhood,
+      notes: precNotes,
+      orderType,
       branding,
     });
 
