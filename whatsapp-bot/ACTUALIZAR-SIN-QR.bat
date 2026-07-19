@@ -21,15 +21,16 @@ if errorlevel 1 (
   exit /b 1
 )
 
-REM --- Intento 1: deteccion automatica ---
-echo Buscando la instalacion anterior del bot en este PC...
+REM --- Intento 1: deteccion automatica + busqueda profunda ---
+echo Buscando automaticamente la instalacion anterior del bot en este PC...
+echo No necesitas saber donde esta la carpeta: se revisaran ubicaciones comunes.
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-windows.ps1"
 set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 
 echo.
 if "%EC%"=="2" (
-  echo [AVISO] No se encontro automaticamente la carpeta anterior del bot.
+  echo [AVISO] No se encontro ninguna carpeta anterior con sesion de WhatsApp.
 ) else if "%EC%"=="3" (
   echo [AVISO] Se encontro una carpeta, pero no tiene la sesion 'auth_state'.
 ) else (
@@ -37,7 +38,8 @@ if "%EC%"=="2" (
 )
 
 echo.
-echo Puedes indicar manualmente la carpeta donde estaba instalado el bot.
+echo Si tienes una carpeta posible a la vista, puedes arrastrarla a esta ventana y presionar ENTER.
+echo Si no sabes donde esta, presiona ENTER para cancelar sin instalar de cero.
 echo Ejemplo: C:\GolosoBot   o   C:\Users\TuUsuario\Desktop\Goloso WhatsApp Bot
 echo.
 set "MANUAL="
@@ -54,12 +56,12 @@ echo.
 echo [ERROR] No se pudo completar la actualizacion sin QR ^(codigo %EC%^).
 echo.
 echo Causas posibles:
-echo   1^) La carpeta indicada no contiene 'auth_state' ^(nunca se vinculo por QR^).
+echo   1^) La carpeta indicada no contiene 'auth_state' ^(esa no era la sesion vinculada^).
 echo   2^) La ruta no existe o esta mal escrita.
 echo.
-echo Si este PC nunca vinculo WhatsApp, no hay sesion que conservar.
-echo En ese caso ejecuta 'install-windows.bat' para hacer una instalacion nueva
-echo ^(pedira escanear el QR una sola vez^).
+echo Importante: sin una carpeta 'auth_state' anterior no existe forma tecnica de conservar
+echo la vinculacion, porque WhatsApp guarda ahi las llaves de sesion.
+echo Ejecuta 'install-windows.bat' solo si aceptas hacer una instalacion nueva.
 echo.
 pause
 exit /b %EC%
