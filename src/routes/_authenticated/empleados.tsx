@@ -733,9 +733,12 @@ function NominaTab() {
                     <TableCell className="text-right text-rose-600">{formatMoney(r.deductions)}</TableCell>
                     <TableCell className="text-right">{formatMoney(r.gross_pay)}</TableCell>
                     <TableCell className="text-right font-semibold">{formatMoney(r.net_pay)}</TableCell>
-                    <TableCell>
+                    <TableCell className="space-x-1 text-right">
                       <Button variant="ghost" size="sm" onClick={() => setExpanded(expanded === r.employee_id ? null : r.employee_id)}>
-                        {expanded === r.employee_id ? "Ocultar" : "Ver detalle"}
+                        {expanded === r.employee_id ? "Ocultar" : "Detalle"}
+                      </Button>
+                      <Button size="sm" onClick={() => setPayFor({ id: r.employee_id, name: r.full_name })}>
+                        <Receipt className="mr-1 h-4 w-4" />Liquidar y pagar
                       </Button>
                     </TableCell>
                   </TableRow>
