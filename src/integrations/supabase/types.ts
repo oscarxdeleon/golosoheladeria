@@ -2709,6 +2709,8 @@ export type Database = {
           after_hours_enabled: boolean
           after_hours_messages: string[]
           branch_id: string
+          command_ack_at: string | null
+          command_requested_at: string | null
           connected_phone: string | null
           connection_status: string
           created_at: string
@@ -2718,6 +2720,7 @@ export type Database = {
           last_seen_at: string | null
           menu_message: string
           menu_triggers: string[]
+          pending_command: string | null
           pickup_after_hours_enabled: boolean
           pickup_after_hours_messages: string[]
           qr_code: string | null
@@ -2730,6 +2733,8 @@ export type Database = {
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
           branch_id: string
+          command_ack_at?: string | null
+          command_requested_at?: string | null
           connected_phone?: string | null
           connection_status?: string
           created_at?: string
@@ -2739,6 +2744,7 @@ export type Database = {
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
+          pending_command?: string | null
           pickup_after_hours_enabled?: boolean
           pickup_after_hours_messages?: string[]
           qr_code?: string | null
@@ -2751,6 +2757,8 @@ export type Database = {
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
           branch_id?: string
+          command_ack_at?: string | null
+          command_requested_at?: string | null
           connected_phone?: string | null
           connection_status?: string
           created_at?: string
@@ -2760,6 +2768,7 @@ export type Database = {
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
+          pending_command?: string | null
           pickup_after_hours_enabled?: boolean
           pickup_after_hours_messages?: string[]
           qr_code?: string | null
@@ -3348,6 +3357,10 @@ export type Database = {
       }
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
       touch_tablet_last_seen: { Args: { _token: string }; Returns: undefined }
+      whatsapp_bot_ack_command: {
+        Args: { _command: string; _token: string }
+        Returns: Json
+      }
       whatsapp_bot_ack_outbound: {
         Args: {
           _error?: string
@@ -3373,6 +3386,10 @@ export type Database = {
       }
       whatsapp_bot_report_status: {
         Args: { _phone?: string; _qr?: string; _status: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_request_command: {
+        Args: { _branch_id: string; _command: string }
         Returns: Json
       }
       whatsapp_bot_resolve_branch_id: {
