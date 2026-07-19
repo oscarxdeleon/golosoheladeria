@@ -28,13 +28,82 @@ function Test-ValidBotFolder($folder) {
   return (Test-Path (Join-Path $folder "config.json")) -or (Test-Path (Join-Path $folder "auth_state")) -or (Test-Path (Join-Path $folder "server.js"))
 }
 
+function Add-CandidateFolder($list, $folder) {
+  if ([string]::IsNullOrWhiteSpace($folder)) { return }
+  try {
+    if (-not (Test-Path -LiteralPath $folder)) { return }
+    $resolved = (Resolve-Path -LiteralPath $folder).Path
+    if (-not $list.Contains($resolved)) { $list.Add($resolved) }
+  } catch {}
+}
+
+function Get-BotFolderScore($folder) {
+  $score = 0
+  if (Test-Path (Join-Path $folder "auth_state")) { $score += 100 }
+  if (Test-Path (Join-Path $folder "config.json")) { $score += 80 }
+  if (Test-Path (Join-Path $folder "server.js")) { $score += 40 }
+  if (Test-Path (Join-Path $folder "start-hidden.vbs")) { $score += 20 }
+  if (Test-Path (Join-Path $folder "package.json")) { $score += 10 }
+  return $score
+}
+
+function Find-FoldersByDeepScan($candidates) {
+  Write-Step "Busqueda profunda automatica"
+  Write-Host "No necesitas saber la ruta. Estoy revisando Escritorio, Descargas, Documentos, AppData y carpetas comunes..."
+
+  $roots = @(
+    [Environment]::GetFolderPath("Desktop"),
+    [Environment]::GetFolderPath("MyDocuments"),
+    (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Downloads"),
+    [Environment]::GetFolderPath("LocalApplicationData"),
+    [Environment]::GetFolderPath("ApplicationData"),
+    [Environment]::GetFolderPath("ProgramFiles"),
+    ${env:ProgramData},
+    [Environment]::GetFolderPath("UserProfile")
+  ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
+
+  foreach ($root in $roots) {
+    if (-not (Test-Path -LiteralPath $root)) { continue }
+    try {
+      Get-ChildItem -LiteralPath $root -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\node_modules(\\|$)|\\\.git(\\|$)|\\Cache(\\|$)|\\Caches(\\|$)' } |
+        Where-Object {
+          $_.Name -eq "auth_state" -or
+          $_.Name -like "*Goloso*Bot*" -or
+          $_.Name -like "*WhatsApp*Bot*" -or
+          $_.Name -eq "whatsapp-bot"
+        } |
+        ForEach-Object {
+          if ($_.Name -eq "auth_state") {
+            Add-CandidateFolder $candidates $_.Parent.FullName
+          } else {
+            Add-CandidateFolder $candidates $_.FullName
+          }
+        }
+    } catch {}
+  }
+}
+
 function Find-InstalledBotFolder {
   $candidates = New-Object System.Collections.Generic.List[string]
 
   try {
+    $processes = Get-CimInstance Win32_Process -Filter "name = 'node.exe'" -ErrorAction SilentlyContinue
+    foreach ($proc in $processes) {
+      if ($proc.CommandLine -and $proc.CommandLine -match 'server\.js') {
+        $matches = [regex]::Matches($proc.CommandLine, '"([^"]*server\.js)"|([^\s"]*server\.js)')
+        foreach ($m in $matches) {
+          $serverPath = if ($m.Groups[1].Success) { $m.Groups[1].Value } else { $m.Groups[2].Value }
+          if ($serverPath) { Add-CandidateFolder $candidates (Split-Path -Parent $serverPath) }
+        }
+      }
+    }
+  } catch {}
+
+  try {
     $run = Get-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "GolosoWhatsAppBot" -ErrorAction SilentlyContinue
     $folder = Resolve-StartHiddenFolderFromValue $run.GolosoWhatsAppBot
-    if ($folder) { $candidates.Add($folder) }
+    if ($folder) { Add-CandidateFolder $candidates $folder }
   } catch {}
 
   try {
@@ -45,12 +114,12 @@ function Find-InstalledBotFolder {
       $shortcut = $shell.CreateShortcut($lnk)
       $folder = Resolve-StartHiddenFolderFromValue $shortcut.Arguments
       if (-not $folder -and $shortcut.WorkingDirectory) { $folder = $shortcut.WorkingDirectory }
-      if ($folder) { $candidates.Add($folder) }
+      if ($folder) { Add-CandidateFolder $candidates $folder }
     }
   } catch {}
 
   if ((Test-Path (Join-Path $SourceDir "config.json")) -or (Test-Path (Join-Path $SourceDir "auth_state"))) {
-    $candidates.Add($SourceDir)
+    Add-CandidateFolder $candidates $SourceDir
   }
 
   $commonRoots = @(
@@ -60,13 +129,16 @@ function Find-InstalledBotFolder {
     (Join-Path ([Environment]::GetFolderPath("UserProfile")) "Documents\Goloso WhatsApp Bot"),
     (Join-Path ([Environment]::GetFolderPath("Desktop")) "Goloso WhatsApp Bot")
   )
-  foreach ($root in $commonRoots) { $candidates.Add($root) }
+  foreach ($root in $commonRoots) { Add-CandidateFolder $candidates $root }
 
-  foreach ($candidate in $candidates) {
-    if (Test-ValidBotFolder $candidate) {
-      return (Resolve-Path $candidate).Path
-    }
-  }
+  Find-FoldersByDeepScan $candidates
+
+  $best = $candidates |
+    Where-Object { Test-ValidBotFolder $_ } |
+    Sort-Object @{ Expression = { Get-BotFolderScore $_ }; Descending = $true }, @{ Expression = { (Get-Item $_).LastWriteTime }; Descending = $true } |
+    Select-Object -First 1
+
+  if ($best) { return (Resolve-Path -LiteralPath $best).Path }
 
   return $null
 }
@@ -95,6 +167,7 @@ function Copy-BotFiles($target) {
     "update-windows.bat",
     "update-windows.ps1",
     "ACTUALIZAR-SIN-QR.bat",
+    "SOLUCION-SIN-SABER-CARPETA.bat",
     "start-hidden.vbs",
     "uninstall-windows.bat",
     "README.md",
@@ -184,6 +257,7 @@ Write-Host "Este proceso conserva config.json y auth_state para no volver a vinc
 
 $TargetDir = $null
 if (-not [string]::IsNullOrWhiteSpace($TargetPath)) {
+  $TargetPath = $TargetPath.Trim().Trim('"')
   if (-not (Test-Path $TargetPath)) {
     Write-Host "La ruta indicada no existe: $TargetPath" -ForegroundColor Red
     exit 4
