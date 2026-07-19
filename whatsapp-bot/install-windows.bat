@@ -93,14 +93,20 @@ goto npm_ok
 
 echo.
 echo === Configuracion de la sede ===
-echo Pega solo el token de la sede. La URL del POS se configura automaticamente.
-if exist ".setup-ok" del ".setup-ok" >nul 2>nul
-node setup.js
-if errorlevel 1 (
-  pause
-  exit /b 1
+if exist "config.json" (
+  echo Se encontro config.json existente. Se conserva el token guardado y NO se pide token nuevo.
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='config.json'; $cfg=Get-Content $p -Raw | ConvertFrom-Json; $cfg | Add-Member -NotePropertyName apiUrl -NotePropertyValue 'https://golosoheladeria.vercel.app' -Force; $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $p -Encoding UTF8"
+) else (
+  echo Pega solo el token de la sede. La URL del POS se configura automaticamente.
+  echo Si este PC ya tenia el bot vinculado, cancela y usa ACTUALIZAR-SIN-QR.bat para conservar la sesion.
+  if exist ".setup-ok" del ".setup-ok" >nul 2>nul
+  node setup.js
+  if errorlevel 1 (
+    pause
+    exit /b 1
+  )
+  if not exist ".setup-ok" goto setup_failed
 )
-if not exist ".setup-ok" goto setup_failed
 
 echo.
 echo Registrando inicio automatico con Windows...
@@ -141,8 +147,8 @@ echo.
 echo === Instalacion completa ===
 echo.
 echo Se abrio el panel local: http://localhost:8790
-echo Si el estado dice "QR", escanea el codigo con WhatsApp Business del celular de la sede.
-echo Si el QR tarda, tambien puede aparecer dibujado en la consola del bot.
+echo Si esta instalacion ya tenia auth_state, no debe pedir QR.
+echo Solo una instalacion nueva o una sesion cerrada desde WhatsApp mostrara QR.
 echo El bot arrancara solo cada vez que enciendas el PC.
 echo.
 pause
