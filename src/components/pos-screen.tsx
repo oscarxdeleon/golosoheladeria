@@ -607,6 +607,25 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
 
 
 function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
+  const b = o.branding ?? DEFAULT_BRANDING;
+  // Combina dirección + barrio para el ESC/POS (el print server no tiene campo
+  // aparte de barrio). En el HTML se muestran por separado.
+  const addressForEscpos = [o.address?.trim(), o.neighborhood?.trim() ? `Barrio: ${o.neighborhood.trim()}` : ""]
+    .filter(Boolean)
+    .join(" · ") || undefined;
+  // Fuerza los flags necesarios para que la precuenta muestre siempre los
+  // datos del cliente en el print server, aunque el ticket_config del negocio
+  // los tenga desactivados para el ticket final.
+  const baseCfg = { ...DEFAULT_TICKET_CONFIG, ...(b.ticket_config ?? {}) };
+  const precuentaCfg = {
+    ...baseCfg,
+    show_date: true,
+    show_customer: true,
+    show_customer_address: true,
+    show_customer_phone: true,
+    show_payment_method: false,
+    show_cash_received: false,
+  };
   const payload: PrintPayload = {
     type: "precuenta", header: o.header, items: o.items,
     subtotal: o.subtotal, tax: o.tax, deliveryFee: o.deliveryFee, total: o.total,
@@ -614,6 +633,15 @@ function printPrecuenta(o: Parameters<typeof precuentaHTML>[0]) {
     ticket: o.ticket ?? undefined,
     ticket_number: o.ticket ?? undefined,
     created_at: o.created_at ?? undefined,
+    address: addressForEscpos,
+    phone: o.phone ?? undefined,
+    notes: o.notes ?? undefined,
+    business_name: b.business_name,
+    nit: b.nit ?? undefined,
+    address_biz: b.address ?? undefined,
+    phone_biz: b.phone ?? undefined,
+    email_biz: b.email ?? undefined,
+    ticket_config: precuentaCfg,
   };
   printSilent(payload, precuentaHTML(o), { silent: true });
 }
