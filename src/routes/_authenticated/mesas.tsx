@@ -234,13 +234,9 @@ function MesasPage() {
   }, []);
 
   async function openMesa(m: Mesa) {
-    // La mesa solo cambia a "ocupada" cuando se guarda un pedido con al menos un producto
-    // (lo gestiona el trigger de DB sobre sale_items). Si ya está ocupada,
-    // pedimos confirmación antes de agregar productos al pedido existente.
-    if (m.status === "occupied") {
-      setAddToOccupied(m);
-      return;
-    }
+    // Abrir siempre la mesa directamente. Si ya tiene un pedido activo, el POS
+    // hidrata automáticamente el pedido en curso y el mesero/cajero puede
+    // agregar más productos o pasar a cobrar sin pasos intermedios.
     navigate({ to: "/pos", search: { type: "mesa", tableId: m.id } });
   }
 
