@@ -650,6 +650,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const physicalClosedMsg = "El horario de atención en el punto físico ha finalizado. No es posible registrar nuevos pedidos.";
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
   
   const [cart, setCart] = useState<CartLine[]>([]);
