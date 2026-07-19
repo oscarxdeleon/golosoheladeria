@@ -167,6 +167,7 @@ function Copy-BotFiles($target) {
     "update-windows.bat",
     "update-windows.ps1",
     "ACTUALIZAR-SIN-QR.bat",
+    "SOLUCION-SIN-SABER-CARPETA.bat",
     "start-hidden.vbs",
     "uninstall-windows.bat",
     "README.md",

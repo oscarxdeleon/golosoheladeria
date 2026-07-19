@@ -7,8 +7,8 @@ Bot local que corre en el **PC de cada sede** y responde automáticamente a los 
 Si el bot ya estaba conectado en ese PC, **no borres la carpeta anterior** ni la carpeta `auth_state/`.
 
 1. Descarga y descomprime el ZIP nuevo.
-2. Ejecuta **`ACTUALIZAR-SIN-QR.bat`**. También funciona `update-windows.bat`.
-3. El actualizador buscará la instalación anterior, conservará `config.json` y `auth_state/`, reemplazará solo el código del bot y lo iniciará de nuevo.
+2. Ejecuta **`SOLUCION-SIN-SABER-CARPETA.bat`** si no sabes dónde quedó instalado el bot anterior. También funciona **`ACTUALIZAR-SIN-QR.bat`**.
+3. El actualizador hará una búsqueda profunda en Windows, conservará `config.json` y `auth_state/`, reemplazará solo el código del bot y lo iniciará de nuevo.
 
 Mientras `auth_state/` exista y WhatsApp no haya cerrado la sesión desde el celular, **no tendrás que vincular nuevamente con QR**.
 
@@ -33,6 +33,7 @@ El bot queda registrado para **arrancar solo con Windows**. Al apagar el PC se d
 
 - `server.js` — bot principal (Baileys + polling al POS).
 - `setup.js` — configuración interactiva del token y URL para instalaciones nuevas.
+- `SOLUCION-SIN-SABER-CARPETA.bat` — busca automáticamente la sesión anterior aunque no sepas la ruta.
 - `ACTUALIZAR-SIN-QR.bat` — actualización segura que conserva la sesión de WhatsApp.
 - `config.json` — se genera al ejecutar setup (contiene el token, mantener privado).
 - `auth_state/` — sesión de WhatsApp guardada por Baileys. **No borrar** (perdería la vinculación).
