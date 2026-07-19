@@ -476,7 +476,7 @@ function AfterHoursCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?: 
     setMessages(cfg.after_hours_messages ?? []);
   }, [cfg.after_hours_enabled, cfg.after_hours_messages]);
 
-  const menuLink = branch?.slug ? `https://golosoheladeria.lovable.app/s/${branch.slug}` : "(sin slug de sede)";
+  const menuLink = branch?.slug ? `https://golosoheladeria.vercel.app/menu?sede=${branch.slug}` : "(sin slug de sede)";
 
   const save = async () => {
     const clean = messages.map((s) => s.trim()).filter(Boolean);
@@ -550,7 +550,7 @@ function PickupAfterHoursCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; bra
     setMessages(cfg.pickup_after_hours_messages ?? []);
   }, [cfg.pickup_after_hours_enabled, cfg.pickup_after_hours_messages]);
 
-  const menuLink = branch?.slug ? `https://golosoheladeria.lovable.app/s/${branch.slug}` : "(sin slug de sede)";
+  const menuLink = branch?.slug ? `https://golosoheladeria.vercel.app/menu?sede=${branch.slug}` : "(sin slug de sede)";
 
   const save = async () => {
     const clean = messages.map((s) => s.trim()).filter(Boolean);
@@ -625,7 +625,7 @@ function MenuTriggersCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?
 
   useEffect(() => { setTriggers(cfg.menu_triggers ?? []); setMessage(cfg.menu_message); }, [cfg.menu_triggers, cfg.menu_message]);
 
-  const menuLink = branch?.slug ? `https://golosoheladeria.lovable.app/s/${branch.slug}/menu` : "(sin slug de sede)";
+  const menuLink = branch?.slug ? `https://golosoheladeria.vercel.app/menu?sede=${branch.slug}` : "(sin slug de sede)";
   const preview = message.replace("{menu_link}", menuLink);
 
   const addTrigger = () => {
