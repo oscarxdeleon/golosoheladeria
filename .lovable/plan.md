@@ -1,107 +1,155 @@
-Nuevo módulo **Empleados & Nómina** que amplía la infraestructura de asistencia ya existente (`attendance_employees`, `attendance_records`, `attendance_terminals`) sin romperla, y añade horarios detallados, cálculo de retrasos y descuentos automáticos.
 
-## 1. Análisis de viabilidad
+# Empleados / Nómina — Descuentos, Liquidación semanal y Pagos
 
-Reviso lo existente:
-- Ya existe `attendance_employees` con: `full_name`, `document_id`, `job_position`, `phone`, `branch_id`, `schedule` (jsonb), `active`, `photo_url`, `face_descriptor`.
-- Ya existe `attendance_records` con `record_type` (`entrada`, `salida`, `pausa_inicio`, `pausa_fin`) y `recorded_at`.
-- Ya hay terminal facial/pin en `/asistencia/terminal/$slug` y página `_authenticated/asistencia.tsx`.
-- Multi-sede resuelto por `branch_id`; RLS ya activa.
-- Zona horaria: el sistema usa `America/Bogota` como fuente única (ver `src/lib/schedules.ts`).
+## 0. Viabilidad (revisado contra el sistema actual)
 
-Conclusión: **NO hay que crear un módulo paralelo**. Extiendo `attendance_employees` con configuración de horarios avanzada + pago, y sumo tablas para festivos y snapshots de retrasos. Cero impacto sobre asistencia actual: los campos nuevos son nullable con default sano.
+- El módulo `/empleados` ya existe con tabs Empleados, Horarios, Festivos y Nómina, y ya usa `attendance_employees` (con `pay_mode`, `weekly_salary`, `shift_rates`, `hours_per_shift`, `grace_minutes`, `weekly_schedule`), `company_holidays` y `attendance_late_records`. Se conserva todo.
+- La asistencia ya tiene un trigger post-insert sobre `attendance_records` que llama `compute_daily_late`. Se reescribe **solo esa función interna** para aplicar la nueva escala por bloques; el trigger y la tabla `attendance_late_records` no cambian.
+- Multi-sede, RLS, zona horaria (`America/Bogota`) y `has_role` ya están resueltos: se reutilizan.
+- La cola de impresión (`print_jobs` + `startPrintQueueWorker`) ya funciona para comandas y ticket de venta; el comprobante de pago se despacha por el mismo canal (nada nuevo del lado del Print Server).
+- Cero impacto sobre POS, cajas, WhatsApp bot ni inventario: todo va a tablas nuevas y a la ruta `/empleados`.
 
-## 2. Cambios en base de datos (una sola migración)
+## 1. Cambios de base de datos (una migración)
 
-**Extender `attendance_employees`:**
-- `weekly_schedule jsonb` — nueva forma detallada por día:
+### 1.1 Configuración de reglas (editable por admin)
+
+`public.payroll_late_rules` — una fila por sede (o global si `branch_id IS NULL`).
+
+- `brackets jsonb` con la escala por defecto (editable):
   ```json
-  {
-    "lun":{"works":true,"in":"14:00","out":"22:00"},
-    "mar":{"works":true,"in":"14:00","out":"22:00"},
-    ...
-    "sab":{"works":true,"in":"13:00","out":"23:00"},
-    "dom":{"works":true,"in":"13:00","out":"23:00"},
-    "festivo":{"works":true,"in":"13:00","out":"23:00"}
-  }
+  [
+    {"min":5,"max":15,"deduct_minutes":30},
+    {"min":30,"max":45,"deduct_minutes":60},
+    {"min":60,"max":null,"deduct_minutes":120}
+  ]
   ```
-  (El campo `schedule` viejo se conserva por compatibilidad; los lectores nuevos priorizan `weekly_schedule`.)
-- `pay_mode text` check in (`weekly_fixed`,`per_shift`) default `weekly_fixed`.
-- `weekly_salary numeric` — para `weekly_fixed`.
-- `shift_rates jsonb` — para `per_shift`: `{"weekday":30000,"weekend_holiday":50000,"per_day":{"lun":30000,...}}` (opcional).
-- `hours_per_shift numeric default 8` — usado para calcular valor/hora en modo fijo semanal (semanal / (días_trabajados × horas)).
-- `grace_minutes int default 0` — tolerancia antes de contar retraso.
+- `active boolean default true`.
+- RLS: admin/supervisor lectura y escritura; cajero/mesero sin acceso.
 
-**Nueva tabla `public.company_holidays`:**
-- `date date PK`, `name text`, `branch_id uuid null` (null = todas las sedes).
-- GRANT authenticated select/insert/update/delete; admin/supervisor pueden escribir.
+### 1.2 Descuentos manuales
 
-**Nueva tabla `public.attendance_late_records`** (auditoría inmutable de retrasos):
-- `employee_id`, `date date`, `scheduled_in time`, `actual_in timestamptz`, `late_minutes int`, `deduction_amount numeric`, `pay_mode`, `computed_at timestamptz`.
-- UNIQUE(`employee_id`,`date`) para evitar duplicados.
-- RLS: admin/supervisor lectura total; empleado ve solo los suyos (por profile_id join).
+`public.payroll_manual_deductions`:
 
-**RPC `public.payroll_period_summary(_from date, _to date, _employee_id uuid?, _branch_id uuid?)`** `SECURITY DEFINER`:
-- Recorre días del período.
-- Para cada empleado activo, cruza `weekly_schedule` (con festivos → clave `festivo`) contra el primer `entrada` del día en `attendance_records`.
-- Calcula minutos de retraso (respetando `grace_minutes`) y descuento:
-  - `weekly_fixed`: `valor_minuto = weekly_salary / (dias_semanales × hours_per_shift × 60)`.
-  - `per_shift`: `valor_minuto = tarifa_dia / (hours_per_shift × 60)`.
-- Devuelve por empleado: total días trabajados, minutos totales de retraso, descuento acumulado, pago bruto, pago neto, y detalle por día.
-- Upserts en `attendance_late_records` para persistir historial.
+- `employee_id`, `amount numeric`, `concept text` (préstamo / adelanto / uniforme / daño / otro), `notes text`, `deduction_date date`, `applied_to_payment_id uuid null`, `branch_id`, `created_by`, `created_at`.
+- RLS: admin/supervisor CRUD; empleado lee lo suyo.
 
-**RPC `public.compute_daily_late(_date date)`** para invocarse al cierre del día o bajo demanda desde el panel.
+### 1.3 Pagos (liquidaciones)
 
-## 3. Frontend
+`public.payroll_payments`:
 
-**Nueva ruta `/empleados` (`src/routes/_authenticated/empleados.tsx`)** con tabs:
+- `employee_id`, `branch_id`, `period_start date`, `period_end date`, `shifts_count int`, `gross_amount numeric`, `late_deduction numeric`, `manual_deduction numeric`, `net_amount numeric`, `payment_method text` (caja / nequi / bancolombia / otro), `paid_by uuid`, `paid_by_name text`, `paid_at timestamptz`, `notes text`, `receipt_number bigserial`.
+- Único parcial por (`employee_id`, `period_start`, `period_end`) para evitar doble pago.
 
-1. **Empleados** — lista + alta/edición.
-   - Dialog con: nombre, cédula, teléfono, cargo, sede, activo/inactivo, modo de pago (semanal fijo / por turno), salario, tarifas por turno, horas por turno, tolerancia.
-   - Editor visual de horario por día (7 días + "Festivos") con toggle "trabaja" + horas in/out.
-   - Reemplaza la vista actual de "Empleados" que hoy vive dentro de `_authenticated/asistencia.tsx` (que queda para marcaciones/terminales).
+`public.payroll_payment_items` (snapshot inmutable del detalle):
 
-2. **Horarios** — vista semanal tipo grilla por sede (solo lectura + edición rápida).
+- `payment_id`, `work_date date`, `day_type text` (weekday/weekend/holiday), `shift_rate numeric`, `late_minutes int`, `late_deduction numeric`.
 
-3. **Festivos** — CRUD de `company_holidays`.
+RLS admin/supervisor CRUD; empleado lee lo suyo.
 
-4. **Nómina & Retrasos** — panel administrativo:
-   - Filtros: rango de fechas, empleado, sede.
-   - Tabla con: empleado, días trabajados, minutos de retraso, descuentos, pago bruto, pago neto.
-   - Detalle expandible con historial de retrasos día por día.
-   - Botón "Recalcular período".
-   - Export CSV (base para futura nómina).
+### 1.4 Ajuste al cálculo de tardanzas
 
-**Sidebar:** añadir entrada "Empleados" (rol admin/supervisor) apuntando a `/empleados`. La ruta `asistencia` actual se conserva para marcaciones.
+Reescribir `public.compute_employee_late(_employee_id, _date)` para:
 
-**Integración con módulo de asistencia:** el registro de `entrada` sigue funcionando igual; un trigger post-insert sobre `attendance_records` (solo `record_type='entrada'`) llama a `compute_daily_late` para ese empleado y ese día, dejando la fila en `attendance_late_records` en tiempo real.
+1. Leer `weekly_schedule` (o `festivo` si aplica) y `grace_minutes`.
+2. Calcular `late_minutes` reales.
+3. Buscar el bracket aplicable en `payroll_late_rules` (fallback a la escala por defecto si no hay fila).
+4. `deduct_minutes = bracket.deduct_minutes` (0 si no cae en ningún bracket, incluidos `<5 min`).
+5. Calcular `deduction_amount`:
+   - `per_shift` → `(shift_rate_del_dia / (hours_per_shift * 60)) * deduct_minutes`.
+   - `weekly_fixed` → `(weekly_salary / (dias_activos * hours_per_shift * 60)) * deduct_minutes`.
+6. Upsert en `attendance_late_records` (misma tabla actual).
 
-## 4. Reglas de cálculo (resumen)
+El trigger existente sigue apuntando a esta función → cero cambios en `attendance_records`.
 
-- Se evalúa **solo `entrada`**. `salida` se ignora para efectos de retraso/descuento.
-- Se toma la **primera** entrada del día en zona `America/Bogota`.
-- Si `weekly_schedule[dia].works=false` → día no laborable, sin retraso ni descuento.
-- Si es festivo (existe en `company_holidays`) → usa clave `festivo`.
-- `late_minutes = max(0, real - programada - grace_minutes)`.
-- Descuento:
-  - `weekly_fixed`: `weekly_salary / (dias_semanales_activos × hours_per_shift × 60) × late_minutes`.
-  - `per_shift`: `tarifa_del_día / (hours_per_shift × 60) × late_minutes`.
-- Ausencias (día laborable sin entrada) se marcan pero **no** descuentan automáticamente (evita falsos positivos por licencias); el admin puede revisar.
+### 1.5 RPCs de liquidación y pago
 
-## 5. Compatibilidad y riesgos
+- `payroll_weekly_liquidation(_employee_id uuid, _week_start date)` `SECURITY DEFINER`:
+  itera 7 días, calcula turnos trabajados (una entrada = un turno), suma `shift_rate` del día (weekday / weekend / holiday), suma tardanzas desde `attendance_late_records`, resta descuentos manuales pendientes (`applied_to_payment_id IS NULL`). Devuelve JSON con desglose día a día + totales. Solo lectura, sin escrituras.
+- `payroll_register_payment(_employee_id, _period_start, _period_end, _payment_method, _notes)` `SECURITY DEFINER`:
+  reejecuta la liquidación, inserta `payroll_payments` + `payroll_payment_items`, marca `payroll_manual_deductions.applied_to_payment_id`. Devuelve `payment_id` y `receipt_number`.
+- `payroll_history(_from, _to, _employee_id?, _branch_id?)`: pagos + descuentos + tardanzas para reportes.
 
-- La tabla `attendance_employees` mantiene su columna `schedule` original → cero ruptura del terminal.
-- Todas las columnas nuevas son opcionales con defaults.
-- Nuevas tablas con RLS + GRANTs correctos.
-- Cálculo hecho en Postgres → sin coste extra en cliente y consistente en multi-sede.
-- Zona horaria manejada con `timezone('America/Bogota', recorded_at)` dentro de las RPC.
-- Sin impacto en POS, ventas, cocina, WhatsApp bot, ni impresión.
+Cron opcional (`pg_cron` domingo 23:59) que inserta un aviso en un log — **no** paga automático (el pago siempre lo confirma el admin). Puede quedar como fase 2; para la primera entrega solo el botón "Liquidar semana" en la UI.
+
+## 2. Frontend (`src/routes/_authenticated/empleados.tsx`)
+
+Se añaden dos tabs y se enriquece uno existente, sin romper el resto.
+
+### 2.1 Tab "Nómina" (reemplaza al panel actual)
+
+- Filtro por sede + semana (default semana actual lun-dom en `America/Bogota`).
+- Tabla por empleado: turnos, valor bruto, descuento por tardanza, descuento manual, neto, estado (`pendiente` / `pagado`).
+- Fila expandible con detalle día a día.
+- Botón por empleado **"Liquidar y pagar"** → dialog con:
+  - Resumen del período (readonly).
+  - Selector de método de pago (Caja, Nequi, Bancolombia, Otro).
+  - Notas.
+  - Confirmar → llama `payroll_register_payment` → abre ticket imprimible + envía a la cola de impresión de la sede activa (`print_jobs`).
+
+### 2.2 Nueva tab "Descuentos manuales"
+
+- Botón "Agregar descuento" (empleado, valor, concepto, fecha, notas).
+- Listado filtrable por empleado / estado (pendiente / aplicado a pago X).
+- Edición/eliminación solo mientras estén pendientes.
+
+### 2.3 Nueva tab "Historial / Reportes"
+
+- Sub-tabs: **Pagos**, **Descuentos**, **Tardanzas**.
+- Filtros: rango de fechas, empleado, sede.
+- Export CSV y reimpresión del comprobante desde la lista de pagos.
+
+### 2.4 Perfil del empleado (dentro de tab "Empleados")
+
+- Botón "Agregar descuento" directo en la fila.
+- Botón "Ver historial" que abre modal con últimos pagos, descuentos y tardanzas.
+
+### 2.5 Configuración de reglas
+
+Dentro del dialog de empleado o en un mini-panel "Reglas de tardanza" en el tab "Nómina": editor visual de brackets (min, max, minutos a descontar) por sede. Persiste en `payroll_late_rules`.
+
+## 3. Comprobante de pago
+
+Componente `PayrollReceipt` estilo `TicketPreview`:
+
+- Logo + "HELADERÍA GOLOSO".
+- Sede, dirección, NIT (de `settings`).
+- **Comprobante de Pago #<receipt_number>**.
+- Empleado, cargo, cédula.
+- Concepto: "Pago de turnos".
+- Período (desde → hasta), turnos trabajados.
+- Total generado, descuento por tardanza, descuentos manuales (con lista), neto pagado.
+- Método de pago, usuario, fecha/hora.
+- Firma / espacio para firma del empleado.
+
+Impresión:
+
+- Vista imprimible en pantalla (misma clase `print-area`).
+- Envío a `print_jobs` con `kind='payroll_receipt'` para que el Print Server actual lo imprima en la impresora de la sede sin cambios.
+
+## 4. Reportes
+
+- Reporte por empleado (todos los pagos + descuentos + tardanzas).
+- Reporte por sede (agregado semanal / mensual).
+- Reporte por rango con export CSV y reimpresión.
+- Reutiliza `payroll_history` RPC + tabla shadcn `DataTable` local.
+
+## 5. Validaciones técnicas
+
+- **Asistencia**: solo se cambia el cuerpo de `compute_employee_late`; el trigger y la UI del terminal no se tocan.
+- **Supabase / RLS**: todas las tablas nuevas con `GRANT` + `ENABLE RLS` + policies vía `has_role`.
+- **Multi-sede**: cada pago y descuento persiste `branch_id`; los filtros de UI parten del branch activo (`useBranch`).
+- **Cajas**: los pagos por método "Caja" **no** tocan `cash_sessions`; se registran solo como `payroll_payments`. Si más adelante se quiere descontar de caja, se añade en fase 2 (fuera de scope para no romper cuadres actuales).
+- **Concurrencia**: `payroll_register_payment` corre dentro de una transacción; unique parcial evita doble pago del mismo período.
+- **Historia inmutable**: `payroll_payment_items` guarda snapshot; si el admin cambia tarifas después, los pagos anteriores no se alteran.
+- **Zona horaria**: todos los cortes usan `timezone('America/Bogota', ...)`.
+- **Rendimiento**: índices en `payroll_payments(employee_id, period_end)`, `payroll_manual_deductions(employee_id, applied_to_payment_id)`.
 
 ## 6. Orden de ejecución
 
-1. Migración SQL (tablas, columnas, RLS, grants, RPCs, trigger).
-2. Ruta `/empleados` con las 4 tabs.
-3. Item en sidebar.
-4. Backfill opcional: copiar `schedule` viejo a `weekly_schedule` cuando exista.
+1. Migración SQL (tablas + policies + RPCs + reescritura de `compute_employee_late`).
+2. `src/lib/payroll.functions.ts` con wrappers tipados sobre las RPCs.
+3. Actualizar `src/routes/_authenticated/empleados.tsx`: nuevas tabs y flujos.
+4. `src/components/payroll/receipt.tsx` (comprobante) + integración con `print_jobs`.
+5. Verificación: build, insertar entrada tarde de prueba, liquidar semana demo, imprimir.
 
-Confirmame para proceder.
+Confirmame para proceder con la migración y la implementación completa.
