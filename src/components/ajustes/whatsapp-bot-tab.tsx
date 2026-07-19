@@ -269,11 +269,11 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
       </CardHeader>
       <CardContent className="space-y-4">
         <ol className="space-y-2 text-sm">
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">1</span> Descarga el bot para Windows y descomprímelo en una carpeta permanente del PC.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">2</span> Copia el <b>Token de esta sede</b> (abajo) y pégalo cuando el instalador te lo pida.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">3</span> Doble-click a <code>install-windows.bat</code>, pega el token y presiona Enter. La URL del POS se configura sola.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">4</span> Vuelve a este panel: verás <b>Esperando QR</b>. Toca <b>Ver QR</b> y escanea con el WhatsApp Business del celular de la sede.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">5</span> Estado pasa a <b>Conectado</b>. ¡Listo! Al reiniciar el PC el bot se recupera solo, sin volver a escanear.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">1</span> Si el bot ya estaba vinculado, descarga el ZIP nuevo y ejecuta <code>update-windows.bat</code>. Conserva la sesión actual y no pide QR.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">2</span> Para instalación nueva, descomprímelo en una carpeta permanente del PC.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">3</span> Solo en instalación nueva: copia el <b>Token de esta sede</b> y ejecuta <code>install-windows.bat</code>.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">4</span> El actualizador reemplaza el código, mantiene <code>auth_state</code> y reinicia el bot automáticamente.</li>
+          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">5</span> Estado pasa a <b>Conectado</b>. Al reiniciar el PC el bot se recupera solo.</li>
         </ol>
 
         <div className="rounded-xl border bg-muted/40 p-4 space-y-3">
@@ -303,7 +303,7 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            Esta versión valida el token antes de iniciar y muestra el QR o el error exacto en http://localhost:8790 del PC donde corre el bot.
+            Para actualizar sin volver a vincular WhatsApp, usa update-windows.bat y no borres la carpeta auth_state del bot anterior.
           </p>
         </div>
       </CardContent>
