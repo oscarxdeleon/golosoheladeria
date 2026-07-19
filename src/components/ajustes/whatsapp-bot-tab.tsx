@@ -35,7 +35,10 @@ interface BotConfigRow {
   after_hours_messages: string[];
   pickup_after_hours_enabled: boolean;
   pickup_after_hours_messages: string[];
+  greet_cooldown_hours: number;
+  short_reply_words: string[];
 }
+
 
 interface BranchRow { id: string; name: string; slug: string | null; }
 interface MessageRow {
@@ -151,6 +154,8 @@ export function WhatsAppBotTab() {
       <StatusCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <InstallCard cfg={cfg} />
       <WelcomeCard cfg={cfg} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
+      <FrequencyCard cfg={cfg} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
+
       <AfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <PickupAfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <MenuTriggersCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
@@ -357,6 +362,110 @@ function WelcomeCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => void 
 }
 
 /* --------------------------------------------------------- */
+
+const COOLDOWN_OPTIONS: { value: number; label: string }[] = [
+  { value: 0,   label: "Siempre responder (sin cooldown)" },
+  { value: 3,   label: "Cada 3 horas" },
+  { value: 6,   label: "Cada 6 horas" },
+  { value: 12,  label: "Cada 12 horas" },
+  { value: 24,  label: "Una vez al día (24 horas) — recomendado" },
+  { value: 48,  label: "Cada 2 días (48 horas)" },
+  { value: 168, label: "Una vez por semana" },
+];
+
+function FrequencyCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => void }) {
+  const [hours, setHours] = useState<number>(cfg.greet_cooldown_hours ?? 24);
+  const [shortWords, setShortWords] = useState<string>((cfg.short_reply_words ?? []).join(", "));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setHours(cfg.greet_cooldown_hours ?? 24);
+    setShortWords((cfg.short_reply_words ?? []).join(", "));
+  }, [cfg.greet_cooldown_hours, cfg.short_reply_words]);
+
+  const save = async () => {
+    setSaving(true);
+    const words = shortWords
+      .split(/[,\n]/)
+      .map((w) => w.trim().toLowerCase())
+      .filter(Boolean);
+    const { error } = await supabase
+      .from("whatsapp_bot_config")
+      .update({ greet_cooldown_hours: hours, short_reply_words: words })
+      .eq("branch_id", cfg.branch_id);
+    setSaving(false);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Frecuencia guardada");
+    onSaved();
+  };
+
+  const isPreset = COOLDOWN_OPTIONS.some((o) => o.value === hours);
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle>Frecuencia de respuesta automática</CardTitle>
+        <CardDescription>
+          Define cada cuánto puede el bot volver a saludar automáticamente al mismo cliente.
+          Así evitas que el saludo se sienta como spam.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="space-y-2">
+          <Label>Volver a saludar al mismo número</Label>
+          <Select
+            value={isPreset ? String(hours) : "custom"}
+            onValueChange={(v) => { if (v !== "custom") setHours(parseInt(v, 10)); }}
+          >
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {COOLDOWN_OPTIONS.map((o) => (
+                <SelectItem key={o.value} value={String(o.value)}>{o.label}</SelectItem>
+              ))}
+              {!isPreset && <SelectItem value="custom">Personalizado ({hours} h)</SelectItem>}
+            </SelectContent>
+          </Select>
+          <p className="text-xs text-muted-foreground">
+            Si el cliente vuelve a escribir dentro de este tiempo, el bot guarda silencio
+            (asumiendo que ya está en conversación con alguien de la sede).
+          </p>
+        </div>
+
+        <div className="space-y-2">
+          <Label>Palabras cortas que NO deben re-activar el saludo</Label>
+          <Textarea
+            value={shortWords}
+            onChange={(e) => setShortWords(e.target.value)}
+            rows={3}
+            placeholder="gracias, ok, listo, si, vale, confirmo…"
+          />
+          <p className="text-xs text-muted-foreground">
+            Separadas por coma. Cuando el cliente responde solo una de estas palabras
+            (confirmaciones típicas), el bot no manda saludo automático.
+          </p>
+        </div>
+
+        <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-sm text-emerald-900">
+          <div className="mb-1 flex items-center gap-2 font-medium">
+            <Info className="h-4 w-4" /> Recomendación
+          </div>
+          <p>
+            Deja <b>24 horas</b> para que el cliente perciba al bot como atento pero discreto.
+            El sistema además rota los mensajes de bienvenida sin repetir el último enviado a ese número.
+          </p>
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={saving}>{saving ? "Guardando…" : "Guardar frecuencia"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- */
+
+
 
 function AfterHoursCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?: BranchRow; onSaved: () => void }) {
   const [enabled, setEnabled] = useState<boolean>(cfg.after_hours_enabled);

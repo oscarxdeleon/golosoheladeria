@@ -2415,6 +2415,7 @@ export type Database = {
           created_at: string
           device_token: string
           enabled: boolean
+          greet_cooldown_hours: number
           last_seen_at: string | null
           menu_message: string
           menu_triggers: string[]
@@ -2422,6 +2423,7 @@ export type Database = {
           pickup_after_hours_messages: string[]
           qr_code: string | null
           qr_generated_at: string | null
+          short_reply_words: string[]
           updated_at: string
           welcome_messages: string[]
         }
@@ -2434,6 +2436,7 @@ export type Database = {
           created_at?: string
           device_token?: string
           enabled?: boolean
+          greet_cooldown_hours?: number
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
@@ -2441,6 +2444,7 @@ export type Database = {
           pickup_after_hours_messages?: string[]
           qr_code?: string | null
           qr_generated_at?: string | null
+          short_reply_words?: string[]
           updated_at?: string
           welcome_messages?: string[]
         }
@@ -2453,6 +2457,7 @@ export type Database = {
           created_at?: string
           device_token?: string
           enabled?: boolean
+          greet_cooldown_hours?: number
           last_seen_at?: string | null
           menu_message?: string
           menu_triggers?: string[]
@@ -2460,6 +2465,7 @@ export type Database = {
           pickup_after_hours_messages?: string[]
           qr_code?: string | null
           qr_generated_at?: string | null
+          short_reply_words?: string[]
           updated_at?: string
           welcome_messages?: string[]
         }
@@ -2477,16 +2483,22 @@ export type Database = {
         Row: {
           branch_id: string
           greeted_date: string
+          last_greeted_at: string
+          last_msg_idx: number | null
           phone: string
         }
         Insert: {
           branch_id: string
           greeted_date?: string
+          last_greeted_at?: string
+          last_msg_idx?: number | null
           phone: string
         }
         Update: {
           branch_id?: string
           greeted_date?: string
+          last_greeted_at?: string
+          last_msg_idx?: number | null
           phone?: string
         }
         Relationships: [
