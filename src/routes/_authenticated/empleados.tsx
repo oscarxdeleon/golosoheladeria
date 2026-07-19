@@ -1105,7 +1105,7 @@ function PaymentDialog({
     setSaving(true);
     const { data, error } = await supabase.rpc("payroll_register_payment", {
       _employee_id: employeeId, _period_start: from, _period_end: to,
-      _payment_method: method, _notes: notes.trim() || null,
+      _payment_method: method, _notes: notes.trim() || undefined,
     });
     setSaving(false);
     if (error) return toast.error(error.message);
