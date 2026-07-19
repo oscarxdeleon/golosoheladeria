@@ -83,12 +83,12 @@ export const sendCashReportWhatsApp = createServerFn({ method: "POST" })
 
     const { data: sales } = await supabase
       .from("sales")
-      .select("total, tip_amount, service_type, payment_method, status")
+      .select("total, tip_amount, order_type, payment_method, status")
       .eq("cash_session_id", session.id);
-    const rowsSales = (sales ?? []) as Array<{
+    const rowsSales = (sales ?? []) as unknown as Array<{
       total: number | null;
       tip_amount: number | null;
-      service_type: string | null;
+      order_type: string | null;
       payment_method: string | null;
       status: string | null;
     }>;
