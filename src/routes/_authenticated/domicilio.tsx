@@ -418,7 +418,7 @@ function CustomerPicker({ onSelect }: { onSelect: (c: Selected) => void }) {
                         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
                           <span className="font-display text-xl font-bold text-primary">{formatMoney(Number(o.total ?? 0))}</span>
                           <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-bold text-emerald-700 ring-1 ring-emerald-200 group-hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:ring-emerald-800">
-                            <Banknote className="h-3.5 w-3.5" /> Abrir / Cobrar
+                            <Banknote className="h-3.5 w-3.5" /> Editar / Agregar / Cobrar
                           </span>
                         </div>
                       </button>
