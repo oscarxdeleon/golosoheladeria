@@ -1269,6 +1269,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     });
     setCart((prev) => [...prev, ...newLines]);
     toast.success(`IA: ${newLines.length} producto(s) agregado(s)`);
+  }
   function dec(key: string) {
     setCart((p) => p.flatMap((l) => (l.key === key ? (l.qty <= 1 ? [] : [{ ...l, qty: l.qty - 1 }]) : [l])));
   }
