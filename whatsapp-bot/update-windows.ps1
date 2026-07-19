@@ -47,6 +47,36 @@ function Get-BotFolderScore($folder) {
   return $score
 }
 
+function Search-BotFolders($root, $candidates, $maxDepth = 6) {
+  if ([string]::IsNullOrWhiteSpace($root) -or -not (Test-Path -LiteralPath $root)) { return }
+  $excluded = @("node_modules", ".git", "Cache", "Caches", "Code Cache", "Temp", "tmp")
+  $queue = New-Object System.Collections.Generic.Queue[object]
+  $queue.Enqueue([pscustomobject]@{ Path = (Resolve-Path -LiteralPath $root).Path; Depth = 0 })
+
+  while ($queue.Count -gt 0) {
+    $item = $queue.Dequeue()
+    $current = $item.Path
+    $depth = [int]$item.Depth
+    try {
+      $name = Split-Path -Leaf $current
+      if ($name -eq "auth_state") {
+        Add-CandidateFolder $candidates (Split-Path -Parent $current)
+        continue
+      }
+      if ($name -like "*Goloso*Bot*" -or $name -like "*WhatsApp*Bot*" -or $name -eq "whatsapp-bot") {
+        Add-CandidateFolder $candidates $current
+      }
+      if (Test-Path -LiteralPath (Join-Path $current "auth_state")) {
+        Add-CandidateFolder $candidates $current
+      }
+      if ($depth -ge $maxDepth) { continue }
+      Get-ChildItem -LiteralPath $current -Directory -Force -ErrorAction SilentlyContinue |
+        Where-Object { $excluded -notcontains $_.Name } |
+        ForEach-Object { $queue.Enqueue([pscustomobject]@{ Path = $_.FullName; Depth = $depth + 1 }) }
+    } catch {}
+  }
+}
+
 function Find-FoldersByDeepScan($candidates) {
   Write-Step "Busqueda profunda automatica"
   Write-Host "No necesitas saber la ruta. Estoy revisando Escritorio, Descargas, Documentos, AppData y carpetas comunes..."
@@ -63,24 +93,7 @@ function Find-FoldersByDeepScan($candidates) {
   ) | Where-Object { -not [string]::IsNullOrWhiteSpace($_) } | Select-Object -Unique
 
   foreach ($root in $roots) {
-    if (-not (Test-Path -LiteralPath $root)) { continue }
-    try {
-      Get-ChildItem -LiteralPath $root -Directory -Recurse -Force -ErrorAction SilentlyContinue |
-        Where-Object { $_.FullName -notmatch '\\node_modules(\\|$)|\\\.git(\\|$)|\\Cache(\\|$)|\\Caches(\\|$)' } |
-        Where-Object {
-          $_.Name -eq "auth_state" -or
-          $_.Name -like "*Goloso*Bot*" -or
-          $_.Name -like "*WhatsApp*Bot*" -or
-          $_.Name -eq "whatsapp-bot"
-        } |
-        ForEach-Object {
-          if ($_.Name -eq "auth_state") {
-            Add-CandidateFolder $candidates $_.Parent.FullName
-          } else {
-            Add-CandidateFolder $candidates $_.FullName
-          }
-        }
-    } catch {}
+    Search-BotFolders $root $candidates 6
   }
 }
 
