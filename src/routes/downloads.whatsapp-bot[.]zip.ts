@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const WHATSAPP_BOT_ASSET_URL = "https://golosoheladeria.lovable.app/__l5e/assets-v1/ecd98a16-b7fc-4d5a-a5eb-0076087abf39/whatsapp-bot-v3.zip";
+const WHATSAPP_BOT_ASSET_URL = "https://golosoheladeria.lovable.app/__l5e/assets-v1/21ea47b7-572c-4115-8e49-408f67317397/whatsapp-bot-v4.zip";
 
 export const Route = createFileRoute("/downloads/whatsapp-bot.zip")({
   server: {
