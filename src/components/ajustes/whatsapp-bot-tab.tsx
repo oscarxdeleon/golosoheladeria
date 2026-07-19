@@ -16,8 +16,12 @@ import { QRCodeCanvas } from "qrcode.react";
 import { toast } from "sonner";
 import {
   MessageCircle, Copy, RefreshCw, Plus, Trash2, QrCode, Download,
-  Wifi, WifiOff, CircleAlert, Info, Smartphone,
+  Wifi, WifiOff, CircleAlert, Info, Smartphone, LogOut, RotateCw,
 } from "lucide-react";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
+  AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface BotConfigRow {
   branch_id: string;
