@@ -2879,6 +2879,7 @@ export type Database = {
           branch_id: string
           created_at: string
           id: string
+          last_attempt_at: string | null
           last_error: string | null
           purpose: string
           sent_at: string | null
@@ -2891,6 +2892,7 @@ export type Database = {
           branch_id: string
           created_at?: string
           id?: string
+          last_attempt_at?: string | null
           last_error?: string | null
           purpose?: string
           sent_at?: string | null
@@ -2903,6 +2905,7 @@ export type Database = {
           branch_id?: string
           created_at?: string
           id?: string
+          last_attempt_at?: string | null
           last_error?: string | null
           purpose?: string
           sent_at?: string | null
