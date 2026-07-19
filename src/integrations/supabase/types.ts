@@ -23,13 +23,19 @@ export type Database = {
           email: string | null
           face_descriptor: Json | null
           full_name: string
+          grace_minutes: number
+          hours_per_shift: number
           id: string
           job_position: string | null
+          pay_mode: string
           phone: string | null
           photo_url: string | null
           profile_id: string | null
           schedule: Json | null
+          shift_rates: Json | null
           updated_at: string
+          weekly_salary: number | null
+          weekly_schedule: Json | null
         }
         Insert: {
           active?: boolean
@@ -39,13 +45,19 @@ export type Database = {
           email?: string | null
           face_descriptor?: Json | null
           full_name: string
+          grace_minutes?: number
+          hours_per_shift?: number
           id?: string
           job_position?: string | null
+          pay_mode?: string
           phone?: string | null
           photo_url?: string | null
           profile_id?: string | null
           schedule?: Json | null
+          shift_rates?: Json | null
           updated_at?: string
+          weekly_salary?: number | null
+          weekly_schedule?: Json | null
         }
         Update: {
           active?: boolean
@@ -55,13 +67,19 @@ export type Database = {
           email?: string | null
           face_descriptor?: Json | null
           full_name?: string
+          grace_minutes?: number
+          hours_per_shift?: number
           id?: string
           job_position?: string | null
+          pay_mode?: string
           phone?: string | null
           photo_url?: string | null
           profile_id?: string | null
           schedule?: Json | null
+          shift_rates?: Json | null
           updated_at?: string
+          weekly_salary?: number | null
+          weekly_schedule?: Json | null
         }
         Relationships: [
           {
@@ -76,6 +94,53 @@ export type Database = {
             columns: ["profile_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      attendance_late_records: {
+        Row: {
+          actual_in: string | null
+          computed_at: string
+          date: string
+          deduction_amount: number
+          employee_id: string
+          id: string
+          is_holiday: boolean
+          late_minutes: number
+          pay_mode: string
+          scheduled_in: string | null
+        }
+        Insert: {
+          actual_in?: string | null
+          computed_at?: string
+          date: string
+          deduction_amount?: number
+          employee_id: string
+          id?: string
+          is_holiday?: boolean
+          late_minutes?: number
+          pay_mode: string
+          scheduled_in?: string | null
+        }
+        Update: {
+          actual_in?: string | null
+          computed_at?: string
+          date?: string
+          deduction_amount?: number
+          employee_id?: string
+          id?: string
+          is_holiday?: boolean
+          late_minutes?: number
+          pay_mode?: string
+          scheduled_in?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "attendance_late_records_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "attendance_employees"
             referencedColumns: ["id"]
           },
         ]
@@ -588,6 +653,38 @@ export type Database = {
           sort_order?: number
         }
         Relationships: []
+      }
+      company_holidays: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          date: string
+          id: string
+          name: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          date: string
+          id?: string
+          name: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          date?: string
+          id?: string
+          name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "company_holidays_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       couriers: {
         Row: {
@@ -2601,6 +2698,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      _daykey_from_date: { Args: { _d: string }; Returns: string }
       _normalize_payment_method: { Args: { _m: string }; Returns: string }
       _shared_cash_session_detail: {
         Args: { _cash_session_id: string }
@@ -2759,6 +2857,14 @@ export type Database = {
           isSetofReturn: false
         }
       }
+      compute_daily_late: {
+        Args: { _branch_id?: string; _from: string; _to?: string }
+        Returns: undefined
+      }
+      compute_employee_late: {
+        Args: { _date: string; _employee_id: string }
+        Returns: undefined
+      }
       consolidate_active_sales_for_table: {
         Args: { _table_id: string }
         Returns: string
@@ -2897,6 +3003,26 @@ export type Database = {
           isOneToOne: true
           isSetofReturn: false
         }
+      }
+      payroll_period_summary: {
+        Args: {
+          _branch_id?: string
+          _employee_id?: string
+          _from: string
+          _to: string
+        }
+        Returns: {
+          branch_id: string
+          days_scheduled: number
+          days_worked: number
+          deductions: number
+          employee_id: string
+          full_name: string
+          gross_pay: number
+          late_minutes: number
+          net_pay: number
+          pay_mode: string
+        }[]
       }
       reconcile_restaurant_tables: {
         Args: { _branch_id?: string }

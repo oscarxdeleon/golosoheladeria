@@ -42,6 +42,7 @@ import { Route as AuthenticatedInventarioRouteImport } from './routes/_authentic
 import { Route as AuthenticatedHistorialRouteImport } from './routes/_authenticated/historial'
 import { Route as AuthenticatedGastosRouteImport } from './routes/_authenticated/gastos'
 import { Route as AuthenticatedEstadisticasRouteImport } from './routes/_authenticated/estadisticas'
+import { Route as AuthenticatedEmpleadosRouteImport } from './routes/_authenticated/empleados'
 import { Route as AuthenticatedEgresosRouteImport } from './routes/_authenticated/egresos'
 import { Route as AuthenticatedDomiciliosRouteImport } from './routes/_authenticated/domicilios'
 import { Route as AuthenticatedDomicilioRouteImport } from './routes/_authenticated/domicilio'
@@ -248,6 +249,11 @@ const AuthenticatedEstadisticasRoute =
     path: '/estadisticas',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
+const AuthenticatedEmpleadosRoute = AuthenticatedEmpleadosRouteImport.update({
+  id: '/empleados',
+  path: '/empleados',
+  getParentRoute: () => AuthenticatedRouteRoute,
+} as any)
 const AuthenticatedEgresosRoute = AuthenticatedEgresosRouteImport.update({
   id: '/egresos',
   path: '/egresos',
@@ -454,6 +460,7 @@ export interface FileRoutesByFullPath {
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/egresos': typeof AuthenticatedEgresosRoute
+  '/empleados': typeof AuthenticatedEmpleadosRoute
   '/estadisticas': typeof AuthenticatedEstadisticasRoute
   '/gastos': typeof AuthenticatedGastosRoute
   '/historial': typeof AuthenticatedHistorialRoute
@@ -522,6 +529,7 @@ export interface FileRoutesByTo {
   '/domicilio': typeof AuthenticatedDomicilioRoute
   '/domicilios': typeof AuthenticatedDomiciliosRoute
   '/egresos': typeof AuthenticatedEgresosRoute
+  '/empleados': typeof AuthenticatedEmpleadosRoute
   '/estadisticas': typeof AuthenticatedEstadisticasRoute
   '/gastos': typeof AuthenticatedGastosRoute
   '/historial': typeof AuthenticatedHistorialRoute
@@ -590,6 +598,7 @@ export interface FileRoutesById {
   '/_authenticated/domicilio': typeof AuthenticatedDomicilioRoute
   '/_authenticated/domicilios': typeof AuthenticatedDomiciliosRoute
   '/_authenticated/egresos': typeof AuthenticatedEgresosRoute
+  '/_authenticated/empleados': typeof AuthenticatedEmpleadosRoute
   '/_authenticated/estadisticas': typeof AuthenticatedEstadisticasRoute
   '/_authenticated/gastos': typeof AuthenticatedGastosRoute
   '/_authenticated/historial': typeof AuthenticatedHistorialRoute
@@ -660,6 +669,7 @@ export interface FileRouteTypes {
     | '/domicilio'
     | '/domicilios'
     | '/egresos'
+    | '/empleados'
     | '/estadisticas'
     | '/gastos'
     | '/historial'
@@ -728,6 +738,7 @@ export interface FileRouteTypes {
     | '/domicilio'
     | '/domicilios'
     | '/egresos'
+    | '/empleados'
     | '/estadisticas'
     | '/gastos'
     | '/historial'
@@ -795,6 +806,7 @@ export interface FileRouteTypes {
     | '/_authenticated/domicilio'
     | '/_authenticated/domicilios'
     | '/_authenticated/egresos'
+    | '/_authenticated/empleados'
     | '/_authenticated/estadisticas'
     | '/_authenticated/gastos'
     | '/_authenticated/historial'
@@ -1094,6 +1106,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthenticatedEstadisticasRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
+    '/_authenticated/empleados': {
+      id: '/_authenticated/empleados'
+      path: '/empleados'
+      fullPath: '/empleados'
+      preLoaderRoute: typeof AuthenticatedEmpleadosRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
     '/_authenticated/egresos': {
       id: '/_authenticated/egresos'
       path: '/egresos'
@@ -1373,6 +1392,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedDomicilioRoute: typeof AuthenticatedDomicilioRoute
   AuthenticatedDomiciliosRoute: typeof AuthenticatedDomiciliosRoute
   AuthenticatedEgresosRoute: typeof AuthenticatedEgresosRoute
+  AuthenticatedEmpleadosRoute: typeof AuthenticatedEmpleadosRoute
   AuthenticatedEstadisticasRoute: typeof AuthenticatedEstadisticasRoute
   AuthenticatedGastosRoute: typeof AuthenticatedGastosRoute
   AuthenticatedHistorialRoute: typeof AuthenticatedHistorialRoute
@@ -1416,6 +1436,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedDomicilioRoute: AuthenticatedDomicilioRoute,
   AuthenticatedDomiciliosRoute: AuthenticatedDomiciliosRoute,
   AuthenticatedEgresosRoute: AuthenticatedEgresosRoute,
+  AuthenticatedEmpleadosRoute: AuthenticatedEmpleadosRoute,
   AuthenticatedEstadisticasRoute: AuthenticatedEstadisticasRoute,
   AuthenticatedGastosRoute: AuthenticatedGastosRoute,
   AuthenticatedHistorialRoute: AuthenticatedHistorialRoute,
@@ -1486,13 +1507,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

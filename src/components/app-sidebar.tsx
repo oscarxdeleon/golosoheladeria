@@ -109,6 +109,7 @@ const admin = [
   { to: "/opiniones", label: "Opiniones de clientes", icon: MessageSquareHeart, key: "__admin_only__" },
   { to: "/repartidores", label: "Repartidores", icon: Bike, key: "usuarios" },
   { to: "/asistencia", label: "Control de Asistencia", icon: ScanFace, key: "asistencia" },
+  { to: "/empleados", label: "Empleados y Nómina", icon: Users, key: "empleados" },
   { to: "/usuarios", label: "Usuarios", icon: Users, key: "usuarios" },
   { to: "/monitoreo", label: "Monitoreo", icon: Activity, key: "__admin_only__" },
   { to: "/ajustes", label: "Ajustes", icon: Settings, key: "ajustes" },
