@@ -335,25 +335,35 @@ function precuentaHTML(o: {
   customer: string; user_name: string;
   ticket?: number | null;
   created_at?: string | null;
+  address?: string | null;
+  phone?: string | null;
+  neighborhood?: string | null;
+  notes?: string | null;
+  orderType?: string | null;
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
   const money = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+  const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c] as string));
   const rows = o.items
-    .map((i) => `<tr><td style="white-space:pre-line">${i.qty} × ${i.name}</td><td style="text-align:right;white-space:nowrap;vertical-align:top">${money(i.unit_price * i.qty)}</td></tr>`)
+    .map((i) => `<tr><td style="white-space:pre-line">${i.qty} × ${esc(i.name)}</td><td style="text-align:right;white-space:nowrap;vertical-align:top">${money(i.unit_price * i.qty)}</td></tr>`)
     .join("");
   const when = o.created_at ? new Date(o.created_at) : new Date();
   const ticketStr = o.ticket ? String(o.ticket).padStart(6, "0") : "PENDIENTE";
+  const isDelivery = String(o.orderType ?? "").toLowerCase() === "domicilio";
   return `<!doctype html><html><head><title> </title><style>${TICKET_STYLES}</style></head>
   <body>
     ${brandHeaderHTML(b)}
     <hr/>
-    <h2>PRECUENTA</h2>
+    <h2>PRECUENTA${isDelivery ? " · DOMICILIO" : ""}</h2>
     <div class="muted">No. ${ticketStr}</div>
     <div class="muted">${when.toLocaleString("es-CO")}</div>
-    <div class="muted">${o.header}</div>
-    ${o.customer ? `<div class="muted">Cliente: ${o.customer}</div>` : ""}
-    <div class="muted">Cajero: ${o.user_name}</div>
+    <div class="muted">${esc(o.header)}</div>
+    ${o.customer ? `<div class="muted">Cliente: ${esc(o.customer)}</div>` : ""}
+    ${o.phone ? `<div class="muted">Teléfono: ${esc(o.phone)}</div>` : ""}
+    ${o.address ? `<div class="muted">Dirección: ${esc(o.address)}</div>` : ""}
+    ${o.neighborhood ? `<div class="muted">Barrio: ${esc(o.neighborhood)}</div>` : ""}
+    <div class="muted">Cajero: ${esc(o.user_name)}</div>
     <hr/>
     <table>${rows}</table>
     <hr/>
@@ -361,6 +371,7 @@ function precuentaHTML(o: {
     ${o.tax > 0 ? `<div class="row"><span>Impuesto</span><span>${money(o.tax)}</span></div>` : ""}
     ${o.deliveryFee > 0 ? `<div class="row"><span>Domicilio</span><span>${money(o.deliveryFee)}</span></div>` : ""}
     <div class="row total"><span>TOTAL</span><span>${money(o.total)}</span></div>
+    ${o.notes ? `<hr/><div class="muted"><b>OBSERVACIONES:</b><br/>${esc(o.notes)}</div>` : ""}
     <hr/>
     <div class="muted">Documento no fiscal</div>
   </body></html>`;
