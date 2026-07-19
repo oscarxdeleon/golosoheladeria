@@ -90,21 +90,90 @@ async function pushStatus() {
       const txt = await res.text();
       state.lastPushError = `POS respondió ${res.status}: ${txt.slice(0, 250)}`;
       logger.warn({ status: res.status, body: txt }, "status push failed");
-    } else {
-      const txt = await res.text();
-      let data = null;
-      try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt.slice(0, 250) }; }
-      if (data?.error) {
-        state.lastPushError = `POS rechazó estado: ${data.error}`;
-        logger.warn({ body: data }, "status push rejected");
-        return;
-      }
-      state.lastPushError = null;
-      state.lastPushAt = Date.now();
+      return;
+    }
+    const txt = await res.text();
+    let data = null;
+    try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt.slice(0, 250) }; }
+    if (data?.error) {
+      state.lastPushError = `POS rechazó estado: ${data.error}`;
+      logger.warn({ body: data }, "status push rejected");
+      return;
+    }
+    state.lastPushError = null;
+    state.lastPushAt = Date.now();
+    // Ejecutar comando remoto si el POS lo pidió (unlink | reconnect).
+    if (data?.pending_command) {
+      const cmd = String(data.pending_command);
+      logger.info({ cmd }, "remote command received");
+      executeRemoteCommand(cmd).catch((e) => logger.warn({ err: String(e) }, "remote command failed"));
     }
   } catch (e) {
     state.lastPushError = String(e);
     logger.warn({ err: String(e) }, "status push error");
+  }
+}
+
+async function ackCommand(cmd) {
+  try {
+    await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "command_ack", token: config.token, command: cmd }),
+    });
+  } catch (e) {
+    logger.warn({ err: String(e) }, "ack command failed");
+  }
+}
+
+function rmAuthDir() {
+  try {
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      logger.info("auth_state removed");
+    }
+  } catch (e) {
+    logger.warn({ err: String(e) }, "could not remove auth_state");
+  }
+}
+
+let commandInFlight = false;
+async function executeRemoteCommand(cmd) {
+  if (commandInFlight) return;
+  commandInFlight = true;
+  try {
+    if (cmd === "unlink") {
+      state.detail = "Desvinculando dispositivo por solicitud del POS...";
+      if (currentSock) {
+        try { await currentSock.logout(); } catch (e) { logger.warn({ err: String(e) }, "logout error"); }
+        try { currentSock.ws?.close?.(); } catch { /* noop */ }
+        currentSock = null;
+      }
+      rmAuthDir();
+      await ackCommand("unlink");
+      state.status = "connecting";
+      state.qr = null;
+      state.qrDataUrl = null;
+      state.phone = null;
+      state.detail = "Sesión eliminada. Generando nuevo QR...";
+      await pushStatus();
+      setTimeout(() => startSocket().catch((e) => logger.error(e)), 1500);
+      return;
+    }
+    if (cmd === "reconnect") {
+      state.detail = "Reconectando por solicitud del POS...";
+      if (currentSock) {
+        try { currentSock.ws?.close?.(); } catch { /* noop */ }
+        currentSock = null;
+      }
+      await ackCommand("reconnect");
+      state.status = "connecting";
+      await pushStatus();
+      setTimeout(() => startSocket().catch((e) => logger.error(e)), 1500);
+      return;
+    }
+  } finally {
+    commandInFlight = false;
   }
 }
 
