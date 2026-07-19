@@ -103,7 +103,7 @@ export const sendCashReportWhatsApp = createServerFn({ method: "POST" })
 
     const byService: Record<string, { count: number; total: number }> = {};
     for (const r of validSales) {
-      const k = String(r.service_type ?? "mesa");
+      const k = String(r.order_type ?? "mesa");
       byService[k] = byService[k] ?? { count: 0, total: 0 };
       byService[k].count += 1;
       byService[k].total += Number(r.total ?? 0);
