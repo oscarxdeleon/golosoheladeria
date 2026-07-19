@@ -1252,6 +1252,23 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       },
     ]);
   }
+  function applyAiOrder(items: ParsedOrderItem[], _target: ParsedOrder["target"]) {
+    if (items.length === 0) return;
+    const newLines: CartLine[] = items.map((it) => {
+      const p = products.find((x) => x.id === it.product_id);
+      const price = Number(p?.price ?? 0);
+      return {
+        key: crypto.randomUUID(),
+        product_id: it.product_id,
+        name: p?.name ?? it.name,
+        unit_price: price,
+        qty: Math.max(1, it.qty),
+        modifiers: [],
+        notes: it.notes,
+      };
+    });
+    setCart((prev) => [...prev, ...newLines]);
+    toast.success(`IA: ${newLines.length} producto(s) agregado(s)`);
   function dec(key: string) {
     setCart((p) => p.flatMap((l) => (l.key === key ? (l.qty <= 1 ? [] : [{ ...l, qty: l.qty - 1 }]) : [l])));
   }
