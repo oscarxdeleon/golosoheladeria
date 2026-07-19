@@ -70,6 +70,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           sent?: string[];
           failed?: string[];
           error?: string;
+          version?: string;
+          pollStatus?: string;
+          pollCount?: number;
         } | null = null;
         try {
           body = await request.json();
@@ -114,6 +117,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
             }
             case "pending": {
               const r = await callRpc("whatsapp_bot_get_pending", { _token: token });
+              if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
+              return json(r.data);
+            }
+            case "poll_status": {
+              const r = await callRpc("whatsapp_bot_report_outbound_poll", {
+                _token: token,
+                _version: body.version ?? null,
+                _poll_status: body.pollStatus ?? "ok",
+                _poll_count: typeof body.pollCount === "number" ? body.pollCount : 0,
+                _error: body.error ?? null,
+              });
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               return json(r.data);
             }
