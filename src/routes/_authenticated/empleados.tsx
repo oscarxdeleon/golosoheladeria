@@ -660,7 +660,12 @@ function NominaTab() {
 
   return (
     <Card>
-      <CardHeader><CardTitle>Nómina y retrasos</CardTitle></CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle>Nómina, liquidación y pagos</CardTitle>
+        <Button variant="outline" size="sm" onClick={() => setRulesOpen(true)}>
+          <Settings2 className="mr-2 h-4 w-4" />Reglas de tardanza
+        </Button>
+      </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 md:grid-cols-5 items-end">
           <div><Label>Desde</Label><Input type="date" value={from} onChange={(e) => setFrom(e.target.value)} /></div>
