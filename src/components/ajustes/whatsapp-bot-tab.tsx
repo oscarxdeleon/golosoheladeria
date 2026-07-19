@@ -193,6 +193,25 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
     onChanged();
   };
 
+  const [unlinkOpen, setUnlinkOpen] = useState(false);
+  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | null>(null);
+
+  const sendCommand = async (command: "unlink" | "reconnect") => {
+    setBusyCmd(command);
+    const { error } = await supabase.rpc("whatsapp_bot_request_command", {
+      _branch_id: cfg.branch_id,
+      _command: command,
+    });
+    setBusyCmd(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success(
+      command === "unlink"
+        ? "Solicitud enviada. En unos segundos el bot borrará la sesión y generará un nuevo QR."
+        : "Solicitud enviada. El bot está reconectándose."
+    );
+    onChanged();
+  };
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -207,11 +226,30 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           <div className="min-w-0 flex-1">
             <div className="text-lg font-bold">{meta.label}</div>
             <div className="text-xs text-muted-foreground">Última señal: {lastSeenText}</div>
-            {cfg.connected_phone && <div className="text-xs text-muted-foreground">Número: {cfg.connected_phone}</div>}
+            {cfg.connected_phone && <div className="text-xs text-muted-foreground">Número: +{cfg.connected_phone}</div>}
+            {cfg.qr_generated_at && cfg.connection_status !== "connected" && (
+              <div className="text-xs text-muted-foreground">QR generado: {new Date(cfg.qr_generated_at).toLocaleString()}</div>
+            )}
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
-              <QrCode className="mr-2 h-4 w-4" /> Ver QR
+              <QrCode className="mr-2 h-4 w-4" /> Ver / Generar QR
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => sendCommand("reconnect")}
+              disabled={busyCmd !== null}
+            >
+              <RotateCw className={`mr-2 h-4 w-4 ${busyCmd === "reconnect" ? "animate-spin" : ""}`} /> Reconectar
+            </Button>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={() => setUnlinkOpen(true)}
+              disabled={busyCmd !== null}
+            >
+              <LogOut className="mr-2 h-4 w-4" /> Desvincular dispositivo
             </Button>
             <div className="flex items-center gap-2">
               <Switch id="bot-enabled" checked={cfg.enabled} onCheckedChange={toggleEnabled} />
@@ -219,6 +257,23 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             </div>
           </div>
         </div>
+
+        <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Desvincular el dispositivo actual?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se cerrará la sesión de WhatsApp en el PC de la sede, se eliminará la sesión almacenada y se invalidará el QR anterior.
+                Será necesario escanear un nuevo código QR para volver a conectar el bot. El PC no necesita reinstalación.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => sendCommand("unlink")}>Sí, desvincular</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
 
         <Dialog open={qrOpen} onOpenChange={setQrOpen}>
           <DialogContent className="max-w-md">
