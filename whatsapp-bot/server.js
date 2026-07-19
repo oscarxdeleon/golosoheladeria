@@ -334,6 +334,7 @@ async function main() {
   console.log(`   Token   : ${config.token.slice(0, 6)}…${config.token.slice(-4)}`);
   startLocalUI();
   setInterval(pushStatus, HEARTBEAT_MS);
+  setInterval(pollOutbound, OUTBOUND_POLL_MS);
   void pushStatus();
   await startSocket().catch((e) => {
     logger.error(e);
