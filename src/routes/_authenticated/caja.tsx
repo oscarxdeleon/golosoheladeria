@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { useServerFn } from "@tanstack/react-start";
 import { sendCashReport } from "@/lib/cash-report.functions";
+import { sendCashReportWhatsApp } from "@/lib/cash-report-whatsapp.functions";
 import { openCashDrawer } from "@/lib/cash-drawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
