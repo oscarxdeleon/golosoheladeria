@@ -3044,6 +3044,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         </DialogContent>
       </Dialog>
 
+      <AiOrderDialog
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        branchId={activeBranchId}
+        onConfirm={applyAiOrder}
+      />
+
       <ModifiersModal
         product={
           modalProduct
