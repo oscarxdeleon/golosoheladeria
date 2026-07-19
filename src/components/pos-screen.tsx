@@ -30,6 +30,8 @@ import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
 import { VoiceMicButton } from "@/components/voice-input";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
+import { AiOrderDialog } from "@/components/ai-order-dialog";
+import type { ParsedOrderItem, ParsedOrder } from "@/lib/ai-order-parser.functions";
 
 
 
@@ -648,6 +650,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const physicalClosedMsg = "El horario de atención en el punto físico ha finalizado. No es posible registrar nuevos pedidos.";
   const [activeCat, setActiveCat] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [aiOpen, setAiOpen] = useState(false);
   const searchRef = useRef<HTMLInputElement | null>(null);
   
   const [cart, setCart] = useState<CartLine[]>([]);
@@ -1248,6 +1251,24 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         notes: note.trim() || undefined,
       },
     ]);
+  }
+  function applyAiOrder(items: ParsedOrderItem[], _target: ParsedOrder["target"]) {
+    if (items.length === 0) return;
+    const newLines: CartLine[] = items.map((it) => {
+      const p = products.find((x) => x.id === it.product_id);
+      const price = Number(p?.price ?? 0);
+      return {
+        key: crypto.randomUUID(),
+        product_id: it.product_id,
+        name: p?.name ?? it.name,
+        unit_price: price,
+        qty: Math.max(1, it.qty),
+        modifiers: [],
+        notes: it.notes,
+      };
+    });
+    setCart((prev) => [...prev, ...newLines]);
+    toast.success(`IA: ${newLines.length} producto(s) agregado(s)`);
   }
   function dec(key: string) {
     setCart((p) => p.flatMap((l) => (l.key === key ? (l.qty <= 1 ? [] : [{ ...l, qty: l.qty - 1 }]) : [l])));
@@ -2236,7 +2257,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               />
             </div>
           </div>
+          <Button
+            variant="outline"
+            className="col-span-2 sm:col-auto gap-2 rounded-full border-primary/40 text-primary hover:bg-primary/10"
+            onClick={() => setAiOpen(true)}
+          >
+            <Sparkles className="h-4 w-4" /> Comanda con IA
+          </Button>
         </div>
+
+
 
         {orderType === "llevar" && (
           <LlevarContactPanel
@@ -3013,6 +3043,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
         </DialogContent>
       </Dialog>
+
+      <AiOrderDialog
+        open={aiOpen}
+        onOpenChange={setAiOpen}
+        branchId={activeBranchId}
+        onConfirm={applyAiOrder}
+      />
 
       <ModifiersModal
         product={
