@@ -66,6 +66,7 @@ function Find-FoldersByDeepScan($candidates) {
     if (-not (Test-Path -LiteralPath $root)) { continue }
     try {
       Get-ChildItem -LiteralPath $root -Directory -Recurse -Force -ErrorAction SilentlyContinue |
+        Where-Object { $_.FullName -notmatch '\\node_modules(\\|$)|\\\.git(\\|$)|\\Cache(\\|$)|\\Caches(\\|$)' } |
         Where-Object {
           $_.Name -eq "auth_state" -or
           $_.Name -like "*Goloso*Bot*" -or
@@ -255,6 +256,7 @@ Write-Host "Este proceso conserva config.json y auth_state para no volver a vinc
 
 $TargetDir = $null
 if (-not [string]::IsNullOrWhiteSpace($TargetPath)) {
+  $TargetPath = $TargetPath.Trim().Trim('"')
   if (-not (Test-Path $TargetPath)) {
     Write-Host "La ruta indicada no existe: $TargetPath" -ForegroundColor Red
     exit 4
