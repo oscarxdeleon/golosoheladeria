@@ -1011,6 +1011,15 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     // transitorias vacías.
     placeholderData: (prev) => prev,
     queryFn: async () => {
+      // Defensa antes de leer: consolidar cualquier duplicado histórico de
+      // pedidos activos para la mesa. El índice único evita nuevos duplicados
+      // pero mesas heredadas (p.ej. mesa 2 de sedes existentes) pueden tener
+      // basura previa que oculta ítems al hidratar. Es idempotente.
+      try {
+        await supabase.rpc("consolidate_active_sales_for_table", { _table_id: tableId! });
+      } catch (e) {
+        console.warn("[pos] consolidate en fetch pending-sale falló (continuo)", e);
+      }
       // Un pedido de mesa sigue "activo" mientras no esté pagado,
       // cancelado o fusionado. El trigger `auto_mark_sale_ready`
       // transiciona pending → ready cuando la cocina termina todos los
@@ -1019,7 +1028,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // Incluimos también 'confirmed' por el mismo motivo.
       const { data, error } = await supabase
         .from("sales")
-        .select("id,ticket_number,customer_name,notes,created_at,printed_at,status,sale_items(product_id,product_name,qty,unit_price)")
+        .select("id,ticket_number,customer_name,notes,created_at,printed_at,status,sale_items(product_id,product_name,qty,unit_price,modifiers,notes)")
         .eq("table_id", tableId!)
         .in("status", ["pending", "confirmed", "ready"])
         // Si por alguna condición de carrera existieran duplicados, siempre
@@ -1038,10 +1047,11 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         created_at: string;
         printed_at: string | null;
         status: string | null;
-        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number }[];
+        sale_items: { product_id: string; product_name: string; qty: number; unit_price: number; modifiers?: unknown; notes?: string | null }[];
       };
     },
   });
+
 
   useEffect(() => {
     if (!pendingSale) return;
@@ -1059,14 +1069,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     setPendingSaleId(pendingSale.id);
     setCustomer(pendingSale.customer_name ?? "");
     setNotes(pendingSale.notes ?? "");
-    const hydrated = incoming.map((i) => ({
-      key: i.product_id,
-      product_id: i.product_id,
-      name: i.product_name,
-      unit_price: Number(i.unit_price),
-      qty: Number(i.qty),
-      modifiers: [] as SaleModifier[],
-    }));
+    const hydrated = incoming.map((i, idx) => {
+      const mods = Array.isArray(i.modifiers) ? (i.modifiers as SaleModifier[]) : [];
+      // Clave única por línea. Si dos líneas tienen el mismo product_id pero
+      // distintos modificadores/notas, deben permanecer independientes para
+      // que se puedan editar/eliminar por separado.
+      const key = `${i.product_id}::${idx}`;
+      return {
+        key,
+        product_id: i.product_id,
+        name: i.product_name,
+        unit_price: Number(i.unit_price),
+        qty: Number(i.qty),
+        modifiers: mods,
+        notes: i.notes ?? undefined,
+      };
+    });
     setCart(hydrated);
     // Solo asumimos ítems ya enviados si el registro tiene confirmación real
     // de impresión. Si el primer envío falló, el siguiente Guardar imprimirá todo.
@@ -1076,6 +1094,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     }
     printedQtyRef.current = printed;
   }, [pendingSale, paying, pendingSaleId]);
+
 
 
 
