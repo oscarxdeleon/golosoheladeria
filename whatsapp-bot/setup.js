@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const SETUP_OK_PATH = path.join(__dirname, ".setup-ok");
-const DEFAULT_API = "https://golosoheladeria.lovable.app";
+const DEFAULT_API = "https://golosoheladeria.vercel.app";
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q) => new Promise((r) => rl.question(q, r));
