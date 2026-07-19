@@ -1992,7 +1992,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           _sale_id: sale.id,
           _added_items: addedItems as unknown as never,
           _kind: "add_items",
-          _notes: orderType === "domicilio" ? "Adición a pedido de domicilio" : null,
+          _notes: orderType === "domicilio" ? "Adición a pedido de domicilio" : undefined,
         });
       }
 
