@@ -35,7 +35,10 @@ interface BotConfigRow {
   after_hours_messages: string[];
   pickup_after_hours_enabled: boolean;
   pickup_after_hours_messages: string[];
+  greet_cooldown_hours: number;
+  short_reply_words: string[];
 }
+
 
 interface BranchRow { id: string; name: string; slug: string | null; }
 interface MessageRow {
