@@ -68,6 +68,7 @@ function CajaPage() {
   const { user, profile, isAdmin, loading: authLoading } = useAuth();
   const { activeBranchId } = useBranch();
   const sendReport = useServerFn(sendCashReport);
+  const sendReportWa = useServerFn(sendCashReportWhatsApp);
 
   const [openDialog, setOpenDialog] = useState(false);
   const [closeDialog, setCloseDialog] = useState(false);
