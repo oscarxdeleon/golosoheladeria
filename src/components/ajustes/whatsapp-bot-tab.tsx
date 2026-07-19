@@ -35,6 +35,11 @@ interface BotConfigRow {
   last_seen_at: string | null;
   device_token: string;
   connected_phone: string | null;
+  bot_version: string | null;
+  last_outbound_poll_at: string | null;
+  last_outbound_poll_status: string | null;
+  last_outbound_poll_count: number | null;
+  last_outbound_error: string | null;
   after_hours_enabled: boolean;
   after_hours_messages: string[];
   pickup_after_hours_enabled: boolean;
@@ -227,6 +232,16 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             <div className="text-lg font-bold">{meta.label}</div>
             <div className="text-xs text-muted-foreground">Última señal: {lastSeenText}</div>
             {cfg.connected_phone && <div className="text-xs text-muted-foreground">Número: +{cfg.connected_phone}</div>}
+            {cfg.bot_version && <div className="text-xs text-muted-foreground">Versión instalada: v{cfg.bot_version}</div>}
+            {cfg.last_outbound_poll_at && (
+              <div className="text-xs text-muted-foreground">
+                Cola de reportes: revisada {new Date(cfg.last_outbound_poll_at).toLocaleTimeString()}
+                {typeof cfg.last_outbound_poll_count === "number" ? ` · ${cfg.last_outbound_poll_count} pendiente(s)` : ""}
+              </div>
+            )}
+            {cfg.last_outbound_error && (
+              <div className="mt-1 text-xs font-medium text-destructive">Error envío reportes: {cfg.last_outbound_error}</div>
+            )}
             {cfg.qr_generated_at && cfg.connection_status !== "connected" && (
               <div className="text-xs text-muted-foreground">QR generado: {new Date(cfg.qr_generated_at).toLocaleString()}</div>
             )}

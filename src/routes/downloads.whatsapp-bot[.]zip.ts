@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-const WHATSAPP_BOT_ASSET_URL = "/downloads/whatsapp-bot-v6.zip";
+const WHATSAPP_BOT_ASSET_URL = "/downloads/whatsapp-bot-v7.zip";
 
 export const Route = createFileRoute("/downloads/whatsapp-bot.zip")({
   server: {
