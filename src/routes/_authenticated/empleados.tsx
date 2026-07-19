@@ -599,11 +599,10 @@ function NominaTab() {
   const { data: rows = [], isFetching, refetch } = useQuery({
     queryKey: ["payroll-summary", from, to, branchId, employeeId],
     queryFn: async () => {
-      const { data, error } = await supabase.rpc("payroll_period_summary", {
-        _from: from, _to: to,
-        _employee_id: employeeId === "all" ? null : employeeId,
-        _branch_id: branchId === "all" ? null : branchId,
-      });
+      const args: any = { _from: from, _to: to };
+      if (employeeId !== "all") args._employee_id = employeeId;
+      if (branchId !== "all") args._branch_id = branchId;
+      const { data, error } = await supabase.rpc("payroll_period_summary", args);
       if (error) throw error;
       return (data ?? []) as SummaryRow[];
     },
