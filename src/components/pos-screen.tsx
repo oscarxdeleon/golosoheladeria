@@ -2780,13 +2780,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   modifiers: normalizeModifiers(l.modifiers),
                   note: l.notes?.trim() ? l.notes.trim() : undefined,
                 }));
+                const reimpAddress = orderType === "domicilio"
+                  ? [address?.trim(), neighborhood?.trim() ? `Barrio: ${neighborhood.trim()}` : ""].filter(Boolean).join(" · ")
+                  : "";
                 const snap = {
                   ticket: ticketNo,
                   header,
                   items,
                   customer,
                   notes,
-                  address: orderType === "domicilio" ? address : "",
+                  address: reimpAddress,
                   phone: orderType === "domicilio" ? phone : "",
                   user_name: profile?.full_name ?? user.email ?? "",
                   created_at: new Date().toISOString(),
