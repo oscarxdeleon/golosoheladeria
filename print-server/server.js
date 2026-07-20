@@ -879,27 +879,49 @@ function buildComandaLegacy(p) {
     for (const cont of lines.slice(1)) out += "   " + cont + "\n";
     out += SIZE_NORMAL + BOLD_OFF;
 
-    if (Array.isArray(i.modifiers) && i.modifiers.length) {
+    // Nota del item: puede venir explícita en `note`/`notes` o embebida en
+    // `modifiers` como "NOTA: ...". Se filtra para no imprimirla dos veces.
+    let itemNote = "";
+    const rawNote = i && (i.note != null ? i.note : i.notes);
+    if (rawNote != null && String(rawNote).trim()) itemNote = String(rawNote).trim();
+    const modsRaw = Array.isArray(i.modifiers) ? i.modifiers : [];
+    const modsFiltered = [];
+    for (const raw of modsRaw) {
+      const s = String(raw == null ? "" : raw).replace(/^\s*[+*]\s*/, "").trim();
+      if (!s) continue;
+      const m = s.match(/^NOTA\s*:\s*(.+)$/i);
+      if (m) {
+        if (!itemNote) itemNote = m[1].trim();
+        continue;
+      }
+      modsFiltered.push(s);
+    }
+
+    if (modsFiltered.length) {
       const seen = new Set();
       const parts = [];
-      for (const raw of i.modifiers) {
-        const clean = String(raw == null ? "" : raw).replace(/^\s*[+*]\s*/, "").trim();
-        if (!clean) continue;
+      for (const clean of modsFiltered) {
         const key = clean.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
         parts.push(clean);
       }
       if (parts.length) {
-        // Modificadores: estilo robusto tipo Arial Black con Font A + negrita
-        // + doble impacto, sin tracking y sin separación manual entre letras.
-        // Se mantiene SIZE_DOUBLE_H para conservar el tamaño existente.
         out += CHAR_SPACING_RESET + MODIFIER_FONT + BOLD_ON + DOUBLE_STRIKE_ON + SIZE_DOUBLE_H;
         for (const m of parts) {
           for (const line of wrapText(`* ${m}`, modCols)) out += MOD_INDENT + line + "\n";
         }
         out += CHAR_SPACING_RESET + SIZE_NORMAL + DOUBLE_STRIKE_OFF + BOLD_OFF + FONT_A;
       }
+    }
+
+    // Nota adicional del producto — SIEMPRE impresa bajo el ítem correspondiente.
+    if (itemNote) {
+      out += CHAR_SPACING_RESET + MODIFIER_FONT + BOLD_ON + DOUBLE_STRIKE_ON + SIZE_DOUBLE_H;
+      for (const line of wrapText(`>> NOTA: ${String(itemNote).toUpperCase()}`, modCols)) {
+        out += MOD_INDENT + line + "\n";
+      }
+      out += CHAR_SPACING_RESET + SIZE_NORMAL + DOUBLE_STRIKE_OFF + BOLD_OFF + FONT_A;
     }
     if (idx < items.length - 1) out += DASH_LINE;
   });
