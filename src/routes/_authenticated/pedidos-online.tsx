@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
+import { printSilent, normalizeModifiers, composeDeliveryAddress, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
