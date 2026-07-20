@@ -88,9 +88,13 @@ export const sendCashReport = createServerFn({ method: "POST" })
       return { skipped: true, reason: "Sede sin correos configurados" };
     }
 
-    const apiKey = process.env.RESEND_API_KEY;
-    if (!apiKey) {
-      return { skipped: true, reason: "RESEND_API_KEY no configurada" };
+    // Prefer Lovable Connector Gateway (no keys to manage) → fallback to direct Resend API key.
+    const gatewayKey = process.env.LOVABLE_API_KEY;
+    const connKey = process.env.RESEND_API_KEY;
+    const useGateway = Boolean(gatewayKey && connKey);
+    const directKey = !useGateway ? connKey : null;
+    if (!useGateway && !directKey) {
+      return { skipped: true, reason: "Conector de Resend no configurado (Ajustes → Conectores)" };
     }
 
     // --- Build full report ---
@@ -251,12 +255,19 @@ export const sendCashReport = createServerFn({ method: "POST" })
       let errorMsg: string | undefined;
       let providerId: string | undefined;
       try {
-        const resp = await fetch("https://api.resend.com/emails", {
+        const url = useGateway
+          ? "https://connector-gateway.lovable.dev/resend/emails"
+          : "https://api.resend.com/emails";
+        const headers: Record<string, string> = { "Content-Type": "application/json" };
+        if (useGateway) {
+          headers["Authorization"] = `Bearer ${gatewayKey}`;
+          headers["X-Connection-Api-Key"] = connKey!;
+        } else {
+          headers["Authorization"] = `Bearer ${directKey}`;
+        }
+        const resp = await fetch(url, {
           method: "POST",
-          headers: {
-            "Authorization": `Bearer ${apiKey}`,
-            "Content-Type": "application/json",
-          },
+          headers,
           body: JSON.stringify({ from, to: [to], subject, html }),
         });
         if (!resp.ok) {
