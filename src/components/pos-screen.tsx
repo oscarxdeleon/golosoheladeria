@@ -143,9 +143,12 @@ export function comandaHTML(o: {
         const mods = Array.isArray(i.modifiers) && i.modifiers.length
           ? `<div class="mods">${i.modifiers.map((m) => `<div>+ ${String(m).replace(/^\s*[+*]\s*/, "").trim()}</div>`).join("")}</div>`
           : "";
+        const noteBlock = i.note && String(i.note).trim()
+          ? `<div class="mods" style="border-top:1px dashed #000;margin-top:4px;padding-top:3px">&gt;&gt; NOTA: ${String(i.note).toUpperCase()}</div>`
+          : "";
         return `<tr>
         <td class="qty">${i.qty}×</td>
-        <td class="name">${i.name}${mods}</td>
+        <td class="name">${i.name}${mods}${noteBlock}</td>
       </tr>`;
       },
     )
