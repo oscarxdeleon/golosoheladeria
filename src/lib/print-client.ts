@@ -58,7 +58,7 @@ export type PrintPayload = {
 
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
-const MIN_PRINT_SERVER_VERSION = "2.19.1";
+const MIN_PRINT_SERVER_VERSION = "2.20.0";
 
 /**
  * Normaliza texto para el servidor ESC/POS sin quitar tildes ni ñ. El servidor
