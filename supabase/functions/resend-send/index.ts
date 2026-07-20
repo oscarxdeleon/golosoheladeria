@@ -45,7 +45,7 @@ Deno.serve(async (req: Request) => {
     });
   }
 
-  const from = body.from || "Goloso POS <onboarding@resend.dev>";
+  const from = body.from || "Heladería Goloso <reportes@heladeriagoloso.com>";
   const useGateway = Boolean(lovableKey);
   const url = useGateway
     ? "https://connector-gateway.lovable.dev/resend/emails"
