@@ -16,6 +16,22 @@ function fmt(v: number | null | undefined) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 }
 
+const CO_TZ = "America/Bogota";
+function fmtDateTimeCO(v: string | Date | null | undefined) {
+  if (!v) return "—";
+  const d = typeof v === "string" ? new Date(v) : v;
+  if (!(d instanceof Date) || !Number.isFinite(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-CO", {
+    timeZone: CO_TZ, dateStyle: "short", timeStyle: "short",
+  }).format(d);
+}
+function fmtDateCO(v: string | Date | null | undefined) {
+  if (!v) return "—";
+  const d = typeof v === "string" ? new Date(v) : v;
+  if (!(d instanceof Date) || !Number.isFinite(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-CO", { timeZone: CO_TZ, dateStyle: "short" }).format(d);
+}
+
 function isValidEmail(e: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 }
