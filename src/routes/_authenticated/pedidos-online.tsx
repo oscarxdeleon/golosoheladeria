@@ -321,7 +321,7 @@ function OnlineOrdersPage() {
       customer: o.customer_name ?? "",
       user_name: "Pedido en línea",
       created_at: o.created_at,
-      address: o.delivery_address ?? "",
+      address: composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood),
       phone: o.customer_phone ?? "",
       cash_received: method === "Efectivo" ? cashReceived : Number(o.total ?? 0),
       notes: o.notes ?? undefined,
