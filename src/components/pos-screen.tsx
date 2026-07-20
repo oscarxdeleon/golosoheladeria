@@ -1569,7 +1569,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       const snapshotItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
       const snapshotCustomer = customer;
       const snapshotNotes = notes;
-      const snapshotAddress = address;
+      // El Print Server no tiene campo aparte para el barrio: lo concatenamos
+      // en `address` como ya se hace en la precuenta para que se imprima en el
+      // ticket final de venta (domicilio y menú en línea).
+      const snapshotAddress = [address?.trim(), neighborhood?.trim() ? `Barrio: ${neighborhood.trim()}` : ""]
+        .filter(Boolean)
+        .join(" · ");
       const snapshotPhone = phone;
       const snapshotHeader = header;
       const snapshotUserName = profile?.full_name ?? user.email ?? "";
