@@ -615,7 +615,7 @@ export function PublicOrder({
           items: printItems,
           customer: customerName || undefined,
           notes: payload.notes ?? undefined,
-          address: isDelivery ? address : undefined,
+          address: isDelivery ? composeDeliveryAddress(address, neighborhood) : undefined,
           phone: phone || undefined,
           created_at,
           business_name,
