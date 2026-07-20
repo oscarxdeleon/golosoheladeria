@@ -182,6 +182,19 @@ ${session.closing_notes ? `\n📝 Notas: ${session.closing_notes}` : ""}
 
 _Reporte automático de Goloso POS_`;
 
+    const shortBody = `🍦 *Goloso · ${branch.name}*
+
+El cierre de caja de la sede ${branch.name} ha sido realizado correctamente.
+
+El reporte detallado fue enviado a los correos electrónicos autorizados.
+
+🕐 ${closeStr} · ${dateStr}
+👤 Cajero: ${session.user_name ?? "—"}
+
+_Notificación automática de Goloso POS_`;
+
+    const finalBody = useShortMessage ? shortBody : body;
+
     // Encolar mensajes
     const rows = active
       .map((n) => {
