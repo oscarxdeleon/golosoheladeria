@@ -66,7 +66,7 @@ export const sendCashReportWhatsApp = createServerFn({ method: "POST" })
 
     const { data: branch } = await supabase
       .from("branches")
-      .select("name, address, report_whatsapp_numbers")
+      .select("name, address, report_whatsapp_numbers, report_emails, report_emails_enabled, report_email")
       .eq("id", session.branch_id)
       .single();
     if (!branch) return { skipped: true, reason: "Sede no encontrada" };
@@ -75,6 +75,16 @@ export const sendCashReportWhatsApp = createServerFn({ method: "POST" })
     const numbers: WaNumber[] = Array.isArray(rawNumbers) ? (rawNumbers as WaNumber[]) : [];
     const active = numbers.filter((n) => n && n.phone && n.enabled !== false);
     if (active.length === 0) return { skipped: true, reason: "Sin números configurados" };
+
+    // If the branch has active email recipients, WhatsApp only sends a short/generic
+    // confirmation message (no financial data) so employees cannot see the report on
+    // the shared store phone. The full detailed report is delivered by email.
+    const emailsRaw = (branch as { report_emails?: unknown }).report_emails ?? [];
+    const emailsEnabled = (branch as { report_emails_enabled?: boolean | null }).report_emails_enabled !== false;
+    const legacyEmail = (branch as { report_email?: string | null }).report_email ?? null;
+    const emailList: Array<{ email?: string; enabled?: boolean }> = Array.isArray(emailsRaw) ? (emailsRaw as Array<{ email?: string; enabled?: boolean }>) : [];
+    const activeEmailCount = emailList.filter((r) => r && typeof r.email === "string" && r.email.includes("@") && r.enabled !== false).length + (legacyEmail && !emailList.length ? 1 : 0);
+    const useShortMessage = emailsEnabled && activeEmailCount > 0;
 
     // Aggregate sales/expenses del turno para armar el texto (mismos criterios que el email)
     const s = session as Record<string, number | string | null>;
@@ -172,6 +182,19 @@ ${session.closing_notes ? `\n📝 Notas: ${session.closing_notes}` : ""}
 
 _Reporte automático de Goloso POS_`;
 
+    const shortBody = `🍦 *Goloso · ${branch.name}*
+
+El cierre de caja de la sede ${branch.name} ha sido realizado correctamente.
+
+El reporte detallado fue enviado a los correos electrónicos autorizados.
+
+🕐 ${closeStr} · ${dateStr}
+👤 Cajero: ${session.user_name ?? "—"}
+
+_Notificación automática de Goloso POS_`;
+
+    const finalBody = useShortMessage ? shortBody : body;
+
     // Encolar mensajes
     const rows = active
       .map((n) => {
@@ -180,8 +203,8 @@ _Reporte automático de Goloso POS_`;
         return {
           branch_id: session.branch_id!,
           to_phone: phone,
-          body,
-          purpose: "cash_report",
+          body: finalBody,
+          purpose: useShortMessage ? "cash_report_short" : "cash_report",
         };
       })
       .filter(Boolean) as Array<{ branch_id: string; to_phone: string; body: string; purpose: string }>;

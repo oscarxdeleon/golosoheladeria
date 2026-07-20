@@ -29,6 +29,7 @@ import { ComandasFormatTab } from "@/components/ajustes/comandas-format-tab";
 import { DescargasTab } from "@/components/ajustes/descargas-tab";
 import { ResetDataTab } from "@/components/ajustes/reset-data-tab";
 import { WhatsAppBotTab } from "@/components/ajustes/whatsapp-bot-tab";
+import { CashReportEmailsTab } from "@/components/ajustes/cash-report-emails-tab";
 import { SectionErrorBoundary } from "@/components/error-boundary";
 
 export const Route = createFileRoute("/_authenticated/ajustes")({
@@ -121,6 +122,7 @@ const TABS: TabDef[] = [
   { value: "roles",       label: "Roles",             icon: ShieldCheck,  hint: "Permisos, accesos y perfiles de usuario",             group: "personal",    accent: "from-lime-500 to-emerald-600" },
   { value: "whatsapp-bot",label: "WhatsApp Bot",      icon: MessageCircle,hint: "Asistente virtual: bienvenida automática y envío del menú por WhatsApp", group: "operaciones", accent: "from-emerald-500 to-green-600" },
   { value: "extras",      label: "Configuraciones adicionales", icon: Sparkles, hint: "Opciones extra del POS (propina y otros)",     group: "ventas",      accent: "from-yellow-400 to-amber-500" },
+  { value: "cash-report-emails", label: "Correos de cierre de caja", icon: Receipt, hint: "Destinatarios del reporte de cierre por sede (hasta 2 correos)", group: "operaciones", accent: "from-emerald-500 to-green-600" },
   { value: "descargas",   label: "Descargas e Instaladores", icon: Download,  hint: "Instaladores POS, apps de mesero, quiosco y Print Server", group: "sistema", accent: "from-cyan-500 to-blue-600", adminOnly: true },
   { value: "reset-data",  label: "Reiniciar datos", icon: ShieldAlert, hint: "Eliminar datos operativos para iniciar un nuevo periodo (crítico)", group: "sistema", accent: "from-red-500 to-rose-600", adminOnly: true },
 ];
@@ -164,6 +166,7 @@ function AjustesPage() {
           {tab === "roles"       && <SectionErrorBoundary label="Roles"><RolesTab /></SectionErrorBoundary>}
           {tab === "whatsapp-bot" && <SectionErrorBoundary label="WhatsApp Bot"><WhatsAppBotTab /></SectionErrorBoundary>}
           {tab === "extras"      && <SectionErrorBoundary label="Configuraciones adicionales"><ExtrasTab /></SectionErrorBoundary>}
+          {tab === "cash-report-emails" && <SectionErrorBoundary label="Correos de cierre de caja"><CashReportEmailsTab /></SectionErrorBoundary>}
           {tab === "descargas"   && isAdmin && <SectionErrorBoundary label="Descargas"><DescargasTab /></SectionErrorBoundary>}
           {tab === "reset-data"  && isAdmin && <SectionErrorBoundary label="Reiniciar datos"><ResetDataTab /></SectionErrorBoundary>}
         </SectionView>
