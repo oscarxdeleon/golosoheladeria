@@ -405,6 +405,8 @@ export type Database = {
           online_menu_url: string | null
           phone: string | null
           report_email: string | null
+          report_emails: Json
+          report_emails_enabled: boolean
           report_whatsapp_numbers: Json
           schedules: Json
           slug: string | null
@@ -428,6 +430,8 @@ export type Database = {
           online_menu_url?: string | null
           phone?: string | null
           report_email?: string | null
+          report_emails?: Json
+          report_emails_enabled?: boolean
           report_whatsapp_numbers?: Json
           schedules?: Json
           slug?: string | null
@@ -451,6 +455,8 @@ export type Database = {
           online_menu_url?: string | null
           phone?: string | null
           report_email?: string | null
+          report_emails?: Json
+          report_emails_enabled?: boolean
           report_whatsapp_numbers?: Json
           schedules?: Json
           slug?: string | null
@@ -528,6 +534,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      cash_report_email_log: {
+        Row: {
+          branch_id: string | null
+          created_at: string
+          error_message: string | null
+          id: string
+          provider_id: string | null
+          recipient_email: string
+          session_id: string | null
+          status: string
+        }
+        Insert: {
+          branch_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          provider_id?: string | null
+          recipient_email: string
+          session_id?: string | null
+          status: string
+        }
+        Update: {
+          branch_id?: string | null
+          created_at?: string
+          error_message?: string | null
+          id?: string
+          provider_id?: string | null
+          recipient_email?: string
+          session_id?: string | null
+          status?: string
+        }
+        Relationships: []
       }
       cash_sessions: {
         Row: {
