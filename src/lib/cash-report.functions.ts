@@ -16,6 +16,22 @@ function fmt(v: number | null | undefined) {
   return new Intl.NumberFormat("es-CO", { style: "currency", currency: "COP", maximumFractionDigits: 0 }).format(n);
 }
 
+const CO_TZ = "America/Bogota";
+function fmtDateTimeCO(v: string | Date | null | undefined) {
+  if (!v) return "—";
+  const d = typeof v === "string" ? new Date(v) : v;
+  if (!(d instanceof Date) || !Number.isFinite(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-CO", {
+    timeZone: CO_TZ, dateStyle: "short", timeStyle: "short",
+  }).format(d);
+}
+function fmtDateCO(v: string | Date | null | undefined) {
+  if (!v) return "—";
+  const d = typeof v === "string" ? new Date(v) : v;
+  if (!(d instanceof Date) || !Number.isFinite(d.getTime())) return "—";
+  return new Intl.DateTimeFormat("es-CO", { timeZone: CO_TZ, dateStyle: "short" }).format(d);
+}
+
 function isValidEmail(e: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e.trim());
 }
@@ -188,8 +204,9 @@ export const sendCashReport = createServerFn({ method: "POST" })
       <div style="padding:24px">
         <table style="width:100%;font-size:14px;margin-bottom:18px">
           <tr><td style="padding:4px 0;color:#666">Cajero</td><td style="text-align:right;font-weight:600">${session.user_name ?? "—"}</td></tr>
-          <tr><td style="padding:4px 0;color:#666">Apertura</td><td style="text-align:right">${new Date(session.opened_at).toLocaleString("es-CO")}</td></tr>
-          <tr><td style="padding:4px 0;color:#666">Cierre</td><td style="text-align:right">${session.closed_at ? new Date(session.closed_at).toLocaleString("es-CO") : "—"}</td></tr>
+          <tr><td style="padding:4px 0;color:#666">Apertura</td><td style="text-align:right">${fmtDateTimeCO(session.opened_at)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666">Cierre</td><td style="text-align:right">${fmtDateTimeCO(session.closed_at)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666">Reporte generado</td><td style="text-align:right">${fmtDateTimeCO(new Date().toISOString())}</td></tr>
           <tr><td style="padding:4px 0;color:#666">Monto inicial</td><td style="text-align:right">${fmt(Number(session.opening_amount))}</td></tr>
         </table>
 
@@ -247,7 +264,7 @@ export const sendCashReport = createServerFn({ method: "POST" })
     </div></body></html>`;
 
     const from = process.env.RESEND_FROM || "Heladería Goloso <reportes@heladeriagoloso.com>";
-    const subject = `Cierre de Caja · ${branchName} · ${new Date(session.closed_at ?? Date.now()).toLocaleDateString("es-CO")}`;
+    const subject = `Cierre de Caja · ${branchName} · ${fmtDateCO(session.closed_at ?? new Date().toISOString())}`;
 
     let sentCount = 0;
     const results: Array<{ email: string; sent: boolean; error?: string; id?: string }> = [];
