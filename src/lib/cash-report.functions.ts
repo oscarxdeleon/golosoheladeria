@@ -140,9 +140,9 @@ export const sendCashReport = createServerFn({ method: "POST" })
     // Expenses of the session
     const { data: exps } = await supabase
       .from("expenses")
-      .select("amount, description, category_name")
+      .select("amount, description, category")
       .eq("cash_session_id", session.id);
-    const expenses = (exps ?? []) as Array<{ amount: number | null; description: string | null; category_name: string | null }>;
+    const expenses = ((exps ?? []) as unknown) as Array<{ amount: number | null; description: string | null; category: string | null }>;
     const totalExpenses = expenses.reduce((a, r) => a + Number(r.amount ?? 0), 0);
 
     const cashE = Number(s.cash_expected ?? s.expected_amount ?? 0);
