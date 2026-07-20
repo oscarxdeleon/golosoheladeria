@@ -1965,13 +1965,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // pedido inicial. Marcamos `is_addition` para que el servidor imprima
       // un banner "ADICIÓN AL PEDIDO" y evite confusiones en cocina.
       const isAddition = !isFirstSave && printItems.length > 0;
+      // Concatenamos barrio dentro de `address` para que aparezca impreso en la
+      // comanda de cocina/barra (el Print Server no tiene un campo aparte).
+      const comandaAddress = orderType === "domicilio"
+        ? [address?.trim(), neighborhood?.trim() ? `Barrio: ${neighborhood.trim()}` : ""].filter(Boolean).join(" · ")
+        : "";
       const printSnapshot = {
         ticket: sale.ticket_number,
         header,
         items: printItems,
         customer,
         notes,
-        address: orderType === "domicilio" ? address : "",
+        address: comandaAddress,
         phone: orderType === "domicilio" ? phone : "",
         user_name: profile?.full_name ?? user.email ?? "",
         created_at: sale.created_at,
