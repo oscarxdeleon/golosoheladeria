@@ -88,14 +88,16 @@ export const sendCashReport = createServerFn({ method: "POST" })
       return { skipped: true, reason: "Sede sin correos configurados" };
     }
 
-    // Prefer Lovable Connector Gateway (no keys to manage) → fallback to direct Resend API key.
-    const gatewayKey = process.env.LOVABLE_API_KEY;
-    const connKey = process.env.RESEND_API_KEY;
-    const useGateway = Boolean(gatewayKey && connKey);
-    const directKey = !useGateway ? connKey : null;
-    if (!useGateway && !directKey) {
-      return { skipped: true, reason: "Conector de Resend no configurado (Ajustes → Conectores)" };
+    // Sending goes through the Supabase Edge Function `resend-send`, which
+    // holds the Lovable-managed RESEND_API_KEY / LOVABLE_API_KEY. This lets
+    // the app work on any deployment target (Vercel included) without
+    // duplicating the connector secrets outside Lovable Cloud.
+    const supabaseUrl = process.env.SUPABASE_URL;
+    const supabaseAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
+    if (!supabaseUrl || !supabaseAnon) {
+      return { skipped: true, reason: "Backend no configurado (SUPABASE_URL/PUBLISHABLE_KEY)" };
     }
+
 
     // --- Build full report ---
     const s = session as Record<string, number | string | null>;
@@ -255,26 +257,23 @@ export const sendCashReport = createServerFn({ method: "POST" })
       let errorMsg: string | undefined;
       let providerId: string | undefined;
       try {
-        const url = useGateway
-          ? "https://connector-gateway.lovable.dev/resend/emails"
-          : "https://api.resend.com/emails";
-        const headers: Record<string, string> = { "Content-Type": "application/json" };
-        if (useGateway) {
-          headers["Authorization"] = `Bearer ${gatewayKey}`;
-          headers["X-Connection-Api-Key"] = connKey!;
-        } else {
-          headers["Authorization"] = `Bearer ${directKey}`;
-        }
-        const resp = await fetch(url, {
+        const resp = await fetch(`${supabaseUrl}/functions/v1/resend-send`, {
           method: "POST",
-          headers,
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${supabaseAnon}`,
+            "apikey": supabaseAnon,
+          },
           body: JSON.stringify({ from, to: [to], subject, html }),
         });
-        if (!resp.ok) {
-          errorMsg = `Resend ${resp.status}: ${await resp.text()}`;
+        const text = await resp.text();
+        let json: { ok?: boolean; id?: string | null; error?: string; detail?: unknown; status?: number } | null = null;
+        try { json = JSON.parse(text); } catch { /* non-json */ }
+        if (!resp.ok || !json?.ok) {
+          const detail = typeof json?.detail === "string" ? json.detail : JSON.stringify(json?.detail ?? text);
+          errorMsg = `resend-send ${resp.status}${json?.status ? `/${json.status}` : ""}: ${json?.error ?? ""} ${detail}`.trim();
         } else {
-          const json = (await resp.json()) as { id?: string };
-          providerId = json.id;
+          providerId = json.id ?? undefined;
           sent = true;
           sentCount++;
         }
@@ -293,6 +292,7 @@ export const sendCashReport = createServerFn({ method: "POST" })
         provider_id: providerId ?? null,
       });
     }
+
 
     return { sent: sentCount > 0, count: sentCount, total: recipients.length, results };
   });
