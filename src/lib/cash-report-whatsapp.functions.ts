@@ -203,8 +203,8 @@ _Notificación automática de Goloso POS_`;
         return {
           branch_id: session.branch_id!,
           to_phone: phone,
-          body,
-          purpose: "cash_report",
+          body: finalBody,
+          purpose: useShortMessage ? "cash_report_short" : "cash_report",
         };
       })
       .filter(Boolean) as Array<{ branch_id: string; to_phone: string; body: string; purpose: string }>;
