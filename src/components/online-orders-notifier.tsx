@@ -236,7 +236,7 @@ function broadcastAck(branchId: string, ids: string[]) {
 async function autoPrintKioskOrder(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
     supabase.from("sales").select("ticket_number, subtotal, total, delivery_fee, customer_name, notes, created_at").eq("id", saleId).maybeSingle(),
-    supabase.from("sale_items").select("product_name, qty, unit_price, modifiers").eq("sale_id", saleId),
+    supabase.from("sale_items").select("product_name, qty, unit_price, modifiers, notes").eq("sale_id", saleId),
   ]);
   if (!sale || !items?.length) return;
   const printItems = items.map((i) => ({
@@ -244,6 +244,7 @@ async function autoPrintKioskOrder(saleId: string) {
     qty: Number(i.qty),
     unit_price: Number(i.unit_price),
     modifiers: normalizeModifiers((i as { modifiers?: unknown }).modifiers),
+    note: (i as { notes?: string | null }).notes ?? undefined,
   }));
 
   void sendToLocalPrinter({
