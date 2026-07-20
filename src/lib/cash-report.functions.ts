@@ -188,8 +188,9 @@ export const sendCashReport = createServerFn({ method: "POST" })
       <div style="padding:24px">
         <table style="width:100%;font-size:14px;margin-bottom:18px">
           <tr><td style="padding:4px 0;color:#666">Cajero</td><td style="text-align:right;font-weight:600">${session.user_name ?? "—"}</td></tr>
-          <tr><td style="padding:4px 0;color:#666">Apertura</td><td style="text-align:right">${new Date(session.opened_at).toLocaleString("es-CO")}</td></tr>
-          <tr><td style="padding:4px 0;color:#666">Cierre</td><td style="text-align:right">${session.closed_at ? new Date(session.closed_at).toLocaleString("es-CO") : "—"}</td></tr>
+          <tr><td style="padding:4px 0;color:#666">Apertura</td><td style="text-align:right">${fmtDateTimeCO(session.opened_at)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666">Cierre</td><td style="text-align:right">${fmtDateTimeCO(session.closed_at)}</td></tr>
+          <tr><td style="padding:4px 0;color:#666">Reporte generado</td><td style="text-align:right">${fmtDateTimeCO(new Date().toISOString())}</td></tr>
           <tr><td style="padding:4px 0;color:#666">Monto inicial</td><td style="text-align:right">${fmt(Number(session.opening_amount))}</td></tr>
         </table>
 
