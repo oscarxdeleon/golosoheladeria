@@ -262,7 +262,7 @@ function OnlineOrdersPage() {
     printSilent(payload, preCuentaHTML({
       ticket: o.ticket_number, header,
       items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-      customer: o.customer_name ?? "", address: o.delivery_address ?? "",
+      customer: o.customer_name ?? "", address: composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood),
       phone: o.customer_phone ?? "", notes: o.notes ?? "",
       subtotal: Number(o.subtotal ?? 0), delivery_fee: Number(o.delivery_fee ?? 0),
       total: Number(o.total ?? 0), created_at: o.created_at,
