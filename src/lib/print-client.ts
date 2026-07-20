@@ -20,7 +20,7 @@ export type PrintPayload = {
   header: string;
   /** Origen del pedido — en mesa no imprime rótulo; en otros tipos imprime PARA LLEVAR / DOMICILIO / AUTOPEDIDO. */
   order_type?: "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
-  items: { name: string; qty: number; unit_price?: number; modifiers?: string[] }[];
+  items: { name: string; qty: number; unit_price?: number; modifiers?: string[]; note?: string | null }[];
   subtotal?: number;
   tax?: number;
   deliveryFee?: number;
@@ -106,12 +106,22 @@ function sanitizePayloadForPrinter(p: PrintPayload): PrintPayload {
             .map((m) => sanitizeForPrinter(m))
             .map((m) => m.replace(/^\s*[+*]\s*/, "").trim())
             .filter((m) => m.length > 0)
-        : undefined;
+        : [];
       // Deduplicar (case-insensitive) manteniendo el orden original.
-      const modifiers = cleaned
-        ? cleaned.filter((m, idx, arr) => arr.findIndex((x) => x.toLowerCase() === m.toLowerCase()) === idx)
-        : undefined;
-      return { ...i, name: sanitizeForPrinter(firstLine), modifiers };
+      let modifiers = cleaned.filter(
+        (m, idx, arr) => arr.findIndex((x) => x.toLowerCase() === m.toLowerCase()) === idx,
+      );
+      // Nota por producto: se inyecta como línea adicional al final de los
+      // modificadores con prefijo "NOTA:", así se imprime debajo del producto
+      // con el mismo estilo (compatible con Print Server actual, sin update).
+      const noteRaw = typeof i.note === "string" ? sanitizeForPrinter(i.note).trim() : "";
+      if (noteRaw) {
+        const noteLine = `NOTA: ${noteRaw}`;
+        if (!modifiers.some((m) => m.toLowerCase() === noteLine.toLowerCase())) {
+          modifiers = [...modifiers, noteLine];
+        }
+      }
+      return { ...i, name: sanitizeForPrinter(firstLine), modifiers: modifiers.length ? modifiers : undefined };
     });
   }
   return out;

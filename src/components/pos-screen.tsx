@@ -1946,6 +1946,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               name: line.name,
               qty: newQty,
               modifiers: normalizeModifiers(line.modifiers),
+              note: line.notes?.trim() ? line.notes.trim() : undefined,
             }))
           : []; // sin ítems nuevos → no imprimimos comanda para no duplicar
 

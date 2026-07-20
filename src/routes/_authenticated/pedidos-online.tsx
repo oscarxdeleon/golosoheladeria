@@ -206,6 +206,7 @@ function OnlineOrdersPage() {
       name: i.product_name,
       qty: i.qty,
       modifiers: normalizeModifiers(i.modifiers),
+      note: (i as { notes?: string | null }).notes ?? undefined,
     }));
     const comandaPayload: PrintPayload = {
       type: "comanda",
