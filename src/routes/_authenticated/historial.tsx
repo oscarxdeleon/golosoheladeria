@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import {
   printComanda, printTicketFinal, type Branding,
 } from "@/components/pos-screen";
-import { normalizeModifiers } from "@/lib/print-client";
+import { normalizeModifiers, composeDeliveryAddress } from "@/lib/print-client";
 import { useAuth } from "@/hooks/use-auth";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
 
@@ -191,7 +191,7 @@ function HistorialPage() {
           items: its.map((i) => ({ name: i.name, qty: i.qty, modifiers: i.modifiers })),
           customer: sale.customer_name ?? "",
           notes: sale.notes ?? "",
-          address: sale.delivery_address ?? "",
+          address: composeDeliveryAddress(sale.delivery_address, sale.delivery_neighborhood),
           phone: sale.customer_phone ?? "",
           user_name: sale.user_name ?? "",
           created_at: sale.created_at,
@@ -217,7 +217,7 @@ function HistorialPage() {
           customer: sale.customer_name ?? "",
           user_name: sale.user_name ?? "",
           created_at: sale.created_at,
-          address: sale.delivery_address ?? "",
+          address: composeDeliveryAddress(sale.delivery_address, sale.delivery_neighborhood),
           phone: sale.customer_phone ?? "",
           cash_received: Number(sale.total ?? 0),
           notes: sale.notes ?? "",
@@ -577,7 +577,7 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
       customer: sale.customer_name ?? "",
       user_name: sale.user_name ?? "",
       created_at: sale.created_at,
-      address: sale.delivery_address ?? "",
+      address: composeDeliveryAddress(sale.delivery_address, sale.delivery_neighborhood),
       phone: sale.customer_phone ?? "",
       cash_received: Number(sale.total ?? 0),
       notes: sale.notes ?? "",
@@ -593,7 +593,7 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
       items: items.map((i) => ({ name: i.product_name, qty: Number(i.qty) })),
       customer: sale.customer_name ?? "",
       notes: sale.notes ?? "",
-      address: sale.delivery_address ?? "",
+      address: composeDeliveryAddress(sale.delivery_address, sale.delivery_neighborhood),
       phone: sale.customer_phone ?? "",
       user_name: sale.user_name ?? "",
       created_at: sale.created_at,

@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
-import { printSilent, normalizeModifiers, type PrintPayload } from "@/lib/print-client";
+import { printSilent, normalizeModifiers, composeDeliveryAddress, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
@@ -208,6 +208,7 @@ function OnlineOrdersPage() {
       modifiers: normalizeModifiers(i.modifiers),
       note: (i as { notes?: string | null }).notes ?? undefined,
     }));
+    const comandaAddress = composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood);
     const comandaPayload: PrintPayload = {
       type: "comanda",
       ticket: o.ticket_number,
@@ -216,7 +217,7 @@ function OnlineOrdersPage() {
       items: comandaItems,
       customer: o.customer_name ?? "",
       notes: o.notes ?? "",
-      address: o.delivery_address ?? "",
+      address: comandaAddress,
       phone: o.customer_phone ?? "",
       user_name: "En línea",
       created_at: o.created_at,
@@ -225,7 +226,7 @@ function OnlineOrdersPage() {
       ticket: o.ticket_number, header,
       items: comandaItems,
       customer: o.customer_name ?? "", notes: o.notes ?? "",
-      address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
+      address: comandaAddress, phone: o.customer_phone ?? "",
       created_at: o.created_at,
     }), { silent: true });
 
@@ -246,6 +247,7 @@ function OnlineOrdersPage() {
 
   function printPreCuenta(o: SaleRow, its: ItemRow[]) {
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
+    const precAddress = composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood);
     const payload: PrintPayload = {
       type: "precuenta",
       ticket: o.ticket_number,
@@ -255,13 +257,16 @@ function OnlineOrdersPage() {
       deliveryFee: Number(o.delivery_fee ?? 0),
       total: Number(o.total ?? 0),
       customer: o.customer_name ?? "",
+      address: precAddress,
+      phone: o.customer_phone ?? "",
+      notes: o.notes ?? "",
       created_at: o.created_at,
       cashierMessage: "SOPORTE DE ENTREGA · No es factura de venta",
     };
     printSilent(payload, preCuentaHTML({
       ticket: o.ticket_number, header,
       items: its.map((i) => ({ name: i.product_name, qty: i.qty, unit_price: Number(i.unit_price) })),
-      customer: o.customer_name ?? "", address: o.delivery_address ?? "",
+      customer: o.customer_name ?? "", address: composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood),
       phone: o.customer_phone ?? "", notes: o.notes ?? "",
       subtotal: Number(o.subtotal ?? 0), delivery_fee: Number(o.delivery_fee ?? 0),
       total: Number(o.total ?? 0), created_at: o.created_at,
@@ -316,7 +321,7 @@ function OnlineOrdersPage() {
       customer: o.customer_name ?? "",
       user_name: "Pedido en línea",
       created_at: o.created_at,
-      address: o.delivery_address ?? "",
+      address: composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood),
       phone: o.customer_phone ?? "",
       cash_received: method === "Efectivo" ? cashReceived : Number(o.total ?? 0),
       notes: o.notes ?? undefined,
@@ -367,6 +372,7 @@ function OnlineOrdersPage() {
       lines.push(dash);
       if (o.customer_name) lines.push(`CLIENTE: ${o.customer_name.toUpperCase()}`);
       if (o.delivery_address) wrap(`DIR: ${o.delivery_address.toUpperCase()}`).forEach((l) => lines.push(l));
+      if (o.delivery_neighborhood) wrap(`BARRIO: ${o.delivery_neighborhood.toUpperCase()}`).forEach((l) => lines.push(l));
       if (o.customer_phone) lines.push(`TEL:     ${o.customer_phone.toUpperCase()}`);
       lines.push(`PAGO:    ${method.toUpperCase()}`);
       lines.push(dash);

@@ -13,7 +13,7 @@ import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, Sh
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
-import { sendToLocalPrinter, normalizeModifiers } from "@/lib/print-client";
+import { sendToLocalPrinter, normalizeModifiers, composeDeliveryAddress } from "@/lib/print-client";
 import { PwaInstallButton } from "@/components/pwa-install-button";
 import { getChannelStatus, normalizeSchedules } from "@/lib/schedules";
 import { ScheduleOrderDialog } from "@/components/schedule-order-dialog";
@@ -615,7 +615,7 @@ export function PublicOrder({
           items: printItems,
           customer: customerName || undefined,
           notes: payload.notes ?? undefined,
-          address: isDelivery ? address : undefined,
+          address: isDelivery ? composeDeliveryAddress(address, neighborhood) : undefined,
           phone: phone || undefined,
           created_at,
           business_name,
