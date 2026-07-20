@@ -127,7 +127,7 @@ function brandHeaderHTML(b: Branding) {
 }
 
 export function comandaHTML(o: {
-  ticket: number; header: string; items: { name: string; qty: number; modifiers?: string[] }[];
+  ticket: number; header: string; items: { name: string; qty: number; modifiers?: string[]; note?: string }[];
   customer: string; notes: string; address: string; phone: string;
   user_name: string; created_at: string;
   order_type?: string;
