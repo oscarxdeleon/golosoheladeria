@@ -2796,6 +2796,7 @@ export type Database = {
       }
       whatsapp_bot_config: {
         Row: {
+          after_hours_cooldown_hours: number
           after_hours_enabled: boolean
           after_hours_messages: string[]
           bot_version: string | null
@@ -2813,6 +2814,7 @@ export type Database = {
           last_outbound_poll_count: number
           last_outbound_poll_status: string | null
           last_seen_at: string | null
+          menu_cooldown_hours: number
           menu_message: string
           menu_triggers: string[]
           pending_command: string | null
@@ -2825,6 +2827,7 @@ export type Database = {
           welcome_messages: string[]
         }
         Insert: {
+          after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
           bot_version?: string | null
@@ -2842,6 +2845,7 @@ export type Database = {
           last_outbound_poll_count?: number
           last_outbound_poll_status?: string | null
           last_seen_at?: string | null
+          menu_cooldown_hours?: number
           menu_message?: string
           menu_triggers?: string[]
           pending_command?: string | null
@@ -2854,6 +2858,7 @@ export type Database = {
           welcome_messages?: string[]
         }
         Update: {
+          after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
           bot_version?: string | null
@@ -2871,6 +2876,7 @@ export type Database = {
           last_outbound_poll_count?: number
           last_outbound_poll_status?: string | null
           last_seen_at?: string | null
+          menu_cooldown_hours?: number
           menu_message?: string
           menu_triggers?: string[]
           pending_command?: string | null
@@ -2896,21 +2902,27 @@ export type Database = {
         Row: {
           branch_id: string
           greeted_date: string
+          last_after_hours_at: string | null
           last_greeted_at: string
+          last_menu_at: string | null
           last_msg_idx: number | null
           phone: string
         }
         Insert: {
           branch_id: string
           greeted_date?: string
+          last_after_hours_at?: string | null
           last_greeted_at?: string
+          last_menu_at?: string | null
           last_msg_idx?: number | null
           phone: string
         }
         Update: {
           branch_id?: string
           greeted_date?: string
+          last_after_hours_at?: string | null
           last_greeted_at?: string
+          last_menu_at?: string | null
           last_msg_idx?: number | null
           phone?: string
         }
