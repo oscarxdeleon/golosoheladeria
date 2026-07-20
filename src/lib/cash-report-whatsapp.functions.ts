@@ -136,9 +136,10 @@ export const sendCashReportWhatsApp = createServerFn({ method: "POST" })
       return `${pad(label, 12)} ${padRight(fmt(esp), 12)}  ${padRight(fmt(rep), 12)}  ${sign}${d === 0 ? "" : fmt(Math.abs(d))}`;
     };
 
-    const dateStr = closedAt.toLocaleDateString("es-CO", { weekday: "long", day: "numeric", month: "short", year: "numeric" });
-    const openStr = openedAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
-    const closeStr = closedAt.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit" });
+    const TZ = "America/Bogota";
+    const dateStr = new Intl.DateTimeFormat("es-CO", { timeZone: TZ, weekday: "long", day: "numeric", month: "short", year: "numeric" }).format(closedAt);
+    const openStr = new Intl.DateTimeFormat("es-CO", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(openedAt);
+    const closeStr = new Intl.DateTimeFormat("es-CO", { timeZone: TZ, hour: "2-digit", minute: "2-digit" }).format(closedAt);
 
     const body = `🍦 *CIERRE DE CAJA · ${branch.name}*
 📅 ${dateStr}
