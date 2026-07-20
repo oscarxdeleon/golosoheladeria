@@ -247,6 +247,7 @@ function OnlineOrdersPage() {
 
   function printPreCuenta(o: SaleRow, its: ItemRow[]) {
     const header = o.order_type === "domicilio" ? "DOMICILIO" : o.order_type === "kiosko" ? "AUTOPEDIDO" : "MENÚ EN LÍNEA";
+    const precAddress = composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood);
     const payload: PrintPayload = {
       type: "precuenta",
       ticket: o.ticket_number,
@@ -256,6 +257,9 @@ function OnlineOrdersPage() {
       deliveryFee: Number(o.delivery_fee ?? 0),
       total: Number(o.total ?? 0),
       customer: o.customer_name ?? "",
+      address: precAddress,
+      phone: o.customer_phone ?? "",
+      notes: o.notes ?? "",
       created_at: o.created_at,
       cashierMessage: "SOPORTE DE ENTREGA · No es factura de venta",
     };
