@@ -20,7 +20,7 @@ import { toast } from "sonner";
 import {
   printComanda, printTicketFinal, type Branding,
 } from "@/components/pos-screen";
-import { normalizeModifiers } from "@/lib/print-client";
+import { normalizeModifiers, composeDeliveryAddress } from "@/lib/print-client";
 import { useAuth } from "@/hooks/use-auth";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
 
