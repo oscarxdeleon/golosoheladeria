@@ -144,6 +144,26 @@ export function formatModifierLabel(m: unknown): string {
   return String(m).trim();
 }
 
+/**
+ * Combina la dirección de entrega con el barrio en un solo string listo para
+ * el campo `address` del PrintPayload. Se usa en TODOS los flujos de
+ * impresión de domicilio (POS, precuenta, ticket final, reimpresiones,
+ * pedidos-online, etc.) para garantizar que el barrio aparezca siempre
+ * impreso debajo/junto a la dirección — el Print Server solo tiene un campo
+ * `address`, así que la única forma correcta es concatenar aquí.
+ */
+export function composeDeliveryAddress(
+  address: string | null | undefined,
+  neighborhood: string | null | undefined,
+): string {
+  const a = String(address ?? "").trim();
+  const n = String(neighborhood ?? "").trim();
+  if (!a && !n) return "";
+  if (!n) return a;
+  if (!a) return `Barrio: ${n}`;
+  return `${a} · Barrio: ${n}`;
+}
+
 /** Normaliza cualquier arreglo de modificadores (JSON o string[]) a string[]. */
 export function normalizeModifiers(mods: unknown): string[] {
   if (!Array.isArray(mods)) return [];
