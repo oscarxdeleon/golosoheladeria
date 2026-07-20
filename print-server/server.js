@@ -716,22 +716,35 @@ function buildComandaFormatted(p, fmt) {
     const prodText = `${qtyTxt} ${String(it.name || "").toUpperCase().trim()}`;
     out += bigLine(prodText, f.productSize, f.bold.product, f.align.product);
 
-    if (Array.isArray(it.modifiers) && it.modifiers.length) {
+    // Extrae nota del item: puede venir como `note`/`notes` explícito o
+    // embebida dentro de `modifiers` como "NOTA: ...". Se filtra de los
+    // modificadores para no imprimirla dos veces.
+    let itemNote = "";
+    const rawNote = it && (it.note != null ? it.note : it.notes);
+    if (rawNote != null && String(rawNote).trim()) itemNote = String(rawNote).trim();
+    const modsRaw = Array.isArray(it.modifiers) ? it.modifiers : [];
+    const modsFiltered = [];
+    for (const raw of modsRaw) {
+      const s = String(raw == null ? "" : raw).replace(/^\s*[+*]\s*/, "").trim();
+      if (!s) continue;
+      const m = s.match(/^NOTA\s*:\s*(.+)$/i);
+      if (m) {
+        if (!itemNote) itemNote = m[1].trim();
+        continue;
+      }
+      modsFiltered.push(s);
+    }
+
+    if (modsFiltered.length) {
       const seen = new Set();
       const parts = [];
-      for (const raw of it.modifiers) {
-        const clean = String(raw == null ? "" : raw).replace(/^\s*[+*]\s*/, "").trim();
-        if (!clean) continue;
+      for (const clean of modsFiltered) {
         const key = clean.toLowerCase();
         if (seen.has(key)) continue;
         seen.add(key);
         parts.push(clean);
       }
       if (parts.length) {
-        // Modificadores compactos: estilo robusto tipo Arial Black usando la
-        // familia ESC/POS más pesada disponible (Font A) + negrita + doble
-        // impacto, SIN tracking ni espacios manuales entre letras. El tamaño
-        // se conserva exactamente con el `modifierSize` vigente.
         const effModSize = Math.max(2, f.modifierSize);
         const modSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
         const modFont = MODIFIER_FONT;
@@ -741,6 +754,19 @@ function buildComandaFormatted(p, fmt) {
         }
         out += CHAR_SPACING_RESET + DOUBLE_STRIKE_OFF + SIZE_NORMAL + BOLD_OFF + fontCmd;
       }
+    }
+
+    // Nota adicional del producto — impresa SIEMPRE con etiqueta clara, del
+    // mismo tamaño que los modificadores, para que cocina no la pase por alto.
+    if (itemNote) {
+      const effModSize = Math.max(2, f.modifierSize);
+      const noteSize = SIZE_MAP[effModSize] || SIZE_NORMAL;
+      out += alignFor(f.align.product) + CHAR_SPACING_RESET + MODIFIER_FONT + noteSize + BOLD_ON + DOUBLE_STRIKE_ON;
+      const label = ">> NOTA: ";
+      const noteCols = Math.max(10, usable - modIndent.length);
+      const lines = wrapText(`${label}${String(itemNote).toUpperCase()}`, noteCols);
+      for (const ln of lines) out += marginL + modIndent + ln + "\n";
+      out += CHAR_SPACING_RESET + DOUBLE_STRIKE_OFF + SIZE_NORMAL + BOLD_OFF + fontCmd;
     }
     // Separador entre productos (jerarquía visual). No añadir después del último.
     if (idx < items.length - 1) out += separator;
