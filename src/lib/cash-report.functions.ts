@@ -1,6 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { createClient } from "@supabase/supabase-js";
-import type { Database } from "@/integrations/supabase/types";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 interface Input {
   sessionId: string;
@@ -22,32 +21,27 @@ function isValidEmail(e: string) {
 }
 
 export const sendCashReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
   .inputValidator((d: Input) => d)
-  .handler(async ({ data }) => {
-    const SUPABASE_URL =
-      process.env.SUPABASE_URL ||
-      process.env.VITE_SUPABASE_URL ||
-      import.meta.env.VITE_SUPABASE_URL;
-    const SUPABASE_KEY =
-      process.env.SUPABASE_SERVICE_ROLE_KEY ||
-      process.env.SUPABASE_PUBLISHABLE_KEY ||
-      process.env.VITE_SUPABASE_PUBLISHABLE_KEY ||
-      import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-
-    if (!SUPABASE_URL || !SUPABASE_KEY) {
-      return { skipped: true, reason: "Backend no configurado en este entorno" };
-    }
-
-    const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_KEY, {
-      auth: { storage: undefined, persistSession: false, autoRefreshToken: false },
-    });
+  .handler(async ({ data, context }) => {
+    // Use the authenticated user's supabase client so RLS lets us read the
+    // session/branch that the admin has access to. Previously we built an
+    // anon-key client here and RLS returned no row → "Sesión no encontrada".
+    const supabase = context.supabase;
 
     const { data: session, error } = await supabase
       .from("cash_sessions")
       .select("*")
       .eq("id", data.sessionId)
       .maybeSingle();
-    if (error || !session) return { skipped: true, reason: "Sesión no encontrada" };
+    if (error || !session) {
+      return {
+        skipped: true,
+        reason: error?.message
+          ? `No se pudo leer la sesión: ${error.message}`
+          : "Sesión no encontrada (verifica permisos de la sede)",
+      };
+    }
 
     let branchName = "—";
     let branchAddress: string | null = null;
