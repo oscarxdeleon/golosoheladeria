@@ -372,6 +372,7 @@ function OnlineOrdersPage() {
       lines.push(dash);
       if (o.customer_name) lines.push(`CLIENTE: ${o.customer_name.toUpperCase()}`);
       if (o.delivery_address) wrap(`DIR: ${o.delivery_address.toUpperCase()}`).forEach((l) => lines.push(l));
+      if (o.delivery_neighborhood) wrap(`BARRIO: ${o.delivery_neighborhood.toUpperCase()}`).forEach((l) => lines.push(l));
       if (o.customer_phone) lines.push(`TEL:     ${o.customer_phone.toUpperCase()}`);
       lines.push(`PAGO:    ${method.toUpperCase()}`);
       lines.push(dash);
