@@ -265,7 +265,7 @@ async function autoPrintKioskOrder(saleId: string) {
 async function printTableOrderComanda(saleId: string) {
   const [{ data: sale }, { data: items }] = await Promise.all([
     supabase.from("sales").select("ticket_number, customer_name, notes, created_at, table_id").eq("id", saleId).maybeSingle(),
-    supabase.from("sale_items").select("product_name, qty, unit_price, modifiers").eq("sale_id", saleId),
+    supabase.from("sale_items").select("product_name, qty, unit_price, modifiers, notes").eq("sale_id", saleId),
   ]);
   if (!sale || !items?.length) return;
   let tableLabel = "";
@@ -278,6 +278,7 @@ async function printTableOrderComanda(saleId: string) {
     qty: Number(i.qty),
     unit_price: Number(i.unit_price),
     modifiers: normalizeModifiers((i as { modifiers?: unknown }).modifiers),
+    note: (i as { notes?: string | null }).notes ?? undefined,
   }));
   void sendToLocalPrinter({
     type: "comanda",
