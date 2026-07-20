@@ -191,7 +191,7 @@ function HistorialPage() {
           items: its.map((i) => ({ name: i.name, qty: i.qty, modifiers: i.modifiers })),
           customer: sale.customer_name ?? "",
           notes: sale.notes ?? "",
-          address: sale.delivery_address ?? "",
+          address: composeDeliveryAddress(sale.delivery_address, sale.delivery_neighborhood),
           phone: sale.customer_phone ?? "",
           user_name: sale.user_name ?? "",
           created_at: sale.created_at,
