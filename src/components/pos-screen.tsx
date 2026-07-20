@@ -2765,6 +2765,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   name: l.name,
                   qty: l.qty,
                   modifiers: normalizeModifiers(l.modifiers),
+                  note: l.notes?.trim() ? l.notes.trim() : undefined,
                 }));
                 const snap = {
                   ticket: ticketNo,
