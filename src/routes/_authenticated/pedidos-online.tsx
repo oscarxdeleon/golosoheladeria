@@ -208,6 +208,7 @@ function OnlineOrdersPage() {
       modifiers: normalizeModifiers(i.modifiers),
       note: (i as { notes?: string | null }).notes ?? undefined,
     }));
+    const comandaAddress = composeDeliveryAddress(o.delivery_address, o.delivery_neighborhood);
     const comandaPayload: PrintPayload = {
       type: "comanda",
       ticket: o.ticket_number,
@@ -216,7 +217,7 @@ function OnlineOrdersPage() {
       items: comandaItems,
       customer: o.customer_name ?? "",
       notes: o.notes ?? "",
-      address: o.delivery_address ?? "",
+      address: comandaAddress,
       phone: o.customer_phone ?? "",
       user_name: "En línea",
       created_at: o.created_at,
@@ -225,7 +226,7 @@ function OnlineOrdersPage() {
       ticket: o.ticket_number, header,
       items: comandaItems,
       customer: o.customer_name ?? "", notes: o.notes ?? "",
-      address: o.delivery_address ?? "", phone: o.customer_phone ?? "",
+      address: comandaAddress, phone: o.customer_phone ?? "",
       created_at: o.created_at,
     }), { silent: true });
 
