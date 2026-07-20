@@ -149,7 +149,10 @@ function CajaPage() {
   }, [activeBranchId, rawCurrent, qc]);
 
   const isOwner = !!current && !!user && current.user_id === user.id;
-  const canCloseSession = !!current && (isOwner || isAdmin);
+  // La caja pertenece a la sede/turno: cualquier cajero, supervisor o admin
+  // puede cerrar la caja abierta, sin importar quién la abrió. La autorización
+  // final la aplica la función SECURITY DEFINER en base de datos.
+  const canCloseSession = !!current;
 
 
   const { data: history = [] } = useQuery({
