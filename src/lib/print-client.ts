@@ -20,7 +20,7 @@ export type PrintPayload = {
   header: string;
   /** Origen del pedido — en mesa no imprime rótulo; en otros tipos imprime PARA LLEVAR / DOMICILIO / AUTOPEDIDO. */
   order_type?: "mesa" | "llevar" | "domicilio" | "kiosko" | "online" | string;
-  items: { name: string; qty: number; unit_price?: number; modifiers?: string[] }[];
+  items: { name: string; qty: number; unit_price?: number; modifiers?: string[]; note?: string | null }[];
   subtotal?: number;
   tax?: number;
   deliveryFee?: number;
