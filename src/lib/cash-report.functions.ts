@@ -176,7 +176,7 @@ export const sendCashReport = createServerFn({ method: "POST" })
       .map(([k, v]) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${k}</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee">${v.count}</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee">${fmt(v.total)}</td></tr>`)
       .join("");
     const expRows = expenses
-      .map((e) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${e.category_name ?? "—"}</td><td style="padding:6px 8px;border-bottom:1px solid #eee">${e.description ?? ""}</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee">${fmt(Number(e.amount ?? 0))}</td></tr>`)
+      .map((e) => `<tr><td style="padding:6px 8px;border-bottom:1px solid #eee">${e.category ?? "—"}</td><td style="padding:6px 8px;border-bottom:1px solid #eee">${e.description ?? ""}</td><td style="padding:6px 8px;text-align:right;border-bottom:1px solid #eee">${fmt(Number(e.amount ?? 0))}</td></tr>`)
       .join("");
 
     const html = `<!doctype html><html><body style="font-family:Arial,sans-serif;background:#f6f6f6;padding:20px;color:#222">
