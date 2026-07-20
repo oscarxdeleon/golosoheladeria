@@ -227,12 +227,16 @@ export function startPrintQueueWorker(branchId: string | null): () => void {
   // Primer drain inmediato tras 500ms para permitir bootstrap.
   window.setTimeout(tick, 500);
 
-  const filter = branchId ? `branch_id=eq.${branchId}` : undefined;
+  // Escuchamos INSERTS de TODAS las sedes: el filtro por sede se aplica al
+  // consultar (drainOnce), pero la suscripción sin filtro garantiza que el
+  // POS reciba el evento realtime aun si el `activeBranchId` cambia o si otro
+  // punto de la misma sede insertó desde un contexto distinto. Sin esto, un
+  // cambio momentáneo de sede en el selector detenía las impresiones.
   _workerChannel = supabase
-    .channel(`print-jobs-${branchId ?? "all"}`)
+    .channel(`print-jobs-worker-${WORKER_ID}`)
     .on(
       "postgres_changes",
-      { event: "INSERT", schema: "public", table: "print_jobs", filter },
+      { event: "INSERT", schema: "public", table: "print_jobs" },
       () => tick(),
     )
     .subscribe();

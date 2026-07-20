@@ -1569,7 +1569,12 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       const snapshotItems = cart.map((l) => ({ name: l.name, qty: l.qty, unit_price: l.unit_price }));
       const snapshotCustomer = customer;
       const snapshotNotes = notes;
-      const snapshotAddress = address;
+      // El Print Server no tiene campo aparte para el barrio: lo concatenamos
+      // en `address` como ya se hace en la precuenta para que se imprima en el
+      // ticket final de venta (domicilio y menú en línea).
+      const snapshotAddress = [address?.trim(), neighborhood?.trim() ? `Barrio: ${neighborhood.trim()}` : ""]
+        .filter(Boolean)
+        .join(" · ");
       const snapshotPhone = phone;
       const snapshotHeader = header;
       const snapshotUserName = profile?.full_name ?? user.email ?? "";
@@ -1960,13 +1965,18 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // pedido inicial. Marcamos `is_addition` para que el servidor imprima
       // un banner "ADICIÓN AL PEDIDO" y evite confusiones en cocina.
       const isAddition = !isFirstSave && printItems.length > 0;
+      // Concatenamos barrio dentro de `address` para que aparezca impreso en la
+      // comanda de cocina/barra (el Print Server no tiene un campo aparte).
+      const comandaAddress = orderType === "domicilio"
+        ? [address?.trim(), neighborhood?.trim() ? `Barrio: ${neighborhood.trim()}` : ""].filter(Boolean).join(" · ")
+        : "";
       const printSnapshot = {
         ticket: sale.ticket_number,
         header,
         items: printItems,
         customer,
         notes,
-        address: orderType === "domicilio" ? address : "",
+        address: comandaAddress,
         phone: orderType === "domicilio" ? phone : "",
         user_name: profile?.full_name ?? user.email ?? "",
         created_at: sale.created_at,
@@ -2770,13 +2780,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   modifiers: normalizeModifiers(l.modifiers),
                   note: l.notes?.trim() ? l.notes.trim() : undefined,
                 }));
+                const reimpAddress = orderType === "domicilio"
+                  ? [address?.trim(), neighborhood?.trim() ? `Barrio: ${neighborhood.trim()}` : ""].filter(Boolean).join(" · ")
+                  : "";
                 const snap = {
                   ticket: ticketNo,
                   header,
                   items,
                   customer,
                   notes,
-                  address: orderType === "domicilio" ? address : "",
+                  address: reimpAddress,
                   phone: orderType === "domicilio" ? phone : "",
                   user_name: profile?.full_name ?? user.email ?? "",
                   created_at: new Date().toISOString(),
