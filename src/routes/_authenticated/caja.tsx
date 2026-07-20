@@ -326,28 +326,23 @@ function CajaPage() {
       </div>
 
       {current ? (
-        <Card className={isOwner ? "border-success/40 bg-success/5" : "border-amber-300 bg-amber-50/40"}>
+        <Card className="border-success/40 bg-success/5">
           <CardHeader>
             <div className="flex items-center justify-between gap-4 flex-wrap">
               <div className="flex items-center gap-3">
-                <div className={`rounded-xl p-3 ${isOwner ? "bg-success/15 text-success" : "bg-amber-100 text-amber-700"}`}>
-                  {isOwner ? <LockOpen className="h-6 w-6" /> : <Lock className="h-6 w-6" />}
+                <div className="rounded-xl p-3 bg-success/15 text-success">
+                  <LockOpen className="h-6 w-6" />
                 </div>
                 <div>
-                  <CardTitle className="font-display text-2xl">
-                    {isOwner ? "Caja abierta" : "Caja abierta por otro cajero"}
-                  </CardTitle>
+                  <CardTitle className="font-display text-2xl">Caja abierta</CardTitle>
                   <CardDescription>
-                    Desde {formatDate(current.opened_at)} · {current.user_name}
+                    Desde {formatDate(current.opened_at)} · Abierta por {current.user_name}
                   </CardDescription>
                 </div>
               </div>
               {canCloseSession && (
                 <Button
                   onClick={() => {
-                    // Apertura automática del cajón al iniciar el cierre.
-                    // Respeta las banderas de administración por impresora
-                    // y no bloquea el arqueo si el Print Server no responde.
                     void openCashDrawer({
                       event: "cash_close",
                       operationId: current.id,
@@ -358,7 +353,6 @@ function CajaPage() {
                 >
                   <LockKeyhole className="h-4 w-4" />Cerrar caja
                 </Button>
-
               )}
             </div>
           </CardHeader>
@@ -373,10 +367,9 @@ function CajaPage() {
               )}
             </div>
             {!isOwner && (
-              <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
-                <strong>La caja para esta sede ya fue abierta por otro terminal.</strong>{" "}
-                Ingrese directamente a la operación. Sólo {current.user_name}
-                {isAdmin ? " o un administrador" : ""} puede realizar el cierre.
+              <div className="rounded-md border border-sky-300 bg-sky-50 p-3 text-sm text-sky-900">
+                Esta caja fue abierta por <strong>{current.user_name}</strong>. Cualquier cajero
+                del turno puede continuar operando y realizar el cierre cuando corresponda.
               </div>
             )}
           </CardContent>
