@@ -246,7 +246,7 @@ export const sendCashReport = createServerFn({ method: "POST" })
       </div>
     </div></body></html>`;
 
-    const from = process.env.RESEND_FROM || "Goloso POS <onboarding@resend.dev>";
+    const from = process.env.RESEND_FROM || "Heladería Goloso <reportes@heladeriagoloso.com>";
     const subject = `Cierre de Caja · ${branchName} · ${new Date(session.closed_at ?? Date.now()).toLocaleDateString("es-CO")}`;
 
     let sentCount = 0;
