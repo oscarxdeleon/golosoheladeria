@@ -207,7 +207,11 @@ function CajaDetailPage() {
 
   useEffect(() => {
     if (rolesLoading) return;
-    if (canSeeAllBranches) return;
+    // Cajeros no pueden ver el detalle financiero (cierre ciego).
+    if (!canSeeAllBranches) {
+      void navigate({ to: "/reportes/cajas", replace: true });
+      return;
+    }
     if (!detail || !activeBranchId || sessionBranchId === activeBranchId) return;
     void navigate({ to: "/reportes/cajas", replace: true });
   }, [rolesLoading, canSeeAllBranches, detail, sessionBranchId, activeBranchId, navigate]);

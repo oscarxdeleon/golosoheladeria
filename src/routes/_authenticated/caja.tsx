@@ -65,7 +65,9 @@ interface CashSession {
 
 function CajaPage() {
   const qc = useQueryClient();
-  const { user, profile, isAdmin, loading: authLoading } = useAuth();
+  const { user, profile, isAdmin, roles, loading: authLoading } = useAuth();
+  const isSupervisor = roles.includes("supervisor");
+  const canSeeFinancials = isAdmin || isSupervisor;
   const { activeBranchId } = useBranch();
   const sendReport = useServerFn(sendCashReport);
   const sendReportWa = useServerFn(sendCashReportWhatsApp);
@@ -156,16 +158,18 @@ function CajaPage() {
 
 
   const { data: history = [] } = useQuery({
-    queryKey: ["cash-sessions-history", activeBranchId],
+    queryKey: ["cash-sessions-history", activeBranchId, canSeeFinancials],
     enabled: !!activeBranchId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("cash_sessions")
-        .select("*")
-        .eq("branch_id", activeBranchId!)
-        .order("opened_at", { ascending: false })
-        .limit(30);
-      return (data ?? []) as unknown as CashSession[];
+      // Usa la RPC que ya oculta expected_amount / difference para cajeros.
+      const { data, error } = await supabase.rpc("admin_cash_sessions_list_rpc", {
+        _branch_id: activeBranchId!,
+        _from: null,
+        _to: null,
+        _status: null,
+      } as never);
+      if (error) throw error;
+      return ((data ?? []) as unknown as CashSession[]).slice(0, 30);
     },
   });
 
@@ -402,9 +406,9 @@ function CajaPage() {
                 <TableHead>Apertura</TableHead>
                 <TableHead>Cierre</TableHead>
                 <TableHead className="text-right">Total reportado</TableHead>
-                <TableHead className="text-right">Descuadre total</TableHead>
+                {canSeeFinancials && <TableHead className="text-right">Descuadre total</TableHead>}
                 <TableHead>Estado</TableHead>
-                {isAdmin && <TableHead className="text-right">Detalle</TableHead>}
+                {canSeeFinancials && <TableHead className="text-right">Detalle</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -417,17 +421,19 @@ function CajaPage() {
                     <TableCell className="text-xs">{formatDate(s.opened_at)}</TableCell>
                     <TableCell className="text-xs">{s.closed_at ? formatDate(s.closed_at) : "—"}</TableCell>
                     <TableCell className="text-right">{s.status === "closed" ? formatMoney(repTotal) : "—"}</TableCell>
-                    <TableCell className="text-right">
-                      {s.status === "closed" ? (
-                        <span className={diffTotal === 0 ? "text-muted-foreground" : diffTotal < 0 ? "text-destructive font-medium" : "text-success font-medium"}>
-                          {diffTotal > 0 ? "+" : ""}{formatMoney(diffTotal)}
-                        </span>
-                      ) : "—"}
-                    </TableCell>
+                    {canSeeFinancials && (
+                      <TableCell className="text-right">
+                        {s.status === "closed" ? (
+                          <span className={diffTotal === 0 ? "text-muted-foreground" : diffTotal < 0 ? "text-destructive font-medium" : "text-success font-medium"}>
+                            {diffTotal > 0 ? "+" : ""}{formatMoney(diffTotal)}
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Badge variant={s.status === "open" ? "default" : "secondary"}>{s.status === "open" ? "Abierta" : "Cerrada"}</Badge>
                     </TableCell>
-                    {isAdmin && (
+                    {canSeeFinancials && (
                       <TableCell className="text-right">
                         {s.status === "closed" && (
                           <Button size="sm" variant="ghost" onClick={() => setDetail(s)}>
@@ -441,7 +447,7 @@ function CajaPage() {
               })}
               {history.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={canSeeFinancials ? 7 : 5} className="text-center text-muted-foreground py-8">
                     Sin turnos registrados todavía
                   </TableCell>
                 </TableRow>
