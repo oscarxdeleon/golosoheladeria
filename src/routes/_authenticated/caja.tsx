@@ -406,9 +406,9 @@ function CajaPage() {
                 <TableHead>Apertura</TableHead>
                 <TableHead>Cierre</TableHead>
                 <TableHead className="text-right">Total reportado</TableHead>
-                <TableHead className="text-right">Descuadre total</TableHead>
+                {canSeeFinancials && <TableHead className="text-right">Descuadre total</TableHead>}
                 <TableHead>Estado</TableHead>
-                {isAdmin && <TableHead className="text-right">Detalle</TableHead>}
+                {canSeeFinancials && <TableHead className="text-right">Detalle</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -421,17 +421,19 @@ function CajaPage() {
                     <TableCell className="text-xs">{formatDate(s.opened_at)}</TableCell>
                     <TableCell className="text-xs">{s.closed_at ? formatDate(s.closed_at) : "—"}</TableCell>
                     <TableCell className="text-right">{s.status === "closed" ? formatMoney(repTotal) : "—"}</TableCell>
-                    <TableCell className="text-right">
-                      {s.status === "closed" ? (
-                        <span className={diffTotal === 0 ? "text-muted-foreground" : diffTotal < 0 ? "text-destructive font-medium" : "text-success font-medium"}>
-                          {diffTotal > 0 ? "+" : ""}{formatMoney(diffTotal)}
-                        </span>
-                      ) : "—"}
-                    </TableCell>
+                    {canSeeFinancials && (
+                      <TableCell className="text-right">
+                        {s.status === "closed" ? (
+                          <span className={diffTotal === 0 ? "text-muted-foreground" : diffTotal < 0 ? "text-destructive font-medium" : "text-success font-medium"}>
+                            {diffTotal > 0 ? "+" : ""}{formatMoney(diffTotal)}
+                          </span>
+                        ) : "—"}
+                      </TableCell>
+                    )}
                     <TableCell>
                       <Badge variant={s.status === "open" ? "default" : "secondary"}>{s.status === "open" ? "Abierta" : "Cerrada"}</Badge>
                     </TableCell>
-                    {isAdmin && (
+                    {canSeeFinancials && (
                       <TableCell className="text-right">
                         {s.status === "closed" && (
                           <Button size="sm" variant="ghost" onClick={() => setDetail(s)}>
@@ -445,7 +447,7 @@ function CajaPage() {
               })}
               {history.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={isAdmin ? 7 : 6} className="text-center text-muted-foreground py-8">
+                  <TableCell colSpan={canSeeFinancials ? 7 : 5} className="text-center text-muted-foreground py-8">
                     Sin turnos registrados todavía
                   </TableCell>
                 </TableRow>
