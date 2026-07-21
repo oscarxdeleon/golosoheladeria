@@ -207,8 +207,8 @@ function CajasPage() {
 }
 
 function SessionCard({
-  session, branchName,
-}: { session: SessionListItem; branchName: string }) {
+  session, branchName, canSeeFinancials,
+}: { session: SessionListItem; branchName: string; canSeeFinancials: boolean }) {
   const [downloading, setDownloading] = useState(false);
   const diff = Number(session.difference ?? 0);
   const finalAmount = Number(session.counted_amount ?? 0);
