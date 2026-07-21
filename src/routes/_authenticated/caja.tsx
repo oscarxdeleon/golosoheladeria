@@ -313,6 +313,7 @@ function CajaPage() {
       setCloseDialog(false);
       setCashCounted(""); setNequiCounted(""); setBancoCounted(""); setClosingNotes("");
       setCoinQty({}); setBillQty({});
+      setCloseResult(closed);
       await qc.refetchQueries({ queryKey: ["cash-sessions-history"] });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error al cerrar caja";
