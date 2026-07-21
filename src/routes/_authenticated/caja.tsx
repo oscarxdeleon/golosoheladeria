@@ -103,6 +103,7 @@ function CajaPage() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<CashSession | null>(null);
+  const [closeResult, setCloseResult] = useState<CashSession | null>(null);
 
   // Caja abierta para la SEDE activa (compartida entre cajeros de la misma sede)
   const { data: rawCurrent } = useQuery({
