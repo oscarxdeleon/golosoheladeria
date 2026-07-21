@@ -198,6 +198,7 @@ function CajasPage() {
             key={s.id}
             session={s}
             branchName={s.branch_name ?? branchName(s.branch_id)}
+            canSeeFinancials={canSeeAll}
           />
         ))}
       </div>
