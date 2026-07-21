@@ -158,16 +158,18 @@ function CajaPage() {
 
 
   const { data: history = [] } = useQuery({
-    queryKey: ["cash-sessions-history", activeBranchId],
+    queryKey: ["cash-sessions-history", activeBranchId, canSeeFinancials],
     enabled: !!activeBranchId,
     queryFn: async () => {
-      const { data } = await supabase
-        .from("cash_sessions")
-        .select("*")
-        .eq("branch_id", activeBranchId!)
-        .order("opened_at", { ascending: false })
-        .limit(30);
-      return (data ?? []) as unknown as CashSession[];
+      // Usa la RPC que ya oculta expected_amount / difference para cajeros.
+      const { data, error } = await supabase.rpc("admin_cash_sessions_list_rpc", {
+        _branch_id: activeBranchId!,
+        _from: null,
+        _to: null,
+        _status: null,
+      } as never);
+      if (error) throw error;
+      return ((data ?? []) as unknown as CashSession[]).slice(0, 30);
     },
   });
 
