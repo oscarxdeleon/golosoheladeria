@@ -103,6 +103,7 @@ function CajaPage() {
   const [closeError, setCloseError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [detail, setDetail] = useState<CashSession | null>(null);
+  const [closeResult, setCloseResult] = useState<CashSession | null>(null);
 
   // Caja abierta para la SEDE activa (compartida entre cajeros de la misma sede)
   const { data: rawCurrent } = useQuery({
@@ -312,6 +313,7 @@ function CajaPage() {
       setCloseDialog(false);
       setCashCounted(""); setNequiCounted(""); setBancoCounted(""); setClosingNotes("");
       setCoinQty({}); setBillQty({});
+      setCloseResult(closed);
       await qc.refetchQueries({ queryKey: ["cash-sessions-history"] });
     } catch (e) {
       const msg = e instanceof Error ? e.message : "Error al cerrar caja";
@@ -746,6 +748,52 @@ function CajaPage() {
               )}
             </div>
           )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Resultado informativo del cierre (post-cierre, sólo lectura) */}
+      <Dialog open={!!closeResult} onOpenChange={(o) => { if (!o) setCloseResult(null); }}>
+        <DialogContent className="max-w-md" onEscapeKeyDown={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>Cierre de caja realizado</DialogTitle>
+            <DialogDescription>Este es el resultado final del cierre. No es posible modificarlo.</DialogDescription>
+          </DialogHeader>
+          {closeResult && (() => {
+            const total =
+              Number(closeResult.cash_difference ?? 0) +
+              Number(closeResult.nequi_difference ?? 0) +
+              Number(closeResult.bancolombia_difference ?? 0);
+            const rounded = Math.round(total);
+            const isZero = rounded === 0;
+            const isPositive = rounded > 0;
+            return (
+              <div className="space-y-4">
+                <div className={`rounded-lg border p-4 text-center ${isZero ? "border-success/40 bg-success/10" : isPositive ? "border-emerald-500/40 bg-emerald-500/10" : "border-destructive/40 bg-destructive/10"}`}>
+                  {isZero ? (
+                    <>
+                      <div className="text-sm font-medium text-success">Estado del cierre</div>
+                      <div className="mt-1 font-display text-xl">Cierre realizado sin diferencias.</div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-sm font-medium">
+                        {isPositive ? "Descuadre positivo (sobrante)" : "Descuadre negativo (faltante)"}
+                      </div>
+                      <div className={`mt-1 font-display text-3xl font-bold tabular-nums ${isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                        {isPositive ? "+" : "−"}{formatMoney(Math.abs(rounded))}
+                      </div>
+                    </>
+                  )}
+                </div>
+                <div className="rounded-md border bg-muted/40 p-3 text-center text-sm font-medium">
+                  Verifica con el administrador.
+                </div>
+              </div>
+            );
+          })()}
+          <DialogFooter>
+            <Button className="w-full" onClick={() => setCloseResult(null)}>Entendido</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
