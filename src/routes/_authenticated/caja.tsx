@@ -65,7 +65,9 @@ interface CashSession {
 
 function CajaPage() {
   const qc = useQueryClient();
-  const { user, profile, isAdmin, loading: authLoading } = useAuth();
+  const { user, profile, isAdmin, roles, loading: authLoading } = useAuth();
+  const isSupervisor = roles.includes("supervisor");
+  const canSeeFinancials = isAdmin || isSupervisor;
   const { activeBranchId } = useBranch();
   const sendReport = useServerFn(sendCashReport);
   const sendReportWa = useServerFn(sendCashReportWhatsApp);
