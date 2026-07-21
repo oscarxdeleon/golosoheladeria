@@ -312,23 +312,29 @@ function SessionCard({
 
         {/* Acciones */}
         <div className="flex flex-wrap items-center gap-2">
-          <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${diffBadge.className}`}>
-            {diffBadge.icon}{diffBadge.text}
-          </span>
-          <Button
-            onClick={handlePdf}
-            disabled={downloading}
-            variant="outline"
-            size="sm"
-            className="rounded-xl border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 gap-1.5 font-semibold"
-          >
-            <Download className="h-4 w-4" />{downloading ? "…" : "PDF"}
-          </Button>
-          <Link to="/reportes/cajas/$id" params={{ id: session.id }} className="ml-auto">
-            <Button size="sm" className="rounded-xl bg-primary/10 text-primary hover:bg-primary/20 gap-1 font-semibold shadow-none">
-              Ver Detalles <ChevronRight className="h-4 w-4" />
+          {canSeeFinancials && (
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${diffBadge.className}`}>
+              {diffBadge.icon}{diffBadge.text}
+            </span>
+          )}
+          {canSeeFinancials && (
+            <Button
+              onClick={handlePdf}
+              disabled={downloading}
+              variant="outline"
+              size="sm"
+              className="rounded-xl border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 hover:text-emerald-800 gap-1.5 font-semibold"
+            >
+              <Download className="h-4 w-4" />{downloading ? "…" : "PDF"}
             </Button>
-          </Link>
+          )}
+          {canSeeFinancials && (
+            <Link to="/reportes/cajas/$id" params={{ id: session.id }} className="ml-auto">
+              <Button size="sm" className="rounded-xl bg-primary/10 text-primary hover:bg-primary/20 gap-1 font-semibold shadow-none">
+                Ver Detalles <ChevronRight className="h-4 w-4" />
+              </Button>
+            </Link>
+          )}
         </div>
       </CardContent>
     </Card>
