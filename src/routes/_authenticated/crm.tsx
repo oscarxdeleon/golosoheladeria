@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Users, Star, TrendingUp, MessageCircle, Receipt, Radio } from "lucide-react";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, translateSaleStatus } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({ meta: [{ title: "CRM · Goloso POS" }] }),
