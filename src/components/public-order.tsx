@@ -930,10 +930,25 @@ export function PublicOrder({
               )}
             </div>
 
-            <h1
-              className="font-display font-black text-2xl sm:text-4xl mt-3 sm:mt-4 tracking-wide text-slate-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.6)]"
-            >
-              {onlineName}
+            <h1 className="mt-3 sm:mt-4 relative">
+              <span
+                className="block font-display font-black tracking-[0.18em] text-3xl sm:text-5xl leading-none"
+                style={{
+                  background: "linear-gradient(180deg, #ffffff 0%, #e6fff2 45%, #a8f0c8 100%)",
+                  WebkitBackgroundClip: "text",
+                  backgroundClip: "text",
+                  color: "transparent",
+                  WebkitTextStroke: "1px rgba(14,61,71,0.35)",
+                  filter: "drop-shadow(0 2px 0 rgba(14,61,71,0.55)) drop-shadow(0 6px 14px rgba(0,0,0,0.35))",
+                }}
+              >
+                {onlineName}
+              </span>
+              <span className="mt-2 flex items-center justify-center gap-2">
+                <span className="h-[2px] w-8 sm:w-12 bg-gradient-to-r from-transparent via-lime-300 to-lime-400 rounded-full" />
+                <span className="h-1.5 w-1.5 rounded-full bg-lime-300 shadow-[0_0_8px_rgba(163,230,53,0.9)]" />
+                <span className="h-[2px] w-8 sm:w-12 bg-gradient-to-l from-transparent via-lime-300 to-lime-400 rounded-full" />
+              </span>
             </h1>
             <p className="text-slate-700 text-sm sm:text-base mt-1 font-medium">
               ¿Cómo quieres recibir tu pedido?
