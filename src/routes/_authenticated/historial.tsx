@@ -642,7 +642,7 @@ function SaleDetailDialog({ saleId, onClose }: { saleId: string | null; onClose:
               <div className="flex items-center gap-2">
                 <Badge variant="outline">{TYPE_LABEL[sale.order_type] ?? sale.order_type}</Badge>
                 <Badge variant="secondary">{sale.payment_method ?? "—"}</Badge>
-                {sale.status && <Badge>{sale.status}</Badge>}
+                {sale.status && <Badge variant={sale.status === "cancelled" ? "destructive" : "default"}>{translateSaleStatus(sale.status)}</Badge>}
               </div>
               <div><span className="text-muted-foreground">Cliente:</span> {sale.customer_name ?? "Mostrador"}</div>
               {sale.customer_phone && <div><span className="text-muted-foreground">Teléfono:</span> {sale.customer_phone}</div>}
