@@ -880,10 +880,16 @@ export function PublicOrder({
           <PwaInstallButton className="h-9 gap-2 px-3 text-xs bg-white/90 text-slate-800 shadow-lg" />
         </div>
 
-        <div className="min-h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-8 sm:px-8">
+        <div
+          className="min-h-full w-full flex flex-col items-center justify-between px-4 sm:px-8"
+          style={{
+            paddingTop: "max(1rem, env(safe-area-inset-top))",
+            paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+          }}
+        >
           <div className="flex flex-col items-center text-center w-full">
             {/* Contenedor del logo con partículas */}
-            <div className="relative flex items-center justify-center w-full" style={{ minHeight: "42vh" }}>
+            <div className="relative flex items-center justify-center w-full min-h-[32vh] sm:min-h-[38vh]">
               {/* Partículas splash */}
               {[
                 { top: "10%", left: "12%", size: 14, tx: "-30px", ty: "-20px", delay: "0.9s" },
