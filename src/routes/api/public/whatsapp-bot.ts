@@ -73,6 +73,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           version?: string;
           pollStatus?: string;
           pollCount?: number;
+          // Asistente IA (Fase 1)
+          text?: string;
+          audio_b64?: string;
+          audio_mime?: string;
         } | null = null;
         try {
           body = await request.json();
@@ -147,6 +151,102 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const r = await callRpc("whatsapp_bot_ack_command", { _token: token, _command: cmd });
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               return json(r.data);
+            }
+            case "ai_reply": {
+              // Asistente IA (Fase 1 MVP). Recibe texto o audio (base64 del OGG de WhatsApp)
+              // y devuelve una respuesta corta lista para enviar por WhatsApp.
+              const from = String(body.from ?? "").trim();
+              if (!from) return json({ error: "missing_from" }, 400);
+              const text = typeof body.text === "string" ? body.text.trim() : "";
+              const audioB64 = typeof body.audio_b64 === "string" ? body.audio_b64.trim() : "";
+              if (!text && !audioB64) return json({ error: "missing_input" }, 400);
+
+              // 1) Contexto de sede + validación sandbox + rate limit
+              const ctxRes = await callRpc("whatsapp_bot_ai_context", { _token: token, _phone: from });
+              if (!ctxRes.ok) return json({ error: "rpc_failed", detail: ctxRes.data }, ctxRes.status);
+              const ctx = ctxRes.data as Record<string, unknown> | null;
+              if (!ctx || (ctx as { error?: string }).error) {
+                return json({ error: (ctx as { error?: string })?.error ?? "context_error", reply: null }, 200);
+              }
+              const branchName = String(ctx.branch_name ?? "Heladería Goloso");
+              const menuLink = String(ctx.menu_link ?? "https://golosoheladeria.vercel.app/menu");
+              const onlineOpen = Boolean(ctx.online_open);
+              const physicalOpen = Boolean(ctx.physical_open);
+              const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
+
+              const defaultPrompt = [
+                `Eres el asistente virtual de Heladería Goloso, sede ${branchName}.`,
+                "Tono cercano, juvenil, con emojis de helado 🍦🍨. Respuestas cortas (2-3 líneas máx).",
+                `Menú y pedidos: ${menuLink}`,
+                `Estado ahora: domicilio ${onlineOpen ? "ABIERTO ✅" : "CERRADO ❌"} · tienda física ${physicalOpen ? "ABIERTA ✅" : "CERRADA ❌"}.`,
+                "Si el cliente quiere pedir, dirígelo al link del menú.",
+                "Si pregunta por sabores/precios específicos sin haber visto el menú, envíale el link.",
+                "No inventes promociones ni precios. Si no sabes algo, dile que un asesor lo contacta pronto.",
+                "Responde SIEMPRE en español.",
+              ].join(" ");
+
+              const systemPrompt = customPrompt && customPrompt.length > 0 ? customPrompt : defaultPrompt;
+
+              // 2) Construir mensaje del usuario (texto o audio)
+              const userContent: Array<Record<string, unknown>> = [];
+              if (text) {
+                userContent.push({ type: "text", text });
+              }
+              if (audioB64) {
+                const mime = String(body.audio_mime ?? "audio/ogg").toLowerCase();
+                let format = "ogg";
+                if (mime.includes("mp3") || mime.includes("mpeg")) format = "mp3";
+                else if (mime.includes("wav")) format = "wav";
+                else if (mime.includes("m4a") || mime.includes("mp4")) format = "m4a";
+                else if (mime.includes("webm")) format = "webm";
+                if (!text) userContent.push({ type: "text", text: "(El cliente envió una nota de voz, transcríbela mentalmente y responde a lo que pide.)" });
+                userContent.push({ type: "input_audio", input_audio: { data: audioB64, format } });
+              }
+
+              // 3) Llamar Lovable AI Gateway (Gemini 3.6 Flash acepta audio OGG nativo)
+              const apiKey = process.env.LOVABLE_API_KEY;
+              if (!apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
+
+              const callAi = async (model: string) => {
+                return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  method: "POST",
+                  headers: {
+                    Authorization: `Bearer ${apiKey}`,
+                    "Content-Type": "application/json",
+                  },
+                  body: JSON.stringify({
+                    model,
+                    messages: [
+                      { role: "system", content: systemPrompt },
+                      { role: "user", content: userContent },
+                    ],
+                    max_tokens: 300,
+                  }),
+                });
+              };
+
+              let aiResp = await callAi("google/gemini-3.6-flash");
+              // Fallback a Gemini 2.5 Flash si el primero falla (transitorio)
+              if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404)) {
+                aiResp = await callAi("google/gemini-2.5-flash");
+              }
+              if (aiResp.status === 429) return json({ error: "ai_rate_limited", reply: null }, 200);
+              if (aiResp.status === 402) return json({ error: "ai_credits_exhausted", reply: null }, 200);
+              if (!aiResp.ok) {
+                const detail = await aiResp.text().catch(() => "");
+                return json({ error: "ai_failed", status: aiResp.status, detail: detail.slice(0, 500), reply: null }, 200);
+              }
+
+              const aiData = await aiResp.json().catch(() => null) as
+                | { choices?: Array<{ message?: { content?: string } }> }
+                | null;
+              const reply = aiData?.choices?.[0]?.message?.content?.trim() ?? "";
+              if (!reply) return json({ error: "ai_empty", reply: null }, 200);
+
+              // 4) Registrar uso (rate limit) y guardar mensaje saliente
+              await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+
+              return json({ reply, source: "ai" });
             }
             default:
               return json({ error: "unknown_action" }, 400);

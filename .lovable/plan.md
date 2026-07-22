@@ -1,90 +1,100 @@
-# Plan: Anulación de ventas y módulo "Todos los pedidos"
+# Fase 1 — Asistente IA de WhatsApp (MVP)
 
-## 1. Traducción de estados (en toda la app)
+Basado en tus respuestas: IA responde saludos, preguntas generales y menú con contexto; entiende audios de voz; **actúa solo cuando la respuesta fija actual no aplica**; **modo sandbox** (whitelist de números); tono juvenil con emojis.
 
-Centralizar traducción en `src/lib/format.ts` con helper `translateSaleStatus(status)`:
+## Arquitectura
 
-- `cancelled` → **Anulado**
-- `pending` → Pendiente
-- `paid` → Pagado
-- `completed` → Completado
-- `preparing` → En preparación
-- `ready` → Listo
-- `delivered` → Entregado
-- `refunded` → Reembolsado
+```text
+Cliente WA ──► Bot local (PC sede)
+                    │
+                    ▼
+        POST /api/public/whatsapp-bot { action: "incoming" }
+                    │
+                    ▼
+        RPC whatsapp_bot_handle_incoming
+        - ¿matchea keyword fijo (menú/horario)? → responde fijo
+        - ¿no matchea + IA activa + número en sandbox? → { use_ai: true, context }
+                    │
+                    ▼ (bot local ve use_ai:true)
+        POST /api/public/whatsapp-bot { action: "ai_reply", text/audio_b64 }
+                    │
+                    ▼
+        TanStack server route → Lovable AI Gateway
+        google/gemini-3.6-flash (texto + audio OGG nativo, un solo call)
+                    │
+                    ▼
+        Devuelve texto al bot → bot lo envía por WhatsApp
+```
 
-Reemplazar usos crudos (`{sale.status}`) en:
-- `historial.tsx`, `ventas.tsx`, `domicilio.tsx`, `domicilios.tsx`, `pedidos-online.tsx`, `todos-pedidos.tsx`, `reportes.ventas.tsx`, `reportes.cajas_.$id.tsx`, `pos-screen.tsx` (detalle), `ticket-preview.tsx`, `print-client.ts` (tickets).
+**Por qué Gemini 3.6 Flash**: acepta audio OGG/Opus nativo (formato de WhatsApp) sin transcodificar → no requiere ffmpeg en los PCs de las sedes. Un solo modelo para texto y voz. Costo: ~centavos/mes.
 
-## 2. Base de datos (migración)
+## Cambios
 
-**Nueva tabla `sale_cancellations`** (auditoría inmutable):
-- `sale_id`, `cancelled_by` (uuid), `cancelled_by_name`, `reason_code` (enum: `arrepentimiento`, `sin_dinero`, `cambio_producto`, `demora`, `cambio_pago`, `otro`), `reason_text`, `original_total`, `original_payment_method`, `original_order_type`, `cash_session_id`, `refund_movement_id` (nullable), `created_at`.
-- RLS: SELECT para todos los autenticados de la sede; INSERT solo vía RPC.
+### 1. Base de datos (migración)
+Extender `whatsapp_bot_config` con:
+- `ai_enabled boolean default false`
+- `ai_sandbox_numbers text[] default '{}'` (números autorizados en pruebas; vacío = nadie)
+- `ai_system_prompt text` (opcional, con default juvenil pre-cargado)
+- `ai_last_reply_at timestamptz` (telemetría)
 
-**Nueva RPC `cancel_sale(_sale_id, _reason_code, _reason_text)`** — `SECURITY DEFINER`:
-1. Valida rol (admin/supervisor siempre; cajero solo si `settings.cashier_can_cancel = true` y venta del turno actual).
-2. Bloquea si `status = 'cancelled'`.
-3. Si `status = 'paid'`: registra fila en `cash_deposits` tipo `refund` (o `expenses` categoría "Anulaciones") por cada método de pago (efectivo/nequi/bancolombia/transferencia) para revertir cuadre.
-4. Marca `sales.status = 'cancelled'`, guarda `cancelled_at`, `cancelled_by`, `cancellation_reason`.
-5. Inserta `sale_cancellations`.
-6. Libera mesa (si `table_id`): `restaurant_tables.status = 'available'`.
-7. Devuelve JSON con impacto en caja.
+Nueva RPC `whatsapp_bot_ai_context(_token)` → devuelve nombre sede, link menú, horarios de hoy, teléfono. La usa el endpoint IA para construir el system prompt dinámico.
 
-**Columnas nuevas en `sales`**: `cancelled_at`, `cancelled_by`, `cancellation_reason_code`, `cancellation_reason_text`.
+Modificar `whatsapp_bot_handle_incoming` para que devuelva `{ use_ai: true, message_id }` cuando: no matcheó keyword fijo + `ai_enabled` + número en `ai_sandbox_numbers`.
 
-**Setting global**: `cashier_can_cancel_sales boolean default false` en `settings`.
+### 2. Nuevo endpoint TanStack
+`src/routes/api/public/whatsapp-bot.ts` — agregar acción `ai_reply`:
+- Recibe `{ token, from, text?, audio_b64?, audio_mime? }`
+- Valida token de sede (RPC existente)
+- Obtiene contexto de sede (nueva RPC)
+- Llama Lovable AI Gateway con system prompt + contexto + input del cliente
+- Devuelve `{ reply: "texto para enviar" }`
 
-## 3. Módulo "Todos los pedidos" (rediseño de `todos-pedidos.tsx`)
+Sin persistencia de conversación en Fase 1 (cada mensaje es stateless — mantiene el scope MVP acotado).
 
-Vista unificada con:
+### 3. Bot local (`whatsapp-bot/server.js`)
+- Al recibir `use_ai:true` en respuesta a `incoming`, llamar `ai_reply` con el texto o el audio (base64 del OGG que ya recibe de Baileys).
+- Enviar la respuesta por WhatsApp usando el mismo flujo actual.
+- Bump versión → **v8**. Publicar ZIP nuevo en `/public/downloads/whatsapp-bot-v8.zip`.
+- Actualizar `install-windows.bat` y `update-windows.bat` para conservar sesión.
 
-**Filtros por tipo** (chips clickeables): Todos · Mesa · Llevar · Domicilio · Kiosko
+### 4. UI POS
+En `src/components/ajustes/whatsapp-bot-tab.tsx`, nueva sub-sección "**Asistente IA (Beta)**":
+- Toggle "Activar asistente IA"
+- Textarea "Números autorizados en pruebas" (uno por línea, formato +57...)
+- Textarea "Personalidad del asistente" (con valor default juvenil pre-cargado, editable)
+- Texto informativo: "En modo sandbox, la IA solo responderá a los números aquí listados. Los demás verán las respuestas fijas actuales."
 
-**Filtros por rango** (según rol):
-- **Cajero**: fijo a "Turno actual" (filtro `cash_session_id = sesión abierta del usuario`). Sin selector de fechas.
-- **Admin/Supervisor**: Turno actual · Hoy · Ayer · Semana pasada · Mes actual · Rango personalizado (date-range picker).
+### 5. System prompt (default juvenil)
+```
+Eres el asistente de Heladería Goloso, sede {sede}. Tono cercano, juvenil, 
+con emojis de helado 🍦🍨. Respuestas cortas (2-3 líneas máx). 
+Horario hoy: {horario}. Menú: {link_menu}. Si el cliente pide algo 
+específico del menú, dirígelo al link. Si pregunta por sabores/precios 
+sin ver el menú, envía el link. No inventes promociones. Si no sabes 
+algo, di que un asesor lo contacta pronto.
+```
 
-**Tabla/lista con columnas**: #Ticket · Fecha/hora · Cliente · Tipo · Método pago · Estado (traducido, badge colorizado) · Usuario · Total · Acciones.
+## Detalles técnicos
 
-**Acciones por fila**: Ver detalle · Reimprimir · **Anular** (si no está ya anulada y permiso ok).
+- **Modelo**: `google/gemini-3.6-flash` vía Lovable AI Gateway (`LOVABLE_API_KEY` ya provisionada). Fallback a `openai/gpt-5.5` si Gemini falla.
+- **Audio**: se pasa como `input_audio` block en chat completions, `format: "ogg"`, base64. Sin transcodificación cliente ni STT separado.
+- **Sandbox check**: normalización de números (quitar `+`, espacios, guiones) antes de comparar.
+- **Sin memoria conversacional en Fase 1**: cada mensaje independiente. Reduce complejidad y costo. Si funciona bien, la Fase 2 agrega historial en tabla `whatsapp_ai_messages`.
+- **Rate limiting**: máx 20 respuestas IA por número por día (protección contra loops o abuso). Se guarda en tabla ligera `whatsapp_ai_usage`.
+- **Errores del gateway** (429/402): se registran y el bot NO envía nada (mejor silencio que un mensaje roto). Se loguea para diagnóstico.
 
-**Diálogo de anulación**:
-- RadioGroup con 6 motivos + textarea condicional para "Otro".
-- Muestra resumen: total, método(s) de pago, aviso "Se registrará una salida de caja por $X".
-- Botón confirmar llama a RPC `cancel_sale`.
-- Toast con resultado; invalida queries.
+## Alcance excluido de Fase 1 (para Fase 2+)
+- Toma de pedidos por conversación
+- Modificación del estado en `sales`
+- Interpretación de imágenes
+- Memoria multi-turno
+- Panel de conversaciones IA en el POS
 
-## 4. Seguridad
+## Orden de implementación
+1. Migración DB (RPCs + campos config)
+2. Endpoint TanStack `ai_reply`
+3. UI en pestaña WhatsApp Bot
+4. Cambios en `whatsapp-bot/server.js` + ZIP v8
+5. Prueba con tu número personal en sandbox
 
-- Cajero: solo anula ventas de **su turno abierto** y del **día actual**, y solo si setting lo permite.
-- Admin/supervisor: siempre.
-- No re-anulable.
-- Registro completo en `sale_cancellations` + `audit_log`.
-
-## 5. Reportes
-
-Nueva pestaña "Anulaciones" en `reportes.tsx` (o sección en `reportes.ventas.tsx`) listando `sale_cancellations` con: ticket, valor, motivo, usuario, fecha, método, tipo, impacto caja.
-
-## 6. Archivos afectados
-
-**Nuevos/migración:**
-- Migración SQL (tabla, columnas, RPC, setting).
-
-**Modificados:**
-- `src/lib/format.ts` — helper de traducción.
-- `src/routes/_authenticated/todos-pedidos.tsx` — rediseño completo.
-- `src/components/cancel-sale-dialog.tsx` — nuevo componente.
-- `src/lib/sales-cancellation.ts` — wrapper de la RPC.
-- `src/routes/_authenticated/historial.tsx`, `ventas.tsx`, `domicilio.tsx`, `domicilios.tsx`, `pedidos-online.tsx`, `reportes.ventas.tsx`, `reportes.cajas_.$id.tsx` — usar `translateSaleStatus`.
-- `src/components/ticket-preview.tsx`, `src/lib/print-client.ts` — traducir estado en impresión.
-- `src/components/ajustes/roles-tab.tsx` — toggle "Cajeros pueden anular ventas".
-- `src/routes/_authenticated/reportes.tsx` (o nuevo `reportes.anulaciones.tsx`).
-
-## Notas técnicas
-
-- La reversión en caja se hace insertando un movimiento negativo por método de pago (usando `cash_deposits` con `kind='refund'` o creando `cash_refunds`), de modo que `close_cash_session_blind` ya lo tome en cuenta sin cambios.
-- La RPC es transaccional: si falla la reversión, se hace rollback del status.
-- Los tickets impresos con `status='cancelled'` mostrarán marca de agua "ANULADO".
-
-¿Apruebas para implementar?
+¿Apruebas el plan? Si sí, arranco por el paso 1 (migración) y sigo en orden. Total estimado: 4-6 mensajes de build hasta tener el ZIP v8 listo para instalar en una sede de prueba.

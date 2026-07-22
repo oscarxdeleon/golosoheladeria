@@ -21,6 +21,7 @@ import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  downloadMediaMessage,
 } from "@whiskeysockets/baileys";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -34,7 +35,8 @@ const REPLY_DELAY_MAX = 5000;
 const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
-const BOT_VERSION = "7.0.0";
+const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
+const BOT_VERSION = "8.0.0";
 
 const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: false }));
 
@@ -197,6 +199,33 @@ async function handleIncoming(from, body) {
     return data.reply || null;
   } catch (e) {
     logger.warn({ err: String(e) }, "incoming error");
+    return null;
+  }
+}
+
+async function requestAiReply(from, { text, audioB64, audioMime }) {
+  try {
+    const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "ai_reply",
+        token: config.token,
+        from,
+        text: text || "",
+        audio_b64: audioB64 || "",
+        audio_mime: audioMime || "",
+      }),
+    });
+    if (!res.ok) {
+      logger.warn({ status: res.status }, "ai_reply http fail");
+      return null;
+    }
+    const data = await res.json();
+    if (data.error) logger.info({ err: data.error }, "ai_reply skipped");
+    return data.reply || null;
+  } catch (e) {
+    logger.warn({ err: String(e) }, "ai_reply error");
     return null;
   }
 }
@@ -398,11 +427,59 @@ async function startSocket() {
         msg.message.imageMessage?.caption ||
         msg.message.videoMessage?.caption ||
         "";
+      const audioNode = msg.message.audioMessage;
       const from = jid.split("@")[0];
       // Solo procesar mensajes de números reales (JID de usuario `@s.whatsapp.net`).
       if (!from || !/^\d{6,}$/.test(from)) continue;
-      logger.info({ from, textLen: text.length }, "incoming");
-      const reply = await handleIncoming(from, text);
+      logger.info({ from, textLen: text.length, hasAudio: !!audioNode }, "incoming");
+
+      // 1) Respuesta fija del POS (bienvenida, menú, fuera de horario…)
+      let reply = null;
+      if (text) reply = await handleIncoming(from, text);
+
+      // 2) Fallback IA: si no hubo respuesta fija Y hay texto o nota de voz,
+      //    pedimos al backend un reply generado (respeta sandbox/límite/enabled).
+      if (!reply && (text || audioNode)) {
+        let audioB64 = "";
+        let audioMime = "";
+        if (audioNode) {
+          try {
+            const buf = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage });
+            if (buf && buf.length <= AI_MAX_AUDIO_BYTES) {
+              audioB64 = buf.toString("base64");
+              audioMime = audioNode.mimetype || "audio/ogg";
+            } else {
+              logger.warn({ from, size: buf?.length }, "audio too large, skipping");
+            }
+          } catch (e) {
+            logger.warn({ err: String(e) }, "audio download failed");
+          }
+        }
+        try {
+          const aiRes = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "ai_reply",
+              token: config.token,
+              from,
+              text: text || "",
+              audio_b64: audioB64,
+              audio_mime: audioMime,
+            }),
+          });
+          if (aiRes.ok) {
+            const aiData = await aiRes.json();
+            if (aiData && aiData.reply) reply = String(aiData.reply);
+            else if (aiData && aiData.error) logger.info({ err: aiData.error }, "ai_reply skipped");
+          } else {
+            logger.warn({ status: aiRes.status }, "ai_reply http fail");
+          }
+        } catch (e) {
+          logger.warn({ err: String(e) }, "ai_reply error");
+        }
+      }
+
       if (reply) {
         await new Promise((r) => setTimeout(r, humanDelay()));
         try {
