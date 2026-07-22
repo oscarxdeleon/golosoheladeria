@@ -17,8 +17,9 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { formatMoney } from "@/lib/format";
+import { CancelSaleDialog } from "@/components/cancel-sale-dialog";
 import {
-  Search, ChevronDown, ChevronRight, RefreshCw, Filter, X,
+  Search, ChevronRight, RefreshCw, Filter, X,
   ShoppingBag, UtensilsCrossed, Bike, Monitor, Globe, Clock,
   CheckCircle2, ChefHat, PackageCheck, XCircle, Hourglass,
 } from "lucide-react";
@@ -37,11 +38,11 @@ const TYPE_META: Record<string, { label: string; icon: typeof ShoppingBag }> = {
 };
 
 const STATUS_META: Record<string, { label: string; icon: typeof CheckCircle2; className: string; emoji: string }> = {
-  pending:   { label: "Pendiente",     icon: Hourglass,    emoji: "⏳", className: "bg-amber-100 text-amber-700 border-amber-200" },
-  confirmed: { label: "En Preparación", icon: ChefHat,     emoji: "👩‍🍳", className: "bg-rose-500 text-white border-rose-500" },
-  ready:     { label: "Listo",         icon: PackageCheck, emoji: "📦", className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
-  paid:      { label: "Entregado",     icon: CheckCircle2, emoji: "✅", className: "bg-amber-50 text-amber-700 border-amber-100" },
-  cancelled: { label: "Cancelado",     icon: XCircle,      emoji: "❌", className: "bg-rose-50 text-rose-700 border-rose-100" },
+  pending:   { label: "Pendiente",      icon: Hourglass,    emoji: "⏳", className: "bg-amber-100 text-amber-700 border-amber-200" },
+  confirmed: { label: "En Preparación", icon: ChefHat,      emoji: "👩‍🍳", className: "bg-rose-500 text-white border-rose-500" },
+  ready:     { label: "Listo",          icon: PackageCheck, emoji: "📦", className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  paid:      { label: "Pagado",         icon: CheckCircle2, emoji: "✅", className: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  cancelled: { label: "Anulado",        icon: XCircle,      emoji: "❌", className: "bg-rose-50 text-rose-700 border-rose-100" },
 };
 
 interface Modifier { name?: string; qty?: number; price?: number }
