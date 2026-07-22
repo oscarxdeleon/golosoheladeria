@@ -105,7 +105,6 @@ const reportes = [
 ];
 
 const admin = [
-  { to: "/todos-pedidos", label: "Todos los pedidos", icon: ReceiptIcon, key: "todos-pedidos" },
   { to: "/mesas-admin", label: "Gestión de mesas", icon: LayoutGrid, key: "mesas-admin" },
   { to: "/opiniones", label: "Opiniones de clientes", icon: MessageSquareHeart, key: "__admin_only__" },
   { to: "/repartidores", label: "Repartidores", icon: Bike, key: "usuarios" },
