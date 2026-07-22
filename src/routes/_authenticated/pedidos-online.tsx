@@ -12,7 +12,7 @@ import {
 import {
   MessageCircle, RefreshCw, Phone, Clock, CheckCircle2, Printer, Banknote, MapPin, Check,
 } from "lucide-react";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, translateSaleStatus } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, normalizeModifiers, composeDeliveryAddress, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
