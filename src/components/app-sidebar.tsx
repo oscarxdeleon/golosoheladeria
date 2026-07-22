@@ -62,6 +62,7 @@ const main = [
   { to: "/caja", label: "Caja", icon: Banknote, key: "caja" },
   { to: "/depositos", label: "Depósitos", icon: ArrowDownToLine, key: "depositos" },
   { to: "/ventas", label: "Ventas", icon: Receipt, key: "ventas" },
+  { to: "/todos-pedidos", label: "Todos los pedidos", icon: ReceiptIcon, key: "todos-pedidos" },
   { to: "/historial", label: "Historial de pedidos", icon: ReceiptIcon, key: "__admin_only__" },
   { to: "/estadisticas", label: "Estadísticas", icon: LayoutDashboard, key: "__admin_only__" },
 ];
