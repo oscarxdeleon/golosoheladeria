@@ -880,10 +880,16 @@ export function PublicOrder({
           <PwaInstallButton className="h-9 gap-2 px-3 text-xs bg-white/90 text-slate-800 shadow-lg" />
         </div>
 
-        <div className="min-h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-8 sm:px-8">
+        <div
+          className="min-h-full w-full flex flex-col items-center justify-between px-4 sm:px-8"
+          style={{
+            paddingTop: "max(1rem, env(safe-area-inset-top))",
+            paddingBottom: "max(1rem, env(safe-area-inset-bottom))",
+          }}
+        >
           <div className="flex flex-col items-center text-center w-full">
             {/* Contenedor del logo con partículas */}
-            <div className="relative flex items-center justify-center w-full" style={{ minHeight: "42vh" }}>
+            <div className="relative flex items-center justify-center w-full min-h-[32vh] sm:min-h-[38vh]">
               {/* Partículas splash */}
               {[
                 { top: "10%", left: "12%", size: 14, tx: "-30px", ty: "-20px", delay: "0.9s" },
@@ -913,19 +919,19 @@ export function PublicOrder({
                 <img
                   src={onlineLogo}
                   alt={onlineName}
-                  className="goloso-logo-anim relative z-10 max-h-[40vh] max-w-[85vw] object-contain bg-transparent"
+                  className="goloso-logo-anim relative z-10 max-h-[32vh] sm:max-h-[38vh] max-w-[78vw] sm:max-w-[70vw] object-contain bg-transparent"
                 />
               ) : (
                 <img
                   src={golosoLogo}
                   alt="Heladería Goloso"
-                  className="goloso-logo-anim relative z-10 max-h-[40vh] max-w-[85vw] object-contain bg-transparent"
+                  className="goloso-logo-anim relative z-10 max-h-[32vh] sm:max-h-[38vh] max-w-[78vw] sm:max-w-[70vw] object-contain bg-transparent"
                 />
               )}
             </div>
 
             <h1
-              className="font-display font-black text-3xl sm:text-4xl mt-4 tracking-wide text-slate-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.6)]"
+              className="font-display font-black text-2xl sm:text-4xl mt-3 sm:mt-4 tracking-wide text-slate-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.6)]"
             >
               {onlineName}
             </h1>
@@ -939,7 +945,7 @@ export function PublicOrder({
             </div>
           </div>
 
-          <div className="w-full max-w-2xl mx-auto flex flex-col gap-5 sm:gap-6 pt-6 pb-4">
+          <div className="w-full max-w-2xl mx-auto flex flex-col gap-4 sm:gap-6 pt-4 sm:pt-6 pb-2">
             {[
               {
                 key: "domicilio" as const,
@@ -1032,20 +1038,7 @@ export function PublicOrder({
             })}
           </div>
 
-          {/* Pill inferior: ¡GRACIAS POR ELEGIRNOS! */}
-          <div className="w-full flex justify-center pb-2 pt-1">
-            <div
-              className="px-5 py-2 rounded-full text-white font-display font-black tracking-wider text-sm sm:text-base ring-2 ring-lime-300/70"
-              style={{
-                background:
-                  "linear-gradient(160deg, #1f6d78 0%, #16545e 45%, #0e3d47 100%)",
-                boxShadow:
-                  "0 10px 25px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)",
-              }}
-            >
-              ¡GRACIAS POR ELEGIRNOS!
-            </div>
-          </div>
+
         </div>
       </div>
     );
