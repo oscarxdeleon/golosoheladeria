@@ -15,6 +15,10 @@ export type ChannelSchedule = Record<DayKey, DaySchedule>;
 export interface BranchSchedules {
   physical: ChannelSchedule;
   online: ChannelSchedule;
+  /** Minutos adicionales tras el cierre oficial en los que SÍ se permiten nuevos pedidos. Aplica a ambos canales. Default 15. */
+  salesGraceMinutes: number;
+  /** Minutos administrativos tras terminar la gracia de ventas (solo canal físico). NO permite nuevos pedidos, sí tareas admin. Default 30. */
+  adminGraceMinutes: number;
 }
 
 const DAY_ORDER: DayKey[] = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"];
@@ -29,6 +33,8 @@ export const DAYS: Array<{ key: DayKey; label: string }> = [
 ];
 
 const DEFAULT_DAY: DaySchedule = { open: true, from: "10:00", to: "22:00" };
+export const DEFAULT_SALES_GRACE_MINUTES = 15;
+export const DEFAULT_ADMIN_GRACE_MINUTES = 30;
 
 function emptyChannel(): ChannelSchedule {
   return {
@@ -37,8 +43,14 @@ function emptyChannel(): ChannelSchedule {
   };
 }
 
+function clampInt(v: unknown, def: number, min = 0, max = 240): number {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+  if (!Number.isFinite(n)) return def;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
 export function normalizeSchedules(raw: unknown): BranchSchedules {
-  const r = (raw ?? {}) as Partial<BranchSchedules>;
+  const r = (raw ?? {}) as Partial<BranchSchedules> & Record<string, unknown>;
   const norm = (c: unknown): ChannelSchedule => {
     const src = (c ?? {}) as Partial<ChannelSchedule>;
     const out = emptyChannel();
@@ -54,7 +66,12 @@ export function normalizeSchedules(raw: unknown): BranchSchedules {
     }
     return out;
   };
-  return { physical: norm(r.physical), online: norm(r.online) };
+  return {
+    physical: norm(r.physical),
+    online: norm(r.online),
+    salesGraceMinutes: clampInt(r.salesGraceMinutes, DEFAULT_SALES_GRACE_MINUTES),
+    adminGraceMinutes: clampInt(r.adminGraceMinutes, DEFAULT_ADMIN_GRACE_MINUTES),
+  };
 }
 
 /** Componentes locales (Colombia) del instante `now`. */
@@ -84,30 +101,35 @@ function toMinutes(hhmm: string): number {
 }
 
 export interface ChannelStatus {
+  /** true durante horario oficial y durante la gracia de ventas. */
   isOpen: boolean;
-  /** Motivo cuando está cerrado. */
   reason: "open" | "closed_day" | "before_open" | "after_close";
-  /** Hora de cierre de hoy (HH:MM) si está abierto. */
+  /** Hora de cierre oficial de hoy (HH:MM) si está abierto o en gracia. */
   closesAt: string | null;
-  /** Hora de apertura de hoy (HH:MM) si aún no abrió. */
   opensAt: string | null;
-  /** Minutos restantes hasta el cierre (si isOpen). */
   minutesToClose: number | null;
-  /** Estamos dentro del período de gracia (30 min tras el cierre oficial). */
+  /** Estamos dentro de la ventana en la que aún se aceptan pedidos tras el cierre oficial. isOpen=true. */
+  inSalesGrace: boolean;
+  /** Hora fin de la gracia de ventas (HH:MM). */
+  salesGraceEndsAt: string | null;
+  minutesToSalesGraceEnd: number | null;
+  /** Ventana administrativa (solo físico) posterior a la gracia de ventas. isOpen=false, tareas admin permitidas. */
+  inAdminGrace: boolean;
+  /** Alias legacy de inAdminGrace. */
   inGracePeriod: boolean;
-  /** Minutos restantes del período de gracia (solo si inGracePeriod). */
-  minutesToGraceEnd: number | null;
-  /** Hora fin del período de gracia (HH:MM) — solo canal físico. */
+  /** Hora fin de la gracia administrativa (HH:MM). */
   graceEndsAt: string | null;
+  minutesToGraceEnd: number | null;
 }
 
-/**
- * Período de gracia (minutos) tras el cierre oficial del punto físico.
- * En esta ventana el sistema NO permite nuevos pedidos, pero SÍ permite tareas
- * administrativas (cierre de caja, reportes, arqueos, revisión de pedidos existentes).
- * Solo aplica al canal físico; el canal online no tiene gracia.
- */
-export const PHYSICAL_GRACE_MINUTES = 30;
+/** Valor por defecto usado cuando los schedules no traen la configuración de gracia admin. */
+export const PHYSICAL_GRACE_MINUTES = DEFAULT_ADMIN_GRACE_MINUTES;
+
+function fmtHHMM(totalMin: number): string {
+  const hh = Math.floor(totalMin / 60) % 24;
+  const mm = totalMin % 60;
+  return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}`;
+}
 
 export function getChannelStatus(
   schedules: BranchSchedules,
@@ -118,46 +140,65 @@ export function getChannelStatus(
   const ch = s[channel];
   const { day, minutes } = bogotaParts(now);
   const today = ch[day];
-  const base = { inGracePeriod: false, minutesToGraceEnd: null, graceEndsAt: null } as const;
+  const empty = {
+    inSalesGrace: false, salesGraceEndsAt: null, minutesToSalesGraceEnd: null,
+    inAdminGrace: false, inGracePeriod: false, graceEndsAt: null, minutesToGraceEnd: null,
+  } as const;
   if (!today || !today.open) {
-    return { isOpen: false, reason: "closed_day", closesAt: null, opensAt: null, minutesToClose: null, ...base };
+    return { isOpen: false, reason: "closed_day", closesAt: null, opensAt: null, minutesToClose: null, ...empty };
   }
   const from = toMinutes(today.from);
   const to = toMinutes(today.to);
   if (minutes < from) {
-    return { isOpen: false, reason: "before_open", closesAt: null, opensAt: today.from, minutesToClose: null, ...base };
+    return { isOpen: false, reason: "before_open", closesAt: null, opensAt: today.from, minutesToClose: null, ...empty };
   }
-  if (minutes >= to) {
-    const grace = channel === "physical" ? PHYSICAL_GRACE_MINUTES : 0;
-    const graceEnd = to + grace;
-    if (grace > 0 && minutes < graceEnd) {
-      const gh = Math.floor(graceEnd / 60) % 24;
-      const gm = graceEnd % 60;
-      const graceEndsAt = `${String(gh).padStart(2, "0")}:${String(gm).padStart(2, "0")}`;
-      return {
-        isOpen: false,
-        reason: "after_close",
-        closesAt: today.to,
-        opensAt: null,
-        minutesToClose: null,
-        inGracePeriod: true,
-        minutesToGraceEnd: graceEnd - minutes,
-        graceEndsAt,
-      };
-    }
-    return { isOpen: false, reason: "after_close", closesAt: today.to, opensAt: null, minutesToClose: null, ...base };
+
+  const salesGrace = s.salesGraceMinutes;
+  const adminGrace = channel === "physical" ? s.adminGraceMinutes : 0;
+  const salesEnd = to + salesGrace;
+  const adminEnd = salesEnd + adminGrace;
+
+  // Antes del cierre oficial: totalmente abierto.
+  if (minutes < to) {
+    return {
+      isOpen: true, reason: "open", closesAt: today.to, opensAt: null, minutesToClose: to - minutes,
+      ...empty,
+    };
   }
-  return { isOpen: true, reason: "open", closesAt: today.to, opensAt: null, minutesToClose: to - minutes, ...base };
+  // Dentro de la gracia de ventas: seguimos abiertos, pero avisamos.
+  if (salesGrace > 0 && minutes < salesEnd) {
+    return {
+      isOpen: true, reason: "open", closesAt: today.to, opensAt: null, minutesToClose: salesEnd - minutes,
+      inSalesGrace: true,
+      salesGraceEndsAt: fmtHHMM(salesEnd),
+      minutesToSalesGraceEnd: salesEnd - minutes,
+      inAdminGrace: false, inGracePeriod: false, graceEndsAt: null, minutesToGraceEnd: null,
+    };
+  }
+  // Gracia administrativa (solo físico): cerrado para nuevos pedidos, admin habilitado.
+  if (adminGrace > 0 && minutes < adminEnd) {
+    return {
+      isOpen: false, reason: "after_close", closesAt: today.to, opensAt: null, minutesToClose: null,
+      inSalesGrace: false, salesGraceEndsAt: null, minutesToSalesGraceEnd: null,
+      inAdminGrace: true, inGracePeriod: true,
+      graceEndsAt: fmtHHMM(adminEnd),
+      minutesToGraceEnd: adminEnd - minutes,
+    };
+  }
+  return { isOpen: false, reason: "after_close", closesAt: today.to, opensAt: null, minutesToClose: null, ...empty };
 }
 
 export function humanReason(status: ChannelStatus, channel: ScheduleChannel): string {
   const label = channel === "physical" ? "atención en el punto físico" : "pedidos en línea";
+  if (status.inSalesGrace) {
+    return `Período de gracia activo. Se permiten pedidos hasta las ${status.salesGraceEndsAt}.`;
+  }
   if (status.isOpen) return `Abierto — cierra a las ${status.closesAt}`;
   if (status.reason === "closed_day") return `Hoy no hay ${label}.`;
   if (status.reason === "before_open") return `Los ${label} inician a las ${status.opensAt}.`;
   if (channel === "physical") {
-    if (status.inGracePeriod) {
-      return `Horario oficial finalizado. Período de gracia hasta ${status.graceEndsAt} (${status.minutesToGraceEnd} min) para tareas administrativas. No se aceptan nuevos pedidos.`;
+    if (status.inAdminGrace) {
+      return `Horario oficial finalizado. Período administrativo hasta ${status.graceEndsAt} (${status.minutesToGraceEnd} min) para tareas administrativas. No se aceptan nuevos pedidos.`;
     }
     return "El horario de atención en el punto físico ha finalizado. No es posible registrar nuevos pedidos.";
   }

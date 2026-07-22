@@ -2552,6 +2552,39 @@ function HorariosTab() {
         />
       </div>
 
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Períodos de gracia</CardTitle>
+          <CardDescription className="text-xs">
+            Configura minutos adicionales tras el cierre oficial. Aplican a todos los días de la semana en esta sede.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-4 sm:grid-cols-2">
+          <div className="space-y-1">
+            <Label>Gracia para nuevos pedidos (minutos)</Label>
+            <Input
+              type="number" min={0} max={120} step={1}
+              value={draft.salesGraceMinutes}
+              onChange={(e) => setDraft({ ...draft, salesGraceMinutes: Math.max(0, Math.min(120, Number(e.target.value) || 0)) })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Durante este período tras el cierre oficial, se siguen aceptando pedidos con normalidad. Aplica a POS y menú en línea.
+            </p>
+          </div>
+          <div className="space-y-1">
+            <Label>Gracia administrativa (minutos)</Label>
+            <Input
+              type="number" min={0} max={180} step={1}
+              value={draft.adminGraceMinutes}
+              onChange={(e) => setDraft({ ...draft, adminGraceMinutes: Math.max(0, Math.min(180, Number(e.target.value) || 0)) })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Al terminar la gracia de ventas, el cajero cuenta con este tiempo para cerrar caja, revisar reportes y finalizar procesos. No permite nuevos pedidos. Solo canal físico.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
         <Button onClick={save}>Guardar horarios de esta sede</Button>
       </div>
