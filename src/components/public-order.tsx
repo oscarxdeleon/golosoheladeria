@@ -21,6 +21,7 @@ import { CalendarClock } from "lucide-react";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
+import fueraHorarioAsset from "@/assets/fuera-horario.jpeg.asset.json";
 
 const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
@@ -986,139 +987,29 @@ export function PublicOrder({
     isClosedForService &&
     !scheduledFor
   ) {
-    const subtitleLine = isDelivery ? "Y te lo enviaremos al abrir." : "Y pasa a recoger en cuanto abramos.";
-    void subtitleLine;
     return (
-      <div className="fixed inset-0 z-50 overflow-y-auto bg-gradient-to-br from-[#0b3a44] via-[#0e4a55] to-[#062a32] flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
-          <div className="relative rounded-[32px] p-[3px] bg-gradient-to-b from-lime-300 via-lime-500 to-lime-700 shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)] animate-in fade-in zoom-in duration-500">
-            <div
-              className="relative overflow-hidden rounded-[29px] px-5 py-7 sm:px-8 sm:py-9"
-              style={{ background: "linear-gradient(160deg, #1f6d78 0%, #16545e 50%, #0e3d47 100%)" }}
-            >
-              <span className="pointer-events-none absolute inset-x-4 top-1 h-1/4 rounded-[24px] bg-gradient-to-b from-white/20 to-transparent" />
-              <span className="pointer-events-none absolute inset-x-0 bottom-0 h-1/3 bg-gradient-to-t from-black/40 to-transparent" />
-
-              <div className="relative flex flex-col items-center gap-5 text-center">
-                {/* Título */}
-                <h2
-                  className="font-display font-black text-3xl sm:text-4xl leading-tight text-lime-300"
-                  style={{
-                    WebkitTextStroke: "1px rgba(0,0,0,0.55)",
-                    textShadow: "0 3px 0 rgba(0,0,0,0.35), 0 6px 12px rgba(0,0,0,0.45)",
-                  }}
-                >
-                  ¡No te quedes sin tu antojo!
-                </h2>
-
-                {/* Tarjeta: fuera de horario */}
-                <div
-                  className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 ring-1 ring-white/15"
-                  style={{
-                    background: "linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%)",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 6px 14px -8px rgba(0,0,0,0.5)",
-                  }}
-                >
-                  <div
-                    className="h-11 w-11 shrink-0 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: "linear-gradient(160deg, #d4ff5a 0%, #a4e424 40%, #6fb31a 100%)",
-                      boxShadow: "inset 0 2px 3px rgba(255,255,255,0.55), inset 0 -4px 8px rgba(0,60,0,0.35)",
-                    }}
-                  >
-                    <Clock className="h-6 w-6 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" strokeWidth={2.4} />
-                  </div>
-                  <p className="text-white font-semibold text-base sm:text-lg">
-                    Estamos fuera de horario.
-                  </p>
-                </div>
-
-                {/* Botón principal con cinta AQUÍ */}
-                <div className="relative w-full pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setScheduleOpen(true)}
-                    className="w-full rounded-2xl px-5 py-5 font-display font-black text-lg sm:text-xl tracking-wide text-[#0e3d47] transition-all duration-200 hover:-translate-y-0.5 active:translate-y-0.5 focus:outline-none focus-visible:ring-4 focus-visible:ring-lime-300/60"
-                    style={{
-                      background: "linear-gradient(160deg, #d4ff5a 0%, #a4e424 40%, #6fb31a 100%)",
-                      boxShadow:
-                        "inset 0 2px 4px rgba(255,255,255,0.6), inset 0 -8px 12px rgba(0,60,0,0.4), 0 12px 24px -8px rgba(0,0,0,0.55)",
-                    }}
-                  >
-                    <span className="inline-flex items-center justify-center gap-3">
-                      <Calendar className="h-6 w-6" strokeWidth={2.4} />
-                      PROGRAMA TU PEDIDO
-                    </span>
-                  </button>
-                  {/* Cinta AQUÍ */}
-                  <span
-                    aria-hidden
-                    className="absolute -top-1 -right-2 rotate-12 select-none"
-                  >
-                    <span
-                      className="inline-block px-3 py-1 rounded-md font-display font-black text-sm tracking-widest text-white"
-                      style={{
-                        background: "linear-gradient(180deg, #ff5a5f 0%, #e11d48 100%)",
-                        boxShadow: "0 6px 12px -4px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.35)",
-                      }}
-                    >
-                      AQUÍ
-                    </span>
-                  </span>
-                </div>
-
-                {/* Tarjeta inferior: pasa a recoger */}
-                <div
-                  className="w-full rounded-2xl px-4 py-3 flex items-center gap-3 ring-1 ring-white/15"
-                  style={{
-                    background: "linear-gradient(180deg, rgba(255,255,255,0.14) 0%, rgba(255,255,255,0.06) 100%)",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18), 0 6px 14px -8px rgba(0,0,0,0.5)",
-                  }}
-                >
-                  <div
-                    className="h-11 w-11 shrink-0 rounded-xl flex items-center justify-center"
-                    style={{
-                      background: "linear-gradient(160deg, #d4ff5a 0%, #a4e424 40%, #6fb31a 100%)",
-                      boxShadow: "inset 0 2px 3px rgba(255,255,255,0.55), inset 0 -4px 8px rgba(0,60,0,0.35)",
-                    }}
-                  >
-                    {isDelivery ? (
-                      <Bike className="h-6 w-6 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" strokeWidth={2.4} />
-                    ) : (
-                      <ShoppingBag className="h-6 w-6 text-white drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]" strokeWidth={2.4} />
-                    )}
-                  </div>
-                  <div className="text-left leading-tight">
-                    {isDelivery ? (
-                      <>
-                        <p className="text-white font-semibold text-base sm:text-lg">Y te lo enviaremos</p>
-                        <p className="text-white/90 font-semibold text-base sm:text-lg">al abrir.</p>
-                      </>
-                    ) : (
-                      <>
-                        <p className="text-white font-semibold text-base sm:text-lg">Y pasa a recoger</p>
-                        <p className="text-white/90 font-semibold text-base sm:text-lg">en cuanto abramos.</p>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                {/* Botón Volver */}
-                <button
-                  type="button"
-                  onClick={() => { setOnlineService(null); }}
-                  className="mt-2 inline-flex items-center gap-2 rounded-full px-6 py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5 active:translate-y-0.5"
-                  style={{
-                    background: "linear-gradient(160deg, #5eead4 0%, #14b8a6 55%, #0f766e 100%)",
-                    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.4), 0 8px 16px -6px rgba(0,0,0,0.5)",
-                  }}
-                >
-                  <ArrowLeft className="h-4 w-4" />
-                  Volver
-                </button>
-              </div>
-            </div>
-          </div>
+      <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b3a44] flex items-center justify-center px-3 py-4">
+        <div className="relative w-full max-w-md">
+          <img
+            src={fueraHorarioAsset.url}
+            alt="Estamos fuera de horario. Programa tu pedido."
+            className="block w-full h-auto select-none rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)]"
+            draggable={false}
+          />
+          {/* Zona clickeable: PROGRAMA TU PEDIDO (~66%–79% alto, 3%–75% ancho) */}
+          <button
+            type="button"
+            aria-label="Programa tu pedido"
+            onClick={() => setScheduleOpen(true)}
+            className="absolute left-[3%] right-[25%] top-[66%] bottom-[21%] rounded-2xl focus:outline-none focus-visible:ring-4 focus-visible:ring-lime-300/60"
+          />
+          {/* Zona clickeable: Volver (~94%–99% alto centrado) */}
+          <button
+            type="button"
+            aria-label="Volver"
+            onClick={() => { setOnlineService(null); }}
+            className="absolute left-[32%] right-[32%] top-[93%] bottom-[2%] rounded-full focus:outline-none focus-visible:ring-4 focus-visible:ring-teal-300/60"
+          />
         </div>
 
         <ScheduleOrderDialog
@@ -1131,6 +1022,7 @@ export function PublicOrder({
       </div>
     );
   }
+
 
 
 
