@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Search, Users, Star, TrendingUp, MessageCircle, Receipt, Radio } from "lucide-react";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, translateSaleStatus } from "@/lib/format";
 
 export const Route = createFileRoute("/_authenticated/crm")({
   head: () => ({ meta: [{ title: "CRM · Goloso POS" }] }),
@@ -268,7 +268,7 @@ function CrmPage() {
                       <div key={s.id} className="rounded-md border p-3 text-sm">
                         <div className="flex justify-between">
                           <div className="font-medium">#{s.ticket_number} · {new Date(s.created_at).toLocaleString("es-CO")}</div>
-                          <Badge variant={s.status === "paid" ? "secondary" : s.status === "cancelled" ? "destructive" : "outline"}>{s.status}</Badge>
+                          <Badge variant={s.status === "paid" ? "secondary" : s.status === "cancelled" ? "destructive" : "outline"}>{translateSaleStatus(s.status)}</Badge>
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-2">
                           <Badge variant={ch.tone} className="text-[10px] py-0">{ch.label}</Badge>

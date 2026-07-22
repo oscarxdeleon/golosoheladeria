@@ -12,7 +12,7 @@ import {
 import {
   MessageCircle, RefreshCw, Phone, Clock, CheckCircle2, Printer, Banknote, MapPin, Check,
 } from "lucide-react";
-import { formatMoney } from "@/lib/format";
+import { formatMoney, translateSaleStatus } from "@/lib/format";
 import { toast } from "sonner";
 import { printSilent, normalizeModifiers, composeDeliveryAddress, type PrintPayload } from "@/lib/print-client";
 import { useBranch } from "@/contexts/branch-context";
@@ -629,7 +629,7 @@ function OnlineOrdersPage() {
               {history.slice(0, 20).map((o) => (
                 <li key={o.id} className="py-2 flex justify-between">
                   <span>#{o.ticket_number} · {o.customer_name ?? "Cliente"} · <span className="text-muted-foreground">{new Date(o.created_at).toLocaleString("es-CO")}</span></span>
-                  <span className="flex items-center gap-2"><Badge variant={o.status === "cancelled" ? "destructive" : "secondary"}>{o.status}</Badge>{formatMoney(o.total)}</span>
+                  <span className="flex items-center gap-2"><Badge variant={o.status === "cancelled" ? "destructive" : "secondary"}>{translateSaleStatus(o.status)}</Badge>{formatMoney(o.total)}</span>
                 </li>
               ))}
             </ul>

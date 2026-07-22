@@ -2188,6 +2188,7 @@ export type Database = {
           branch_id: string | null
           cancellation_previous_status: string | null
           cancellation_reason: string | null
+          cancellation_reason_code: string | null
           cancelled_at: string | null
           cancelled_by: string | null
           cancelled_by_name: string | null
@@ -2227,6 +2228,7 @@ export type Database = {
           branch_id?: string | null
           cancellation_previous_status?: string | null
           cancellation_reason?: string | null
+          cancellation_reason_code?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_name?: string | null
@@ -2266,6 +2268,7 @@ export type Database = {
           branch_id?: string | null
           cancellation_previous_status?: string | null
           cancellation_reason?: string | null
+          cancellation_reason_code?: string | null
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_name?: string | null
@@ -3110,10 +3113,12 @@ export type Database = {
       }
       assert_current_user_is_admin: { Args: never; Returns: string }
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
-      cancel_sale: {
-        Args: { _reason: string; _sale_id: string }
-        Returns: Json
-      }
+      cancel_sale:
+        | { Args: { _reason: string; _sale_id: string }; Returns: Json }
+        | {
+            Args: { _reason: string; _reason_code?: string; _sale_id: string }
+            Returns: Json
+          }
       clone_main_products_to_branch: {
         Args: { _branch_id: string }
         Returns: Json

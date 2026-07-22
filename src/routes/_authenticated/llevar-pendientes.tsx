@@ -95,7 +95,7 @@ function statusBadge(s: string) {
     paid: { label: "Pagado", cls: "bg-emerald-600 text-white" },
     completed: { label: "Pagado", cls: "bg-emerald-600 text-white" },
     delivered: { label: "Entregado", cls: "bg-emerald-700 text-white" },
-    cancelled: { label: "Cancelado", cls: "bg-red-600 text-white" },
+    cancelled: { label: "Anulado", cls: "bg-red-600 text-white" },
   };
   const it = map[s] ?? { label: s, cls: "bg-slate-500 text-white" };
   return <Badge className={it.cls}>{it.label}</Badge>;

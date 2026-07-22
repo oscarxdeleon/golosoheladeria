@@ -17,8 +17,9 @@ import {
   Collapsible, CollapsibleContent, CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { formatMoney } from "@/lib/format";
+import { CancelSaleDialog } from "@/components/cancel-sale-dialog";
 import {
-  Search, ChevronDown, ChevronRight, RefreshCw, Filter, X,
+  Search, ChevronRight, RefreshCw, Filter, X,
   ShoppingBag, UtensilsCrossed, Bike, Monitor, Globe, Clock,
   CheckCircle2, ChefHat, PackageCheck, XCircle, Hourglass,
 } from "lucide-react";
@@ -37,11 +38,11 @@ const TYPE_META: Record<string, { label: string; icon: typeof ShoppingBag }> = {
 };
 
 const STATUS_META: Record<string, { label: string; icon: typeof CheckCircle2; className: string; emoji: string }> = {
-  pending:   { label: "Pendiente",     icon: Hourglass,    emoji: "⏳", className: "bg-amber-100 text-amber-700 border-amber-200" },
-  confirmed: { label: "En Preparación", icon: ChefHat,     emoji: "👩‍🍳", className: "bg-rose-500 text-white border-rose-500" },
-  ready:     { label: "Listo",         icon: PackageCheck, emoji: "📦", className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
-  paid:      { label: "Entregado",     icon: CheckCircle2, emoji: "✅", className: "bg-amber-50 text-amber-700 border-amber-100" },
-  cancelled: { label: "Cancelado",     icon: XCircle,      emoji: "❌", className: "bg-rose-50 text-rose-700 border-rose-100" },
+  pending:   { label: "Pendiente",      icon: Hourglass,    emoji: "⏳", className: "bg-amber-100 text-amber-700 border-amber-200" },
+  confirmed: { label: "En Preparación", icon: ChefHat,      emoji: "👩‍🍳", className: "bg-rose-500 text-white border-rose-500" },
+  ready:     { label: "Listo",          icon: PackageCheck, emoji: "📦", className: "bg-indigo-100 text-indigo-700 border-indigo-200" },
+  paid:      { label: "Pagado",         icon: CheckCircle2, emoji: "✅", className: "bg-emerald-50 text-emerald-700 border-emerald-100" },
+  cancelled: { label: "Anulado",        icon: XCircle,      emoji: "❌", className: "bg-rose-50 text-rose-700 border-rose-100" },
 };
 
 interface Modifier { name?: string; qty?: number; price?: number }
@@ -91,9 +92,15 @@ function formatTimeShort(iso: string) {
 }
 
 function TodosPedidosPage() {
-  const { isAdmin, loading: authLoading, rolesLoading } = useAuth();
+  const { isAdmin, roles, loading: authLoading, rolesLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
   const { session: cashSession } = useBranchCashSession(activeBranchId);
+
+  const isSupervisor = roles.includes("supervisor");
+  const isCajero = roles.includes("cajero");
+  const canAccess = isAdmin || isSupervisor || isCajero;
+  // El cajero SOLO puede ver los pedidos de su turno actual, sin acceso a historial.
+  const restrictedToShift = isCajero && !isAdmin && !isSupervisor;
 
   const [turnoActual, setTurnoActual] = useState(true);
   const [dateFilter, setDateFilter] = useState<"todos" | "hoy" | "ayer" | "personalizada">("hoy");
@@ -101,8 +108,14 @@ function TodosPedidosPage() {
   const [customFrom, setCustomFrom] = useState<string>(todayIso);
   const [customTo, setCustomTo] = useState<string>(todayIso);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; label: string } | null>(null);
+
+  // Turno fijo cuando es cajero.
+  const effectiveTurnoActual = restrictedToShift ? true : turnoActual;
+  const effectiveDateFilter = restrictedToShift ? "hoy" : dateFilter;
 
   // Tables lookup for "Mesa N" label
   const { data: tables = [] } = useQuery({
@@ -125,11 +138,11 @@ function TodosPedidosPage() {
   const { data: sales = [], isFetching, refetch } = useQuery({
     queryKey: [
       "todos-pedidos", activeBranchId,
-      turnoActual ? cashSession?.id ?? "no-session" : "all",
-      dateFilter,
-      dateFilter === "personalizada" ? `${customFrom}_${customTo}` : "",
+      effectiveTurnoActual ? cashSession?.id ?? "no-session" : "all",
+      effectiveDateFilter,
+      effectiveDateFilter === "personalizada" ? `${customFrom}_${customTo}` : "",
     ],
-    enabled: !!activeBranchId && isAdmin,
+    enabled: !!activeBranchId && canAccess,
     queryFn: async () => {
       let q = supabase
         .from("sales")
@@ -138,23 +151,22 @@ function TodosPedidosPage() {
         .order("created_at", { ascending: false })
         .limit(500);
 
-      if (turnoActual) {
+      if (effectiveTurnoActual) {
         if (!cashSession?.id) return [];
         q = q.eq("cash_session_id", cashSession.id);
       }
-      if (dateFilter !== "todos") {
+      if (effectiveDateFilter !== "todos") {
         const now = new Date();
         let start: Date;
         let end: Date;
-        if (dateFilter === "hoy") {
+        if (effectiveDateFilter === "hoy") {
           start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           end = new Date(start.getTime() + 86400000);
-        } else if (dateFilter === "ayer") {
+        } else if (effectiveDateFilter === "ayer") {
           const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           start = new Date(t.getTime() - 86400000);
           end = t;
         } else {
-          // personalizada
           const [fy, fm, fd] = customFrom.split("-").map(Number);
           const [ty, tm, td] = customTo.split("-").map(Number);
           start = new Date(fy, (fm ?? 1) - 1, fd ?? 1);
@@ -174,6 +186,7 @@ function TodosPedidosPage() {
     const n = search.trim().toLowerCase();
     return sales.filter((s) => {
       if (statusFilter !== "all" && s.status !== statusFilter) return false;
+      if (typeFilter !== "all" && s.order_type !== typeFilter) return false;
       if (!n) return true;
       const phones = [s.customer_phone, s.delivery_phone].filter(Boolean).join(" ");
       return (
@@ -183,7 +196,7 @@ function TodosPedidosPage() {
         (s.customer_name ?? "").toLowerCase().includes(n)
       );
     });
-  }, [sales, search, statusFilter]);
+  }, [sales, search, statusFilter, typeFilter]);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -194,16 +207,26 @@ function TodosPedidosPage() {
   }
 
   function clearFilters() {
-    setTurnoActual(true);
-    setDateFilter("hoy");
+    if (!restrictedToShift) {
+      setTurnoActual(true);
+      setDateFilter("hoy");
+    }
     setCustomFrom(todayIso);
     setCustomTo(todayIso);
     setStatusFilter("all");
+    setTypeFilter("all");
     setSearch("");
   }
 
+  function canCancel(sale: Sale): boolean {
+    if (sale.status === "cancelled") return false;
+    // Cajero solo puede anular pedidos NO pagados.
+    if (restrictedToShift && sale.status === "paid") return false;
+    return true;
+  }
+
   if (authLoading || rolesLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
-  if (!isAdmin) return <Navigate to="/" />;
+  if (!canAccess) return <Navigate to="/" />;
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto font-sans">
@@ -236,52 +259,83 @@ function TodosPedidosPage() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={turnoActual}
-                onCheckedChange={(v) => setTurnoActual(Boolean(v))}
-                className="h-5 w-5"
-              />
-              <span className="text-base">Turno actual</span>
-            </label>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Fecha:</span>
-              <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
-                <SelectTrigger className="h-10 w-[170px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hoy">📅 Hoy</SelectItem>
-                  <SelectItem value="ayer">🕘 Ayer</SelectItem>
-                  <SelectItem value="personalizada">🎯 Personalizada</SelectItem>
-                  <SelectItem value="todos">Todas las fechas</SelectItem>
-                </SelectContent>
-              </Select>
+          {restrictedToShift ? (
+            <div className="rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-sm px-3 py-2">
+              📋 Estás viendo únicamente los pedidos de tu <b>turno actual</b>.
             </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <Checkbox
+                  checked={turnoActual}
+                  onCheckedChange={(v) => setTurnoActual(Boolean(v))}
+                  className="h-5 w-5"
+                />
+                <span className="text-base">Turno actual</span>
+              </label>
 
-            {dateFilter === "personalizada" && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Input
-                  type="date"
-                  value={customFrom}
-                  max={customTo || undefined}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                  className="h-10 w-[160px]"
-                />
-                <span className="text-muted-foreground text-sm">a</span>
-                <Input
-                  type="date"
-                  value={customTo}
-                  min={customFrom || undefined}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                  className="h-10 w-[160px]"
-                />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Fecha:</span>
+                <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
+                  <SelectTrigger className="h-10 w-[170px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hoy">📅 Hoy</SelectItem>
+                    <SelectItem value="ayer">🕘 Ayer</SelectItem>
+                    <SelectItem value="personalizada">🎯 Personalizada</SelectItem>
+                    <SelectItem value="todos">Todas las fechas</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
 
+              {dateFilter === "personalizada" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input
+                    type="date"
+                    value={customFrom}
+                    max={customTo || undefined}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="h-10 w-[160px]"
+                  />
+                  <span className="text-muted-foreground text-sm">a</span>
+                  <Input
+                    type="date"
+                    value={customTo}
+                    min={customFrom || undefined}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="h-10 w-[160px]"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tipo de pedido */}
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant={typeFilter === "all" ? "default" : "outline"}
+              className="h-8 rounded-full"
+              onClick={() => setTypeFilter("all")}
+            >
+              Todos
+            </Button>
+            {Object.entries(TYPE_META).map(([k, v]) => {
+              const I = v.icon;
+              return (
+                <Button
+                  key={k}
+                  size="sm"
+                  variant={typeFilter === k ? "default" : "outline"}
+                  className="h-8 rounded-full gap-1"
+                  onClick={() => setTypeFilter(k)}
+                >
+                  <I className="h-3.5 w-3.5" /> {v.label}
+                </Button>
+              );
+            })}
+          </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-11">
@@ -403,6 +457,20 @@ function TodosPedidosPage() {
                       <span className="text-muted-foreground">Subtotal: {formatMoney(s.subtotal ?? s.total)}</span>
                       <span className="font-semibold text-base">Total: {formatMoney(s.total)}</span>
                     </div>
+                    {canCancel(s) && (
+                      <div className="pt-2 flex justify-end">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCancelTarget({ id: s.id, label: shortTicket(s.ticket_number) });
+                          }}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" /> Anular pedido
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
@@ -410,6 +478,14 @@ function TodosPedidosPage() {
           );
         })}
       </div>
+
+      <CancelSaleDialog
+        open={!!cancelTarget}
+        onOpenChange={(v) => { if (!v) setCancelTarget(null); }}
+        saleId={cancelTarget?.id ?? null}
+        ticketLabel={cancelTarget?.label}
+        onCancelled={() => refetch()}
+      />
     </div>
   );
 }
