@@ -459,10 +459,25 @@ async function startSocket() {
         msg.message.videoMessage?.caption ||
         "";
       const audioNode = msg.message.audioMessage;
-      const from = jid.split("@")[0];
+      // Baileys nuevo usa JIDs @lid (anónimos). El teléfono real viene en
+      // senderPn / participantPn. Sin esto, cada usuario aparece con un ID
+      // aleatorio que nunca coincide con la lista sandbox de la IA.
+      let phoneSource = "";
+      if (jid.endsWith("@lid")) {
+        phoneSource =
+          msg.key.senderPn ||
+          msg.key.participantPn ||
+          msg.key.senderLid ||
+          "";
+        // senderPn viene con formato "573001234567@s.whatsapp.net"
+        phoneSource = phoneSource.split("@")[0];
+      } else {
+        phoneSource = jid.split("@")[0];
+      }
+      const from = phoneSource;
       // Solo procesar mensajes de números reales (JID de usuario `@s.whatsapp.net`).
       if (!from || !/^\d{6,}$/.test(from)) continue;
-      logger.info({ from, textLen: text.length, hasAudio: !!audioNode }, "incoming");
+      logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode }, "incoming");
 
       // 1) Respuesta fija del POS (bienvenida, menú, fuera de horario…)
       let reply = null;
