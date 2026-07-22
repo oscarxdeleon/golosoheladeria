@@ -931,7 +931,7 @@ export function PublicOrder({
             </div>
 
             <h1
-              className="font-display font-black text-3xl sm:text-4xl mt-4 tracking-wide text-slate-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.6)]"
+              className="font-display font-black text-2xl sm:text-4xl mt-3 sm:mt-4 tracking-wide text-slate-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.6)]"
             >
               {onlineName}
             </h1>
