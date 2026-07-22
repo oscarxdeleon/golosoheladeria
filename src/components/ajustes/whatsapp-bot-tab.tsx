@@ -935,3 +935,137 @@ function ReportRecipientsCard({ branchId }: { branchId: string }) {
     </Card>
   );
 }
+
+/* --------------------------------------------------------- */
+/* Asistente IA (Fase 1 MVP) — Modo sandbox                  */
+/* --------------------------------------------------------- */
+
+const DEFAULT_AI_PROMPT = `Eres el asistente virtual de Heladería Goloso. Tono cercano, juvenil y con emojis de helado 🍦🍨. Respuestas cortas (2-3 líneas máx). Si el cliente quiere pedir, dirígelo al link del menú. Si pregunta por sabores o precios específicos, envíale el link. No inventes promociones ni precios. Si no sabes algo, di que un asesor lo contacta pronto. Responde SIEMPRE en español.`;
+
+function AiAssistantCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => void }) {
+  const [enabled, setEnabled] = useState<boolean>(cfg.ai_enabled);
+  const [numbersText, setNumbersText] = useState<string>((cfg.ai_sandbox_numbers ?? []).join("\n"));
+  const [prompt, setPrompt] = useState<string>(cfg.ai_system_prompt ?? "");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    setEnabled(cfg.ai_enabled);
+    setNumbersText((cfg.ai_sandbox_numbers ?? []).join("\n"));
+    setPrompt(cfg.ai_system_prompt ?? "");
+  }, [cfg.branch_id, cfg.ai_enabled, cfg.ai_sandbox_numbers, cfg.ai_system_prompt]);
+
+  const parsedNumbers = useMemo(() => {
+    return numbersText
+      .split(/[\n,;]+/)
+      .map((n) => n.trim())
+      .filter(Boolean);
+  }, [numbersText]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("whatsapp_bot_config")
+      .update({
+        ai_enabled: enabled,
+        ai_sandbox_numbers: parsedNumbers,
+        ai_system_prompt: prompt.trim() ? prompt.trim() : null,
+      })
+      .eq("branch_id", cfg.branch_id);
+    setSaving(false);
+    if (error) {
+      toast.error("No se pudo guardar", { description: error.message });
+      return;
+    }
+    toast.success("Asistente IA actualizado");
+    onSaved();
+  };
+
+  return (
+    <Card className="border-violet-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-lg">🤖</span> Asistente IA
+              <Badge variant="secondary" className="ml-1 bg-violet-100 text-violet-700 hover:bg-violet-100">Beta</Badge>
+            </CardTitle>
+            <CardDescription>
+              Cuando el bot no tiene una respuesta fija (bienvenida, menú, fuera de horario), la IA responde
+              de forma natural, incluye interpretación de notas de voz 🎙️. En modo pruebas solo responde a los
+              números autorizados.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Label htmlFor="ai-enabled" className="text-sm">Activar</Label>
+            <Switch id="ai-enabled" checked={enabled} onCheckedChange={setEnabled} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div>
+          <Label htmlFor="ai-numbers" className="text-sm font-medium">
+            Números autorizados en pruebas (modo sandbox)
+          </Label>
+          <Textarea
+            id="ai-numbers"
+            value={numbersText}
+            onChange={(e) => setNumbersText(e.target.value)}
+            placeholder={"573001234567\n573109876543"}
+            rows={4}
+            className="mt-1 font-mono text-sm"
+          />
+          <p className="text-xs text-muted-foreground mt-1.5 flex gap-1.5 items-start">
+            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+            Uno por línea. Formato con código de país (Colombia: 57…). La IA <b>solo</b> responderá a estos
+            números; los demás clientes seguirán viendo las respuestas fijas actuales.
+          </p>
+          {parsedNumbers.length > 0 && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {parsedNumbers.map((n) => (
+                <Badge key={n} variant="outline" className="font-mono text-xs">{n}</Badge>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <div className="flex items-center justify-between gap-2 mb-1">
+            <Label htmlFor="ai-prompt" className="text-sm font-medium">Personalidad del asistente</Label>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-7 text-xs"
+              onClick={() => setPrompt(DEFAULT_AI_PROMPT)}
+            >
+              Usar valor por defecto
+            </Button>
+          </div>
+          <Textarea
+            id="ai-prompt"
+            value={prompt}
+            onChange={(e) => setPrompt(e.target.value)}
+            placeholder={DEFAULT_AI_PROMPT}
+            rows={5}
+            className="text-sm"
+          />
+          <p className="text-xs text-muted-foreground mt-1.5">
+            Deja vacío para usar la personalidad por defecto (juvenil, con emojis). El nombre de la sede,
+            los horarios y el link del menú se agregan automáticamente al prompt.
+          </p>
+        </div>
+
+        {cfg.ai_last_reply_at && (
+          <p className="text-xs text-muted-foreground">
+            Última respuesta IA: {new Date(cfg.ai_last_reply_at).toLocaleString("es-CO")}
+          </p>
+        )}
+
+        <div className="flex justify-end pt-1">
+          <Button size="sm" onClick={save} disabled={saving}>
+            {saving ? "Guardando…" : "Guardar"}
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
