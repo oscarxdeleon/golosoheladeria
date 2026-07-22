@@ -193,13 +193,13 @@ async function handleIncoming(from, body) {
     });
     if (!res.ok) {
       logger.warn({ status: res.status }, "incoming push failed");
-      return { reply: null, use_ai: false };
+      return null;
     }
     const data = await res.json();
-    return { reply: data.reply || null, use_ai: Boolean(data.use_ai) };
+    return data.reply || null;
   } catch (e) {
     logger.warn({ err: String(e) }, "incoming error");
-    return { reply: null, use_ai: false };
+    return null;
   }
 }
 
