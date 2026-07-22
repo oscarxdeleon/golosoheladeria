@@ -15,6 +15,10 @@ export type ChannelSchedule = Record<DayKey, DaySchedule>;
 export interface BranchSchedules {
   physical: ChannelSchedule;
   online: ChannelSchedule;
+  /** Minutos adicionales tras el cierre oficial en los que SÍ se permiten nuevos pedidos. Aplica a ambos canales. Default 15. */
+  salesGraceMinutes: number;
+  /** Minutos administrativos tras terminar la gracia de ventas (solo canal físico). NO permite nuevos pedidos, sí tareas admin. Default 30. */
+  adminGraceMinutes: number;
 }
 
 const DAY_ORDER: DayKey[] = ["dom", "lun", "mar", "mie", "jue", "vie", "sab"];
@@ -29,6 +33,8 @@ export const DAYS: Array<{ key: DayKey; label: string }> = [
 ];
 
 const DEFAULT_DAY: DaySchedule = { open: true, from: "10:00", to: "22:00" };
+export const DEFAULT_SALES_GRACE_MINUTES = 15;
+export const DEFAULT_ADMIN_GRACE_MINUTES = 30;
 
 function emptyChannel(): ChannelSchedule {
   return {
@@ -37,8 +43,14 @@ function emptyChannel(): ChannelSchedule {
   };
 }
 
+function clampInt(v: unknown, def: number, min = 0, max = 240): number {
+  const n = typeof v === "number" ? v : typeof v === "string" ? Number(v) : NaN;
+  if (!Number.isFinite(n)) return def;
+  return Math.max(min, Math.min(max, Math.round(n)));
+}
+
 export function normalizeSchedules(raw: unknown): BranchSchedules {
-  const r = (raw ?? {}) as Partial<BranchSchedules>;
+  const r = (raw ?? {}) as Partial<BranchSchedules> & Record<string, unknown>;
   const norm = (c: unknown): ChannelSchedule => {
     const src = (c ?? {}) as Partial<ChannelSchedule>;
     const out = emptyChannel();
@@ -54,7 +66,12 @@ export function normalizeSchedules(raw: unknown): BranchSchedules {
     }
     return out;
   };
-  return { physical: norm(r.physical), online: norm(r.online) };
+  return {
+    physical: norm(r.physical),
+    online: norm(r.online),
+    salesGraceMinutes: clampInt(r.salesGraceMinutes, DEFAULT_SALES_GRACE_MINUTES),
+    adminGraceMinutes: clampInt(r.adminGraceMinutes, DEFAULT_ADMIN_GRACE_MINUTES),
+  };
 }
 
 /** Componentes locales (Colombia) del instante `now`. */
