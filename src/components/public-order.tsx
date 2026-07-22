@@ -1038,20 +1038,7 @@ export function PublicOrder({
             })}
           </div>
 
-          {/* Pill inferior: ¡GRACIAS POR ELEGIRNOS! */}
-          <div className="w-full flex justify-center pb-2 pt-1">
-            <div
-              className="px-5 py-2 rounded-full text-white font-display font-black tracking-wider text-sm sm:text-base ring-2 ring-lime-300/70"
-              style={{
-                background:
-                  "linear-gradient(160deg, #1f6d78 0%, #16545e 45%, #0e3d47 100%)",
-                boxShadow:
-                  "0 10px 25px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)",
-              }}
-            >
-              ¡GRACIAS POR ELEGIRNOS!
-            </div>
-          </div>
+
         </div>
       </div>
     );
