@@ -268,7 +268,7 @@ function CrmPage() {
                       <div key={s.id} className="rounded-md border p-3 text-sm">
                         <div className="flex justify-between">
                           <div className="font-medium">#{s.ticket_number} · {new Date(s.created_at).toLocaleString("es-CO")}</div>
-                          <Badge variant={s.status === "paid" ? "secondary" : s.status === "cancelled" ? "destructive" : "outline"}>{s.status}</Badge>
+                          <Badge variant={s.status === "paid" ? "secondary" : s.status === "cancelled" ? "destructive" : "outline"}>{translateSaleStatus(s.status)}</Badge>
                         </div>
                         <div className="text-xs text-muted-foreground flex items-center gap-2">
                           <Badge variant={ch.tone} className="text-[10px] py-0">{ch.label}</Badge>
