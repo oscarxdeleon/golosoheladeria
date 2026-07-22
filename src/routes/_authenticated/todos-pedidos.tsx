@@ -219,9 +219,8 @@ function TodosPedidosPage() {
   }
 
   function canCancel(sale: Sale): boolean {
+    // Botón visible en todo pedido no anulado; el RPC valida permisos por rol.
     if (sale.status === "cancelled") return false;
-    // Cajero solo puede anular pedidos NO pagados.
-    if (restrictedToShift && sale.status === "paid") return false;
     return true;
   }
 
