@@ -23,3 +23,31 @@ export const formatDate = (d: string | Date | null | undefined) => {
     timeStyle: "short",
   }).format(date);
 };
+
+// Etiquetas oficiales de estado de venta (siempre en español, "Anulado" para cancelled).
+const SALE_STATUS_LABELS: Record<string, string> = {
+  pending: "Pendiente",
+  confirmed: "En preparación",
+  ready: "Listo",
+  paid: "Pagado",
+  delivered: "Entregado",
+  cancelled: "Anulado",
+};
+
+export function translateSaleStatus(status: string | null | undefined): string {
+  if (!status) return "—";
+  return SALE_STATUS_LABELS[status] ?? status;
+}
+
+const ORDER_TYPE_LABELS: Record<string, string> = {
+  mesa: "Mesa",
+  llevar: "Para llevar",
+  domicilio: "Domicilio",
+  kiosko: "Autopedido",
+  online: "En línea",
+};
+
+export function translateOrderType(type: string | null | undefined): string {
+  if (!type) return "—";
+  return ORDER_TYPE_LABELS[type] ?? type;
+}
