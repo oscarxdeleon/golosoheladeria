@@ -386,7 +386,7 @@ async function startSocket() {
       try {
         console.log(await QRCode.toString(qr, { type: "terminal", small: true }));
       } catch {
-        console.log("Abre http://localhost:8790 para ver el QR.");
+        console.log(`Abre http://localhost:${activeLocalPort} para ver el QR.`);
       }
       pushStatus();
     }
@@ -535,14 +535,37 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, hasQr: Boolean(state.qr) }));
+      res.end(JSON.stringify({ status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, hasQr: Boolean(state.qr), port: activeLocalPort }));
       return;
     }
     res.writeHead(404); res.end();
   });
-  server.listen(LOCAL_PORT, () => {
-    console.log(`\n✅ Panel local: http://localhost:${LOCAL_PORT}\n`);
-  });
+  listenOnAvailablePort(server, REQUESTED_LOCAL_PORT, LOCAL_PORT_SCAN_LIMIT);
+}
+
+function listenOnAvailablePort(server, port, remainingAttempts) {
+  const onError = (error) => {
+    server.off("listening", onListening);
+    if (error?.code === "EADDRINUSE" && remainingAttempts > 0) {
+      const nextPort = port + 1;
+      console.warn(`\n⚠️ El puerto ${port} ya está ocupado. Probando puerto ${nextPort}...\n`);
+      logger.warn({ port, nextPort }, "local ui port busy; trying next port");
+      setTimeout(() => listenOnAvailablePort(server, nextPort, remainingAttempts - 1), 250);
+      return;
+    }
+    const message = `No se pudo abrir el panel local en el puerto ${port}: ${error?.message || String(error)}`;
+    state.lastError = message;
+    logger.warn({ err: message }, "local ui listen failed");
+    console.warn(`\n⚠️ ${message}\nEl bot seguirá funcionando sin panel local.\n`);
+  };
+  const onListening = () => {
+    server.off("error", onError);
+    activeLocalPort = port;
+    console.log(`\n✅ Panel local: http://localhost:${activeLocalPort}\n`);
+  };
+  server.once("error", onError);
+  server.once("listening", onListening);
+  server.listen(port);
 }
 
 async function main() {
