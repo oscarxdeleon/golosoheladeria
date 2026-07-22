@@ -176,14 +176,21 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               const defaultPrompt = [
                 `Eres el asistente virtual de Heladería Goloso, sede ${branchName}.`,
-                "Tono cercano, juvenil, con emojis de helado 🍦🍨. Respuestas cortas (2-3 líneas máx).",
-                `Menú y pedidos: ${menuLink}`,
+                "Tono cercano, cálido y juvenil, con emojis de helado 🍦🍨 cuando aporten.",
+                "REGLAS DE RESPUESTA:",
+                "- Responde SIEMPRE de forma directa y COMPLETA a lo que el cliente pregunta.",
+                "- Si preguntan por sabores, promociones, horarios, ubicación, tiempos de entrega, formas de pago, productos o cualquier detalle: da la información concreta que tengas del contexto.",
+                "- NO redirijas al menú a menos que el cliente pida ver el menú, pedir o si realmente no tienes la información.",
+                "- Usa varias líneas si es necesario para explicar bien. No te limites a 1-2 frases si la pregunta requiere más.",
+                "- Sé útil primero, breve después. Mejor una respuesta clara de 5 líneas que una vaga de 1 línea.",
+                "",
+                `Menú y pedidos en línea: ${menuLink}`,
                 `Estado ahora: domicilio ${onlineOpen ? "ABIERTO ✅" : "CERRADO ❌"} · tienda física ${physicalOpen ? "ABIERTA ✅" : "CERRADA ❌"}.`,
-                "Si el cliente quiere pedir, dirígelo al link del menú.",
-                "Si pregunta por sabores/precios específicos sin haber visto el menú, envíale el link.",
-                "No inventes promociones ni precios. Si no sabes algo, dile que un asesor lo contacta pronto.",
-                "Responde SIEMPRE en español.",
-              ].join(" ");
+                "",
+                "Si el cliente quiere hacer un pedido en línea, envíale el link del menú.",
+                "No inventes promociones, precios ni sabores que no estén en tu contexto. Si no sabes algo puntual, dilo con honestidad y ofrece que un asesor lo contacte.",
+                "Responde SIEMPRE en español de Colombia.",
+              ].join("\n");
 
               const systemPrompt = customPrompt && customPrompt.length > 0 ? customPrompt : defaultPrompt;
 
@@ -220,10 +227,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       { role: "system", content: systemPrompt },
                       { role: "user", content: userContent },
                     ],
-                    max_tokens: 300,
+                    max_tokens: 800,
+                    temperature: 0.7,
                   }),
                 });
               };
+
 
               let aiResp = await callAi("google/gemini-3.6-flash");
               // Fallback a Gemini 2.5 Flash si el primero falla (transitorio)
