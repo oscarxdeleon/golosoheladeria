@@ -27,7 +27,8 @@ import makeWASocket, {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const AUTH_DIR = path.join(__dirname, "auth_state");
-const REQUESTED_LOCAL_PORT = Number(process.env.PORT) || 8790;
+const inferredBranchPort = /sede\s*2|sede2|parque/i.test(__dirname) ? 8791 : 8790;
+const REQUESTED_LOCAL_PORT = Number(process.env.PORT) || inferredBranchPort;
 const LOCAL_PORT_SCAN_LIMIT = 20;
 const HEARTBEAT_MS = 10_000;
 const OUTBOUND_POLL_MS = 5_000;
@@ -37,9 +38,9 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.1.0";
+const BOT_VERSION = "8.2.0";
 
-const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: true }));
+const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: false }));
 let activeLocalPort = REQUESTED_LOCAL_PORT;
 
 function loadConfig() {
@@ -540,6 +541,12 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     res.writeHead(404); res.end();
   });
+  server.on("error", (error) => {
+    const message = `Panel local no disponible: ${error?.message || String(error)}`;
+    state.lastError = message;
+    logger.warn({ err: message }, "local ui error ignored");
+    console.warn(`\n⚠️ ${message}\nEl bot seguirá funcionando sin panel local.\n`);
+  });
   listenOnAvailablePort(server, REQUESTED_LOCAL_PORT, LOCAL_PORT_SCAN_LIMIT);
 }
 
@@ -550,7 +557,9 @@ function listenOnAvailablePort(server, port, remainingAttempts) {
       const nextPort = port + 1;
       console.warn(`\n⚠️ El puerto ${port} ya está ocupado. Probando puerto ${nextPort}...\n`);
       logger.warn({ port, nextPort }, "local ui port busy; trying next port");
-      setTimeout(() => listenOnAvailablePort(server, nextPort, remainingAttempts - 1), 250);
+      const nextServer = http.createServer(server.listeners("request")[0]);
+      nextServer.on("error", (fallbackError) => server.emit("error", fallbackError));
+      setTimeout(() => listenOnAvailablePort(nextServer, nextPort, remainingAttempts - 1), 250);
       return;
     }
     const message = `No se pudo abrir el panel local en el puerto ${port}: ${error?.message || String(error)}`;
