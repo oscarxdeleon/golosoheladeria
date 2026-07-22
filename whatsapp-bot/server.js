@@ -16,7 +16,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
 import QRCode from "qrcode";
-import pino from "pino";
 import makeWASocket, {
   useMultiFileAuthState,
   DisconnectReason,
@@ -38,9 +37,38 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.2.0";
+const BOT_VERSION = "8.3.0";
 
-const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: false }));
+function safeStringify(value) {
+  try {
+    if (value instanceof Error) return `${value.name}: ${value.message}\n${value.stack || ""}`;
+    if (typeof value === "string") return value;
+    return JSON.stringify(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function writeLog(level, args) {
+  const line = `[${new Date().toISOString()}] ${level.toUpperCase()} ${args.map(safeStringify).join(" ")}\n`;
+  fs.appendFile(path.join(__dirname, "bot.log"), line, () => {});
+}
+
+function createSafeLogger(prefix = "") {
+  const emit = (level, args) => writeLog(level, prefix ? [prefix, ...args] : args);
+  return {
+    level: "info",
+    trace: (...args) => emit("trace", args),
+    debug: (...args) => emit("debug", args),
+    info: (...args) => emit("info", args),
+    warn: (...args) => emit("warn", args),
+    error: (...args) => emit("error", args),
+    fatal: (...args) => emit("fatal", args),
+    child: (bindings = {}) => createSafeLogger(`${prefix}${prefix ? " " : ""}${safeStringify(bindings)}`),
+  };
+}
+
+const logger = createSafeLogger();
 let activeLocalPort = REQUESTED_LOCAL_PORT;
 
 function loadConfig() {
@@ -365,7 +393,7 @@ async function startSocket() {
   const socketConfig = {
     auth: authState,
     printQRInTerminal: false,
-    logger: pino({ level: "silent" }),
+    logger: createSafeLogger("baileys"),
     browser: ["Goloso Bot", "Chrome", "1.0"],
     connectTimeoutMs: 30_000,
     defaultQueryTimeoutMs: 60_000,
