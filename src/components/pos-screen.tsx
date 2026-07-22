@@ -2274,14 +2274,23 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
       {!physicalStatus.isOpen && (
-        <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-start gap-2">
+        <div className={`md:col-span-2 rounded-lg border p-3 text-sm flex items-start gap-2 ${physicalStatus.inGracePeriod ? "border-sky-400 bg-sky-50 dark:bg-sky-950/20" : "border-amber-400 bg-amber-50 dark:bg-amber-950/20"}`}>
           <span className="mt-0.5">🕒</span>
           <div>
-            <strong>Horario cerrado — punto físico.</strong> {physicalClosedMsg} Puedes cobrar o modificar pedidos ya abiertos.
-            {physicalStatus.opensAt && <span className="ml-1">Próxima apertura: {physicalStatus.opensAt}.</span>}
+            {physicalStatus.inGracePeriod ? (
+              <>
+                <strong>Período de gracia activo.</strong> El horario oficial finalizó a las {physicalStatus.closesAt}. Tienes hasta las {physicalStatus.graceEndsAt} ({physicalStatus.minutesToGraceEnd} min) para cerrar caja, consultar reportes y finalizar procesos. <em>No se aceptan nuevos pedidos.</em>
+              </>
+            ) : (
+              <>
+                <strong>Horario cerrado — punto físico.</strong> {physicalClosedMsg} Puedes cobrar o modificar pedidos ya abiertos.
+                {physicalStatus.opensAt && <span className="ml-1">Próxima apertura: {physicalStatus.opensAt}.</span>}
+              </>
+            )}
           </div>
         </div>
       )}
+
 
       {!meseroMode && !openSession && (
         <div className="md:col-span-2 rounded-lg border border-amber-400 bg-amber-50 dark:bg-amber-950/20 p-3 text-sm flex items-center justify-between gap-3">
