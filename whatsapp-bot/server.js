@@ -27,7 +27,8 @@ import makeWASocket, {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const AUTH_DIR = path.join(__dirname, "auth_state");
-const LOCAL_PORT = Number(process.env.PORT) || 8790;
+const REQUESTED_LOCAL_PORT = Number(process.env.PORT) || 8790;
+const LOCAL_PORT_SCAN_LIMIT = 20;
 const HEARTBEAT_MS = 10_000;
 const OUTBOUND_POLL_MS = 5_000;
 const REPLY_DELAY_MIN = 2000;
@@ -36,9 +37,10 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.0.0";
+const BOT_VERSION = "8.1.0";
 
-const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: false }));
+const logger = pino({ level: "info" }, pino.destination({ dest: path.join(__dirname, "bot.log"), sync: true }));
+let activeLocalPort = REQUESTED_LOCAL_PORT;
 
 function loadConfig() {
   if (!fs.existsSync(CONFIG_PATH)) {
