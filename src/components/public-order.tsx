@@ -919,13 +919,13 @@ export function PublicOrder({
                 <img
                   src={onlineLogo}
                   alt={onlineName}
-                  className="goloso-logo-anim relative z-10 max-h-[40vh] max-w-[85vw] object-contain bg-transparent"
+                  className="goloso-logo-anim relative z-10 max-h-[32vh] sm:max-h-[38vh] max-w-[78vw] sm:max-w-[70vw] object-contain bg-transparent"
                 />
               ) : (
                 <img
                   src={golosoLogo}
                   alt="Heladería Goloso"
-                  className="goloso-logo-anim relative z-10 max-h-[40vh] max-w-[85vw] object-contain bg-transparent"
+                  className="goloso-logo-anim relative z-10 max-h-[32vh] sm:max-h-[38vh] max-w-[78vw] sm:max-w-[70vw] object-contain bg-transparent"
                 />
               )}
             </div>
