@@ -58,10 +58,10 @@ export function CancelSaleDialog({ open, onOpenChange, saleId, ticketLabel, onCa
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <XCircle className="h-5 w-5 text-rose-600" />
-            Anular pedido {ticketLabel ?? ""}
+            Anular pedido # {ticketLabel ?? ""}
           </DialogTitle>
           <DialogDescription>
-            Selecciona el motivo de la anulación. Esta acción quedará registrada con tu usuario, fecha y hora, y no se puede deshacer.
+            Motivo de la Anulación
           </DialogDescription>
         </DialogHeader>
 
