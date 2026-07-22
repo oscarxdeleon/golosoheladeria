@@ -93,7 +93,21 @@ export interface ChannelStatus {
   opensAt: string | null;
   /** Minutos restantes hasta el cierre (si isOpen). */
   minutesToClose: number | null;
+  /** Estamos dentro del período de gracia (30 min tras el cierre oficial). */
+  inGracePeriod: boolean;
+  /** Minutos restantes del período de gracia (solo si inGracePeriod). */
+  minutesToGraceEnd: number | null;
+  /** Hora fin del período de gracia (HH:MM) — solo canal físico. */
+  graceEndsAt: string | null;
 }
+
+/**
+ * Período de gracia (minutos) tras el cierre oficial del punto físico.
+ * En esta ventana el sistema NO permite nuevos pedidos, pero SÍ permite tareas
+ * administrativas (cierre de caja, reportes, arqueos, revisión de pedidos existentes).
+ * Solo aplica al canal físico; el canal online no tiene gracia.
+ */
+export const PHYSICAL_GRACE_MINUTES = 30;
 
 export function getChannelStatus(
   schedules: BranchSchedules,
@@ -104,18 +118,36 @@ export function getChannelStatus(
   const ch = s[channel];
   const { day, minutes } = bogotaParts(now);
   const today = ch[day];
+  const base = { inGracePeriod: false, minutesToGraceEnd: null, graceEndsAt: null } as const;
   if (!today || !today.open) {
-    return { isOpen: false, reason: "closed_day", closesAt: null, opensAt: null, minutesToClose: null };
+    return { isOpen: false, reason: "closed_day", closesAt: null, opensAt: null, minutesToClose: null, ...base };
   }
   const from = toMinutes(today.from);
   const to = toMinutes(today.to);
   if (minutes < from) {
-    return { isOpen: false, reason: "before_open", closesAt: null, opensAt: today.from, minutesToClose: null };
+    return { isOpen: false, reason: "before_open", closesAt: null, opensAt: today.from, minutesToClose: null, ...base };
   }
   if (minutes >= to) {
-    return { isOpen: false, reason: "after_close", closesAt: today.to, opensAt: null, minutesToClose: null };
+    const grace = channel === "physical" ? PHYSICAL_GRACE_MINUTES : 0;
+    const graceEnd = to + grace;
+    if (grace > 0 && minutes < graceEnd) {
+      const gh = Math.floor(graceEnd / 60) % 24;
+      const gm = graceEnd % 60;
+      const graceEndsAt = `${String(gh).padStart(2, "0")}:${String(gm).padStart(2, "0")}`;
+      return {
+        isOpen: false,
+        reason: "after_close",
+        closesAt: today.to,
+        opensAt: null,
+        minutesToClose: null,
+        inGracePeriod: true,
+        minutesToGraceEnd: graceEnd - minutes,
+        graceEndsAt,
+      };
+    }
+    return { isOpen: false, reason: "after_close", closesAt: today.to, opensAt: null, minutesToClose: null, ...base };
   }
-  return { isOpen: true, reason: "open", closesAt: today.to, opensAt: null, minutesToClose: to - minutes };
+  return { isOpen: true, reason: "open", closesAt: today.to, opensAt: null, minutesToClose: to - minutes, ...base };
 }
 
 export function humanReason(status: ChannelStatus, channel: ScheduleChannel): string {
@@ -124,10 +156,14 @@ export function humanReason(status: ChannelStatus, channel: ScheduleChannel): st
   if (status.reason === "closed_day") return `Hoy no hay ${label}.`;
   if (status.reason === "before_open") return `Los ${label} inician a las ${status.opensAt}.`;
   if (channel === "physical") {
+    if (status.inGracePeriod) {
+      return `Horario oficial finalizado. Período de gracia hasta ${status.graceEndsAt} (${status.minutesToGraceEnd} min) para tareas administrativas. No se aceptan nuevos pedidos.`;
+    }
     return "El horario de atención en el punto físico ha finalizado. No es posible registrar nuevos pedidos.";
   }
   return "Estamos fuera del horario para pedidos en línea.";
 }
+
 
 export { DEFAULT_DAY };
 
