@@ -414,6 +414,20 @@ function TodosPedidosPage() {
                     </div>
                   </button>
                 </CollapsibleTrigger>
+                {canCancel(s) && (
+                  <div className="px-4 pb-3 -mt-1 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setCancelTarget({ id: s.id, label: shortTicket(s.ticket_number) });
+                      }}
+                    >
+                      <XCircle className="h-4 w-4 mr-1" /> Anular pedido
+                    </Button>
+                  </div>
+                )}
                 <CollapsibleContent>
                   <div className="border-t p-4 bg-muted/20 space-y-3">
                     <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
