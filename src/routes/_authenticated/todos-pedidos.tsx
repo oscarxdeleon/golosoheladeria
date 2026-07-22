@@ -259,52 +259,83 @@ function TodosPedidosPage() {
             </Button>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            <label className="flex items-center gap-2 cursor-pointer select-none">
-              <Checkbox
-                checked={turnoActual}
-                onCheckedChange={(v) => setTurnoActual(Boolean(v))}
-                className="h-5 w-5"
-              />
-              <span className="text-base">Turno actual</span>
-            </label>
-
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground">Fecha:</span>
-              <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
-                <SelectTrigger className="h-10 w-[170px]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="hoy">📅 Hoy</SelectItem>
-                  <SelectItem value="ayer">🕘 Ayer</SelectItem>
-                  <SelectItem value="personalizada">🎯 Personalizada</SelectItem>
-                  <SelectItem value="todos">Todas las fechas</SelectItem>
-                </SelectContent>
-              </Select>
+          {restrictedToShift ? (
+            <div className="rounded-md bg-amber-50 border border-amber-200 text-amber-800 text-sm px-3 py-2">
+              📋 Estás viendo únicamente los pedidos de tu <b>turno actual</b>.
             </div>
+          ) : (
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <Checkbox
+                  checked={turnoActual}
+                  onCheckedChange={(v) => setTurnoActual(Boolean(v))}
+                  className="h-5 w-5"
+                />
+                <span className="text-base">Turno actual</span>
+              </label>
 
-            {dateFilter === "personalizada" && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Input
-                  type="date"
-                  value={customFrom}
-                  max={customTo || undefined}
-                  onChange={(e) => setCustomFrom(e.target.value)}
-                  className="h-10 w-[160px]"
-                />
-                <span className="text-muted-foreground text-sm">a</span>
-                <Input
-                  type="date"
-                  value={customTo}
-                  min={customFrom || undefined}
-                  onChange={(e) => setCustomTo(e.target.value)}
-                  className="h-10 w-[160px]"
-                />
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-muted-foreground">Fecha:</span>
+                <Select value={dateFilter} onValueChange={(v) => setDateFilter(v as typeof dateFilter)}>
+                  <SelectTrigger className="h-10 w-[170px]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="hoy">📅 Hoy</SelectItem>
+                    <SelectItem value="ayer">🕘 Ayer</SelectItem>
+                    <SelectItem value="personalizada">🎯 Personalizada</SelectItem>
+                    <SelectItem value="todos">Todas las fechas</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
-            )}
-          </div>
 
+              {dateFilter === "personalizada" && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Input
+                    type="date"
+                    value={customFrom}
+                    max={customTo || undefined}
+                    onChange={(e) => setCustomFrom(e.target.value)}
+                    className="h-10 w-[160px]"
+                  />
+                  <span className="text-muted-foreground text-sm">a</span>
+                  <Input
+                    type="date"
+                    value={customTo}
+                    min={customFrom || undefined}
+                    onChange={(e) => setCustomTo(e.target.value)}
+                    className="h-10 w-[160px]"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Tipo de pedido */}
+          <div className="flex flex-wrap gap-1.5">
+            <Button
+              size="sm"
+              variant={typeFilter === "all" ? "default" : "outline"}
+              className="h-8 rounded-full"
+              onClick={() => setTypeFilter("all")}
+            >
+              Todos
+            </Button>
+            {Object.entries(TYPE_META).map(([k, v]) => {
+              const I = v.icon;
+              return (
+                <Button
+                  key={k}
+                  size="sm"
+                  variant={typeFilter === k ? "default" : "outline"}
+                  className="h-8 rounded-full gap-1"
+                  onClick={() => setTypeFilter(k)}
+                >
+                  <I className="h-3.5 w-3.5" /> {v.label}
+                </Button>
+              );
+            })}
+          </div>
 
           <Select value={statusFilter} onValueChange={setStatusFilter}>
             <SelectTrigger className="h-11">
