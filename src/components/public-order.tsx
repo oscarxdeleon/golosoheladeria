@@ -22,6 +22,7 @@ import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
 import fueraHorarioAsset from "@/assets/fuera-horario.jpeg.asset.json";
+import fueraHorarioRecogerAsset from "@/assets/fuera-horario-recoger.jpeg.asset.json";
 
 const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
@@ -991,7 +992,7 @@ export function PublicOrder({
       <div className="fixed inset-0 z-50 overflow-y-auto bg-[#0b3a44] flex items-center justify-center px-3 py-4">
         <div className="relative w-full max-w-md">
           <img
-            src={fueraHorarioAsset.url}
+            src={isPickup ? fueraHorarioRecogerAsset.url : fueraHorarioAsset.url}
             alt="Estamos fuera de horario. Programa tu pedido."
             className="block w-full h-auto select-none rounded-2xl shadow-[0_30px_60px_-15px_rgba(0,0,0,0.6)]"
             draggable={false}
