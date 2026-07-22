@@ -14,7 +14,7 @@ import {
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-import { formatMoney, formatDate } from "@/lib/format";
+import { formatMoney, formatDate, translateSaleStatus } from "@/lib/format";
 import { Receipt, Printer, ChefHat, Search, RefreshCw, Ban, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import {
