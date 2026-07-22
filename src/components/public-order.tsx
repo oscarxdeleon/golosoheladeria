@@ -858,33 +858,88 @@ export function PublicOrder({
     const onlineLogo = settings?.logo_url ?? null;
     const onlineName = (branch?.name?.trim() || settings?.business_name || "Heladería Goloso").toUpperCase();
     return (
-      <div className="fixed inset-0 z-50 overflow-hidden bg-gradient-to-br from-white via-sky-50 to-fuchsia-50">
-        {/* Botón instalar PWA arriba a la derecha (solo aparece si es instalable) */}
+      <div
+        className="fixed inset-0 z-50 overflow-y-auto"
+        style={{
+          background:
+            "radial-gradient(120% 60% at 50% 0%, #bfefff 0%, #6cc9e6 35%, #2ea3c7 65%, #0e6f8c 100%)",
+        }}
+      >
+        {/* Keyframes locales para la animación premium del logo */}
+        <style>{`
+          @keyframes golosoDrop { 0% { transform: translateY(-60vh) scale(0.4) rotate(-8deg); opacity: 0; } 55% { transform: translateY(6%) scale(1.08) rotate(2deg); opacity: 1; } 75% { transform: translateY(-3%) scale(0.97) rotate(-1deg); } 100% { transform: translateY(0) scale(1) rotate(0); opacity: 1; } }
+          @keyframes golosoGlow { 0%,100% { filter: drop-shadow(0 10px 30px rgba(163,230,53,0.35)) drop-shadow(0 0 18px rgba(255,255,255,0.35)); } 50% { filter: drop-shadow(0 14px 40px rgba(163,230,53,0.7)) drop-shadow(0 0 26px rgba(255,255,255,0.6)); } }
+          @keyframes golosoFloat { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
+          @keyframes splashPop { 0% { transform: scale(0) translate(0,0); opacity: 0; } 40% { opacity: 1; } 100% { transform: scale(1) translate(var(--tx,0), var(--ty,0)); opacity: 0; } }
+          .goloso-logo-anim { animation: golosoDrop 1.2s cubic-bezier(.2,.9,.25,1.2) both, golosoGlow 2.6s ease-in-out 1.2s infinite, golosoFloat 4s ease-in-out 1.2s infinite; }
+          .goloso-splash { position:absolute; border-radius:9999px; background: radial-gradient(circle,#d4ff5a 0%,#7fce18 60%,transparent 70%); opacity:0; animation: splashPop 1.4s ease-out forwards; }
+        `}</style>
+
+        {/* Botón instalar PWA arriba a la derecha */}
         <div className="absolute top-3 right-3 z-10">
-          <PwaInstallButton className="h-9 gap-2 px-3 text-xs bg-gradient-primary text-primary-foreground shadow-glow" />
+          <PwaInstallButton className="h-9 gap-2 px-3 text-xs bg-white/90 text-slate-800 shadow-lg" />
         </div>
-        <div className="h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-10 sm:px-8">
-          <div className="flex flex-col items-center text-center w-full min-h-0 flex-1 justify-center">
-            {onlineLogo ? (
-              <img
-                src={onlineLogo}
-                alt={onlineName}
-                className="max-h-[38vh] max-w-[85vw] object-contain bg-transparent animate-in fade-in zoom-in duration-700"
-              />
-            ) : (
-              <div className="h-36 w-36 rounded-3xl bg-primary text-primary-foreground flex items-center justify-center shadow-2xl">
-                <IceCream className="h-20 w-20" />
-              </div>
-            )}
-            <h1 className="font-display font-black text-2xl sm:text-4xl mt-5 tracking-wide text-slate-800">
+
+        <div className="min-h-full w-full flex flex-col items-center justify-between py-6 px-4 sm:py-8 sm:px-8">
+          <div className="flex flex-col items-center text-center w-full">
+            {/* Contenedor del logo con partículas */}
+            <div className="relative flex items-center justify-center w-full" style={{ minHeight: "42vh" }}>
+              {/* Partículas splash */}
+              {[
+                { top: "10%", left: "12%", size: 14, tx: "-30px", ty: "-20px", delay: "0.9s" },
+                { top: "20%", left: "82%", size: 18, tx: "40px", ty: "-24px", delay: "1.1s" },
+                { top: "60%", left: "6%", size: 12, tx: "-36px", ty: "30px", delay: "1.3s" },
+                { top: "72%", left: "88%", size: 16, tx: "36px", ty: "26px", delay: "1.0s" },
+                { top: "35%", left: "94%", size: 10, tx: "20px", ty: "-10px", delay: "1.4s" },
+                { top: "45%", left: "2%", size: 10, tx: "-22px", ty: "-8px", delay: "1.5s" },
+              ].map((p, i) => (
+                <span
+                  key={i}
+                  className="goloso-splash"
+                  style={{
+                    top: p.top,
+                    left: p.left,
+                    width: p.size,
+                    height: p.size,
+                    // @ts-expect-error CSS custom props
+                    "--tx": p.tx,
+                    "--ty": p.ty,
+                    animationDelay: p.delay,
+                  }}
+                />
+              ))}
+
+              {onlineLogo ? (
+                <img
+                  src={onlineLogo}
+                  alt={onlineName}
+                  className="goloso-logo-anim relative z-10 max-h-[40vh] max-w-[85vw] object-contain bg-transparent"
+                />
+              ) : (
+                <img
+                  src={golosoLogo}
+                  alt="Heladería Goloso"
+                  className="goloso-logo-anim relative z-10 max-h-[40vh] max-w-[85vw] object-contain bg-transparent"
+                />
+              )}
+            </div>
+
+            <h1
+              className="font-display font-black text-3xl sm:text-4xl mt-4 tracking-wide text-slate-800 drop-shadow-[0_2px_2px_rgba(255,255,255,0.6)]"
+            >
               {onlineName}
             </h1>
-            <p className="text-slate-600 text-sm sm:text-base mt-2 font-medium">
+            <p className="text-slate-700 text-sm sm:text-base mt-1 font-medium">
               ¿Cómo quieres recibir tu pedido?
             </p>
+            <div className="mt-3 flex items-center gap-1.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-lime-500 shadow-[0_0_6px_rgba(163,230,53,0.9)]" />
+              <span className="h-1.5 w-1.5 rounded-full bg-lime-500/60" />
+              <span className="h-1.5 w-1.5 rounded-full bg-lime-500 shadow-[0_0_6px_rgba(163,230,53,0.9)]" />
+            </div>
           </div>
 
-          <div className="w-full max-w-2xl mx-auto flex flex-col gap-5 sm:gap-6 pb-4">
+          <div className="w-full max-w-2xl mx-auto flex flex-col gap-5 sm:gap-6 pt-6 pb-4">
             {[
               {
                 key: "domicilio" as const,
@@ -977,6 +1032,20 @@ export function PublicOrder({
             })}
           </div>
 
+          {/* Pill inferior: ¡GRACIAS POR ELEGIRNOS! */}
+          <div className="w-full flex justify-center pb-2 pt-1">
+            <div
+              className="px-5 py-2 rounded-full text-white font-display font-black tracking-wider text-sm sm:text-base ring-2 ring-lime-300/70"
+              style={{
+                background:
+                  "linear-gradient(160deg, #1f6d78 0%, #16545e 45%, #0e3d47 100%)",
+                boxShadow:
+                  "0 10px 25px -10px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.2)",
+              }}
+            >
+              ¡GRACIAS POR ELEGIRNOS!
+            </div>
+          </div>
         </div>
       </div>
     );
