@@ -21,8 +21,10 @@ import { CalendarClock } from "lucide-react";
 import nequiLogo from "@/assets/nequi-logo-original.jpg";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
-import fueraHorarioAsset from "@/assets/fuera-horario.jpeg.asset.json";
-import fueraHorarioRecogerAsset from "@/assets/fuera-horario-recoger.jpeg.asset.json";
+// Imágenes servidas desde /public para que funcionen tanto en Lovable como en Vercel
+// (el CDN /__l5e/assets-v1/ solo existe en la infraestructura de Lovable).
+const fueraHorarioAsset = { url: "/fuera-horario.jpeg" };
+const fueraHorarioRecogerAsset = { url: "/fuera-horario-recoger.jpeg" };
 
 const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
