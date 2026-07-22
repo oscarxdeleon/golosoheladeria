@@ -2273,13 +2273,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       )}
 
 
+      {physicalStatus.isOpen && physicalStatus.inSalesGrace && (
+        <div className="md:col-span-2 rounded-lg border p-3 text-sm flex items-start gap-2 border-emerald-400 bg-emerald-50 dark:bg-emerald-950/20">
+          <span className="mt-0.5">🟢</span>
+          <div>
+            <strong>Período de gracia activo.</strong> Se permiten pedidos hasta las {physicalStatus.salesGraceEndsAt} ({physicalStatus.minutesToSalesGraceEnd} min). El horario oficial finalizó a las {physicalStatus.closesAt}.
+          </div>
+        </div>
+      )}
+
       {!physicalStatus.isOpen && (
-        <div className={`md:col-span-2 rounded-lg border p-3 text-sm flex items-start gap-2 ${physicalStatus.inGracePeriod ? "border-sky-400 bg-sky-50 dark:bg-sky-950/20" : "border-amber-400 bg-amber-50 dark:bg-amber-950/20"}`}>
+        <div className={`md:col-span-2 rounded-lg border p-3 text-sm flex items-start gap-2 ${physicalStatus.inAdminGrace ? "border-sky-400 bg-sky-50 dark:bg-sky-950/20" : "border-amber-400 bg-amber-50 dark:bg-amber-950/20"}`}>
           <span className="mt-0.5">🕒</span>
           <div>
-            {physicalStatus.inGracePeriod ? (
+            {physicalStatus.inAdminGrace ? (
               <>
-                <strong>Período de gracia activo.</strong> El horario oficial finalizó a las {physicalStatus.closesAt}. Tienes hasta las {physicalStatus.graceEndsAt} ({physicalStatus.minutesToGraceEnd} min) para cerrar caja, consultar reportes y finalizar procesos. <em>No se aceptan nuevos pedidos.</em>
+                <strong>Período administrativo.</strong> El horario oficial finalizó a las {physicalStatus.closesAt} y la gracia de ventas terminó. Tienes hasta las {physicalStatus.graceEndsAt} ({physicalStatus.minutesToGraceEnd} min) para cerrar caja, consultar reportes y finalizar procesos. <em>No se aceptan nuevos pedidos.</em>
               </>
             ) : (
               <>
