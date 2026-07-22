@@ -945,7 +945,7 @@ export function PublicOrder({
             </div>
           </div>
 
-          <div className="w-full max-w-2xl mx-auto flex flex-col gap-5 sm:gap-6 pt-6 pb-4">
+          <div className="w-full max-w-2xl mx-auto flex flex-col gap-4 sm:gap-6 pt-4 sm:pt-6 pb-2">
             {[
               {
                 key: "domicilio" as const,
