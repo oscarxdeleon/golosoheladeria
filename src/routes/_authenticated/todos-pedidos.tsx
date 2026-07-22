@@ -92,9 +92,15 @@ function formatTimeShort(iso: string) {
 }
 
 function TodosPedidosPage() {
-  const { isAdmin, loading: authLoading, rolesLoading } = useAuth();
+  const { isAdmin, roles, loading: authLoading, rolesLoading } = useAuth();
   const { activeBranchId, activeBranch } = useBranch();
   const { session: cashSession } = useBranchCashSession(activeBranchId);
+
+  const isSupervisor = roles.includes("supervisor");
+  const isCajero = roles.includes("cajero");
+  const canAccess = isAdmin || isSupervisor || isCajero;
+  // El cajero SOLO puede ver los pedidos de su turno actual, sin acceso a historial.
+  const restrictedToShift = isCajero && !isAdmin && !isSupervisor;
 
   const [turnoActual, setTurnoActual] = useState(true);
   const [dateFilter, setDateFilter] = useState<"todos" | "hoy" | "ayer" | "personalizada">("hoy");
@@ -102,8 +108,14 @@ function TodosPedidosPage() {
   const [customFrom, setCustomFrom] = useState<string>(todayIso);
   const [customTo, setCustomTo] = useState<string>(todayIso);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [typeFilter, setTypeFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [cancelTarget, setCancelTarget] = useState<{ id: string; label: string } | null>(null);
+
+  // Turno fijo cuando es cajero.
+  const effectiveTurnoActual = restrictedToShift ? true : turnoActual;
+  const effectiveDateFilter = restrictedToShift ? "hoy" : dateFilter;
 
   // Tables lookup for "Mesa N" label
   const { data: tables = [] } = useQuery({
@@ -126,11 +138,11 @@ function TodosPedidosPage() {
   const { data: sales = [], isFetching, refetch } = useQuery({
     queryKey: [
       "todos-pedidos", activeBranchId,
-      turnoActual ? cashSession?.id ?? "no-session" : "all",
-      dateFilter,
-      dateFilter === "personalizada" ? `${customFrom}_${customTo}` : "",
+      effectiveTurnoActual ? cashSession?.id ?? "no-session" : "all",
+      effectiveDateFilter,
+      effectiveDateFilter === "personalizada" ? `${customFrom}_${customTo}` : "",
     ],
-    enabled: !!activeBranchId && isAdmin,
+    enabled: !!activeBranchId && canAccess,
     queryFn: async () => {
       let q = supabase
         .from("sales")
@@ -139,23 +151,22 @@ function TodosPedidosPage() {
         .order("created_at", { ascending: false })
         .limit(500);
 
-      if (turnoActual) {
+      if (effectiveTurnoActual) {
         if (!cashSession?.id) return [];
         q = q.eq("cash_session_id", cashSession.id);
       }
-      if (dateFilter !== "todos") {
+      if (effectiveDateFilter !== "todos") {
         const now = new Date();
         let start: Date;
         let end: Date;
-        if (dateFilter === "hoy") {
+        if (effectiveDateFilter === "hoy") {
           start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           end = new Date(start.getTime() + 86400000);
-        } else if (dateFilter === "ayer") {
+        } else if (effectiveDateFilter === "ayer") {
           const t = new Date(now.getFullYear(), now.getMonth(), now.getDate());
           start = new Date(t.getTime() - 86400000);
           end = t;
         } else {
-          // personalizada
           const [fy, fm, fd] = customFrom.split("-").map(Number);
           const [ty, tm, td] = customTo.split("-").map(Number);
           start = new Date(fy, (fm ?? 1) - 1, fd ?? 1);
@@ -175,6 +186,7 @@ function TodosPedidosPage() {
     const n = search.trim().toLowerCase();
     return sales.filter((s) => {
       if (statusFilter !== "all" && s.status !== statusFilter) return false;
+      if (typeFilter !== "all" && s.order_type !== typeFilter) return false;
       if (!n) return true;
       const phones = [s.customer_phone, s.delivery_phone].filter(Boolean).join(" ");
       return (
@@ -184,7 +196,7 @@ function TodosPedidosPage() {
         (s.customer_name ?? "").toLowerCase().includes(n)
       );
     });
-  }, [sales, search, statusFilter]);
+  }, [sales, search, statusFilter, typeFilter]);
 
   function toggle(id: string) {
     setExpanded((prev) => {
@@ -195,16 +207,26 @@ function TodosPedidosPage() {
   }
 
   function clearFilters() {
-    setTurnoActual(true);
-    setDateFilter("hoy");
+    if (!restrictedToShift) {
+      setTurnoActual(true);
+      setDateFilter("hoy");
+    }
     setCustomFrom(todayIso);
     setCustomTo(todayIso);
     setStatusFilter("all");
+    setTypeFilter("all");
     setSearch("");
   }
 
+  function canCancel(sale: Sale): boolean {
+    if (sale.status === "cancelled") return false;
+    // Cajero solo puede anular pedidos NO pagados.
+    if (restrictedToShift && sale.status === "paid") return false;
+    return true;
+  }
+
   if (authLoading || rolesLoading) return <div className="p-6 text-muted-foreground">Cargando…</div>;
-  if (!isAdmin) return <Navigate to="/" />;
+  if (!canAccess) return <Navigate to="/" />;
 
   return (
     <div className="space-y-4 max-w-4xl mx-auto font-sans">
