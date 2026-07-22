@@ -193,12 +193,39 @@ async function handleIncoming(from, body) {
     });
     if (!res.ok) {
       logger.warn({ status: res.status }, "incoming push failed");
+      return { reply: null, use_ai: false };
+    }
+    const data = await res.json();
+    return { reply: data.reply || null, use_ai: Boolean(data.use_ai) };
+  } catch (e) {
+    logger.warn({ err: String(e) }, "incoming error");
+    return { reply: null, use_ai: false };
+  }
+}
+
+async function requestAiReply(from, { text, audioB64, audioMime }) {
+  try {
+    const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "ai_reply",
+        token: config.token,
+        from,
+        text: text || "",
+        audio_b64: audioB64 || "",
+        audio_mime: audioMime || "",
+      }),
+    });
+    if (!res.ok) {
+      logger.warn({ status: res.status }, "ai_reply http fail");
       return null;
     }
     const data = await res.json();
+    if (data.error) logger.info({ err: data.error }, "ai_reply skipped");
     return data.reply || null;
   } catch (e) {
-    logger.warn({ err: String(e) }, "incoming error");
+    logger.warn({ err: String(e) }, "ai_reply error");
     return null;
   }
 }
