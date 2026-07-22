@@ -753,11 +753,7 @@ function CajaPage() {
 
       {/* Resultado informativo del cierre (post-cierre, sólo lectura) */}
       <Dialog open={!!closeResult} onOpenChange={(o) => { if (!o) setCloseResult(null); }}>
-        <DialogContent className="max-w-md" onEscapeKeyDown={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()}>
-          <DialogHeader>
-            <DialogTitle>Cierre de caja realizado</DialogTitle>
-            <DialogDescription>Este es el resultado final del cierre. No es posible modificarlo.</DialogDescription>
-          </DialogHeader>
+        <DialogContent className="max-w-md p-0 overflow-hidden" onEscapeKeyDown={(e) => e.preventDefault()} onPointerDownOutside={(e) => e.preventDefault()}>
           {closeResult && (() => {
             const total =
               Number(closeResult.cash_difference ?? 0) +
@@ -766,36 +762,61 @@ function CajaPage() {
             const rounded = Math.round(total);
             const isZero = rounded === 0;
             const isPositive = rounded > 0;
+            const headerBg = isZero
+              ? "bg-gradient-to-br from-emerald-400/20 via-sky-400/15 to-emerald-500/10"
+              : isPositive
+              ? "bg-gradient-to-br from-amber-300/25 via-amber-400/15 to-yellow-500/10"
+              : "bg-gradient-to-br from-rose-400/25 via-red-400/15 to-rose-500/10";
+            const emoji = isZero ? "😊" : "😟";
+            const title = isZero
+              ? "¡Excelente trabajo!"
+              : isPositive
+              ? "Se detectó un sobrante en caja"
+              : "Se detectó un faltante en caja";
+            const subtitle = isZero
+              ? "Caja cuadrada perfectamente. No hay diferencias."
+              : "Por favor, revisa los movimientos registrados.";
             return (
-              <div className="space-y-4">
-                <div className={`rounded-lg border p-4 text-center ${isZero ? "border-success/40 bg-success/10" : isPositive ? "border-emerald-500/40 bg-emerald-500/10" : "border-destructive/40 bg-destructive/10"}`}>
-                  {isZero ? (
-                    <>
-                      <div className="text-sm font-medium text-success">Estado del cierre</div>
-                      <div className="mt-1 font-display text-xl">Cierre realizado sin diferencias.</div>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-sm font-medium">
-                        {isPositive ? "Descuadre positivo (sobrante)" : "Descuadre negativo (faltante)"}
+              <>
+                <div className={`relative flex flex-col items-center gap-3 px-6 pt-8 pb-6 text-center ${headerBg}`}>
+                  <div
+                    className="text-7xl leading-none animate-scale-in select-none"
+                    style={{ filter: "drop-shadow(0 4px 12px rgba(0,0,0,0.15))" }}
+                    aria-hidden="true"
+                  >
+                    {emoji}
+                  </div>
+                  <DialogHeader className="space-y-1">
+                    <DialogTitle className="text-center text-2xl font-display">
+                      {title}
+                    </DialogTitle>
+                    <DialogDescription className="text-center text-base">
+                      {subtitle}
+                    </DialogDescription>
+                  </DialogHeader>
+                </div>
+                <div className="space-y-4 px-6 pb-6 pt-4">
+                  {!isZero && (
+                    <div className={`rounded-xl border p-4 text-center ${isPositive ? "border-amber-400/40 bg-amber-500/5" : "border-rose-400/40 bg-rose-500/5"}`}>
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        {isPositive ? "Sobrante" : "Faltante"}
                       </div>
-                      <div className={`mt-1 font-display text-3xl font-bold tabular-nums ${isPositive ? "text-emerald-600 dark:text-emerald-400" : "text-destructive"}`}>
+                      <div className={`mt-1 font-display text-3xl font-bold tabular-nums ${isPositive ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"}`}>
                         {isPositive ? "+" : "−"}{formatMoney(Math.abs(rounded))}
                       </div>
-                    </>
+                    </div>
                   )}
+                  <div className="rounded-md border bg-muted/40 p-3 text-center text-sm font-medium">
+                    Verifica con el administrador.
+                  </div>
+                  <Button className="w-full" onClick={() => setCloseResult(null)}>Entendido</Button>
                 </div>
-                <div className="rounded-md border bg-muted/40 p-3 text-center text-sm font-medium">
-                  Verifica con el administrador.
-                </div>
-              </div>
+              </>
             );
           })()}
-          <DialogFooter>
-            <Button className="w-full" onClick={() => setCloseResult(null)}>Entendido</Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
+
     </div>
   );
 }
