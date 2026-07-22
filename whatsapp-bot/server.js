@@ -26,7 +26,7 @@ import makeWASocket, {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const AUTH_DIR = path.join(__dirname, "auth_state");
-const LOCAL_PORT = 8790;
+const LOCAL_PORT = Number(process.env.PORT) || 8790;
 const HEARTBEAT_MS = 10_000;
 const OUTBOUND_POLL_MS = 5_000;
 const REPLY_DELAY_MIN = 2000;
