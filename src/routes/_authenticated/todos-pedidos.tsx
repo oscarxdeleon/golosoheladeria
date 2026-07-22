@@ -457,6 +457,20 @@ function TodosPedidosPage() {
                       <span className="text-muted-foreground">Subtotal: {formatMoney(s.subtotal ?? s.total)}</span>
                       <span className="font-semibold text-base">Total: {formatMoney(s.total)}</span>
                     </div>
+                    {canCancel(s) && (
+                      <div className="pt-2 flex justify-end">
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCancelTarget({ id: s.id, label: shortTicket(s.ticket_number) });
+                          }}
+                        >
+                          <XCircle className="h-4 w-4 mr-1" /> Anular pedido
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 </CollapsibleContent>
               </Collapsible>
@@ -464,6 +478,14 @@ function TodosPedidosPage() {
           );
         })}
       </div>
+
+      <CancelSaleDialog
+        open={!!cancelTarget}
+        onOpenChange={(v) => { if (!v) setCancelTarget(null); }}
+        saleId={cancelTarget?.id ?? null}
+        ticketLabel={cancelTarget?.label}
+        onCancelled={() => refetch()}
+      />
     </div>
   );
 }
