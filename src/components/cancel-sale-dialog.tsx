@@ -76,7 +76,7 @@ export function CancelSaleDialog({ open, onOpenChange, saleId, ticketLabel, onCa
                 >
                   <RadioGroupItem id={`reason-${opt.code}`} value={opt.code} />
                   <span className="text-lg">{opt.emoji}</span>
-                  <span className="text-sm font-medium">{opt.label}</span>
+                  <span className="text-sm font-medium uppercase">{opt.label}</span>
                 </label>
               ))}
             </div>
