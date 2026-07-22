@@ -46,6 +46,10 @@ interface BotConfigRow {
   pickup_after_hours_messages: string[];
   greet_cooldown_hours: number;
   short_reply_words: string[];
+  ai_enabled: boolean;
+  ai_sandbox_numbers: string[];
+  ai_system_prompt: string | null;
+  ai_last_reply_at: string | null;
 }
 
 
