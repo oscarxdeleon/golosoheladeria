@@ -2797,11 +2797,53 @@ export type Database = {
           },
         ]
       }
+      whatsapp_ai_usage: {
+        Row: {
+          branch_id: string
+          created_at: string
+          id: string
+          last_reply_at: string | null
+          phone: string
+          reply_count: number
+          usage_date: string
+        }
+        Insert: {
+          branch_id: string
+          created_at?: string
+          id?: string
+          last_reply_at?: string | null
+          phone: string
+          reply_count?: number
+          usage_date?: string
+        }
+        Update: {
+          branch_id?: string
+          created_at?: string
+          id?: string
+          last_reply_at?: string | null
+          phone?: string
+          reply_count?: number
+          usage_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_usage_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_bot_config: {
         Row: {
           after_hours_cooldown_hours: number
           after_hours_enabled: boolean
           after_hours_messages: string[]
+          ai_enabled: boolean
+          ai_last_reply_at: string | null
+          ai_sandbox_numbers: string[]
+          ai_system_prompt: string | null
           bot_version: string | null
           branch_id: string
           command_ack_at: string | null
@@ -2833,6 +2875,10 @@ export type Database = {
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          ai_enabled?: boolean
+          ai_last_reply_at?: string | null
+          ai_sandbox_numbers?: string[]
+          ai_system_prompt?: string | null
           bot_version?: string | null
           branch_id: string
           command_ack_at?: string | null
@@ -2864,6 +2910,10 @@ export type Database = {
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          ai_enabled?: boolean
+          ai_last_reply_at?: string | null
+          ai_sandbox_numbers?: string[]
+          ai_system_prompt?: string | null
           bot_version?: string | null
           branch_id?: string
           command_ack_at?: string | null
@@ -3502,6 +3552,14 @@ export type Database = {
           _sent: string[]
           _token: string
         }
+        Returns: Json
+      }
+      whatsapp_bot_ai_context: {
+        Args: { _phone: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_ai_record_reply: {
+        Args: { _phone: string; _token: string }
         Returns: Json
       }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
