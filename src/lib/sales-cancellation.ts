@@ -15,12 +15,12 @@ export interface CancelReasonOption {
 }
 
 export const CANCEL_REASON_OPTIONS: CancelReasonOption[] = [
-  { code: "arrepentimiento", label: "Cliente se arrepintió", emoji: "🙅" },
-  { code: "sin_dinero",       label: "Cliente sin dinero suficiente", emoji: "💸" },
-  { code: "cambio_producto",  label: "Cliente cambió de producto", emoji: "🔄" },
-  { code: "demora",           label: "Demora en preparación", emoji: "⏱️" },
-  { code: "cambio_pago",      label: "Cambio de método de pago", emoji: "💳" },
-  { code: "otro",             label: "Otro motivo", emoji: "📝" },
+  { code: "arrepentimiento", label: "Cliente Se Arrepintió", emoji: "🙅" },
+  { code: "sin_dinero",       label: "Cliente Sin Dinero Suficiente", emoji: "💸" },
+  { code: "cambio_producto",  label: "Cliente Cambió De Producto", emoji: "🔄" },
+  { code: "demora",           label: "Demora En Preparación", emoji: "⏱️" },
+  { code: "cambio_pago",      label: "Cambio De Método De Pago", emoji: "💳" },
+  { code: "otro",             label: "Otro Motivo", emoji: "📝" },
 ];
 
 export interface CancelSaleResult {
