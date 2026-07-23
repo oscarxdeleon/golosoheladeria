@@ -2697,8 +2697,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   <Input
                     placeholder="Barrio *"
                     value={neighborhood}
-                    onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
-                    className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                    onChange={(e) => { setNeighborhood(toUpperText(e.target.value)); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                    autoCapitalize="characters"
+                    className={`uppercase tracking-wide ${fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                   {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
                 </div>
