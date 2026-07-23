@@ -2687,8 +2687,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   <Input
                     placeholder="Dirección completa *"
                     value={address}
-                    onChange={(e) => { setAddress(e.target.value); setSelectedAddressId(""); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
-                    className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                    onChange={(e) => { setAddress(toUpperText(e.target.value)); setSelectedAddressId(""); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                    autoCapitalize="characters"
+                    className={`uppercase tracking-wide ${fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                   {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
                 </div>
