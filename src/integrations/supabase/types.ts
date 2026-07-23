@@ -2951,6 +2951,47 @@ export type Database = {
           },
         ]
       }
+      whatsapp_bot_faqs: {
+        Row: {
+          active: boolean
+          answer: string
+          branch_id: string
+          created_at: string
+          id: string
+          question: string
+          sort_order: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          answer: string
+          branch_id: string
+          created_at?: string
+          id?: string
+          question: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          answer?: string
+          branch_id?: string
+          created_at?: string
+          id?: string
+          question?: string
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_bot_faqs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_bot_greeted: {
         Row: {
           branch_id: string
