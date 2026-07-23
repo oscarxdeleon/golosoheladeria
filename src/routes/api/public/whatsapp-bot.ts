@@ -266,7 +266,19 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 ? [customPrompt, "", customExtras].join("\n")
                 : defaultPrompt;
 
-              // 2) Construir mensaje del usuario (texto o audio)
+              // 2) Cargar historial reciente (memoria conversacional Fase 2)
+              let history: Array<{ role: string; content: string }> = [];
+              const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
+              if (histRes.ok && histRes.data && typeof histRes.data === "object") {
+                const msgs = (histRes.data as { messages?: unknown }).messages;
+                if (Array.isArray(msgs)) {
+                  history = msgs.filter((m): m is { role: string; content: string } =>
+                    !!m && typeof m === "object" && typeof (m as { role?: unknown }).role === "string" && typeof (m as { content?: unknown }).content === "string"
+                  );
+                }
+              }
+
+              // 3) Construir mensaje del turno actual (texto o audio)
               const userContent: Array<Record<string, unknown>> = [];
               if (text) {
                 userContent.push({ type: "text", text });
@@ -282,7 +294,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 userContent.push({ type: "input_audio", input_audio: { data: audioB64, format } });
               }
 
-              // 3) Llamar Lovable AI Gateway (Gemini 3.6 Flash acepta audio OGG nativo)
+              // 4) Llamar Lovable AI Gateway con system + historial + turno actual
               const apiKey = process.env.LOVABLE_API_KEY;
               if (!apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
 
@@ -297,6 +309,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     model,
                     messages: [
                       { role: "system", content: systemPrompt },
+                      ...history.map((m) => ({ role: m.role, content: m.content })),
                       { role: "user", content: userContent },
                     ],
                     max_tokens: 800,
@@ -324,7 +337,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const reply = aiData?.choices?.[0]?.message?.content?.trim() ?? "";
               if (!reply) return json({ error: "ai_empty", reply: null }, 200);
 
-              // 4) Registrar uso (rate limit) y guardar mensaje saliente
+              // 5) Persistir turno del usuario + respuesta del bot en memoria
+              const userLog = text && text.length > 0 ? text : "[nota de voz]";
+              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
+              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+
+              // 6) Registrar uso para rate limit diario
               await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
 
               return json({ reply, source: "ai" });
