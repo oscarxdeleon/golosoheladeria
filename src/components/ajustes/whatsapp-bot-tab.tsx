@@ -1222,7 +1222,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
 
 interface FaqRow {
   id: string;
-  branch_id: string;
+  branch_id: string | null;
   question: string;
   answer: string;
   sort_order: number;
@@ -1230,7 +1230,7 @@ interface FaqRow {
   created_at?: string;
 }
 
-type FaqFilter = "all" | "active" | "inactive" | "recent" | "duplicates";
+type FaqFilter = "all" | "active" | "inactive" | "recent" | "duplicates" | "global" | "branch";
 type DupStrategy = "skip" | "replace" | "keep-both";
 
 interface ImportPair extends ExtractedFaq {
@@ -1250,7 +1250,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
       const { data, error } = await supabase
         .from("whatsapp_bot_faqs")
         .select("id, branch_id, question, answer, sort_order, active, created_at")
-        .eq("branch_id", branchId)
+        .or(`branch_id.eq.${branchId},branch_id.is.null`)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
       if (error) throw error;
