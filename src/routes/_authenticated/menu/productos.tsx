@@ -598,6 +598,7 @@ function ProductosPage() {
               </label>
             </Button>
             <CloneToBranchDialog branches={branches} qc={qc} />
+            <ExportMenuButton />
 
 
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
