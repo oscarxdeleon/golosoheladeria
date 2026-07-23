@@ -174,25 +174,59 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
 
+              // Sabores y productos disponibles en la sede (leídos del POS)
+              const flavors = Array.isArray(ctx.flavors) ? ctx.flavors as Array<{ name?: string; extra_price?: number | null }> : [];
+              const products = Array.isArray(ctx.products) ? ctx.products as Array<{ name?: string; price?: number; category?: string | null }> : [];
+
+              const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+
+              const flavorsBlock = flavors.length > 0
+                ? "SABORES DISPONIBLES HOY EN ESTA SEDE (usa SOLO estos, no inventes otros):\n" +
+                  flavors.map((f) => `- ${f.name}${f.extra_price ? ` (+${fmtCOP(Number(f.extra_price))})` : ""}`).join("\n")
+                : "SABORES: no hay lista sincronizada; si preguntan, invita a ver el menú en línea.";
+
+              // Agrupar productos por categoría para que el prompt sea legible
+              const productsByCat = new Map<string, Array<{ name: string; price: number }>>();
+              for (const p of products) {
+                if (!p.name || typeof p.price !== "number") continue;
+                const cat = (p.category ?? "Otros").toString();
+                if (!productsByCat.has(cat)) productsByCat.set(cat, []);
+                productsByCat.get(cat)!.push({ name: String(p.name), price: Number(p.price) });
+              }
+              const productsBlock = productsByCat.size > 0
+                ? "PRODUCTOS Y PRECIOS ACTUALES DE ESTA SEDE (usa SOLO estos precios reales):\n" +
+                  Array.from(productsByCat.entries())
+                    .map(([cat, items]) => `【${cat}】\n` + items.map((i) => `- ${i.name}: ${fmtCOP(i.price)}`).join("\n"))
+                    .join("\n")
+                : "";
+
               const defaultPrompt = [
                 `Eres el asistente virtual de Heladería Goloso, sede ${branchName}.`,
                 "Tono cercano, cálido y juvenil, con emojis de helado 🍦🍨 cuando aporten.",
                 "REGLAS DE RESPUESTA:",
                 "- Responde SIEMPRE de forma directa y COMPLETA a lo que el cliente pregunta.",
-                "- Si preguntan por sabores, promociones, horarios, ubicación, tiempos de entrega, formas de pago, productos o cualquier detalle: da la información concreta que tengas del contexto.",
-                "- NO redirijas al menú a menos que el cliente pida ver el menú, pedir o si realmente no tienes la información.",
-                "- Usa varias líneas si es necesario para explicar bien. No te limites a 1-2 frases si la pregunta requiere más.",
-                "- Sé útil primero, breve después. Mejor una respuesta clara de 5 líneas que una vaga de 1 línea.",
+                "- Si preguntan por sabores, productos o precios: usa EXCLUSIVAMENTE la información de esta sede listada más abajo. NO inventes sabores, productos ni precios.",
+                "- Si un sabor o producto no aparece listado, di con honestidad que hoy no está disponible en esta sede.",
+                "- Si preguntan por promociones, horarios, ubicación, tiempos de entrega o formas de pago: da la información concreta que tengas del contexto.",
+                "- NO redirijas al menú a menos que el cliente pida ver el menú completo, pedir en línea, o pregunte algo que no está en tu contexto.",
+                "- Usa varias líneas si es necesario. Mejor una respuesta clara de 5 líneas que una vaga de 1.",
                 "",
                 `Menú y pedidos en línea: ${menuLink}`,
                 `Estado ahora: domicilio ${onlineOpen ? "ABIERTO ✅" : "CERRADO ❌"} · tienda física ${physicalOpen ? "ABIERTA ✅" : "CERRADA ❌"}.`,
                 "",
+                flavorsBlock,
+                "",
+                productsBlock,
+                "",
                 "Si el cliente quiere hacer un pedido en línea, envíale el link del menú.",
-                "No inventes promociones, precios ni sabores que no estén en tu contexto. Si no sabes algo puntual, dilo con honestidad y ofrece que un asesor lo contacte.",
                 "Responde SIEMPRE en español de Colombia.",
-              ].join("\n");
+              ].filter(Boolean).join("\n");
 
-              const systemPrompt = customPrompt && customPrompt.length > 0 ? customPrompt : defaultPrompt;
+              // Si hay prompt personalizado por sede, se le concatenan sabores/productos
+              // para que la sede pueda personalizar tono pero la IA nunca invente productos.
+              const systemPrompt = customPrompt && customPrompt.length > 0
+                ? [customPrompt, "", flavorsBlock, "", productsBlock].filter(Boolean).join("\n")
+                : defaultPrompt;
 
               // 2) Construir mensaje del usuario (texto o audio)
               const userContent: Array<Record<string, unknown>> = [];
