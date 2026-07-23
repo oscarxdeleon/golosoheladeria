@@ -477,7 +477,8 @@ export function PublicOrder({
     if (sedeAddr) lines.push(`📍 ${sedeAddr}`);
     if (sedePhone) lines.push(`📞 ${sedePhone}`);
     lines.push(`*Pedido #:* ${ticket}`);
-    if (customerName) lines.push(`*Cliente:* ${customerName}`);
+    const fullCustomer = [customerName, customerLastName].map((s) => s.trim()).filter(Boolean).join(" ");
+    if (fullCustomer) lines.push(`*Cliente:* ${fullCustomer}`);
     if (phone) lines.push(`*Teléfono:* ${phone}`);
     if (isDelivery) {
       lines.push(`*Dirección:* ${address} - *Barrio:* ${neighborhood}`);
