@@ -18,7 +18,7 @@ import {
   MessageCircle, Copy, RefreshCw, Plus, Trash2, QrCode, Download,
   Wifi, WifiOff, CircleAlert, Info, Smartphone, LogOut, RotateCw,
   Upload, Sparkles, Check, X, Search, ChevronDown, ChevronRight,
-  Pencil, MoreHorizontal, AlertTriangle,
+  Pencil, MoreHorizontal, AlertTriangle, Globe, Home,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
