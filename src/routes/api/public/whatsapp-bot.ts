@@ -532,7 +532,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // 7) Registrar uso para rate limit diario
               await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
 
-              return json({ reply: finalReply, source: "ai" });
+              return json({ reply: finalReply, source: "ai", finish_reason: lastFinishReason, warning: lastErr });
             }
             default:
               return json({ error: "unknown_action" }, 400);
