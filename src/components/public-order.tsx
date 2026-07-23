@@ -624,7 +624,7 @@ export function PublicOrder({
           header,
           order_type: source === "kiosk" ? "kiosko" : isDelivery ? "domicilio" : "online",
           items: printItems,
-          customer: customerName || undefined,
+          customer: [customerName, customerLastName].map((s) => s.trim()).filter(Boolean).join(" ") || undefined,
           notes: payload.notes ?? undefined,
           address: isDelivery ? composeDeliveryAddress(address, neighborhood) : undefined,
           phone: phone || undefined,
