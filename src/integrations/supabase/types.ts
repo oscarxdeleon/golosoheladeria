@@ -2797,6 +2797,41 @@ export type Database = {
           },
         ]
       }
+      whatsapp_ai_messages: {
+        Row: {
+          branch_id: string
+          content: string
+          created_at: string
+          id: string
+          phone: string
+          role: string
+        }
+        Insert: {
+          branch_id: string
+          content: string
+          created_at?: string
+          id?: string
+          phone: string
+          role: string
+        }
+        Update: {
+          branch_id?: string
+          content?: string
+          created_at?: string
+          id?: string
+          phone?: string
+          role?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_messages_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_ai_usage: {
         Row: {
           branch_id: string
@@ -3599,8 +3634,21 @@ export type Database = {
         Args: { _phone: string; _token: string }
         Returns: Json
       }
+      whatsapp_bot_ai_history: {
+        Args: { _limit?: number; _phone: string; _token: string }
+        Returns: Json
+      }
       whatsapp_bot_ai_record_reply: {
         Args: { _phone: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_ai_save_message: {
+        Args: {
+          _content: string
+          _phone: string
+          _role: string
+          _token: string
+        }
         Returns: Json
       }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
