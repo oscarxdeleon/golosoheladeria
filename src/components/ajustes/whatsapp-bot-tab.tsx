@@ -17,11 +17,14 @@ import { toast } from "sonner";
 import {
   MessageCircle, Copy, RefreshCw, Plus, Trash2, QrCode, Download,
   Wifi, WifiOff, CircleAlert, Info, Smartphone, LogOut, RotateCw,
+  Upload, Sparkles, Check, X,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useServerFn } from "@tanstack/react-start";
+import { extractFaqsFromChat, type ExtractedFaq } from "@/lib/whatsapp-faq-import.functions";
 
 interface BotConfigRow {
   branch_id: string;
@@ -1104,6 +1107,64 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   const [a, setA] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // ---- Importador de chat .txt ----
+  const extractFn = useServerFn(extractFaqsFromChat);
+  const [importing, setImporting] = useState(false);
+  const [preview, setPreview] = useState<Array<ExtractedFaq & { keep: boolean }>>([]);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Archivo muy grande (máx 5 MB)");
+      return;
+    }
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const result = await extractFn({ data: { text, branchId } });
+      if (!result.pairs.length) {
+        toast.warning(result.warnings[0] ?? "No se encontraron preguntas útiles");
+        setImporting(false);
+        return;
+      }
+      setPreview(result.pairs.map((p) => ({ ...p, keep: true })));
+      setImportOpen(true);
+    } catch (err) {
+      toast.error("Error al procesar el chat", { description: (err as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const saveImported = async () => {
+    const chosen = preview.filter((p) => p.keep && p.question.trim() && p.answer.trim());
+    if (!chosen.length) {
+      toast.error("Marca al menos una pregunta");
+      return;
+    }
+    setImporting(true);
+    let order = (faqs.at(-1)?.sort_order ?? 0) + 10;
+    const rows = chosen.map((p) => ({
+      branch_id: branchId,
+      question: p.question.trim(),
+      answer: p.answer.trim(),
+      sort_order: (order += 10),
+      active: true,
+    }));
+    const { error } = await supabase.from("whatsapp_bot_faqs").insert(rows);
+    setImporting(false);
+    if (error) {
+      toast.error("No se pudieron guardar", { description: error.message });
+      return;
+    }
+    toast.success(`${rows.length} preguntas agregadas`);
+    setPreview([]);
+    setImportOpen(false);
+    qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
+  };
+
+
   const add = async () => {
     const question = q.trim();
     const answer = a.trim();
@@ -1163,6 +1224,39 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {/* Importador de chat WhatsApp .txt */}
+        <div className="rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/50 p-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-sm font-medium flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-fuchsia-600" />
+                Importar desde chat de WhatsApp
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Exporta un chat (.txt) desde WhatsApp. La IA extrae las preguntas frecuentes
+                automáticamente y <b>elimina nombres, teléfonos y datos personales</b>.
+              </p>
+            </div>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".txt,text/plain"
+                className="hidden"
+                disabled={importing}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) handleFile(f);
+                }}
+              />
+              <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${importing ? "bg-muted text-muted-foreground" : "bg-fuchsia-600 text-white hover:bg-fuchsia-700"}`}>
+                <Upload className="h-4 w-4" />
+                {importing ? "Procesando…" : "Subir chat .txt"}
+              </span>
+            </label>
+          </div>
+        </div>
+
         {/* Formulario para agregar */}
         <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
           <div>
@@ -1249,6 +1343,63 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
           Solo las preguntas <b>activas</b> se envían a la IA. Guardar es instantáneo.
         </p>
       </CardContent>
+
+      {/* Preview del importador */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-fuchsia-600" />
+              Preguntas extraídas ({preview.filter((p) => p.keep).length}/{preview.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            <p className="text-xs text-muted-foreground">
+              Revisa, edita o descarta cada par. Sin nombres ni datos personales.
+            </p>
+            {preview.map((p, idx) => (
+              <div
+                key={idx}
+                className={`rounded-lg border p-3 space-y-2 ${p.keep ? "bg-card" : "bg-muted/40 opacity-60"}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <Label className="text-xs font-medium">Pregunta</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, keep: !x.keep } : x))}
+                  >
+                    {p.keep ? <><X className="h-3 w-3 mr-1" />Descartar</> : <><Check className="h-3 w-3 mr-1" />Incluir</>}
+                  </Button>
+                </div>
+                <Input
+                  value={p.question}
+                  onChange={(e) => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, question: e.target.value } : x))}
+                  className="text-sm"
+                  disabled={!p.keep}
+                />
+                <Label className="text-xs font-medium">Respuesta oficial</Label>
+                <Textarea
+                  value={p.answer}
+                  onChange={(e) => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, answer: e.target.value } : x))}
+                  rows={3}
+                  className="text-sm"
+                  disabled={!p.keep}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>
+              Cancelar
+            </Button>
+            <Button onClick={saveImported} disabled={importing}>
+              {importing ? "Guardando…" : `Guardar ${preview.filter((p) => p.keep).length} preguntas`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
