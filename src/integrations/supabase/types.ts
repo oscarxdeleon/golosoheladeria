@@ -2185,6 +2185,8 @@ export type Database = {
       }
       sales: {
         Row: {
+          ai_cart_id: string | null
+          ai_review_status: string | null
           branch_id: string | null
           cancellation_previous_status: string | null
           cancellation_reason: string | null
@@ -2225,6 +2227,8 @@ export type Database = {
           user_name: string | null
         }
         Insert: {
+          ai_cart_id?: string | null
+          ai_review_status?: string | null
           branch_id?: string | null
           cancellation_previous_status?: string | null
           cancellation_reason?: string | null
@@ -2265,6 +2269,8 @@ export type Database = {
           user_name?: string | null
         }
         Update: {
+          ai_cart_id?: string | null
+          ai_review_status?: string | null
           branch_id?: string | null
           cancellation_previous_status?: string | null
           cancellation_reason?: string | null
@@ -2797,6 +2803,84 @@ export type Database = {
           },
         ]
       }
+      whatsapp_ai_carts: {
+        Row: {
+          branch_id: string
+          confirmed_at: string | null
+          created_at: string
+          customer_name: string | null
+          delivery_address: string | null
+          delivery_fee: number
+          delivery_neighborhood: string | null
+          delivery_notes: string | null
+          expires_at: string
+          id: string
+          items: Json
+          payment_method: string | null
+          phone: string
+          posted_sale_id: string | null
+          status: string
+          subtotal: number
+          total: number
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          confirmed_at?: string | null
+          created_at?: string
+          customer_name?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_neighborhood?: string | null
+          delivery_notes?: string | null
+          expires_at?: string
+          id?: string
+          items?: Json
+          payment_method?: string | null
+          phone: string
+          posted_sale_id?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          confirmed_at?: string | null
+          created_at?: string
+          customer_name?: string | null
+          delivery_address?: string | null
+          delivery_fee?: number
+          delivery_neighborhood?: string | null
+          delivery_notes?: string | null
+          expires_at?: string
+          id?: string
+          items?: Json
+          payment_method?: string | null
+          phone?: string
+          posted_sale_id?: string | null
+          status?: string
+          subtotal?: number
+          total?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_carts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_carts_posted_sale_id_fkey"
+            columns: ["posted_sale_id"]
+            isOneToOne: false
+            referencedRelation: "sales"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_ai_messages: {
         Row: {
           branch_id: string
@@ -2877,6 +2961,7 @@ export type Database = {
           after_hours_messages: string[]
           ai_enabled: boolean
           ai_last_reply_at: string | null
+          ai_ordering_enabled: boolean
           ai_sandbox_numbers: string[]
           ai_system_prompt: string | null
           bot_version: string | null
@@ -2897,6 +2982,11 @@ export type Database = {
           menu_cooldown_hours: number
           menu_message: string
           menu_triggers: string[]
+          ordering_daily_limit_per_phone: number
+          ordering_delivery_fee: number
+          ordering_delivery_zones: string | null
+          ordering_min_amount: number
+          ordering_transfer_info: string | null
           pending_command: string | null
           pickup_after_hours_enabled: boolean
           pickup_after_hours_messages: string[]
@@ -2912,6 +3002,7 @@ export type Database = {
           after_hours_messages?: string[]
           ai_enabled?: boolean
           ai_last_reply_at?: string | null
+          ai_ordering_enabled?: boolean
           ai_sandbox_numbers?: string[]
           ai_system_prompt?: string | null
           bot_version?: string | null
@@ -2932,6 +3023,11 @@ export type Database = {
           menu_cooldown_hours?: number
           menu_message?: string
           menu_triggers?: string[]
+          ordering_daily_limit_per_phone?: number
+          ordering_delivery_fee?: number
+          ordering_delivery_zones?: string | null
+          ordering_min_amount?: number
+          ordering_transfer_info?: string | null
           pending_command?: string | null
           pickup_after_hours_enabled?: boolean
           pickup_after_hours_messages?: string[]
@@ -2947,6 +3043,7 @@ export type Database = {
           after_hours_messages?: string[]
           ai_enabled?: boolean
           ai_last_reply_at?: string | null
+          ai_ordering_enabled?: boolean
           ai_sandbox_numbers?: string[]
           ai_system_prompt?: string | null
           bot_version?: string | null
@@ -2967,6 +3064,11 @@ export type Database = {
           menu_cooldown_hours?: number
           menu_message?: string
           menu_triggers?: string[]
+          ordering_daily_limit_per_phone?: number
+          ordering_delivery_fee?: number
+          ordering_delivery_zones?: string | null
+          ordering_min_amount?: number
+          ordering_transfer_info?: string | null
           pending_command?: string | null
           pickup_after_hours_enabled?: boolean
           pickup_after_hours_messages?: string[]
@@ -3630,12 +3732,36 @@ export type Database = {
         }
         Returns: Json
       }
+      whatsapp_bot_ai_cart_cancel: {
+        Args: { _phone: string; _token: string }
+        Returns: boolean
+      }
+      whatsapp_bot_ai_cart_confirm: {
+        Args: { _phone: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_ai_cart_get: {
+        Args: { _phone: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_ai_cart_upsert: {
+        Args: { _patch: Json; _phone: string; _token: string }
+        Returns: Json
+      }
       whatsapp_bot_ai_context: {
         Args: { _phone: string; _token: string }
         Returns: Json
       }
+      whatsapp_bot_ai_get_modifiers: {
+        Args: { _product_id: string; _token: string }
+        Returns: Json
+      }
       whatsapp_bot_ai_history: {
         Args: { _limit?: number; _phone: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_ai_ordering_config: {
+        Args: { _token: string }
         Returns: Json
       }
       whatsapp_bot_ai_record_reply: {
@@ -3649,6 +3775,10 @@ export type Database = {
           _role: string
           _token: string
         }
+        Returns: Json
+      }
+      whatsapp_bot_ai_search_products: {
+        Args: { _query: string; _token: string }
         Returns: Json
       }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
@@ -3683,6 +3813,7 @@ export type Database = {
         Args: { _branch_id: string; _command: string }
         Returns: Json
       }
+      whatsapp_bot_resolve_branch: { Args: { _token: string }; Returns: string }
       whatsapp_bot_resolve_branch_id: {
         Args: { _token: string }
         Returns: string
