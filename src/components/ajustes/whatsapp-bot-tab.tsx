@@ -1707,6 +1707,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                             ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                           <span className="text-sm font-medium truncate">{f.question}</span>
+                          {f.branch_id === null && <Badge variant="outline" className="text-[10px] py-0 h-4 border-sky-400 text-sky-700 bg-sky-50">Global</Badge>}
                           {!f.active && <Badge variant="outline" className="text-[10px] py-0 h-4">Inactiva</Badge>}
                           {isDup && <Badge variant="outline" className="text-[10px] py-0 h-4 border-amber-400 text-amber-700">Duplicada</Badge>}
                         </div>
@@ -1728,6 +1729,11 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => updateField(f.id, { active: !f.active })}>
                             {f.active ? <><X className="h-4 w-4 mr-2" /> Desactivar</> : <><Check className="h-4 w-4 mr-2" /> Activar</>}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateField(f.id, { branch_id: f.branch_id === null ? branchId : null })}>
+                            {f.branch_id === null
+                              ? <><Home className="h-4 w-4 mr-2" /> Anclar a esta sede</>
+                              : <><Globe className="h-4 w-4 mr-2" /> Hacer global</>}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => setConfirmDeleteId(f.id)}>
