@@ -1636,6 +1636,8 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
               <SelectItem value="all">Todas ({faqs.length})</SelectItem>
               <SelectItem value="active">Activas ({activeCount})</SelectItem>
               <SelectItem value="inactive">Inactivas ({faqs.length - activeCount})</SelectItem>
+              <SelectItem value="global">Globales ({faqs.filter((f) => f.branch_id === null).length})</SelectItem>
+              <SelectItem value="branch">Solo esta sede ({faqs.filter((f) => f.branch_id !== null).length})</SelectItem>
               <SelectItem value="recent">Recientes (24 h)</SelectItem>
               <SelectItem value="duplicates">Duplicadas ({dupCount})</SelectItem>
             </SelectContent>
