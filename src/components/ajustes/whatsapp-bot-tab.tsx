@@ -1426,7 +1426,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
           if (p.strategy === "replace") { toReplace.push({ id: p.duplicateOfId, question, answer }); continue; }
         }
         toInsert.push({
-          branch_id: branchId,
+          branch_id: importAsGlobal ? null : branchId,
           question,
           answer,
           sort_order: (order += 10),
