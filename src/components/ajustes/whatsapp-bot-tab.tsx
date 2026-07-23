@@ -18,7 +18,7 @@ import {
   MessageCircle, Copy, RefreshCw, Plus, Trash2, QrCode, Download,
   Wifi, WifiOff, CircleAlert, Info, Smartphone, LogOut, RotateCw,
   Upload, Sparkles, Check, X, Search, ChevronDown, ChevronRight,
-  Pencil, MoreHorizontal, AlertTriangle,
+  Pencil, MoreHorizontal, AlertTriangle, Globe, Home,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
@@ -1222,7 +1222,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
 
 interface FaqRow {
   id: string;
-  branch_id: string;
+  branch_id: string | null;
   question: string;
   answer: string;
   sort_order: number;
@@ -1230,7 +1230,7 @@ interface FaqRow {
   created_at?: string;
 }
 
-type FaqFilter = "all" | "active" | "inactive" | "recent" | "duplicates";
+type FaqFilter = "all" | "active" | "inactive" | "recent" | "duplicates" | "global" | "branch";
 type DupStrategy = "skip" | "replace" | "keep-both";
 
 interface ImportPair extends ExtractedFaq {
@@ -1250,7 +1250,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
       const { data, error } = await supabase
         .from("whatsapp_bot_faqs")
         .select("id, branch_id, question, answer, sort_order, active, created_at")
-        .eq("branch_id", branchId)
+        .or(`branch_id.eq.${branchId},branch_id.is.null`)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
       if (error) throw error;
@@ -1261,6 +1261,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   // ---- Add manual ----
   const [q, setQ] = useState("");
   const [a, setA] = useState("");
+  const [addGlobal, setAddGlobal] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // ---- Import ----
@@ -1270,6 +1271,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   const [importStats, setImportStats] = useState<ExtractFaqsResult["stats"] | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
+  const [importAsGlobal, setImportAsGlobal] = useState(false);
 
   // ---- Browse UI state ----
   const [search, setSearch] = useState("");
@@ -1301,6 +1303,8 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
       if (filter === "active" && !f.active) return false;
       if (filter === "inactive" && f.active) return false;
       if (filter === "duplicates" && !duplicateIds.has(f.id)) return false;
+      if (filter === "global" && f.branch_id !== null) return false;
+      if (filter === "branch" && f.branch_id === null) return false;
       if (filter === "recent") {
         if (!f.created_at) return false;
         const age = now - new Date(f.created_at).getTime();
@@ -1410,7 +1414,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     setImporting(true);
     try {
       let order = (faqs.at(-1)?.sort_order ?? 0) + 10;
-      const toInsert: Array<{ branch_id: string; question: string; answer: string; sort_order: number; active: boolean }> = [];
+      const toInsert: Array<{ branch_id: string | null; question: string; answer: string; sort_order: number; active: boolean }> = [];
       const toReplace: Array<{ id: string; question: string; answer: string }> = [];
       let skipped = 0;
 
@@ -1422,7 +1426,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
           if (p.strategy === "replace") { toReplace.push({ id: p.duplicateOfId, question, answer }); continue; }
         }
         toInsert.push({
-          branch_id: branchId,
+          branch_id: importAsGlobal ? null : branchId,
           question,
           answer,
           sort_order: (order += 10),
@@ -1474,7 +1478,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     setSaving(true);
     const nextOrder = (faqs.at(-1)?.sort_order ?? 0) + 10;
     const { error } = await supabase.from("whatsapp_bot_faqs").insert({
-      branch_id: branchId, question, answer, sort_order: nextOrder, active: true,
+      branch_id: addGlobal ? null : branchId, question, answer, sort_order: nextOrder, active: true,
     });
     setSaving(false);
     if (error) { toast.error("No se pudo agregar", { description: error.message }); return; }
@@ -1561,6 +1565,10 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                 extrae los pares y <b>elimina nombres, teléfonos y datos personales</b>. Soporta archivos con
                 50, 100, 200+ pares.
               </p>
+              <label className="mt-2 inline-flex items-center gap-2 text-xs cursor-pointer">
+                <Switch checked={importAsGlobal} onCheckedChange={setImportAsGlobal} />
+                <span>Importar como <b>globales</b> (aplican a las dos sedes)</span>
+              </label>
             </div>
             <label className="cursor-pointer">
               <input
@@ -1599,7 +1607,11 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                 placeholder="Ej: Sí, hacemos domicilio a Chapinero. El costo es $5.000 y el tiempo estimado es 30–40 min."
                 rows={3} className="mt-1" />
             </div>
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                <Switch checked={addGlobal} onCheckedChange={setAddGlobal} />
+                <span>Global (ambas sedes)</span>
+              </label>
               <Button size="sm" onClick={add} disabled={saving}>
                 <Plus className="h-4 w-4 mr-1" />{saving ? "Agregando…" : "Agregar"}
               </Button>
@@ -1624,6 +1636,8 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
               <SelectItem value="all">Todas ({faqs.length})</SelectItem>
               <SelectItem value="active">Activas ({activeCount})</SelectItem>
               <SelectItem value="inactive">Inactivas ({faqs.length - activeCount})</SelectItem>
+              <SelectItem value="global">Globales ({faqs.filter((f) => f.branch_id === null).length})</SelectItem>
+              <SelectItem value="branch">Solo esta sede ({faqs.filter((f) => f.branch_id !== null).length})</SelectItem>
               <SelectItem value="recent">Recientes (24 h)</SelectItem>
               <SelectItem value="duplicates">Duplicadas ({dupCount})</SelectItem>
             </SelectContent>
@@ -1693,6 +1707,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                             ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
                             : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
                           <span className="text-sm font-medium truncate">{f.question}</span>
+                          {f.branch_id === null && <Badge variant="outline" className="text-[10px] py-0 h-4 border-sky-400 text-sky-700 bg-sky-50">Global</Badge>}
                           {!f.active && <Badge variant="outline" className="text-[10px] py-0 h-4">Inactiva</Badge>}
                           {isDup && <Badge variant="outline" className="text-[10px] py-0 h-4 border-amber-400 text-amber-700">Duplicada</Badge>}
                         </div>
@@ -1714,6 +1729,11 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                           </DropdownMenuItem>
                           <DropdownMenuItem onClick={() => updateField(f.id, { active: !f.active })}>
                             {f.active ? <><X className="h-4 w-4 mr-2" /> Desactivar</> : <><Check className="h-4 w-4 mr-2" /> Activar</>}
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateField(f.id, { branch_id: f.branch_id === null ? branchId : null })}>
+                            {f.branch_id === null
+                              ? <><Home className="h-4 w-4 mr-2" /> Anclar a esta sede</>
+                              : <><Globe className="h-4 w-4 mr-2" /> Hacer global</>}
                           </DropdownMenuItem>
                           <DropdownMenuSeparator />
                           <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => setConfirmDeleteId(f.id)}>
