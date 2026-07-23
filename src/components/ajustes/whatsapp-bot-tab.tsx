@@ -1183,6 +1183,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
           <Switch id="ord-dryrun" checked={dryRun} onCheckedChange={setDryRun} disabled={isLoading} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
             <Label className="text-sm">Monto mínimo (COP)</Label>
             <Input inputMode="numeric" value={minAmount} onChange={(e) => setMinAmount(e.target.value.replace(/[^\d]/g, ""))} />
           </div>
