@@ -382,6 +382,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       return r.ok ? (r.data ?? { empty: true }) : { error: "cart_read_failed" };
                     }
                     case "confirm_order": {
+                      if (dryRun) {
+                        // Modo prueba: no insertar en sales. Cancelar carrito para dejarlo limpio.
+                        await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
+                        const fakeNumber = "TEST-" + Math.floor(1000 + Math.random() * 9000);
+                        return { ok: true, dry_run: true, order: { order_number: fakeNumber, simulated: true } };
+                      }
                       const r = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
                       if (r.ok) return { ok: true, order: r.data };
                       const detail = (r.data as { message?: string } | string) ?? "";
