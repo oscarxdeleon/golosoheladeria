@@ -181,8 +181,9 @@ function OnlineOrdersPage() {
           const row = (payload.new ?? payload.old) as { source?: string | null; order_type?: string | null; payment_method?: string | null } | null;
           if (!row) return;
           const isOnline = row.source === "online_menu";
+          const isBot = row.source === "whatsapp_bot";
           const isPosDomicilioPending = row.order_type === "domicilio" && row.payment_method === "Pendiente";
-          if (!isOnline && !isPosDomicilioPending) return;
+          if (!isOnline && !isBot && !isPosDomicilioPending) return;
           qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
         })
       .subscribe();
