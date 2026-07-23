@@ -1319,67 +1319,138 @@ export function PublicOrder({
               </div>
 
               {source !== "table_qr" && (
-                <div className="space-y-2">
-                  <div className="space-y-1">
+                <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-rose-50/50 to-amber-50/40 dark:from-slate-900 dark:via-rose-950/20 dark:to-amber-950/10 p-4 shadow-[0_10px_30px_-15px_rgba(244,63,94,0.35)] space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary shrink-0">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-display text-base leading-tight">Datos del cliente</div>
+                      <div className="text-[11px] text-muted-foreground leading-tight">
+                        {isDelivery ? "Para entregar tu pedido a domicilio" : "Para identificar tu pedido"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <PremiumField
+                    label="Nombre"
+                    icon={<User className="h-4 w-4" />}
+                    error={fieldErrors.name}
+                    errorText="Este campo es obligatorio"
+                    required
+                  >
                     <Input
-                      placeholder={`Nombre ${isDelivery ? "del cliente *" : "*"}`}
+                      placeholder="Escribe tu nombre"
                       name="customer-name"
-                      autoComplete="name"
+                      autoComplete="given-name"
+                      autoCapitalize="characters"
                       value={customerName}
-                      onChange={(e) => { setCustomerName(e.target.value); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: false }); }}
-                      className={fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
+                      onChange={(e) => { setCustomerName(toUpperText(e.target.value)); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: false }); }}
+                      className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       required
                     />
-                    {fieldErrors.name && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
-                  </div>
-                  <div className="space-y-1">
+                  </PremiumField>
+
+                  <PremiumField
+                    label="Apellido"
+                    icon={<IdCard className="h-4 w-4" />}
+                  >
                     <Input
-                      placeholder="Teléfono de contacto *"
+                      placeholder="Escribe tu apellido"
+                      name="customer-lastname"
+                      autoComplete="family-name"
+                      autoCapitalize="characters"
+                      value={customerLastName}
+                      onChange={(e) => setCustomerLastName(toUpperText(e.target.value))}
+                      className="h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition"
+                    />
+                  </PremiumField>
+
+                  <PremiumField
+                    label="WhatsApp"
+                    icon={<Phone className="h-4 w-4" />}
+                    error={fieldErrors.phone}
+                    errorText="Ingresa un WhatsApp válido para contactarte"
+                    required
+                  >
+                    <Input
+                      placeholder="Ingresa tu número de WhatsApp"
                       name="customer-phone"
                       autoComplete="tel"
-                      inputMode="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={phone}
-                      onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
-                      className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                      onChange={(e) => { setPhone(onlyDigits(e.target.value)); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
+                      className={`h-12 rounded-xl text-base tabular-nums bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       required
                     />
-                    {fieldErrors.phone && <p className="text-xs text-destructive">El teléfono es obligatorio para poder contactarte</p>}
-                  </div>
+                  </PremiumField>
+
                   {isDelivery && (
                     <>
-                      <div className="space-y-1">
+                      <PremiumField
+                        label="Dirección"
+                        icon={<MapPin className="h-4 w-4" />}
+                        error={fieldErrors.address}
+                        errorText="La dirección es obligatoria para envíos"
+                        required
+                      >
                         <Input
-                          placeholder="Dirección completa *"
+                          placeholder="Escribe la dirección completa"
                           name="customer-address"
                           autoComplete="street-address"
+                          autoCapitalize="characters"
                           value={address}
-                          onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
-                          className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                          onChange={(e) => { setAddress(toUpperText(e.target.value)); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                          className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         />
-                        {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
-                      </div>
-                      <div className="space-y-1">
+                      </PremiumField>
+
+                      <PremiumField
+                        label="Barrio"
+                        icon={<Home className="h-4 w-4" />}
+                        error={fieldErrors.neighborhood}
+                        errorText="El barrio es obligatorio para envíos"
+                        required
+                      >
                         <Input
-                          placeholder="Barrio *"
+                          placeholder="Escribe el barrio"
                           name="customer-neighborhood"
                           autoComplete="address-level3"
+                          autoCapitalize="characters"
                           value={neighborhood}
-                          onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
-                          className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                          onChange={(e) => { setNeighborhood(toUpperText(e.target.value)); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                          className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         />
-                        {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
-                      </div>
+                      </PremiumField>
                     </>
                   )}
+
+                  <PremiumField
+                    label="Nota sobre el pedido"
+                    icon={<StickyNote className="h-4 w-4" />}
+                    hint="Opcional"
+                  >
+                    <Textarea
+                      placeholder="Ejemplo: Sin azúcar, sin fresa, tocar el timbre, entregar en portería..."
+                      value={notes}
+                      onChange={(e) => setNotes(toUpperText(e.target.value))}
+                      rows={3}
+                      className="rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition"
+                    />
+                  </PremiumField>
                 </div>
               )}
 
-              <Textarea
-                placeholder="Notas para cocina"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-              />
+              {source === "table_qr" && (
+                <Textarea
+                  placeholder="NOTAS PARA COCINA"
+                  value={notes}
+                  onChange={(e) => setNotes(toUpperText(e.target.value))}
+                  rows={2}
+                  className="uppercase tracking-wide"
+                />
+              )}
 
               {source !== "table_qr" && (
               <div className="rounded-lg border p-3 space-y-3">
