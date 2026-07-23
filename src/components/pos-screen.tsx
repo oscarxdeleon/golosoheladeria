@@ -28,6 +28,7 @@ import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/co
 import nequiLogo from "@/assets/nequi-logo-transparent.webp";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
+import { toUpperText } from "@/lib/text-transform";
 import { VoiceMicButton } from "@/components/voice-input";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
 import { AiOrderDialog } from "@/components/ai-order-dialog";
