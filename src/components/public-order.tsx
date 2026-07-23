@@ -30,6 +30,7 @@ const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
 type StoredOnlineCustomer = {
   name?: string;
+  lastName?: string;
   phone?: string;
   address?: string;
   neighborhood?: string;
@@ -39,6 +40,7 @@ type StoredOnlineCustomer = {
 function sanitizeOnlineCustomer(data: StoredOnlineCustomer): StoredOnlineCustomer {
   return {
     name: String(data.name ?? "").trim(),
+    lastName: String(data.lastName ?? "").trim(),
     phone: String(data.phone ?? "").trim(),
     address: String(data.address ?? "").trim(),
     neighborhood: String(data.neighborhood ?? "").trim(),
