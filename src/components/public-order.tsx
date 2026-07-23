@@ -207,6 +207,7 @@ export function PublicOrder({
     setTicketNumber(null);
     setCart([]);
     setCustomerName("");
+    setCustomerLastName("");
     setPhone("");
     setAddress("");
     setNeighborhood("");
