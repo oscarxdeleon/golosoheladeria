@@ -147,6 +147,7 @@ export function PublicOrder({
     const saved = readStoredOnlineCustomer();
     if (!saved) return;
     setCustomerName((current) => current || saved.name || "");
+    setCustomerLastName((current) => current || saved.lastName || "");
     setPhone((current) => current || saved.phone || "");
     setAddress((current) => current || saved.address || "");
     setNeighborhood((current) => current || saved.neighborhood || "");
@@ -154,13 +155,13 @@ export function PublicOrder({
 
   useEffect(() => {
     if (source !== "online_menu") return;
-    const hasCustomerData = customerName.trim() || phone.trim() || address.trim() || neighborhood.trim();
+    const hasCustomerData = customerName.trim() || customerLastName.trim() || phone.trim() || address.trim() || neighborhood.trim();
     if (!hasCustomerData) return;
     const saveTimer = window.setTimeout(() => {
-      writeStoredOnlineCustomer({ name: customerName, phone, address, neighborhood });
+      writeStoredOnlineCustomer({ name: customerName, lastName: customerLastName, phone, address, neighborhood });
     }, 400);
     return () => window.clearTimeout(saveTimer);
-  }, [source, customerName, phone, address, neighborhood]);
+  }, [source, customerName, customerLastName, phone, address, neighborhood]);
 
   async function copyToClipboard(value: string, label: string) {
     if (!value) return;
