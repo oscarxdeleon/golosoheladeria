@@ -17,14 +17,20 @@ import { toast } from "sonner";
 import {
   MessageCircle, Copy, RefreshCw, Plus, Trash2, QrCode, Download,
   Wifi, WifiOff, CircleAlert, Info, Smartphone, LogOut, RotateCw,
-  Upload, Sparkles, Check, X,
+  Upload, Sparkles, Check, X, Search, ChevronDown, ChevronRight,
+  Pencil, MoreHorizontal, AlertTriangle,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem,
+  DropdownMenuSeparator, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useServerFn } from "@tanstack/react-start";
-import { extractFaqsFromChat, type ExtractedFaq } from "@/lib/whatsapp-faq-import.functions";
+import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
 
 interface BotConfigRow {
   branch_id: string;
