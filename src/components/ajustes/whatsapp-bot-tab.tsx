@@ -1261,6 +1261,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   // ---- Add manual ----
   const [q, setQ] = useState("");
   const [a, setA] = useState("");
+  const [addGlobal, setAddGlobal] = useState(false);
   const [saving, setSaving] = useState(false);
 
   // ---- Import ----
@@ -1270,6 +1271,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   const [importStats, setImportStats] = useState<ExtractFaqsResult["stats"] | null>(null);
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
+  const [importAsGlobal, setImportAsGlobal] = useState(false);
 
   // ---- Browse UI state ----
   const [search, setSearch] = useState("");
