@@ -1107,6 +1107,64 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   const [a, setA] = useState("");
   const [saving, setSaving] = useState(false);
 
+  // ---- Importador de chat .txt ----
+  const extractFn = useServerFn(extractFaqsFromChat);
+  const [importing, setImporting] = useState(false);
+  const [preview, setPreview] = useState<Array<ExtractedFaq & { keep: boolean }>>([]);
+  const [importOpen, setImportOpen] = useState(false);
+
+  const handleFile = async (file: File) => {
+    if (!file) return;
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error("Archivo muy grande (máx 5 MB)");
+      return;
+    }
+    setImporting(true);
+    try {
+      const text = await file.text();
+      const result = await extractFn({ data: { text, branchId } });
+      if (!result.pairs.length) {
+        toast.warning(result.warnings[0] ?? "No se encontraron preguntas útiles");
+        setImporting(false);
+        return;
+      }
+      setPreview(result.pairs.map((p) => ({ ...p, keep: true })));
+      setImportOpen(true);
+    } catch (err) {
+      toast.error("Error al procesar el chat", { description: (err as Error).message });
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  const saveImported = async () => {
+    const chosen = preview.filter((p) => p.keep && p.question.trim() && p.answer.trim());
+    if (!chosen.length) {
+      toast.error("Marca al menos una pregunta");
+      return;
+    }
+    setImporting(true);
+    let order = (faqs.at(-1)?.sort_order ?? 0) + 10;
+    const rows = chosen.map((p) => ({
+      branch_id: branchId,
+      question: p.question.trim(),
+      answer: p.answer.trim(),
+      sort_order: (order += 10),
+      active: true,
+    }));
+    const { error } = await supabase.from("whatsapp_bot_faqs").insert(rows);
+    setImporting(false);
+    if (error) {
+      toast.error("No se pudieron guardar", { description: error.message });
+      return;
+    }
+    toast.success(`${rows.length} preguntas agregadas`);
+    setPreview([]);
+    setImportOpen(false);
+    qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
+  };
+
+
   const add = async () => {
     const question = q.trim();
     const answer = a.trim();
