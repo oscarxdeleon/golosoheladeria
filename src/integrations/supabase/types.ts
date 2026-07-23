@@ -3095,7 +3095,7 @@ export type Database = {
         Row: {
           active: boolean
           answer: string
-          branch_id: string
+          branch_id: string | null
           created_at: string
           id: string
           question: string
@@ -3105,7 +3105,7 @@ export type Database = {
         Insert: {
           active?: boolean
           answer: string
-          branch_id: string
+          branch_id?: string | null
           created_at?: string
           id?: string
           question: string
@@ -3115,7 +3115,7 @@ export type Database = {
         Update: {
           active?: boolean
           answer?: string
-          branch_id?: string
+          branch_id?: string | null
           created_at?: string
           id?: string
           question?: string
