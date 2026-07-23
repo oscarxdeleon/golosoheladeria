@@ -55,7 +55,7 @@ function readStoredOnlineCustomer(): StoredOnlineCustomer | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredOnlineCustomer;
     const saved = sanitizeOnlineCustomer(parsed);
-    return saved.name || saved.phone || saved.address || saved.neighborhood ? saved : null;
+    return saved.name || saved.lastName || saved.phone || saved.address || saved.neighborhood ? saved : null;
   } catch {
     return null;
   }
@@ -64,7 +64,7 @@ function readStoredOnlineCustomer(): StoredOnlineCustomer | null {
 function writeStoredOnlineCustomer(data: StoredOnlineCustomer) {
   if (typeof window === "undefined") return;
   const saved = sanitizeOnlineCustomer({ ...data, savedAt: new Date().toISOString() });
-  if (!saved.name && !saved.phone && !saved.address && !saved.neighborhood) return;
+  if (!saved.name && !saved.lastName && !saved.phone && !saved.address && !saved.neighborhood) return;
   try {
     window.localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(saved));
   } catch {
