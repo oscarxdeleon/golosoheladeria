@@ -548,7 +548,7 @@ export function PublicOrder({
         branch_id: branch?.id ?? null,
         branch_slug: branchSlug ?? branch?.slug ?? null,
         user_name: source === "kiosk" ? `Autopedido${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
-        customer_name: customerName || null,
+        customer_name: [customerName, customerLastName].map((s) => s.trim()).filter(Boolean).join(" ") || null,
         customer_phone: phone || null,
         delivery_address: isDelivery ? address : null,
         delivery_neighborhood: isDelivery ? neighborhood : null,
