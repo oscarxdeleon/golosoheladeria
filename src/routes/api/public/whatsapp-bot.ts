@@ -174,15 +174,27 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
 
-              // Sabores y productos disponibles en la sede (leídos del POS)
-              const flavors = Array.isArray(ctx.flavors) ? ctx.flavors as Array<{ name?: string; extra_price?: number | null }> : [];
+              // Sabores AGRUPADOS por grupo de modificador (para no mezclar
+              // sabores de helado con sabores de jugo, malteadas, etc.)
+              const flavorGroups = Array.isArray(ctx.flavor_groups)
+                ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
+                : [];
               const products = Array.isArray(ctx.products) ? ctx.products as Array<{ name?: string; price?: number; category?: string | null }> : [];
 
               const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
 
-              const flavorsBlock = flavors.length > 0
-                ? "SABORES DISPONIBLES HOY EN ESTA SEDE (usa SOLO estos, no inventes otros):\n" +
-                  flavors.map((f) => `- ${f.name}${f.extra_price ? ` (+${fmtCOP(Number(f.extra_price))})` : ""}`).join("\n")
+              const flavorsBlock = flavorGroups.length > 0
+                ? "SABORES DISPONIBLES HOY EN ESTA SEDE, AGRUPADOS POR TIPO DE PRODUCTO (usa SOLO los sabores del grupo correcto — NO mezcles sabores de helado con sabores de jugo, malteada u otros):\n" +
+                  flavorGroups
+                    .filter((g) => Array.isArray(g.flavors) && g.flavors.length > 0)
+                    .map((g) => {
+                      const items = (g.flavors ?? [])
+                        .filter((f) => f && f.name)
+                        .map((f) => `  - ${f!.name}${f!.extra_price ? ` (+${fmtCOP(Number(f!.extra_price))})` : ""}`)
+                        .join("\n");
+                      return `【${g.group_name ?? "Sabores"}】\n${items}`;
+                    })
+                    .join("\n")
                 : "SABORES: no hay lista sincronizada; si preguntan, invita a ver el menú en línea.";
 
               // Agrupar productos por categoría para que el prompt sea legible
@@ -194,14 +206,13 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 productsByCat.get(cat)!.push({ name: String(p.name), price: Number(p.price) });
               }
               const productsBlock = productsByCat.size > 0
-                ? "PRODUCTOS Y PRECIOS ACTUALES DE ESTA SEDE (usa SOLO estos precios reales):\n" +
+                ? "PRODUCTOS Y PRECIOS ACTUALES DE ESTA SEDE, AGRUPADOS POR CATEGORÍA (usa SOLO estos precios reales; respeta la categoría al recomendar):\n" +
                   Array.from(productsByCat.entries())
                     .map(([cat, items]) => `【${cat}】\n` + items.map((i) => `- ${i.name}: ${fmtCOP(i.price)}`).join("\n"))
                     .join("\n")
                 : "";
 
-              // FAQs curadas por la sede — Opción 3 (few-shot). Se envían como ejemplos
-              // que la IA debe imitar en tono y contenido cuando la pregunta calza.
+              // FAQs curadas por la sede — Opción 3 (few-shot).
               const faqs = Array.isArray(ctx.faqs) ? ctx.faqs as Array<{ q?: string; a?: string }> : [];
               const faqsBlock = faqs.length > 0
                 ? "PREGUNTAS FRECUENTES DE ESTA SEDE (respuestas oficiales — cuando el cliente pregunte algo parecido, usa esta respuesta tal cual, adaptando solo el saludo):\n" +
@@ -214,16 +225,21 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const defaultPrompt = [
                 `Eres el asistente virtual de Heladería Goloso, sede ${branchName}.`,
                 "Tono cercano, cálido y juvenil, con emojis de helado 🍦🍨 cuando aporten.",
-                "REGLAS DE RESPUESTA:",
-                "- Responde SIEMPRE de forma directa y COMPLETA a lo que el cliente pregunta.",
+                "",
+                "PRIORIDAD #1 — MENÚ EN LÍNEA:",
+                `- Cuando el cliente salude, pida información general o quiera hacer un pedido, tu PRIMERA respuesta debe invitar a usar el menú en línea y enviar el link: ${menuLink}`,
+                "- Explica brevemente que allí ve productos, sabores, precios y promociones actualizadas y puede pedir en 1 minuto.",
+                "- Solo toma pedidos manuales por WhatsApp si el cliente dice explícitamente que NO quiere usar el menú en línea o prefiere pedir por acá.",
+                "",
+                "REGLAS DE INFORMACIÓN:",
                 "- Si la pregunta del cliente calza con una PREGUNTA FRECUENTE listada abajo, usa esa respuesta oficial como base.",
-                "- Si preguntan por sabores, productos o precios: usa EXCLUSIVAMENTE la información de esta sede listada más abajo. NO inventes sabores, productos ni precios.",
-                "- Si un sabor o producto no aparece listado, di con honestidad que hoy no está disponible en esta sede.",
+                "- Si preguntan por sabores, productos o precios: usa EXCLUSIVAMENTE la información listada abajo (viene en vivo del POS). NO inventes nada.",
+                "- Los SABORES vienen agrupados por tipo de producto. Cuando el cliente pregunte por sabores de HELADO, responde SOLO con el grupo de helado. Cuando pregunte por sabores de JUGO, responde SOLO con el grupo de jugos. Nunca mezcles grupos.",
+                "- Los PRODUCTOS vienen agrupados por categoría (Helados, Jugos naturales, Ensaladas de frutas, Malteadas, Postres, Bebidas, etc.). Respeta la categoría al recomendar: si preguntan por jugos, no ofrezcas helados.",
+                "- Si un sabor o producto no aparece listado, di con honestidad que hoy no está disponible en esta sede e invita a ver el menú en línea.",
                 "- Si preguntan por promociones, horarios, ubicación, tiempos de entrega o formas de pago: da la información concreta que tengas del contexto.",
-                "- NO redirijas al menú a menos que el cliente pida ver el menú completo, pedir en línea, o pregunte algo que no está en tu contexto.",
                 "- Usa varias líneas si es necesario. Mejor una respuesta clara de 5 líneas que una vaga de 1.",
                 "",
-                `Menú y pedidos en línea: ${menuLink}`,
                 `Estado ahora: domicilio ${onlineOpen ? "ABIERTO ✅" : "CERRADO ❌"} · tienda física ${physicalOpen ? "ABIERTA ✅" : "CERRADA ❌"}.`,
                 "",
                 faqsBlock,
@@ -232,14 +248,22 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "",
                 productsBlock,
                 "",
-                "Si el cliente quiere hacer un pedido en línea, envíale el link del menú.",
                 "Responde SIEMPRE en español de Colombia.",
               ].filter(Boolean).join("\n");
 
-              // Si hay prompt personalizado por sede, se le concatenan FAQs/sabores/productos
-              // para que la sede pueda personalizar tono pero la IA nunca invente productos.
+              const customExtras = [
+                `Menú en línea de esta sede (compártelo como primera opción): ${menuLink}`,
+                "IMPORTANTE: los sabores vienen agrupados por tipo de producto — NO mezcles sabores de helado con sabores de jugo o malteada. Respeta también la categoría del producto al recomendar.",
+                "",
+                faqsBlock,
+                "",
+                flavorsBlock,
+                "",
+                productsBlock,
+              ].filter(Boolean).join("\n");
+
               const systemPrompt = customPrompt && customPrompt.length > 0
-                ? [customPrompt, "", faqsBlock, "", flavorsBlock, "", productsBlock].filter(Boolean).join("\n")
+                ? [customPrompt, "", customExtras].join("\n")
                 : defaultPrompt;
 
               // 2) Construir mensaje del usuario (texto o audio)
