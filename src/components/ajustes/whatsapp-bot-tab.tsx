@@ -1303,6 +1303,8 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
       if (filter === "active" && !f.active) return false;
       if (filter === "inactive" && f.active) return false;
       if (filter === "duplicates" && !duplicateIds.has(f.id)) return false;
+      if (filter === "global" && f.branch_id !== null) return false;
+      if (filter === "branch" && f.branch_id === null) return false;
       if (filter === "recent") {
         if (!f.created_at) return false;
         const age = now - new Date(f.created_at).getTime();
