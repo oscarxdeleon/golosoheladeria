@@ -1478,7 +1478,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     setSaving(true);
     const nextOrder = (faqs.at(-1)?.sort_order ?? 0) + 10;
     const { error } = await supabase.from("whatsapp_bot_faqs").insert({
-      branch_id: branchId, question, answer, sort_order: nextOrder, active: true,
+      branch_id: addGlobal ? null : branchId, question, answer, sort_order: nextOrder, active: true,
     });
     setSaving(false);
     if (error) { toast.error("No se pudo agregar", { description: error.message }); return; }
