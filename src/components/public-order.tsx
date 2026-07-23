@@ -1453,57 +1453,91 @@ export function PublicOrder({
               )}
 
               {source !== "table_qr" && (
-              <div className="rounded-lg border p-3 space-y-3">
-                <div className="text-sm font-medium">Método de pago</div>
+              <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-rose-50/50 to-amber-50/40 dark:from-slate-900 dark:via-rose-950/20 dark:to-amber-950/10 p-4 space-y-4 shadow-[0_10px_30px_-15px_rgba(244,63,94,0.35)]">
+                <div className="flex items-center gap-2">
+                  <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary ring-1 ring-primary/25 shadow-sm shrink-0">
+                    <CreditCard className="h-4 w-4" />
+                  </div>
+                  <div className="min-w-0">
+                    <div
+                      className="text-base sm:text-lg font-black uppercase tracking-wide leading-tight text-foreground"
+                      style={{ fontFamily: '"Bebas Neue", "Fraunces Variable", sans-serif', letterSpacing: "0.06em" }}
+                    >
+                      💳 Método de pago
+                    </div>
+                    <div className="text-[11px] text-muted-foreground leading-tight">Elige cómo prefieres pagar</div>
+                  </div>
+                </div>
+
                 {isPickup && (
-                  <div className="rounded-md border border-amber-300 bg-amber-50 text-amber-800 p-2 text-xs leading-snug">
+                  <div className="rounded-xl border border-amber-300 bg-amber-50 text-amber-900 p-3 text-xs leading-snug shadow-sm">
                     Para recoger en la heladería el pago se hace por <strong>Nequi</strong> o <strong>Bancolombia</strong>. Después de pagar, envíanos el <strong>comprobante de pago por WhatsApp</strong> para comenzar a preparar tu pedido.
                   </div>
                 )}
-                <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className={`grid ${isPickup ? "grid-cols-2" : "grid-cols-3"} gap-2`}>
-                  {(isPickup ? (["Nequi", "Bancolombia"] as PayMethod[]) : (["Efectivo", "Nequi", "Bancolombia"] as PayMethod[])).map((m) => (
-                    <Label
-                      key={m}
-                      htmlFor={`pm-${m}`}
-                      className={`flex flex-col items-center justify-center gap-1 rounded-md border p-2 cursor-pointer text-xs transition ${payMethod === m ? "border-primary bg-primary/5 shadow-sm" : "hover:bg-muted/40"}`}
-                    >
-                      <RadioGroupItem id={`pm-${m}`} value={m} className="sr-only" />
-                      {m === "Efectivo" && (
-                        <div className="h-10 w-10 flex items-center justify-center">
-                          <Banknote className="h-6 w-6" />
-                        </div>
-                      )}
-                      {m === "Nequi" && (
-                        <img src={nequiLogo} alt="Nequi" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
-                      )}
-                      {m === "Bancolombia" && (
-                        <img src={bancolombiaLogo} alt="Bancolombia" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
-                      )}
-                      <span className="font-medium">{m}</span>
-                      {m === "Bancolombia" && <span className="text-[10px] text-muted-foreground -mt-1">Ahorros</span>}
-                    </Label>
-                  ))}
+                <RadioGroup value={payMethod} onValueChange={(v) => setPayMethod(v as PayMethod)} className={`grid ${isPickup ? "grid-cols-2" : "grid-cols-3"} gap-2.5`}>
+                  {(isPickup ? (["Nequi", "Bancolombia"] as PayMethod[]) : (["Efectivo", "Nequi", "Bancolombia"] as PayMethod[])).map((m) => {
+                    const active = payMethod === m;
+                    return (
+                      <Label
+                        key={m}
+                        htmlFor={`pm-${m}`}
+                        className={`relative flex flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-3 cursor-pointer text-xs transition-all duration-200 active:scale-[0.97] ${
+                          active
+                            ? "border-primary bg-gradient-to-br from-primary/10 to-rose-100/50 dark:to-rose-950/30 shadow-lg shadow-primary/20 scale-[1.02]"
+                            : "border-border bg-background/60 hover:border-primary/40 hover:shadow-md hover:-translate-y-0.5"
+                        }`}
+                      >
+                        <RadioGroupItem id={`pm-${m}`} value={m} className="sr-only" />
+                        {active && (
+                          <span className="absolute top-1.5 right-1.5 grid h-5 w-5 place-items-center rounded-full bg-primary text-primary-foreground shadow">
+                            <Check className="h-3 w-3" />
+                          </span>
+                        )}
+                        {m === "Efectivo" && (
+                          <div className={`h-10 w-10 flex items-center justify-center rounded-xl ${active ? "bg-primary/15 text-primary" : "bg-muted text-foreground/70"}`}>
+                            <Banknote className="h-6 w-6" />
+                          </div>
+                        )}
+                        {m === "Nequi" && (
+                          <img src={nequiLogo} alt="Nequi" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
+                        )}
+                        {m === "Bancolombia" && (
+                          <img src={bancolombiaLogo} alt="Bancolombia" width={40} height={40} loading="lazy" className="h-10 w-10 object-contain drop-shadow-sm" />
+                        )}
+                        <span className={`font-bold uppercase tracking-wide text-[11px] ${active ? "text-primary" : "text-foreground"}`}>{m}</span>
+                        {m === "Bancolombia" && <span className="text-[10px] text-muted-foreground -mt-1">Ahorros</span>}
+                      </Label>
+                    );
+                  })}
                 </RadioGroup>
 
                 {payMethod === "Efectivo" && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">¿Con cuánto vas a pagar?</Label>
+                  <div className="rounded-xl border-2 border-primary/25 bg-gradient-to-br from-amber-50 to-rose-50/60 dark:from-amber-950/20 dark:to-rose-950/20 p-3 space-y-2 shadow-inner">
+                    <label className="flex items-center gap-2 text-sm sm:text-base font-black uppercase tracking-wide text-foreground">
+                      <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/25 shadow-sm">
+                        <Banknote className="h-4 w-4" />
+                      </span>
+                      <span>💰 ¿Con cuánto vas a pagar?</span>
+                    </label>
                     <Input
                       inputMode="numeric"
                       placeholder="Ej: 50000"
                       value={cashAmount}
                       onChange={(e) => setCashAmount(e.target.value.replace(/[^\d]/g, ""))}
+                      className="h-12 rounded-xl text-lg font-bold tabular-nums bg-background/90 border-primary/30 focus-visible:ring-2 focus-visible:ring-primary/40 transition"
                     />
                     {cashAmount && Number(cashAmount) >= total && (
-                      <div className="text-xs text-success">Cambio: {formatMoney(Number(cashAmount) - total)}</div>
+                      <div className="text-xs font-semibold text-success bg-success/10 rounded-lg px-2 py-1 inline-block">
+                        Cambio: {formatMoney(Number(cashAmount) - total)}
+                      </div>
                     )}
                   </div>
                 )}
                 {payMethod === "Nequi" && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">Número Nequi del negocio</Label>
+                  <div className="space-y-1.5 rounded-xl border border-primary/20 bg-background/60 p-3">
+                    <Label className="text-xs font-bold uppercase tracking-wide">Número Nequi del negocio</Label>
                     <div className="flex gap-2">
-                      <Input value={nequiNum} readOnly placeholder="No configurado" className="font-mono tracking-wide" />
+                      <Input value={nequiNum} readOnly placeholder="No configurado" className="font-mono tracking-wide h-11 rounded-xl bg-background" />
                       <Button
                         type="button"
                         variant="outline"
@@ -1511,7 +1545,7 @@ export function PublicOrder({
                         onClick={() => copyToClipboard(nequiNum, "Número Nequi")}
                         disabled={!nequiNum}
                         aria-label="Copiar número Nequi"
-                        className="shrink-0"
+                        className="shrink-0 h-11 w-11 rounded-xl"
                       >
                         {copiedAccount ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                       </Button>
@@ -1520,10 +1554,10 @@ export function PublicOrder({
                   </div>
                 )}
                 {payMethod === "Bancolombia" && (
-                  <div className="space-y-1">
-                    <Label className="text-xs">Cuenta Bancolombia del negocio (Ahorros)</Label>
+                  <div className="space-y-1.5 rounded-xl border border-primary/20 bg-background/60 p-3">
+                    <Label className="text-xs font-bold uppercase tracking-wide">Cuenta Bancolombia del negocio (Ahorros)</Label>
                     <div className="flex gap-2">
-                      <Input value={bancoAcc} readOnly placeholder="No configurado" className="font-mono tracking-wide" />
+                      <Input value={bancoAcc} readOnly placeholder="No configurado" className="font-mono tracking-wide h-11 rounded-xl bg-background" />
                       <Button
                         type="button"
                         variant="outline"
@@ -1531,7 +1565,7 @@ export function PublicOrder({
                         onClick={() => copyToClipboard(bancoAcc, "Cuenta Bancolombia")}
                         disabled={!bancoAcc}
                         aria-label="Copiar cuenta Bancolombia"
-                        className="shrink-0"
+                        className="shrink-0 h-11 w-11 rounded-xl"
                       >
                         {copiedAccount ? <Check className="h-4 w-4 text-success" /> : <Copy className="h-4 w-4" />}
                       </Button>
