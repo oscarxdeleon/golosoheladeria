@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check, Bike, Store, Clock, Calendar } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check, Bike, Store, Clock, Calendar, User, IdCard, Phone, MapPin, Home, StickyNote } from "lucide-react";
+import { toUpperText, onlyDigits } from "@/lib/text-transform";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
 import { ModifiersModal } from "@/components/modifiers-modal";
@@ -30,6 +31,7 @@ const CUSTOMER_STORAGE_KEY = "goloso.online.customer.v1";
 
 type StoredOnlineCustomer = {
   name?: string;
+  lastName?: string;
   phone?: string;
   address?: string;
   neighborhood?: string;
@@ -39,6 +41,7 @@ type StoredOnlineCustomer = {
 function sanitizeOnlineCustomer(data: StoredOnlineCustomer): StoredOnlineCustomer {
   return {
     name: String(data.name ?? "").trim(),
+    lastName: String(data.lastName ?? "").trim(),
     phone: String(data.phone ?? "").trim(),
     address: String(data.address ?? "").trim(),
     neighborhood: String(data.neighborhood ?? "").trim(),
@@ -53,7 +56,7 @@ function readStoredOnlineCustomer(): StoredOnlineCustomer | null {
     if (!raw) return null;
     const parsed = JSON.parse(raw) as StoredOnlineCustomer;
     const saved = sanitizeOnlineCustomer(parsed);
-    return saved.name || saved.phone || saved.address || saved.neighborhood ? saved : null;
+    return saved.name || saved.lastName || saved.phone || saved.address || saved.neighborhood ? saved : null;
   } catch {
     return null;
   }
@@ -62,7 +65,7 @@ function readStoredOnlineCustomer(): StoredOnlineCustomer | null {
 function writeStoredOnlineCustomer(data: StoredOnlineCustomer) {
   if (typeof window === "undefined") return;
   const saved = sanitizeOnlineCustomer({ ...data, savedAt: new Date().toISOString() });
-  if (!saved.name && !saved.phone && !saved.address && !saved.neighborhood) return;
+  if (!saved.name && !saved.lastName && !saved.phone && !saved.address && !saved.neighborhood) return;
   try {
     window.localStorage.setItem(CUSTOMER_STORAGE_KEY, JSON.stringify(saved));
   } catch {
@@ -114,6 +117,7 @@ export function PublicOrder({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
+  const [customerLastName, setCustomerLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
@@ -144,6 +148,7 @@ export function PublicOrder({
     const saved = readStoredOnlineCustomer();
     if (!saved) return;
     setCustomerName((current) => current || saved.name || "");
+    setCustomerLastName((current) => current || saved.lastName || "");
     setPhone((current) => current || saved.phone || "");
     setAddress((current) => current || saved.address || "");
     setNeighborhood((current) => current || saved.neighborhood || "");
@@ -151,13 +156,13 @@ export function PublicOrder({
 
   useEffect(() => {
     if (source !== "online_menu") return;
-    const hasCustomerData = customerName.trim() || phone.trim() || address.trim() || neighborhood.trim();
+    const hasCustomerData = customerName.trim() || customerLastName.trim() || phone.trim() || address.trim() || neighborhood.trim();
     if (!hasCustomerData) return;
     const saveTimer = window.setTimeout(() => {
-      writeStoredOnlineCustomer({ name: customerName, phone, address, neighborhood });
+      writeStoredOnlineCustomer({ name: customerName, lastName: customerLastName, phone, address, neighborhood });
     }, 400);
     return () => window.clearTimeout(saveTimer);
-  }, [source, customerName, phone, address, neighborhood]);
+  }, [source, customerName, customerLastName, phone, address, neighborhood]);
 
   async function copyToClipboard(value: string, label: string) {
     if (!value) return;
@@ -203,6 +208,7 @@ export function PublicOrder({
     setTicketNumber(null);
     setCart([]);
     setCustomerName("");
+    setCustomerLastName("");
     setPhone("");
     setAddress("");
     setNeighborhood("");
@@ -471,7 +477,8 @@ export function PublicOrder({
     if (sedeAddr) lines.push(`📍 ${sedeAddr}`);
     if (sedePhone) lines.push(`📞 ${sedePhone}`);
     lines.push(`*Pedido #:* ${ticket}`);
-    if (customerName) lines.push(`*Cliente:* ${customerName}`);
+    const fullCustomer = [customerName, customerLastName].map((s) => s.trim()).filter(Boolean).join(" ");
+    if (fullCustomer) lines.push(`*Cliente:* ${fullCustomer}`);
     if (phone) lines.push(`*Teléfono:* ${phone}`);
     if (isDelivery) {
       lines.push(`*Dirección:* ${address} - *Barrio:* ${neighborhood}`);
@@ -541,7 +548,7 @@ export function PublicOrder({
         branch_id: branch?.id ?? null,
         branch_slug: branchSlug ?? branch?.slug ?? null,
         user_name: source === "kiosk" ? `Autopedido${branch?.name ? " · " + branch.name : ""}` : source === "table_qr" ? `Mesa QR ${tableLabel ?? ""}`.trim() : `Menú en línea${branch?.name ? " · " + branch.name : ""}`,
-        customer_name: customerName || null,
+        customer_name: [customerName, customerLastName].map((s) => s.trim()).filter(Boolean).join(" ") || null,
         customer_phone: phone || null,
         delivery_address: isDelivery ? address : null,
         delivery_neighborhood: isDelivery ? neighborhood : null,
@@ -563,7 +570,7 @@ export function PublicOrder({
       const result = data as { ticket_number: number; sale_id?: string | null } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
 
-      const savedOnlineCustomer = sanitizeOnlineCustomer({ name: customerName, phone, address, neighborhood });
+      const savedOnlineCustomer = sanitizeOnlineCustomer({ name: customerName, lastName: customerLastName, phone, address, neighborhood });
       if (source === "online_menu") writeStoredOnlineCustomer(savedOnlineCustomer);
 
       // WhatsApp redirect (only para domicilio / online_menu)
@@ -617,7 +624,7 @@ export function PublicOrder({
           header,
           order_type: source === "kiosk" ? "kiosko" : isDelivery ? "domicilio" : "online",
           items: printItems,
-          customer: customerName || undefined,
+          customer: [customerName, customerLastName].map((s) => s.trim()).filter(Boolean).join(" ") || undefined,
           notes: payload.notes ?? undefined,
           address: isDelivery ? composeDeliveryAddress(address, neighborhood) : undefined,
           phone: phone || undefined,
@@ -637,11 +644,13 @@ export function PublicOrder({
 
       if (source === "online_menu") {
         setCustomerName(savedOnlineCustomer.name || "");
+        setCustomerLastName(savedOnlineCustomer.lastName || "");
         setPhone(savedOnlineCustomer.phone || "");
         setAddress(savedOnlineCustomer.address || "");
         setNeighborhood(savedOnlineCustomer.neighborhood || "");
       } else {
         setCustomerName("");
+        setCustomerLastName("");
         setPhone("");
         setAddress("");
         setNeighborhood("");
@@ -1310,67 +1319,138 @@ export function PublicOrder({
               </div>
 
               {source !== "table_qr" && (
-                <div className="space-y-2">
-                  <div className="space-y-1">
+                <div className="rounded-2xl border border-primary/15 bg-gradient-to-br from-white via-rose-50/50 to-amber-50/40 dark:from-slate-900 dark:via-rose-950/20 dark:to-amber-950/10 p-4 shadow-[0_10px_30px_-15px_rgba(244,63,94,0.35)] space-y-4">
+                  <div className="flex items-center gap-2">
+                    <div className="grid h-9 w-9 place-items-center rounded-full bg-primary/10 text-primary shrink-0">
+                      <User className="h-4 w-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="font-display text-base leading-tight">Datos del cliente</div>
+                      <div className="text-[11px] text-muted-foreground leading-tight">
+                        {isDelivery ? "Para entregar tu pedido a domicilio" : "Para identificar tu pedido"}
+                      </div>
+                    </div>
+                  </div>
+
+                  <PremiumField
+                    label="Nombre"
+                    icon={<User className="h-4 w-4" />}
+                    error={fieldErrors.name}
+                    errorText="Este campo es obligatorio"
+                    required
+                  >
                     <Input
-                      placeholder={`Nombre ${isDelivery ? "del cliente *" : "*"}`}
+                      placeholder="Escribe tu nombre"
                       name="customer-name"
-                      autoComplete="name"
+                      autoComplete="given-name"
+                      autoCapitalize="characters"
                       value={customerName}
-                      onChange={(e) => { setCustomerName(e.target.value); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: false }); }}
-                      className={fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}
+                      onChange={(e) => { setCustomerName(toUpperText(e.target.value)); if (fieldErrors.name) setFieldErrors({ ...fieldErrors, name: false }); }}
+                      className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.name ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       required
                     />
-                    {fieldErrors.name && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
-                  </div>
-                  <div className="space-y-1">
+                  </PremiumField>
+
+                  <PremiumField
+                    label="Apellido"
+                    icon={<IdCard className="h-4 w-4" />}
+                  >
                     <Input
-                      placeholder="Teléfono de contacto *"
+                      placeholder="Escribe tu apellido"
+                      name="customer-lastname"
+                      autoComplete="family-name"
+                      autoCapitalize="characters"
+                      value={customerLastName}
+                      onChange={(e) => setCustomerLastName(toUpperText(e.target.value))}
+                      className="h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition"
+                    />
+                  </PremiumField>
+
+                  <PremiumField
+                    label="WhatsApp"
+                    icon={<Phone className="h-4 w-4" />}
+                    error={fieldErrors.phone}
+                    errorText="Ingresa un WhatsApp válido para contactarte"
+                    required
+                  >
+                    <Input
+                      placeholder="Ingresa tu número de WhatsApp"
                       name="customer-phone"
                       autoComplete="tel"
-                      inputMode="tel"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
                       value={phone}
-                      onChange={(e) => { setPhone(e.target.value); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
-                      className={fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}
+                      onChange={(e) => { setPhone(onlyDigits(e.target.value)); if (fieldErrors.phone) setFieldErrors({ ...fieldErrors, phone: false }); }}
+                      className={`h-12 rounded-xl text-base tabular-nums bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.phone ? "border-destructive focus-visible:ring-destructive" : ""}`}
                       required
                     />
-                    {fieldErrors.phone && <p className="text-xs text-destructive">El teléfono es obligatorio para poder contactarte</p>}
-                  </div>
+                  </PremiumField>
+
                   {isDelivery && (
                     <>
-                      <div className="space-y-1">
+                      <PremiumField
+                        label="Dirección"
+                        icon={<MapPin className="h-4 w-4" />}
+                        error={fieldErrors.address}
+                        errorText="La dirección es obligatoria para envíos"
+                        required
+                      >
                         <Input
-                          placeholder="Dirección completa *"
+                          placeholder="Escribe la dirección completa"
                           name="customer-address"
                           autoComplete="street-address"
+                          autoCapitalize="characters"
                           value={address}
-                          onChange={(e) => { setAddress(e.target.value); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
-                          className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                          onChange={(e) => { setAddress(toUpperText(e.target.value)); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                          className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         />
-                        {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
-                      </div>
-                      <div className="space-y-1">
+                      </PremiumField>
+
+                      <PremiumField
+                        label="Barrio"
+                        icon={<Home className="h-4 w-4" />}
+                        error={fieldErrors.neighborhood}
+                        errorText="El barrio es obligatorio para envíos"
+                        required
+                      >
                         <Input
-                          placeholder="Barrio *"
+                          placeholder="Escribe el barrio"
                           name="customer-neighborhood"
                           autoComplete="address-level3"
+                          autoCapitalize="characters"
                           value={neighborhood}
-                          onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
-                          className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                          onChange={(e) => { setNeighborhood(toUpperText(e.target.value)); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                          className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}`}
                         />
-                        {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
-                      </div>
+                      </PremiumField>
                     </>
                   )}
+
+                  <PremiumField
+                    label="Nota sobre el pedido"
+                    icon={<StickyNote className="h-4 w-4" />}
+                    hint="Opcional"
+                  >
+                    <Textarea
+                      placeholder="Ejemplo: Sin azúcar, sin fresa, tocar el timbre, entregar en portería..."
+                      value={notes}
+                      onChange={(e) => setNotes(toUpperText(e.target.value))}
+                      rows={3}
+                      className="rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition"
+                    />
+                  </PremiumField>
                 </div>
               )}
 
-              <Textarea
-                placeholder="Notas para cocina"
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                rows={2}
-              />
+              {source === "table_qr" && (
+                <Textarea
+                  placeholder="NOTAS PARA COCINA"
+                  value={notes}
+                  onChange={(e) => setNotes(toUpperText(e.target.value))}
+                  rows={2}
+                  className="uppercase tracking-wide"
+                />
+              )}
 
               {source !== "table_qr" && (
               <div className="rounded-lg border p-3 space-y-3">
@@ -1563,6 +1643,39 @@ export function PublicOrder({
         channel={isPickup ? "physical" : "online"}
         onConfirm={(iso, label) => { setScheduledFor(iso); setScheduledLabel(label); }}
       />
+    </div>
+  );
+}
+
+function PremiumField({
+  label,
+  icon,
+  error,
+  errorText,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  error?: boolean;
+  errorText?: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
+          <span className="text-primary">{icon}</span>
+          {label}
+          {required && <span className="text-destructive">*</span>}
+        </label>
+        {hint && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{hint}</span>}
+      </div>
+      {children}
+      {error && errorText && <p className="text-xs text-destructive">{errorText}</p>}
     </div>
   );
 }

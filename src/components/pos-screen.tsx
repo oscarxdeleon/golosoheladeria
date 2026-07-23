@@ -28,6 +28,7 @@ import { CreditActionButtons, CreditSaleDialog, CreditPaymentDialog } from "@/co
 import nequiLogo from "@/assets/nequi-logo-transparent.webp";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 import golosoLogo from "@/assets/logo-goloso.webp";
+import { toUpperText } from "@/lib/text-transform";
 import { VoiceMicButton } from "@/components/voice-input";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
 import { AiOrderDialog } from "@/components/ai-order-dialog";
@@ -2614,7 +2615,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 </div>
                 <Input
                   value={l.notes ?? ""}
-                  onChange={(e) => setCart((p) => p.map((x) => x.key === l.key ? { ...x, notes: e.target.value } : x))}
+                  onChange={(e) => setCart((p) => p.map((x) => x.key === l.key ? { ...x, notes: toUpperText(e.target.value) } : x))}
                   placeholder="📝 Nota (opcional): ej. sin azúcar, extra topping…"
                   className="h-8 text-xs bg-background/80"
                 />
@@ -2629,8 +2630,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 <Input
                   placeholder={orderType === "domicilio" ? "Nombre del cliente *" : "Nombre cliente (opcional)"}
                   value={customer}
-                  onChange={(e) => { setCustomer(e.target.value); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
-                  className={fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}
+                  onChange={(e) => { setCustomer(toUpperText(e.target.value)); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
+                  autoCapitalize="characters"
+                  className={`uppercase tracking-wide ${fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 {fieldErrors.customer && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
               </div>
@@ -2685,8 +2687,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   <Input
                     placeholder="Dirección completa *"
                     value={address}
-                    onChange={(e) => { setAddress(e.target.value); setSelectedAddressId(""); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
-                    className={fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}
+                    onChange={(e) => { setAddress(toUpperText(e.target.value)); setSelectedAddressId(""); if (fieldErrors.address) setFieldErrors({ ...fieldErrors, address: false }); }}
+                    autoCapitalize="characters"
+                    className={`uppercase tracking-wide ${fieldErrors.address ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                   {fieldErrors.address && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
                 </div>
@@ -2694,8 +2697,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                   <Input
                     placeholder="Barrio *"
                     value={neighborhood}
-                    onChange={(e) => { setNeighborhood(e.target.value); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
-                    className={fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}
+                    onChange={(e) => { setNeighborhood(toUpperText(e.target.value)); if (fieldErrors.neighborhood) setFieldErrors({ ...fieldErrors, neighborhood: false }); }}
+                    autoCapitalize="characters"
+                    className={`uppercase tracking-wide ${fieldErrors.neighborhood ? "border-destructive focus-visible:ring-destructive" : ""}`}
                   />
                   {fieldErrors.neighborhood && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
                 </div>
@@ -2740,10 +2744,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               </label>
               <Textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notas adicionales para el pedido (ej: Salsa aparte, sin cubiertos...)."
+                onChange={(e) => setNotes(toUpperText(e.target.value))}
+                placeholder="NOTAS ADICIONALES PARA EL PEDIDO (EJ: SALSA APARTE, SIN CUBIERTOS...)."
                 rows={2}
-                className="rounded-xl border-amber-300/70 bg-background/90 text-sm focus-visible:ring-amber-400"
+                className="rounded-xl border-amber-300/70 bg-background/90 text-sm uppercase tracking-wide focus-visible:ring-amber-400"
               />
             </div>
           </div>
