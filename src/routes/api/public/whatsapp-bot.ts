@@ -298,9 +298,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
               const orderCfg = (orderCfgRes.ok ? orderCfgRes.data : null) as {
                 ordering_enabled?: boolean; min_amount?: number; delivery_fee?: number;
-                zones?: string | null; transfer_info?: string | null;
+                zones?: string | null; transfer_info?: string | null; dry_run?: boolean;
               } | null;
               const orderingEnabled = !!(orderCfg?.ordering_enabled);
+              const dryRun = !!(orderCfg?.dry_run);
 
               // Prompt adicional cuando el bot toma pedidos
               const orderingPromptBlock = orderingEnabled ? [
