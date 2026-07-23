@@ -1665,17 +1665,19 @@ function PremiumField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-2">
       <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
-          <span className="text-primary">{icon}</span>
-          {label}
+        <label className="flex items-center gap-2 text-sm sm:text-base font-extrabold uppercase tracking-wide text-foreground">
+          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/25 shadow-sm">
+            {icon}
+          </span>
+          <span>{label}</span>
           {required && <span className="text-destructive">*</span>}
         </label>
-        {hint && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{hint}</span>}
+        {hint && <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{hint}</span>}
       </div>
       {children}
-      {error && errorText && <p className="text-xs text-destructive">{errorText}</p>}
+      {error && errorText && <p className="text-xs font-medium text-destructive">{errorText}</p>}
     </div>
   );
 }
