@@ -18,6 +18,13 @@ import * as XLSX from "xlsx";
 import { useServerFn } from "@tanstack/react-start";
 import { parseMenuPdfText } from "@/lib/menu-pdf.functions";
 import { ImageDropzone } from "@/components/image-dropzone";
+import { exportMenuExcel, exportMenuPdf } from "@/lib/menu-export";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { VoiceMicButton } from "@/components/voice-input";
 
 
@@ -53,6 +60,40 @@ interface Category { id: string; name: string; }
 interface Branch { id: string; name: string; is_main: boolean; }
 interface ModifierGroup { id: string; name: string; }
 interface Supply { id: string; name: string; unit: string; }
+
+function ExportMenuButton() {
+  const [loading, setLoading] = useState<null | "xlsx" | "pdf">(null);
+  async function run(kind: "xlsx" | "pdf") {
+    try {
+      setLoading(kind);
+      if (kind === "xlsx") await exportMenuExcel();
+      else await exportMenuPdf();
+      toast.success(`Menú exportado (${kind.toUpperCase()})`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al exportar");
+    } finally {
+      setLoading(null);
+    }
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" disabled={loading !== null}>
+          {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+          Exportar Menú
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => run("xlsx")}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel (.xlsx)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => run("pdf")}>
+          <FileText className="h-4 w-4 mr-2" /> PDF (.pdf)
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
 function ToggleRow({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void; }) {
   return (
@@ -598,6 +639,7 @@ function ProductosPage() {
               </label>
             </Button>
             <CloneToBranchDialog branches={branches} qc={qc} />
+            <ExportMenuButton />
 
 
             <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
