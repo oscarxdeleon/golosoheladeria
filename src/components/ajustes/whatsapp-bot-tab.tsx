@@ -1224,6 +1224,39 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-5">
+        {/* Importador de chat WhatsApp .txt */}
+        <div className="rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/50 p-3">
+          <div className="flex items-start justify-between gap-3 flex-wrap">
+            <div className="flex-1 min-w-[200px]">
+              <p className="text-sm font-medium flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-fuchsia-600" />
+                Importar desde chat de WhatsApp
+              </p>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Exporta un chat (.txt) desde WhatsApp. La IA extrae las preguntas frecuentes
+                automáticamente y <b>elimina nombres, teléfonos y datos personales</b>.
+              </p>
+            </div>
+            <label className="cursor-pointer">
+              <input
+                type="file"
+                accept=".txt,text/plain"
+                className="hidden"
+                disabled={importing}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  e.target.value = "";
+                  if (f) handleFile(f);
+                }}
+              />
+              <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${importing ? "bg-muted text-muted-foreground" : "bg-fuchsia-600 text-white hover:bg-fuchsia-700"}`}>
+                <Upload className="h-4 w-4" />
+                {importing ? "Procesando…" : "Subir chat .txt"}
+              </span>
+            </label>
+          </div>
+        </div>
+
         {/* Formulario para agregar */}
         <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
           <div>
