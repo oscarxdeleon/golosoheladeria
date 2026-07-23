@@ -2744,10 +2744,10 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
               </label>
               <Textarea
                 value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Notas adicionales para el pedido (ej: Salsa aparte, sin cubiertos...)."
+                onChange={(e) => setNotes(toUpperText(e.target.value))}
+                placeholder="NOTAS ADICIONALES PARA EL PEDIDO (EJ: SALSA APARTE, SIN CUBIERTOS...)."
                 rows={2}
-                className="rounded-xl border-amber-300/70 bg-background/90 text-sm focus-visible:ring-amber-400"
+                className="rounded-xl border-amber-300/70 bg-background/90 text-sm uppercase tracking-wide focus-visible:ring-amber-400"
               />
             </div>
           </div>
