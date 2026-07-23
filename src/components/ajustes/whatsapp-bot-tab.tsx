@@ -1227,7 +1227,20 @@ interface FaqRow {
   answer: string;
   sort_order: number;
   active: boolean;
+  created_at?: string;
 }
+
+type FaqFilter = "all" | "active" | "inactive" | "recent" | "duplicates";
+type DupStrategy = "skip" | "replace" | "keep-both";
+
+interface ImportPair extends ExtractedFaq {
+  keep: boolean;
+  duplicateOfId: string | null;
+  strategy: DupStrategy;
+  status: "new" | "duplicate";
+}
+
+const normalizeQ = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
 
 function FaqManagerCard({ branchId }: { branchId: string }) {
   const qc = useQueryClient();
@@ -1236,7 +1249,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_bot_faqs")
-        .select("id, branch_id, question, answer, sort_order, active")
+        .select("id, branch_id, question, answer, sort_order, active, created_at")
         .eq("branch_id", branchId)
         .order("sort_order", { ascending: true })
         .order("created_at", { ascending: true });
@@ -1245,30 +1258,106 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     },
   });
 
+  // ---- Add manual ----
   const [q, setQ] = useState("");
   const [a, setA] = useState("");
   const [saving, setSaving] = useState(false);
 
-  // ---- Importador de chat .txt ----
+  // ---- Import ----
   const extractFn = useServerFn(extractFaqsFromChat);
   const [importing, setImporting] = useState(false);
-  const [preview, setPreview] = useState<Array<ExtractedFaq & { keep: boolean }>>([]);
+  const [preview, setPreview] = useState<ImportPair[]>([]);
+  const [importStats, setImportStats] = useState<ExtractFaqsResult["stats"] | null>(null);
+  const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
 
+  // ---- Browse UI state ----
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState<FaqFilter>("all");
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [editing, setEditing] = useState<FaqRow | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false);
+
+  // ---- Derived: filtered list + duplicate detection ----
+  const duplicateIds = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const f of faqs) {
+      const k = normalizeQ(f.question);
+      const arr = map.get(k) ?? [];
+      arr.push(f.id);
+      map.set(k, arr);
+    }
+    const dup = new Set<string>();
+    map.forEach((ids) => { if (ids.length > 1) ids.forEach((id) => dup.add(id)); });
+    return dup;
+  }, [faqs]);
+
+  const filtered = useMemo(() => {
+    const now = Date.now();
+    const s = search.trim().toLowerCase();
+    return faqs.filter((f) => {
+      if (filter === "active" && !f.active) return false;
+      if (filter === "inactive" && f.active) return false;
+      if (filter === "duplicates" && !duplicateIds.has(f.id)) return false;
+      if (filter === "recent") {
+        if (!f.created_at) return false;
+        const age = now - new Date(f.created_at).getTime();
+        if (age > 24 * 60 * 60 * 1000) return false;
+      }
+      if (s) {
+        return f.question.toLowerCase().includes(s) || f.answer.toLowerCase().includes(s);
+      }
+      return true;
+    });
+  }, [faqs, filter, search, duplicateIds]);
+
+  const allSelectedInView = filtered.length > 0 && filtered.every((f) => selected.has(f.id));
+
+  const toggleExpand = (id: string) => {
+    setExpanded((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+  const toggleSelected = (id: string) => {
+    setSelected((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id); else n.add(id);
+      return n;
+    });
+  };
+  const toggleSelectAll = () => {
+    if (allSelectedInView) {
+      setSelected((prev) => {
+        const n = new Set(prev);
+        filtered.forEach((f) => n.delete(f.id));
+        return n;
+      });
+    } else {
+      setSelected((prev) => {
+        const n = new Set(prev);
+        filtered.forEach((f) => n.add(f.id));
+        return n;
+      });
+    }
+  };
+
+  // ---- Import handlers ----
   const handleFile = async (file: File) => {
     if (!file) return;
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Archivo muy grande (máx 5 MB)");
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error("Archivo muy grande (máx 10 MB)");
       return;
     }
     setImporting(true);
     try {
       const text = await file.text();
-      // Route to the Lovable domain where LOVABLE_API_KEY is provisioned.
-      // Falls back to same-origin (via server fn) when already on lovable.app.
       const host = typeof window !== "undefined" ? window.location.hostname : "";
       const isLovable = /\.lovable\.app$/.test(host);
-      let result: { pairs: ExtractedFaq[]; warnings: string[] };
+      let result: ExtractFaqsResult;
       if (isLovable) {
         result = await extractFn({ data: { text, branchId } });
       } else {
@@ -1289,10 +1378,24 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
         setImporting(false);
         return;
       }
-      setPreview(result.pairs.map((p) => ({ ...p, keep: true })));
+      // Marca duplicados contra los actuales
+      const existingMap = new Map(faqs.map((f) => [normalizeQ(f.question), f.id] as const));
+      const pairs: ImportPair[] = result.pairs.map((p) => {
+        const dupId = existingMap.get(normalizeQ(p.question)) ?? null;
+        return {
+          ...p,
+          keep: true,
+          duplicateOfId: dupId,
+          strategy: dupId ? "skip" : "keep-both",
+          status: dupId ? "duplicate" : "new",
+        };
+      });
+      setPreview(pairs);
+      setImportStats(result.stats);
+      setImportWarnings(result.warnings);
       setImportOpen(true);
     } catch (err) {
-      toast.error("Error al procesar el chat", { description: (err as Error).message });
+      toast.error("Error al procesar el archivo", { description: (err as Error).message });
     } finally {
       setImporting(false);
     }
@@ -1305,97 +1408,158 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
       return;
     }
     setImporting(true);
-    let order = (faqs.at(-1)?.sort_order ?? 0) + 10;
-    const rows = chosen.map((p) => ({
-      branch_id: branchId,
-      question: p.question.trim(),
-      answer: p.answer.trim(),
-      sort_order: (order += 10),
-      active: true,
-    }));
-    const { error } = await supabase.from("whatsapp_bot_faqs").insert(rows);
-    setImporting(false);
-    if (error) {
-      toast.error("No se pudieron guardar", { description: error.message });
-      return;
+    try {
+      let order = (faqs.at(-1)?.sort_order ?? 0) + 10;
+      const toInsert: Array<{ branch_id: string; question: string; answer: string; sort_order: number; active: boolean }> = [];
+      const toReplace: Array<{ id: string; question: string; answer: string }> = [];
+      let skipped = 0;
+
+      for (const p of chosen) {
+        const question = p.question.trim();
+        const answer = p.answer.trim();
+        if (p.duplicateOfId) {
+          if (p.strategy === "skip") { skipped++; continue; }
+          if (p.strategy === "replace") { toReplace.push({ id: p.duplicateOfId, question, answer }); continue; }
+        }
+        toInsert.push({
+          branch_id: branchId,
+          question,
+          answer,
+          sort_order: (order += 10),
+          active: true,
+        });
+      }
+
+      const errors: string[] = [];
+      if (toInsert.length) {
+        const { error } = await supabase.from("whatsapp_bot_faqs").insert(toInsert);
+        if (error) errors.push(`Insertar: ${error.message}`);
+      }
+      for (const r of toReplace) {
+        const { error } = await supabase
+          .from("whatsapp_bot_faqs")
+          .update({ question: r.question, answer: r.answer, active: true })
+          .eq("id", r.id);
+        if (error) errors.push(`Reemplazar ${r.id.slice(0, 8)}: ${error.message}`);
+      }
+
+      if (errors.length) {
+        toast.error("Algunos registros fallaron", { description: errors.slice(0, 3).join(" · ") });
+      } else {
+        const parts: string[] = [];
+        if (toInsert.length) parts.push(`${toInsert.length} nuevas`);
+        if (toReplace.length) parts.push(`${toReplace.length} reemplazadas`);
+        if (skipped) parts.push(`${skipped} omitidas`);
+        toast.success(`Importación completa: ${parts.join(", ")}`);
+      }
+      setPreview([]);
+      setImportStats(null);
+      setImportWarnings([]);
+      setImportOpen(false);
+      qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
+    } finally {
+      setImporting(false);
     }
-    toast.success(`${rows.length} preguntas agregadas`);
-    setPreview([]);
-    setImportOpen(false);
-    qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
   };
 
+  const applyBulkDupStrategy = (strategy: DupStrategy) => {
+    setPreview((prev) => prev.map((p) => (p.duplicateOfId ? { ...p, strategy, keep: strategy !== "skip" ? true : p.keep } : p)));
+  };
 
+  // ---- Manual add ----
   const add = async () => {
     const question = q.trim();
     const answer = a.trim();
-    if (!question || !answer) {
-      toast.error("Escribe la pregunta y la respuesta");
-      return;
-    }
+    if (!question || !answer) { toast.error("Escribe la pregunta y la respuesta"); return; }
     setSaving(true);
     const nextOrder = (faqs.at(-1)?.sort_order ?? 0) + 10;
     const { error } = await supabase.from("whatsapp_bot_faqs").insert({
-      branch_id: branchId,
-      question,
-      answer,
-      sort_order: nextOrder,
-      active: true,
+      branch_id: branchId, question, answer, sort_order: nextOrder, active: true,
     });
     setSaving(false);
-    if (error) {
-      toast.error("No se pudo agregar", { description: error.message });
-      return;
-    }
-    setQ("");
-    setA("");
+    if (error) { toast.error("No se pudo agregar", { description: error.message }); return; }
+    setQ(""); setA("");
     toast.success("Pregunta agregada");
     qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
   };
 
+  // ---- Row mutations ----
   const updateField = async (id: string, patch: Partial<FaqRow>) => {
     const { error } = await supabase.from("whatsapp_bot_faqs").update(patch).eq("id", id);
     if (error) toast.error("No se pudo actualizar", { description: error.message });
     qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
   };
 
-  const remove = async (id: string) => {
+  const removeOne = async (id: string) => {
     const { error } = await supabase.from("whatsapp_bot_faqs").delete().eq("id", id);
-    if (error) {
-      toast.error("No se pudo eliminar", { description: error.message });
-      return;
-    }
+    if (error) { toast.error("No se pudo eliminar", { description: error.message }); return; }
     toast.success("Pregunta eliminada");
+    setSelected((prev) => { const n = new Set(prev); n.delete(id); return n; });
     qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
   };
+
+  const bulkAction = async (action: "activate" | "deactivate" | "delete") => {
+    const ids = Array.from(selected);
+    if (!ids.length) return;
+    if (action === "delete") {
+      const { error } = await supabase.from("whatsapp_bot_faqs").delete().in("id", ids);
+      if (error) { toast.error("No se pudo eliminar", { description: error.message }); return; }
+      toast.success(`${ids.length} eliminadas`);
+    } else {
+      const active = action === "activate";
+      const { error } = await supabase.from("whatsapp_bot_faqs").update({ active }).in("id", ids);
+      if (error) { toast.error("No se pudo actualizar", { description: error.message }); return; }
+      toast.success(`${ids.length} ${active ? "activadas" : "desactivadas"}`);
+    }
+    setSelected(new Set());
+    setConfirmBulkDelete(false);
+    qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
+  };
+
+  const saveEdit = async () => {
+    if (!editing) return;
+    const question = editing.question.trim();
+    const answer = editing.answer.trim();
+    if (!question || !answer) { toast.error("Pregunta y respuesta son requeridas"); return; }
+    await updateField(editing.id, { question, answer });
+    setEditing(null);
+    toast.success("Guardado");
+  };
+
+  const activeCount = faqs.filter((f) => f.active).length;
+  const dupCount = duplicateIds.size;
 
   return (
     <Card className="border-fuchsia-200">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2">
-          <span className="text-lg">📚</span> Preguntas frecuentes (respuestas oficiales)
-          <Badge variant="secondary" className="ml-1 bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-100">
-            Few-shot
+        <CardTitle className="flex items-center gap-2 flex-wrap">
+          <span className="text-lg">📚</span>
+          <span>Preguntas frecuentes</span>
+          <Badge variant="secondary" className="bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-100">Few-shot</Badge>
+          <Badge variant="outline" className="ml-auto">
+            {faqs.length} totales · {activeCount} activas{dupCount ? ` · ${dupCount} duplicadas` : ""}
           </Badge>
         </CardTitle>
         <CardDescription>
-          Escribe pares de <b>Pregunta / Respuesta</b> con la voz oficial de tu sede. La IA los usa como
-          referencia y responde con esas respuestas cuando el cliente pregunta algo parecido, en lugar de
-          inventar.
+          Pares Pregunta / Respuesta que la IA usa como referencia. Importa desde archivos .txt (formato
+          <code className="mx-1 px-1 rounded bg-muted text-[10px]">Pregunta: … Respuesta: …</code>
+          o chats de WhatsApp) o agrégalos manualmente.
         </CardDescription>
       </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Importador de chat WhatsApp .txt */}
+
+      <CardContent className="space-y-4">
+        {/* Importador */}
         <div className="rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/50 p-3">
           <div className="flex items-start justify-between gap-3 flex-wrap">
             <div className="flex-1 min-w-[200px]">
               <p className="text-sm font-medium flex items-center gap-1.5">
                 <Sparkles className="h-4 w-4 text-fuchsia-600" />
-                Importar desde chat de WhatsApp
+                Importar archivo .txt
               </p>
               <p className="text-xs text-muted-foreground mt-0.5">
-                Exporta un chat (.txt) desde WhatsApp. La IA extrae las preguntas frecuentes
-                automáticamente y <b>elimina nombres, teléfonos y datos personales</b>.
+                Detecta automáticamente bloques <b>Pregunta / Respuesta</b>. Para chats de WhatsApp, la IA
+                extrae los pares y <b>elimina nombres, teléfonos y datos personales</b>. Soporta archivos con
+                50, 100, 200+ pares.
               </p>
             </div>
             <label className="cursor-pointer">
@@ -1412,155 +1576,357 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
               />
               <span className={`inline-flex items-center gap-1.5 rounded-md px-3 py-2 text-sm font-medium transition-colors ${importing ? "bg-muted text-muted-foreground" : "bg-fuchsia-600 text-white hover:bg-fuchsia-700"}`}>
                 <Upload className="h-4 w-4" />
-                {importing ? "Procesando…" : "Subir chat .txt"}
+                {importing ? "Procesando…" : "Subir .txt"}
               </span>
             </label>
           </div>
         </div>
 
-        {/* Formulario para agregar */}
-        <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
-          <div>
-            <Label htmlFor="faq-q" className="text-xs font-medium">Pregunta del cliente</Label>
+        {/* Add manual */}
+        <details className="rounded-lg border bg-muted/30 p-3">
+          <summary className="cursor-pointer text-sm font-medium flex items-center gap-1.5 select-none">
+            <Plus className="h-4 w-4" /> Agregar manualmente
+          </summary>
+          <div className="mt-3 space-y-2">
+            <div>
+              <Label htmlFor="faq-q" className="text-xs font-medium">Pregunta del cliente</Label>
+              <Input id="faq-q" value={q} onChange={(e) => setQ(e.target.value)}
+                placeholder="Ej: ¿tienen domicilio a Chapinero?" className="mt-1" />
+            </div>
+            <div>
+              <Label htmlFor="faq-a" className="text-xs font-medium">Respuesta oficial</Label>
+              <Textarea id="faq-a" value={a} onChange={(e) => setA(e.target.value)}
+                placeholder="Ej: Sí, hacemos domicilio a Chapinero. El costo es $5.000 y el tiempo estimado es 30–40 min."
+                rows={3} className="mt-1" />
+            </div>
+            <div className="flex justify-end">
+              <Button size="sm" onClick={add} disabled={saving}>
+                <Plus className="h-4 w-4 mr-1" />{saving ? "Agregando…" : "Agregar"}
+              </Button>
+            </div>
+          </div>
+        </details>
+
+        {/* Toolbar: search + filter + bulk */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              id="faq-q"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              placeholder="Ej: ¿tienen domicilio a Chapinero?"
-              className="mt-1"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Buscar por palabra clave…"
+              className="pl-8 h-9"
             />
           </div>
-          <div>
-            <Label htmlFor="faq-a" className="text-xs font-medium">Respuesta oficial</Label>
-            <Textarea
-              id="faq-a"
-              value={a}
-              onChange={(e) => setA(e.target.value)}
-              placeholder="Ej: Sí, hacemos domicilio a Chapinero. El costo es $5.000 y el tiempo estimado es 30–40 min."
-              rows={3}
-              className="mt-1"
-            />
-          </div>
-          <div className="flex justify-end">
-            <Button size="sm" onClick={add} disabled={saving}>
-              <Plus className="h-4 w-4 mr-1" />
-              {saving ? "Agregando…" : "Agregar"}
-            </Button>
-          </div>
+          <Select value={filter} onValueChange={(v) => setFilter(v as FaqFilter)}>
+            <SelectTrigger className="w-[170px] h-9"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas ({faqs.length})</SelectItem>
+              <SelectItem value="active">Activas ({activeCount})</SelectItem>
+              <SelectItem value="inactive">Inactivas ({faqs.length - activeCount})</SelectItem>
+              <SelectItem value="recent">Recientes (24 h)</SelectItem>
+              <SelectItem value="duplicates">Duplicadas ({dupCount})</SelectItem>
+            </SelectContent>
+          </Select>
+          {selected.size > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="outline" className="h-9">
+                  Acciones ({selected.size}) <ChevronDown className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => bulkAction("activate")}>
+                  <Check className="h-4 w-4 mr-2" /> Activar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => bulkAction("deactivate")}>
+                  <X className="h-4 w-4 mr-2" /> Desactivar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => setConfirmBulkDelete(true)}>
+                  <Trash2 className="h-4 w-4 mr-2" /> Eliminar seleccionadas
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
 
-        {/* Lista existente */}
+        {/* Lista compacta colapsable */}
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Cargando…</p>
-        ) : faqs.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-4">
-            Aún no hay preguntas frecuentes. Agrega la primera para que la IA la use como referencia.
+        ) : filtered.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-6 border rounded-lg bg-muted/20">
+            {faqs.length === 0
+              ? "Aún no hay preguntas frecuentes. Importa un .txt o agrega la primera manualmente."
+              : "Ningún registro coincide con la búsqueda o el filtro."}
           </p>
         ) : (
-          <div className="space-y-2">
-            {faqs.map((f) => (
-              <div
-                key={f.id}
-                className={`rounded-lg border p-3 space-y-2 ${f.active ? "bg-card" : "bg-muted/40 opacity-70"}`}
-              >
-                <Input
-                  value={f.question}
-                  onChange={(e) => updateField(f.id, { question: e.target.value })}
-                  className="text-sm font-medium"
-                />
-                <Textarea
-                  value={f.answer}
-                  onChange={(e) => updateField(f.id, { answer: e.target.value })}
-                  rows={3}
-                  className="text-sm"
-                />
-                <div className="flex items-center justify-between pt-1">
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      checked={f.active}
-                      onCheckedChange={(v) => updateField(f.id, { active: v })}
-                    />
-                    <span className="text-xs text-muted-foreground">
-                      {f.active ? "Activa" : "Desactivada"}
-                    </span>
-                  </div>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
-                    onClick={() => remove(f.id)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Eliminar
-                  </Button>
-                </div>
-              </div>
-            ))}
+          <div className="rounded-lg border overflow-hidden">
+            {/* Header selección */}
+            <div className="flex items-center gap-2 px-3 py-2 bg-muted/50 border-b text-xs font-medium">
+              <Checkbox checked={allSelectedInView} onCheckedChange={toggleSelectAll} />
+              <span className="text-muted-foreground">
+                {selected.size > 0 ? `${selected.size} seleccionadas` : `Mostrando ${filtered.length} de ${faqs.length}`}
+              </span>
+            </div>
+
+            <ul className="divide-y">
+              {filtered.map((f) => {
+                const isOpen = expanded.has(f.id);
+                const isSel = selected.has(f.id);
+                const isDup = duplicateIds.has(f.id);
+                return (
+                  <li key={f.id} className={`transition-colors ${isSel ? "bg-fuchsia-50/50" : "hover:bg-muted/30"} ${!f.active ? "opacity-60" : ""}`}>
+                    <div className="flex items-start gap-2 px-3 py-2">
+                      <Checkbox
+                        checked={isSel}
+                        onCheckedChange={() => toggleSelected(f.id)}
+                        className="mt-1"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => toggleExpand(f.id)}
+                        className="flex-1 min-w-0 text-left"
+                      >
+                        <div className="flex items-center gap-1.5">
+                          {isOpen
+                            ? <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                            : <ChevronRight className="h-3.5 w-3.5 text-muted-foreground shrink-0" />}
+                          <span className="text-sm font-medium truncate">{f.question}</span>
+                          {!f.active && <Badge variant="outline" className="text-[10px] py-0 h-4">Inactiva</Badge>}
+                          {isDup && <Badge variant="outline" className="text-[10px] py-0 h-4 border-amber-400 text-amber-700">Duplicada</Badge>}
+                        </div>
+                        {!isOpen && (
+                          <p className="text-xs text-muted-foreground truncate mt-0.5 pl-5">
+                            {f.answer.split("\n")[0]}
+                          </p>
+                        )}
+                      </button>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
+                            <MoreHorizontal className="h-4 w-4" />
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          <DropdownMenuItem onClick={() => setEditing(f)}>
+                            <Pencil className="h-4 w-4 mr-2" /> Editar
+                          </DropdownMenuItem>
+                          <DropdownMenuItem onClick={() => updateField(f.id, { active: !f.active })}>
+                            {f.active ? <><X className="h-4 w-4 mr-2" /> Desactivar</> : <><Check className="h-4 w-4 mr-2" /> Activar</>}
+                          </DropdownMenuItem>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem className="text-rose-600 focus:text-rose-700" onClick={() => setConfirmDeleteId(f.id)}>
+                            <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                    {isOpen && (
+                      <div className="px-3 pb-3 pl-10 space-y-2">
+                        <div className="text-xs whitespace-pre-wrap rounded bg-muted/40 p-2 border">
+                          {f.answer}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Switch checked={f.active} onCheckedChange={(v) => updateField(f.id, { active: v })} />
+                          <span className="text-xs text-muted-foreground">{f.active ? "Activa" : "Desactivada"}</span>
+                          <div className="ml-auto flex gap-1">
+                            <Button variant="outline" size="sm" className="h-7" onClick={() => setEditing(f)}>
+                              <Pencil className="h-3.5 w-3.5 mr-1" /> Editar
+                            </Button>
+                            <Button variant="ghost" size="sm" className="h-7 text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setConfirmDeleteId(f.id)}>
+                              <Trash2 className="h-3.5 w-3.5 mr-1" /> Eliminar
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
           </div>
         )}
 
         <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
           <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-          Solo las preguntas <b>activas</b> se envían a la IA. Guardar es instantáneo.
+          Solo las preguntas <b>activas</b> se envían a la IA. Los cambios se guardan al instante.
         </p>
       </CardContent>
 
-      {/* Preview del importador */}
+      {/* ==================== Import preview dialog ==================== */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+        <DialogContent className="max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-fuchsia-600" />
-              Preguntas extraídas ({preview.filter((p) => p.keep).length}/{preview.length})
+              Revisar importación
             </DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+
+          {/* Stats */}
+          {importStats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-center text-xs">
+              <div className="rounded border p-2 bg-muted/20">
+                <div className="text-lg font-bold">{importStats.totalDetected}</div>
+                <div className="text-muted-foreground">Detectadas</div>
+              </div>
+              <div className="rounded border p-2 bg-emerald-50 border-emerald-200">
+                <div className="text-lg font-bold text-emerald-700">{preview.filter((p) => p.keep && (!p.duplicateOfId || p.strategy !== "skip")).length}</div>
+                <div className="text-emerald-700">A importar</div>
+              </div>
+              <div className="rounded border p-2 bg-amber-50 border-amber-200">
+                <div className="text-lg font-bold text-amber-700">{preview.filter((p) => p.duplicateOfId).length}</div>
+                <div className="text-amber-700">Duplicadas</div>
+              </div>
+              <div className="rounded border p-2 bg-rose-50 border-rose-200">
+                <div className="text-lg font-bold text-rose-700">{importStats.errors.length}</div>
+                <div className="text-rose-700">Con error</div>
+              </div>
+            </div>
+          )}
+
+          {importStats && (importStats.source === "ai" || importStats.source === "mixed") && (
             <p className="text-xs text-muted-foreground">
-              Revisa, edita o descarta cada par. Sin nombres ni datos personales.
+              Procesado por IA en {importStats.chunks ?? 1} bloque(s). Los nombres y datos personales fueron
+              removidos automáticamente.
             </p>
+          )}
+
+          {(importWarnings.length > 0 || (importStats?.errors?.length ?? 0) > 0) && (
+            <div className="rounded border border-amber-200 bg-amber-50 p-2 text-xs space-y-1 max-h-24 overflow-auto">
+              {importWarnings.map((w, i) => (
+                <div key={`w-${i}`} className="flex gap-1.5"><AlertTriangle className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" /><span>{w}</span></div>
+              ))}
+              {importStats?.errors?.slice(0, 20).map((e) => (
+                <div key={`e-${e.index}`} className="flex gap-1.5">
+                  <AlertTriangle className="h-3.5 w-3.5 text-rose-600 shrink-0 mt-0.5" />
+                  <span><b>#{e.index}:</b> {e.reason} — <i className="opacity-70">{e.snippet}</i></span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Bulk duplicate strategy */}
+          {preview.some((p) => p.duplicateOfId) && (
+            <div className="flex flex-wrap items-center gap-2 text-xs border-t border-b py-2">
+              <span className="font-medium">Duplicadas → aplicar a todas:</span>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyBulkDupStrategy("skip")}>Omitir</Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyBulkDupStrategy("replace")}>Reemplazar</Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => applyBulkDupStrategy("keep-both")}>Conservar ambas</Button>
+            </div>
+          )}
+
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1 -mr-1">
             {preview.map((p, idx) => (
-              <div
-                key={idx}
-                className={`rounded-lg border p-3 space-y-2 ${p.keep ? "bg-card" : "bg-muted/40 opacity-60"}`}
-              >
-                <div className="flex items-start justify-between gap-2">
-                  <Label className="text-xs font-medium">Pregunta</Label>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="h-6 px-2 text-xs"
-                    onClick={() => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, keep: !x.keep } : x))}
-                  >
-                    {p.keep ? <><X className="h-3 w-3 mr-1" />Descartar</> : <><Check className="h-3 w-3 mr-1" />Incluir</>}
-                  </Button>
+              <div key={idx} className={`rounded-lg border p-3 space-y-2 ${p.keep ? "bg-card" : "bg-muted/40 opacity-60"} ${p.duplicateOfId ? "border-amber-300" : ""}`}>
+                <div className="flex items-start justify-between gap-2 flex-wrap">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Checkbox checked={p.keep} onCheckedChange={(v) =>
+                      setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, keep: !!v } : x))
+                    } />
+                    <Label className="text-xs font-medium">#{idx + 1}</Label>
+                    {p.duplicateOfId && (
+                      <Badge variant="outline" className="text-[10px] py-0 h-4 border-amber-400 text-amber-700">Ya existe</Badge>
+                    )}
+                  </div>
+                  {p.duplicateOfId && (
+                    <Select value={p.strategy} onValueChange={(v) =>
+                      setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, strategy: v as DupStrategy, keep: v !== "skip" ? true : x.keep } : x))
+                    }>
+                      <SelectTrigger className="h-7 text-xs w-[160px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="skip">Omitir</SelectItem>
+                        <SelectItem value="replace">Reemplazar existente</SelectItem>
+                        <SelectItem value="keep-both">Conservar ambas</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  )}
                 </div>
                 <Input
                   value={p.question}
                   onChange={(e) => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, question: e.target.value } : x))}
-                  className="text-sm"
-                  disabled={!p.keep}
+                  className="text-sm" disabled={!p.keep}
                 />
-                <Label className="text-xs font-medium">Respuesta oficial</Label>
                 <Textarea
                   value={p.answer}
                   onChange={(e) => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, answer: e.target.value } : x))}
-                  rows={3}
-                  className="text-sm"
-                  disabled={!p.keep}
+                  rows={3} className="text-sm" disabled={!p.keep}
                 />
               </div>
             ))}
           </div>
+
           <div className="flex justify-end gap-2 pt-3 border-t">
-            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>
-              Cancelar
-            </Button>
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>Cancelar</Button>
             <Button onClick={saveImported} disabled={importing}>
-              {importing ? "Guardando…" : `Guardar ${preview.filter((p) => p.keep).length} preguntas`}
+              {importing
+                ? "Guardando…"
+                : `Importar ${preview.filter((p) => p.keep && (!p.duplicateOfId || p.strategy !== "skip")).length}`}
             </Button>
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* ==================== Edit dialog ==================== */}
+      <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Editar pregunta</DialogTitle>
+          </DialogHeader>
+          {editing && (
+            <div className="space-y-3">
+              <div>
+                <Label className="text-xs">Pregunta</Label>
+                <Input value={editing.question} onChange={(e) => setEditing({ ...editing, question: e.target.value })} />
+              </div>
+              <div>
+                <Label className="text-xs">Respuesta</Label>
+                <Textarea value={editing.answer} onChange={(e) => setEditing({ ...editing, answer: e.target.value })} rows={6} />
+              </div>
+              <div className="flex justify-end gap-2">
+                <Button variant="outline" onClick={() => setEditing(null)}>Cancelar</Button>
+                <Button onClick={saveEdit}>Guardar</Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirm single delete */}
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(o) => !o && setConfirmDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar esta pregunta?</AlertDialogTitle>
+            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmDeleteId && removeOne(confirmDeleteId).then(() => setConfirmDeleteId(null))}
+              className="bg-rose-600 hover:bg-rose-700"
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Confirm bulk delete */}
+      <AlertDialog open={confirmBulkDelete} onOpenChange={setConfirmBulkDelete}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>¿Eliminar {selected.size} preguntas?</AlertDialogTitle>
+            <AlertDialogDescription>Esta acción no se puede deshacer.</AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={() => bulkAction("delete")} className="bg-rose-600 hover:bg-rose-700">
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Card>
   );
 }
