@@ -1699,19 +1699,19 @@ function PremiumField({
   children: React.ReactNode;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="space-y-2.5">
       <div className="flex items-center justify-between gap-2">
-        <label className="flex items-center gap-2 text-sm sm:text-base font-extrabold uppercase tracking-wide text-foreground">
-          <span className="inline-flex h-7 w-7 items-center justify-center rounded-lg bg-primary/15 text-primary ring-1 ring-primary/25 shadow-sm">
+        <label className="flex items-center gap-2.5 text-base sm:text-lg font-black uppercase tracking-wide text-foreground">
+          <span className="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-primary/20 to-rose-200/40 dark:to-rose-950/40 text-primary ring-1 ring-primary/30 shadow-sm">
             {icon}
           </span>
-          <span>{label}</span>
-          {required && <span className="text-destructive">*</span>}
+          <span style={{ fontFamily: '"Bebas Neue", "Fraunces Variable", sans-serif', letterSpacing: "0.06em" }}>{label}</span>
+          {required && <span className="text-destructive text-lg leading-none">*</span>}
         </label>
-        {hint && <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{hint}</span>}
+        {hint && <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground bg-muted/60 rounded-full px-2 py-0.5">{hint}</span>}
       </div>
       {children}
-      {error && errorText && <p className="text-xs font-medium text-destructive">{errorText}</p>}
+      {error && errorText && <p className="text-xs font-semibold text-destructive flex items-center gap-1">⚠ {errorText}</p>}
     </div>
   );
 }
