@@ -1258,7 +1258,26 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     setImporting(true);
     try {
       const text = await file.text();
-      const result = await extractFn({ data: { text, branchId } });
+      // Route to the Lovable domain where LOVABLE_API_KEY is provisioned.
+      // Falls back to same-origin (via server fn) when already on lovable.app.
+      const host = typeof window !== "undefined" ? window.location.hostname : "";
+      const isLovable = /\.lovable\.app$/.test(host);
+      let result: { pairs: ExtractedFaq[]; warnings: string[] };
+      if (isLovable) {
+        result = await extractFn({ data: { text, branchId } });
+      } else {
+        const { data: sess } = await supabase.auth.getSession();
+        const token = sess.session?.access_token;
+        if (!token) throw new Error("Sesión expirada, vuelve a iniciar sesión");
+        const resp = await fetch("https://golosoheladeria.lovable.app/api/public/faq-extract", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ text, branchId }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error ?? `HTTP ${resp.status}`);
+        result = json;
+      }
       if (!result.pairs.length) {
         toast.warning(result.warnings[0] ?? "No se encontraron preguntas útiles");
         setImporting(false);

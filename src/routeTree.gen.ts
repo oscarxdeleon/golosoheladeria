@@ -65,6 +65,7 @@ import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
 import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
 import { Route as ApiPublicWhatsappBotRouteImport } from './routes/api/public/whatsapp-bot'
 import { Route as ApiPublicUserAdminRouteImport } from './routes/api/public/user-admin'
+import { Route as ApiPublicFaqExtractRouteImport } from './routes/api/public/faq-extract'
 import { Route as AuthenticatedReportesVentasRouteImport } from './routes/_authenticated/reportes.ventas'
 import { Route as AuthenticatedReportesResumenRouteImport } from './routes/_authenticated/reportes.resumen'
 import { Route as AuthenticatedReportesCajasRouteImport } from './routes/_authenticated/reportes.cajas'
@@ -366,6 +367,11 @@ const ApiPublicUserAdminRoute = ApiPublicUserAdminRouteImport.update({
   path: '/api/public/user-admin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicFaqExtractRoute = ApiPublicFaqExtractRouteImport.update({
+  id: '/api/public/faq-extract',
+  path: '/api/public/faq-extract',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedReportesVentasRoute =
   AuthenticatedReportesVentasRouteImport.update({
     id: '/ventas',
@@ -495,6 +501,7 @@ export interface FileRoutesByFullPath {
   '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -562,6 +569,7 @@ export interface FileRoutesByTo {
   '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -633,6 +641,7 @@ export interface FileRoutesById {
   '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/_authenticated/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/_authenticated/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
@@ -704,6 +713,7 @@ export interface FileRouteTypes {
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
+    | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
     | '/asistencia/terminal/$slug'
@@ -771,6 +781,7 @@ export interface FileRouteTypes {
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
+    | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
     | '/asistencia/terminal/$slug'
@@ -841,6 +852,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reportes/cajas'
     | '/_authenticated/reportes/resumen'
     | '/_authenticated/reportes/ventas'
+    | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
     | '/asistencia/terminal/$slug'
@@ -867,6 +879,7 @@ export interface RootRouteChildren {
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
   TabletAutoTokenRoute: typeof TabletAutoTokenRoute
+  ApiPublicFaqExtractRoute: typeof ApiPublicFaqExtractRoute
   ApiPublicUserAdminRoute: typeof ApiPublicUserAdminRoute
   ApiPublicWhatsappBotRoute: typeof ApiPublicWhatsappBotRoute
   AsistenciaTerminalSlugRoute: typeof AsistenciaTerminalSlugRoute
@@ -1267,6 +1280,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicUserAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/faq-extract': {
+      id: '/api/public/faq-extract'
+      path: '/api/public/faq-extract'
+      fullPath: '/api/public/faq-extract'
+      preLoaderRoute: typeof ApiPublicFaqExtractRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/reportes/ventas': {
       id: '/_authenticated/reportes/ventas'
       path: '/ventas'
@@ -1499,6 +1519,7 @@ const rootRouteChildren: RootRouteChildren = {
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
   TabletAutoTokenRoute: TabletAutoTokenRoute,
+  ApiPublicFaqExtractRoute: ApiPublicFaqExtractRoute,
   ApiPublicUserAdminRoute: ApiPublicUserAdminRoute,
   ApiPublicWhatsappBotRoute: ApiPublicWhatsappBotRoute,
   AsistenciaTerminalSlugRoute: AsistenciaTerminalSlugRoute,
@@ -1507,13 +1528,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
