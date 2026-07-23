@@ -2630,8 +2630,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 <Input
                   placeholder={orderType === "domicilio" ? "Nombre del cliente *" : "Nombre cliente (opcional)"}
                   value={customer}
-                  onChange={(e) => { setCustomer(e.target.value); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
-                  className={fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}
+                  onChange={(e) => { setCustomer(toUpperText(e.target.value)); if (fieldErrors.customer) setFieldErrors({ ...fieldErrors, customer: false }); }}
+                  autoCapitalize="characters"
+                  className={`uppercase tracking-wide ${fieldErrors.customer ? "border-destructive focus-visible:ring-destructive" : ""}`}
                 />
                 {fieldErrors.customer && <p className="text-xs text-destructive">Este campo es obligatorio para envíos a domicilio</p>}
               </div>
