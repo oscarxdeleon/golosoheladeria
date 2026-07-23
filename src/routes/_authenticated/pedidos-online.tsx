@@ -151,7 +151,7 @@ function OnlineOrdersPage() {
         .from("sales")
         .select("*")
         .eq("branch_id", activeBranchId)
-        .or("source.eq.online_menu,and(order_type.eq.domicilio,payment_method.eq.Pendiente)")
+        .or("source.eq.online_menu,source.eq.whatsapp_bot,and(order_type.eq.domicilio,payment_method.eq.Pendiente)")
         .order("created_at", { ascending: false })
         .limit(150);
       const { data, error } = await q;
@@ -181,8 +181,9 @@ function OnlineOrdersPage() {
           const row = (payload.new ?? payload.old) as { source?: string | null; order_type?: string | null; payment_method?: string | null } | null;
           if (!row) return;
           const isOnline = row.source === "online_menu";
+          const isBot = row.source === "whatsapp_bot";
           const isPosDomicilioPending = row.order_type === "domicilio" && row.payment_method === "Pendiente";
-          if (!isOnline && !isPosDomicilioPending) return;
+          if (!isOnline && !isBot && !isPosDomicilioPending) return;
           qc.invalidateQueries({ queryKey: ["online-orders", activeBranchId] });
         })
       .subscribe();
@@ -517,7 +518,12 @@ function OnlineOrdersPage() {
               <div key={o.id} className="rounded-lg border p-3 sm:p-4 space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <div className="font-display text-lg">#{o.ticket_number} · {o.customer_name ?? "Cliente"}</div>
+                    <div className="font-display text-lg flex items-center gap-2 flex-wrap">
+                      <span>#{o.ticket_number} · {o.customer_name ?? "Cliente"}</span>
+                      {o.source === "whatsapp_bot" && (
+                        <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px]">🤖 Bot WhatsApp · Revisar</Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(o.created_at).toLocaleString("es-CO")}
                       {o.customer_phone && <> · <Phone className="inline h-3 w-3" /> {o.customer_phone}</>}

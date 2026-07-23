@@ -294,58 +294,191 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 userContent.push({ type: "input_audio", input_audio: { data: audioB64, format } });
               }
 
-              // 4) Llamar Lovable AI Gateway con system + historial + turno actual
+              // 4) Cargar config de ordering (bot toma pedidos)
+              const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
+              const orderCfg = (orderCfgRes.ok ? orderCfgRes.data : null) as {
+                ordering_enabled?: boolean; min_amount?: number; delivery_fee?: number;
+                zones?: string | null; transfer_info?: string | null;
+              } | null;
+              const orderingEnabled = !!(orderCfg?.ordering_enabled);
+
+              // Prompt adicional cuando el bot toma pedidos
+              const orderingPromptBlock = orderingEnabled ? [
+                "",
+                "🛒 TOMA DE PEDIDOS (SOLO DOMICILIO):",
+                `- Domicilio: ${onlineOpen ? "ABIERTO" : "CERRADO — no aceptes pedidos ahora, invita a volver en horario"}.`,
+                `- Monto mínimo del pedido (subtotal antes de domicilio): ${fmtCOP(Number(orderCfg?.min_amount ?? 0))}.`,
+                `- Costo de domicilio por defecto: ${fmtCOP(Number(orderCfg?.delivery_fee ?? 0))} (ajústalo si la zona lo requiere).`,
+                orderCfg?.zones ? `- Zonas de cobertura: ${orderCfg.zones}` : "",
+                orderCfg?.transfer_info ? `- Datos de transferencia (compártelos SOLO si el cliente elige transferir): ${orderCfg.transfer_info}` : "",
+                "",
+                "PROTOCOLO OBLIGATORIO PARA TOMAR PEDIDOS:",
+                "1) Usa search_products para encontrar el producto exacto que pide el cliente (no inventes precios).",
+                "2) Si el producto tiene grupos de modificadores (sabores, toppings, etc.), llama get_modifiers y ofrece SOLO las opciones que devuelve.",
+                "3) Cuando tengas producto+modificadores+cantidad, llama add_to_cart. Repite hasta armar el pedido completo.",
+                "4) Pregunta y guarda con set_delivery_info: nombre, dirección completa, barrio, método de pago (cash o transfer), notas si aplica.",
+                "5) Antes de confirmar, muestra un RESUMEN completo con productos, subtotal, domicilio, total, y método de pago, y pide confirmación explícita ('¿confirmas el pedido?').",
+                "6) Solo cuando el cliente diga SÍ / CONFIRMO / DALE, llama confirm_order. Devolverá el nº de pedido.",
+                "7) Si el cliente cambia de opinión, llama cancel_order.",
+                "8) Recuerda: el pedido queda PENDIENTE DE REVISIÓN por el cajero. Dile al cliente: 'Tu pedido quedó registrado con el nº X y será confirmado en unos minutos por nuestro equipo.'",
+                "",
+              ].filter(Boolean).join("\n") : "";
+
+              const finalSystemPrompt = systemPrompt + orderingPromptBlock;
+
+              // Herramientas expuestas a la IA (function calling)
+              const orderingTools = orderingEnabled ? [
+                { type: "function", function: { name: "search_products", description: "Busca productos activos de la sede por nombre. Devuelve id, name, price, modifier_group_ids.", parameters: { type: "object", properties: { query: { type: "string", description: "Palabra clave del producto que busca el cliente." } }, required: ["query"] } } },
+                { type: "function", function: { name: "get_modifiers", description: "Obtiene los grupos de modificadores (sabores, toppings) disponibles para un producto.", parameters: { type: "object", properties: { product_id: { type: "string" } }, required: ["product_id"] } } },
+                { type: "function", function: { name: "add_to_cart", description: "Agrega un item al carrito del cliente. Los modificadores deben venir con id, name y price obtenidos de get_modifiers.", parameters: { type: "object", properties: { product_id: { type: "string" }, product_name: { type: "string" }, unit_price: { type: "number" }, qty: { type: "number" }, modifiers: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, price: { type: "number" } } } }, notes: { type: "string" } }, required: ["product_name", "unit_price", "qty"] } } },
+                { type: "function", function: { name: "set_delivery_info", description: "Guarda los datos de entrega y pago en el carrito.", parameters: { type: "object", properties: { customer_name: { type: "string" }, delivery_address: { type: "string" }, delivery_neighborhood: { type: "string" }, delivery_notes: { type: "string" }, payment_method: { type: "string", description: "'cash' o 'transfer'" }, delivery_fee: { type: "number" } } } } },
+                { type: "function", function: { name: "show_cart", description: "Muestra el contenido actual del carrito (útil antes de confirmar).", parameters: { type: "object", properties: {} } } },
+                { type: "function", function: { name: "confirm_order", description: "Confirma el pedido y lo envía al POS. Solo llámalo cuando el cliente lo confirme explícitamente.", parameters: { type: "object", properties: {} } } },
+                { type: "function", function: { name: "cancel_order", description: "Cancela el carrito en construcción.", parameters: { type: "object", properties: {} } } },
+              ] : [];
+
+              // Ejecutor de tools server-side
+              const execTool = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
+                try {
+                  switch (name) {
+                    case "search_products": {
+                      const r = await callRpc("whatsapp_bot_ai_search_products", { _token: token, _query: String(args.query ?? "") });
+                      return r.ok ? r.data : { error: "search_failed" };
+                    }
+                    case "get_modifiers": {
+                      const r = await callRpc("whatsapp_bot_ai_get_modifiers", { _token: token, _product_id: String(args.product_id ?? "") });
+                      return r.ok ? r.data : { error: "get_modifiers_failed" };
+                    }
+                    case "add_to_cart": {
+                      // Leer carrito actual, agregar item, upsert
+                      const cartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      const cart = (cartRes.ok ? cartRes.data : null) as { items?: unknown[] } | null;
+                      const items = Array.isArray(cart?.items) ? [...cart!.items] : [];
+                      items.push({
+                        product_id: args.product_id ?? null,
+                        product_name: args.product_name,
+                        unit_price: Number(args.unit_price ?? 0),
+                        qty: Number(args.qty ?? 1),
+                        modifiers: Array.isArray(args.modifiers) ? args.modifiers : [],
+                        notes: args.notes ?? null,
+                      });
+                      const r = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: { items } });
+                      return r.ok ? { ok: true, cart: r.data } : { error: "add_failed", detail: r.data };
+                    }
+                    case "set_delivery_info": {
+                      const patch: Record<string, unknown> = {};
+                      for (const k of ["customer_name", "delivery_address", "delivery_neighborhood", "delivery_notes", "payment_method"]) {
+                        if (typeof args[k] === "string" && (args[k] as string).length > 0) patch[k] = args[k];
+                      }
+                      if (typeof args.delivery_fee === "number") patch.delivery_fee = args.delivery_fee;
+                      else if (orderCfg?.delivery_fee) patch.delivery_fee = Number(orderCfg.delivery_fee);
+                      const r = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: patch });
+                      return r.ok ? { ok: true, cart: r.data } : { error: "delivery_info_failed", detail: r.data };
+                    }
+                    case "show_cart": {
+                      const r = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      return r.ok ? (r.data ?? { empty: true }) : { error: "cart_read_failed" };
+                    }
+                    case "confirm_order": {
+                      const r = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
+                      if (r.ok) return { ok: true, order: r.data };
+                      const detail = (r.data as { message?: string } | string) ?? "";
+                      const msg = typeof detail === "string" ? detail : (detail?.message ?? JSON.stringify(detail));
+                      return { error: "confirm_failed", message: msg };
+                    }
+                    case "cancel_order": {
+                      await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
+                      return { ok: true };
+                    }
+                    default:
+                      return { error: "unknown_tool", name };
+                  }
+                } catch (e) {
+                  return { error: "tool_exception", message: e instanceof Error ? e.message : String(e) };
+                }
+              };
+
+              // 5) Llamar Lovable AI Gateway con system + historial + turno actual + tools
               const apiKey = process.env.LOVABLE_API_KEY;
               if (!apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
 
+              type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
+              const messages: ChatMsg[] = [
+                { role: "system", content: finalSystemPrompt },
+                ...history.map((m) => ({ role: m.role, content: m.content })),
+                { role: "user", content: userContent },
+              ];
+
               const callAi = async (model: string) => {
+                const bodyReq: Record<string, unknown> = {
+                  model, messages, max_tokens: 800, temperature: 0.7,
+                };
+                if (orderingTools.length > 0) {
+                  bodyReq.tools = orderingTools;
+                  bodyReq.tool_choice = "auto";
+                }
                 return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
                   method: "POST",
-                  headers: {
-                    Authorization: `Bearer ${apiKey}`,
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-                    model,
-                    messages: [
-                      { role: "system", content: systemPrompt },
-                      ...history.map((m) => ({ role: m.role, content: m.content })),
-                      { role: "user", content: userContent },
-                    ],
-                    max_tokens: 800,
-                    temperature: 0.7,
-                  }),
+                  headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                  body: JSON.stringify(bodyReq),
                 });
               };
 
+              // Loop de tool-calling (máx 6 rondas)
+              let finalReply = "";
+              let lastErr: string | null = null;
+              for (let round = 0; round < 6; round++) {
+                let aiResp = await callAi("google/gemini-3.6-flash");
+                if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404)) {
+                  aiResp = await callAi("google/gemini-2.5-flash");
+                }
+                if (aiResp.status === 429) return json({ error: "ai_rate_limited", reply: null }, 200);
+                if (aiResp.status === 402) return json({ error: "ai_credits_exhausted", reply: null }, 200);
+                if (!aiResp.ok) {
+                  const detail = await aiResp.text().catch(() => "");
+                  lastErr = detail.slice(0, 500);
+                  return json({ error: "ai_failed", status: aiResp.status, detail: lastErr, reply: null }, 200);
+                }
+                const aiData = await aiResp.json().catch(() => null) as {
+                  choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>;
+                } | null;
+                const msg = aiData?.choices?.[0]?.message;
+                if (!msg) { lastErr = "empty_response"; break; }
 
-              let aiResp = await callAi("google/gemini-3.6-flash");
-              // Fallback a Gemini 2.5 Flash si el primero falla (transitorio)
-              if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404)) {
-                aiResp = await callAi("google/gemini-2.5-flash");
+                const toolCalls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
+                if (toolCalls.length === 0) {
+                  finalReply = (msg.content ?? "").trim();
+                  break;
+                }
+                // Encolar assistant con tool_calls
+                messages.push({ role: "assistant", content: msg.content ?? "", tool_calls: toolCalls });
+                // Ejecutar cada tool y encolar el resultado
+                for (const tc of toolCalls) {
+                  let parsedArgs: Record<string, unknown> = {};
+                  try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                  const result = await execTool(tc.function.name, parsedArgs);
+                  messages.push({
+                    role: "tool",
+                    tool_call_id: tc.id,
+                    name: tc.function.name,
+                    content: JSON.stringify(result).slice(0, 4000),
+                  });
+                }
               }
-              if (aiResp.status === 429) return json({ error: "ai_rate_limited", reply: null }, 200);
-              if (aiResp.status === 402) return json({ error: "ai_credits_exhausted", reply: null }, 200);
-              if (!aiResp.ok) {
-                const detail = await aiResp.text().catch(() => "");
-                return json({ error: "ai_failed", status: aiResp.status, detail: detail.slice(0, 500), reply: null }, 200);
+
+              if (!finalReply) {
+                return json({ error: "ai_empty", detail: lastErr, reply: null }, 200);
               }
 
-              const aiData = await aiResp.json().catch(() => null) as
-                | { choices?: Array<{ message?: { content?: string } }> }
-                | null;
-              const reply = aiData?.choices?.[0]?.message?.content?.trim() ?? "";
-              if (!reply) return json({ error: "ai_empty", reply: null }, 200);
-
-              // 5) Persistir turno del usuario + respuesta del bot en memoria
+              // 6) Persistir turno del usuario + respuesta del bot en memoria
               const userLog = text && text.length > 0 ? text : "[nota de voz]";
               await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
-              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
 
-              // 6) Registrar uso para rate limit diario
+              // 7) Registrar uso para rate limit diario
               await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
 
-              return json({ reply, source: "ai" });
+              return json({ reply: finalReply, source: "ai" });
             }
             default:
               return json({ error: "unknown_action" }, 400);
