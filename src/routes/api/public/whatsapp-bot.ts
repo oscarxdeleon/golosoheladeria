@@ -298,9 +298,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
               const orderCfg = (orderCfgRes.ok ? orderCfgRes.data : null) as {
                 ordering_enabled?: boolean; min_amount?: number; delivery_fee?: number;
-                zones?: string | null; transfer_info?: string | null;
+                zones?: string | null; transfer_info?: string | null; dry_run?: boolean;
               } | null;
               const orderingEnabled = !!(orderCfg?.ordering_enabled);
+              const dryRun = !!(orderCfg?.dry_run);
 
               // Prompt adicional cuando el bot toma pedidos
               const orderingPromptBlock = orderingEnabled ? [
@@ -321,6 +322,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "6) Solo cuando el cliente diga SÍ / CONFIRMO / DALE, llama confirm_order. Devolverá el nº de pedido.",
                 "7) Si el cliente cambia de opinión, llama cancel_order.",
                 "8) Recuerda: el pedido queda PENDIENTE DE REVISIÓN por el cajero. Dile al cliente: 'Tu pedido quedó registrado con el nº X y será confirmado en unos minutos por nuestro equipo.'",
+                dryRun ? "⚠️ MODO PRUEBA ACTIVO: al llamar confirm_order NO se registra pedido real; devuelve un nº simulado. Igual muestra el resumen normal al cliente; internamente sabrás que fue simulado por la respuesta del tool." : "",
                 "",
               ].filter(Boolean).join("\n") : "";
 
@@ -380,6 +382,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       return r.ok ? (r.data ?? { empty: true }) : { error: "cart_read_failed" };
                     }
                     case "confirm_order": {
+                      if (dryRun) {
+                        // Modo prueba: no insertar en sales. Cancelar carrito para dejarlo limpio.
+                        await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
+                        const fakeNumber = "TEST-" + Math.floor(1000 + Math.random() * 9000);
+                        return { ok: true, dry_run: true, order: { order_number: fakeNumber, simulated: true } };
+                      }
                       const r = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
                       if (r.ok) return { ok: true, order: r.data };
                       const detail = (r.data as { message?: string } | string) ?? "";

@@ -1085,6 +1085,7 @@ interface OrderingCfg {
   delivery_fee: number;
   zones: string | null;
   transfer_info: string | null;
+  dry_run: boolean;
 }
 
 function OrderingCard({ branchId }: { branchId: string }) {
@@ -1094,7 +1095,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_bot_config")
-        .select("ai_ordering_enabled, ordering_min_amount, ordering_delivery_fee, ordering_delivery_zones, ordering_transfer_info")
+        .select("ai_ordering_enabled, ordering_min_amount, ordering_delivery_fee, ordering_delivery_zones, ordering_transfer_info, ai_dry_run")
         .eq("branch_id", branchId)
         .maybeSingle();
       if (error) throw error;
@@ -1105,11 +1106,13 @@ function OrderingCard({ branchId }: { branchId: string }) {
         delivery_fee: data.ordering_delivery_fee,
         zones: data.ordering_delivery_zones,
         transfer_info: data.ordering_transfer_info,
+        dry_run: data.ai_dry_run,
       } as OrderingCfg;
     },
   });
 
   const [enabled, setEnabled] = useState(false);
+  const [dryRun, setDryRun] = useState(false);
   const [minAmount, setMinAmount] = useState("0");
   const [deliveryFee, setDeliveryFee] = useState("0");
   const [zones, setZones] = useState("");
@@ -1119,6 +1122,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
   useEffect(() => {
     if (!data) return;
     setEnabled(!!data.ordering_enabled);
+    setDryRun(!!data.dry_run);
     setMinAmount(String(data.min_amount ?? 0));
     setDeliveryFee(String(data.delivery_fee ?? 0));
     setZones(data.zones ?? "");
@@ -1131,6 +1135,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
       .from("whatsapp_bot_config")
       .update({
         ai_ordering_enabled: enabled,
+        ai_dry_run: dryRun,
         ordering_min_amount: Number(minAmount) || 0,
         ordering_delivery_fee: Number(deliveryFee) || 0,
         ordering_delivery_zones: zones.trim() || null,
@@ -1164,6 +1169,19 @@ function OrderingCard({ branchId }: { branchId: string }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className={`flex items-start justify-between gap-3 rounded-md border p-3 ${dryRun ? "bg-amber-50 border-amber-300" : "bg-muted/40"}`}>
+          <div className="space-y-0.5">
+            <Label htmlFor="ord-dryrun" className="text-sm font-medium flex items-center gap-1.5">
+              🧪 Modo prueba (dry-run)
+              {dryRun && <Badge variant="secondary" className="bg-amber-200 text-amber-900 hover:bg-amber-200">Activo</Badge>}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              La IA arma y "confirma" pedidos con un número simulado (TEST-####), pero <b>no</b> se registran en el POS.
+              Úsalo para probar el flujo sin ensuciar la operación real.
+            </p>
+          </div>
+          <Switch id="ord-dryrun" checked={dryRun} onCheckedChange={setDryRun} disabled={isLoading} />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <Label className="text-sm">Monto mínimo (COP)</Label>
