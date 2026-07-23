@@ -9,7 +9,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check, Bike, Store, Clock, Calendar, User, IdCard, Phone, MapPin, Home, StickyNote } from "lucide-react";
+import { Minus, Plus, Trash2, ShoppingCart, CheckCircle2, IceCream, Banknote, ShoppingBag, Utensils, ArrowLeft, BellRing, Copy, Check, Bike, Store, Clock, Calendar, User, IdCard, Phone, MapPin, Home, StickyNote, CreditCard } from "lucide-react";
 import { toUpperText, onlyDigits } from "@/lib/text-transform";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
