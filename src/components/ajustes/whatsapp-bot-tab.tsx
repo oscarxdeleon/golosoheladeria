@@ -1169,8 +1169,20 @@ function OrderingCard({ branchId }: { branchId: string }) {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className={`flex items-start justify-between gap-3 rounded-md border p-3 ${dryRun ? "bg-amber-50 border-amber-300" : "bg-muted/40"}`}>
+          <div className="space-y-0.5">
+            <Label htmlFor="ord-dryrun" className="text-sm font-medium flex items-center gap-1.5">
+              🧪 Modo prueba (dry-run)
+              {dryRun && <Badge variant="secondary" className="bg-amber-200 text-amber-900 hover:bg-amber-200">Activo</Badge>}
+            </Label>
+            <p className="text-xs text-muted-foreground">
+              La IA arma y "confirma" pedidos con un número simulado (TEST-####), pero <b>no</b> se registran en el POS.
+              Úsalo para probar el flujo sin ensuciar la operación real.
+            </p>
+          </div>
+          <Switch id="ord-dryrun" checked={dryRun} onCheckedChange={setDryRun} disabled={isLoading} />
+        </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-          <div>
             <Label className="text-sm">Monto mínimo (COP)</Label>
             <Input inputMode="numeric" value={minAmount} onChange={(e) => setMinAmount(e.target.value.replace(/[^\d]/g, ""))} />
           </div>
