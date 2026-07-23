@@ -61,6 +61,40 @@ interface Branch { id: string; name: string; is_main: boolean; }
 interface ModifierGroup { id: string; name: string; }
 interface Supply { id: string; name: string; unit: string; }
 
+function ExportMenuButton() {
+  const [loading, setLoading] = useState<null | "xlsx" | "pdf">(null);
+  async function run(kind: "xlsx" | "pdf") {
+    try {
+      setLoading(kind);
+      if (kind === "xlsx") await exportMenuExcel();
+      else await exportMenuPdf();
+      toast.success(`Menú exportado (${kind.toUpperCase()})`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error al exportar");
+    } finally {
+      setLoading(null);
+    }
+  }
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button variant="outline" disabled={loading !== null}>
+          {loading ? <Loader2 className="h-4 w-4 mr-1 animate-spin" /> : <Download className="h-4 w-4 mr-1" />}
+          Exportar Menú
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuItem onClick={() => run("xlsx")}>
+          <FileSpreadsheet className="h-4 w-4 mr-2" /> Excel (.xlsx)
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => run("pdf")}>
+          <FileText className="h-4 w-4 mr-2" /> PDF (.pdf)
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 function ToggleRow({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void; }) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border bg-card p-3">
