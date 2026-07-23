@@ -518,7 +518,12 @@ function OnlineOrdersPage() {
               <div key={o.id} className="rounded-lg border p-3 sm:p-4 space-y-3">
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <div className="font-display text-lg">#{o.ticket_number} · {o.customer_name ?? "Cliente"}</div>
+                    <div className="font-display text-lg flex items-center gap-2 flex-wrap">
+                      <span>#{o.ticket_number} · {o.customer_name ?? "Cliente"}</span>
+                      {o.source === "whatsapp_bot" && (
+                        <Badge className="bg-emerald-600 hover:bg-emerald-600 text-white text-[10px]">🤖 Bot WhatsApp · Revisar</Badge>
+                      )}
+                    </div>
                     <div className="text-xs text-muted-foreground">
                       {new Date(o.created_at).toLocaleString("es-CO")}
                       {o.customer_phone && <> · <Phone className="inline h-3 w-3" /> {o.customer_phone}</>}
