@@ -2959,6 +2959,7 @@ export type Database = {
           after_hours_cooldown_hours: number
           after_hours_enabled: boolean
           after_hours_messages: string[]
+          ai_dry_run: boolean
           ai_enabled: boolean
           ai_last_reply_at: string | null
           ai_ordering_enabled: boolean
@@ -3000,6 +3001,7 @@ export type Database = {
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          ai_dry_run?: boolean
           ai_enabled?: boolean
           ai_last_reply_at?: string | null
           ai_ordering_enabled?: boolean
@@ -3041,6 +3043,7 @@ export type Database = {
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          ai_dry_run?: boolean
           ai_enabled?: boolean
           ai_last_reply_at?: string | null
           ai_ordering_enabled?: boolean
