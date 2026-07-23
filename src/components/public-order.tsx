@@ -1646,3 +1646,36 @@ export function PublicOrder({
     </div>
   );
 }
+
+function PremiumField({
+  label,
+  icon,
+  error,
+  errorText,
+  required,
+  hint,
+  children,
+}: {
+  label: string;
+  icon: React.ReactNode;
+  error?: boolean;
+  errorText?: string;
+  required?: boolean;
+  hint?: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex items-center justify-between gap-2">
+        <label className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-foreground/80">
+          <span className="text-primary">{icon}</span>
+          {label}
+          {required && <span className="text-destructive">*</span>}
+        </label>
+        {hint && <span className="text-[10px] uppercase tracking-wider text-muted-foreground">{hint}</span>}
+      </div>
+      {children}
+      {error && errorText && <p className="text-xs text-destructive">{errorText}</p>}
+    </div>
+  );
+}
