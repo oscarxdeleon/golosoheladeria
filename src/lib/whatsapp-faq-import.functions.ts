@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { parseFaqText, stripWhatsAppMetadata, chunkText } from "./faq-parser";
 
 export interface ExtractedFaq {
   question: string;
@@ -9,51 +10,141 @@ export interface ExtractedFaq {
 export interface ExtractFaqsResult {
   pairs: ExtractedFaq[];
   warnings: string[];
+  stats: {
+    totalDetected: number;
+    imported: number;
+    errors: Array<{ index: number; reason: string; snippet: string }>;
+    source: "deterministic" | "ai" | "mixed";
+    chunks?: number;
+  };
 }
 
-// Strip WhatsApp export line prefixes like "[12/3/25, 10:04:22] Juan Pérez: hola"
-// or "12/3/25 10:04 - Juan Pérez: hola" and remove sender names, keeping only
-// the message body. Runs BEFORE sending to the AI so no names ever leave.
-function stripWhatsAppMetadata(raw: string): string {
-  const lines = raw.split(/\r?\n/);
-  const out: string[] = [];
-  // Match common WhatsApp export formats.
-  // Format A (iOS): [DD/MM/YY, HH:MM:SS] Sender: message
-  // Format B (Android): DD/MM/YY, HH:MM - Sender: message  (also H:MM a. m.)
-  const rxIos = /^\[\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[ap]\.?\s?m\.?)?\]\s*([^:]{1,80}?):\s?(.*)$/i;
-  const rxAndroid = /^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[ap]\.?\s?m\.?)?\s*[-–—]\s*([^:]{1,80}?):\s?(.*)$/i;
-  const rxSystem = /^\d{1,2}[/.\-]\d{1,2}[/.\-]\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[ap]\.?\s?m\.?)?\s*[-–—]\s*/i;
+async function callGeminiForChunk(apiKey: string, chunk: string, maxPairs: number): Promise<Array<{ question: string; answer: string }>> {
+  const systemPrompt = `Eres un extractor de preguntas frecuentes para una heladería.
+Recibirás texto SIN nombres ni fechas. Identifica pares Pregunta/Respuesta útiles.
 
-  let currentIsSystem = false;
-  for (const rawLine of lines) {
-    const line = rawLine.trim();
-    if (!line) { out.push(""); continue; }
-    let m = line.match(rxIos) || line.match(rxAndroid);
-    if (m) {
-      const body = (m[2] ?? "").trim();
-      // Drop system lines (encryption notices, media omitted, etc.)
-      if (
-        !body ||
-        /^<Multimedia omitido>$/i.test(body) ||
-        /^<Media omitted>$/i.test(body) ||
-        /cifrados de extremo/i.test(body) ||
-        /end-to-end encrypted/i.test(body) ||
-        /created group/i.test(body) ||
-        /añadió a/i.test(body)
-      ) {
-        currentIsSystem = true;
-        continue;
-      }
-      currentIsSystem = false;
-      // Anonymize: drop sender name entirely, just keep message.
-      out.push(body);
-      continue;
-    }
-    if (rxSystem.test(line)) { currentIsSystem = true; continue; }
-    // Continuation of previous line (multi-line message)
-    if (!currentIsSystem) out.push(line);
+Reglas ESTRICTAS:
+- Devuelve SOLO JSON: {"pairs":[{"question":"...","answer":"..."}]}
+- NO incluyas nombres propios, teléfonos, ni datos personales.
+- La "question" debe estar redactada de forma genérica.
+- La "answer" en voz oficial del negocio, breve y clara.
+- Descarta charla trivial ("hola", "gracias", "ok").
+- Descarta pedidos individuales concretos.
+- Consolida repetidas en una sola.
+- Máximo ${maxPairs} pares en esta respuesta. Prioriza los más frecuentes.
+- Sin texto fuera del JSON.`;
+
+  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model: "google/gemini-2.5-flash",
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: chunk },
+      ],
+      response_format: { type: "json_object" },
+    }),
+  });
+  if (!resp.ok) {
+    const errText = await resp.text().catch(() => "");
+    if (resp.status === 429) throw new Error("Servicio de IA saturado, intenta de nuevo en unos segundos");
+    if (resp.status === 402) throw new Error("Créditos de IA agotados. Contacta al administrador.");
+    throw new Error(`AI error ${resp.status}: ${errText.slice(0, 200)}`);
   }
-  return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const content = json?.choices?.[0]?.message?.content ?? "{}";
+  let parsed: { pairs?: Array<{ question?: unknown; answer?: unknown }> } = {};
+  try { parsed = JSON.parse(content); } catch {
+    const m = content.match(/\{[\s\S]*\}/);
+    if (m) { try { parsed = JSON.parse(m[0]); } catch { /* noop */ } }
+  }
+  const raw = Array.isArray(parsed.pairs) ? parsed.pairs : [];
+  return raw
+    .map((p) => ({ question: String(p?.question ?? "").trim(), answer: String(p?.answer ?? "").trim() }))
+    .filter((p) => p.question && p.answer);
+}
+
+/**
+ * Estrategia:
+ *  1. Intento parser determinista (formato Pregunta/Respuesta explícito). Sin cap.
+ *  2. Si detecta <3 pares, asumo que es un chat: quito metadatos, troceo y llamo IA por chunks.
+ *  3. Dedupe por pregunta normalizada.
+ */
+export async function extractFaqs(text: string): Promise<ExtractFaqsResult> {
+  const apiKey = process.env.LOVABLE_API_KEY;
+  const warnings: string[] = [];
+
+  // Paso 1: parser determinista
+  const deterministic = parseFaqText(text);
+  if (deterministic.pairs.length >= 3) {
+    const seen = new Set<string>();
+    const pairs: ExtractedFaq[] = [];
+    for (const p of deterministic.pairs) {
+      const key = p.question.toLowerCase().replace(/\s+/g, " ").trim();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      pairs.push({ question: p.question, answer: p.answer });
+    }
+    if (pairs.length < deterministic.pairs.length) {
+      warnings.push(`${deterministic.pairs.length - pairs.length} duplicados exactos consolidados.`);
+    }
+    return {
+      pairs,
+      warnings,
+      stats: {
+        totalDetected: deterministic.totalDetected,
+        imported: pairs.length,
+        errors: deterministic.errors,
+        source: "deterministic",
+      },
+    };
+  }
+
+  // Paso 2: chat de WhatsApp o texto no estructurado → IA por chunks
+  if (!apiKey) throw new Error("LOVABLE_API_KEY no configurado");
+  const cleaned = stripWhatsAppMetadata(text);
+  if (!cleaned || cleaned.length < 20) {
+    return {
+      pairs: [],
+      warnings: ["El archivo no contiene mensajes reconocibles."],
+      stats: { totalDetected: 0, imported: 0, errors: [], source: "ai", chunks: 0 },
+    };
+  }
+
+  const chunks = chunkText(cleaned, 12000);
+  const perChunkCap = chunks.length === 1 ? 100 : Math.max(30, Math.floor(200 / chunks.length));
+  const collected: ExtractedFaq[] = [];
+  const seen = new Set<string>();
+
+  for (let i = 0; i < chunks.length; i++) {
+    try {
+      const batch = await callGeminiForChunk(apiKey, chunks[i], perChunkCap);
+      for (const p of batch) {
+        if (p.question.length > 500 || p.answer.length > 2000) continue;
+        const key = p.question.toLowerCase().replace(/\s+/g, " ").trim();
+        if (seen.has(key)) continue;
+        seen.add(key);
+        collected.push(p);
+      }
+    } catch (err) {
+      warnings.push(`Chunk ${i + 1}/${chunks.length} falló: ${(err as Error).message}`);
+    }
+  }
+
+  if (collected.length === 0) warnings.unshift("La IA no encontró preguntas frecuentes claras en el chat.");
+
+  return {
+    pairs: collected,
+    warnings,
+    stats: {
+      totalDetected: collected.length,
+      imported: collected.length,
+      errors: [],
+      source: "ai",
+      chunks: chunks.length,
+    },
+  };
 }
 
 export const extractFaqsFromChat = createServerFn({ method: "POST" })
@@ -62,82 +153,9 @@ export const extractFaqsFromChat = createServerFn({ method: "POST" })
     const d = data as { text?: string; branchId?: string };
     if (!d?.text || typeof d.text !== "string") throw new Error("Texto requerido");
     if (!d?.branchId || typeof d.branchId !== "string") throw new Error("Sede requerida");
-    // Cap size to keep AI cost bounded (~40k chars).
-    return { text: d.text.slice(0, 40000), branchId: d.branchId };
+    // Cap grande (200 KB) para permitir archivos con 200+ pares
+    return { text: d.text.slice(0, 200_000), branchId: d.branchId };
   })
   .handler(async ({ data }): Promise<ExtractFaqsResult> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY no configurado");
-
-    const cleaned = stripWhatsAppMetadata(data.text);
-    if (!cleaned || cleaned.length < 20) {
-      return { pairs: [], warnings: ["El archivo no contiene mensajes reconocibles."] };
-    }
-
-    const systemPrompt = `Eres un extractor de preguntas frecuentes para una heladería.
-Recibirás un chat SIN nombres ni fechas (solo mensajes en orden). Debes identificar
-las preguntas típicas de clientes y las respuestas oficiales del negocio.
-
-Reglas ESTRICTAS:
-- Devuelve SOLO JSON con esta forma: {"pairs":[{"question":"...","answer":"..."}]}
-- NO incluyas nombres propios, teléfonos, direcciones exactas de clientes, ni datos personales.
-- La "question" debe estar redactada como la haría un cliente cualquiera (genérica, sin nombres, sin "hola Juan").
-- La "answer" debe reflejar la respuesta oficial del negocio (precios, horarios, sabores, promos, políticas).
-  Reescríbela clara, breve y en la voz del negocio. Sin saludos personales.
-- Descarta charla trivial ("hola", "gracias", "ok", "jaja").
-- Descarta pedidos individuales concretos ("quiero 2 conos para Juan a las 5") — no son FAQ.
-- Consolida preguntas repetidas en una sola.
-- Máximo 25 pares. Prioriza las más frecuentes y útiles.
-- Si no hay nada útil, devuelve {"pairs":[]}.
-- Sin texto fuera del JSON.`;
-
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: cleaned },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      if (resp.status === 429) throw new Error("Servicio de IA saturado, intenta de nuevo en unos segundos");
-      if (resp.status === 402) throw new Error("Créditos de IA agotados. Contacta al administrador.");
-      throw new Error(`AI error ${resp.status}: ${errText.slice(0, 200)}`);
-    }
-
-    const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = json?.choices?.[0]?.message?.content ?? "{}";
-    let parsed: { pairs?: Array<{ question?: unknown; answer?: unknown }> } = {};
-    try { parsed = JSON.parse(content); } catch {
-      const m = content.match(/\{[\s\S]*\}/);
-      if (m) { try { parsed = JSON.parse(m[0]); } catch { /* noop */ } }
-    }
-
-    const rawPairs = Array.isArray(parsed.pairs) ? parsed.pairs : [];
-    const seen = new Set<string>();
-    const pairs: ExtractedFaq[] = [];
-    for (const p of rawPairs) {
-      const question = String(p?.question ?? "").trim();
-      const answer = String(p?.answer ?? "").trim();
-      if (!question || !answer) continue;
-      if (question.length > 400 || answer.length > 1200) continue;
-      const key = question.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      pairs.push({ question, answer });
-      if (pairs.length >= 25) break;
-    }
-
-    const warnings: string[] = [];
-    if (pairs.length === 0) warnings.push("La IA no encontró preguntas frecuentes claras en el chat.");
-    return { pairs, warnings };
+    return extractFaqs(data.text);
   });
