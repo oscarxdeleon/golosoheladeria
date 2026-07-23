@@ -1343,6 +1343,63 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
           Solo las preguntas <b>activas</b> se envían a la IA. Guardar es instantáneo.
         </p>
       </CardContent>
+
+      {/* Preview del importador */}
+      <Dialog open={importOpen} onOpenChange={setImportOpen}>
+        <DialogContent className="max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-fuchsia-600" />
+              Preguntas extraídas ({preview.filter((p) => p.keep).length}/{preview.length})
+            </DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-y-auto space-y-2 pr-1">
+            <p className="text-xs text-muted-foreground">
+              Revisa, edita o descarta cada par. Sin nombres ni datos personales.
+            </p>
+            {preview.map((p, idx) => (
+              <div
+                key={idx}
+                className={`rounded-lg border p-3 space-y-2 ${p.keep ? "bg-card" : "bg-muted/40 opacity-60"}`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <Label className="text-xs font-medium">Pregunta</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, keep: !x.keep } : x))}
+                  >
+                    {p.keep ? <><X className="h-3 w-3 mr-1" />Descartar</> : <><Check className="h-3 w-3 mr-1" />Incluir</>}
+                  </Button>
+                </div>
+                <Input
+                  value={p.question}
+                  onChange={(e) => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, question: e.target.value } : x))}
+                  className="text-sm"
+                  disabled={!p.keep}
+                />
+                <Label className="text-xs font-medium">Respuesta oficial</Label>
+                <Textarea
+                  value={p.answer}
+                  onChange={(e) => setPreview((prev) => prev.map((x, i) => i === idx ? { ...x, answer: e.target.value } : x))}
+                  rows={3}
+                  className="text-sm"
+                  disabled={!p.keep}
+                />
+              </div>
+            ))}
+          </div>
+          <div className="flex justify-end gap-2 pt-3 border-t">
+            <Button variant="outline" onClick={() => setImportOpen(false)} disabled={importing}>
+              Cancelar
+            </Button>
+            <Button onClick={saveImported} disabled={importing}>
+              {importing ? "Guardando…" : `Guardar ${preview.filter((p) => p.keep).length} preguntas`}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </Card>
   );
 }
