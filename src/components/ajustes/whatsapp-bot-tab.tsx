@@ -1094,11 +1094,18 @@ function OrderingCard({ branchId }: { branchId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_bot_config")
-        .select("ordering_enabled, min_amount, delivery_fee, zones, transfer_info")
+        .select("ai_ordering_enabled, ordering_min_amount, ordering_delivery_fee, ordering_delivery_zones, ordering_transfer_info")
         .eq("branch_id", branchId)
         .maybeSingle();
       if (error) throw error;
-      return (data ?? null) as OrderingCfg | null;
+      if (!data) return null;
+      return {
+        ordering_enabled: data.ai_ordering_enabled,
+        min_amount: data.ordering_min_amount,
+        delivery_fee: data.ordering_delivery_fee,
+        zones: data.ordering_delivery_zones,
+        transfer_info: data.ordering_transfer_info,
+      } as OrderingCfg;
     },
   });
 
@@ -1123,11 +1130,11 @@ function OrderingCard({ branchId }: { branchId: string }) {
     const { error } = await supabase
       .from("whatsapp_bot_config")
       .update({
-        ordering_enabled: enabled,
-        min_amount: Number(minAmount) || 0,
-        delivery_fee: Number(deliveryFee) || 0,
-        zones: zones.trim() || null,
-        transfer_info: transferInfo.trim() || null,
+        ai_ordering_enabled: enabled,
+        ordering_min_amount: Number(minAmount) || 0,
+        ordering_delivery_fee: Number(deliveryFee) || 0,
+        ordering_delivery_zones: zones.trim() || null,
+        ordering_transfer_info: transferInfo.trim() || null,
       })
       .eq("branch_id", branchId);
     setSaving(false);
