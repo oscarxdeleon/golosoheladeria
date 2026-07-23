@@ -151,7 +151,7 @@ function OnlineOrdersPage() {
         .from("sales")
         .select("*")
         .eq("branch_id", activeBranchId)
-        .or("source.eq.online_menu,and(order_type.eq.domicilio,payment_method.eq.Pendiente)")
+        .or("source.eq.online_menu,source.eq.whatsapp_bot,and(order_type.eq.domicilio,payment_method.eq.Pendiente)")
         .order("created_at", { ascending: false })
         .limit(150);
       const { data, error } = await q;
