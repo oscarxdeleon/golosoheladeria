@@ -570,7 +570,7 @@ export function PublicOrder({
       const result = data as { ticket_number: number; sale_id?: string | null } | null;
       if (!result) throw new Error("Sin respuesta del servidor");
 
-      const savedOnlineCustomer = sanitizeOnlineCustomer({ name: customerName, phone, address, neighborhood });
+      const savedOnlineCustomer = sanitizeOnlineCustomer({ name: customerName, lastName: customerLastName, phone, address, neighborhood });
       if (source === "online_menu") writeStoredOnlineCustomer(savedOnlineCustomer);
 
       // WhatsApp redirect (only para domicilio / online_menu)
