@@ -200,11 +200,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     .join("\n")
                 : "";
 
+              // FAQs curadas por la sede — Opción 3 (few-shot). Se envían como ejemplos
+              // que la IA debe imitar en tono y contenido cuando la pregunta calza.
+              const faqs = Array.isArray(ctx.faqs) ? ctx.faqs as Array<{ q?: string; a?: string }> : [];
+              const faqsBlock = faqs.length > 0
+                ? "PREGUNTAS FRECUENTES DE ESTA SEDE (respuestas oficiales — cuando el cliente pregunte algo parecido, usa esta respuesta tal cual, adaptando solo el saludo):\n" +
+                  faqs
+                    .filter((f) => f.q && f.a)
+                    .map((f, i) => `${i + 1}) P: ${String(f.q).trim()}\n   R: ${String(f.a).trim()}`)
+                    .join("\n")
+                : "";
+
               const defaultPrompt = [
                 `Eres el asistente virtual de Heladería Goloso, sede ${branchName}.`,
                 "Tono cercano, cálido y juvenil, con emojis de helado 🍦🍨 cuando aporten.",
                 "REGLAS DE RESPUESTA:",
                 "- Responde SIEMPRE de forma directa y COMPLETA a lo que el cliente pregunta.",
+                "- Si la pregunta del cliente calza con una PREGUNTA FRECUENTE listada abajo, usa esa respuesta oficial como base.",
                 "- Si preguntan por sabores, productos o precios: usa EXCLUSIVAMENTE la información de esta sede listada más abajo. NO inventes sabores, productos ni precios.",
                 "- Si un sabor o producto no aparece listado, di con honestidad que hoy no está disponible en esta sede.",
                 "- Si preguntan por promociones, horarios, ubicación, tiempos de entrega o formas de pago: da la información concreta que tengas del contexto.",
@@ -214,6 +226,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 `Menú y pedidos en línea: ${menuLink}`,
                 `Estado ahora: domicilio ${onlineOpen ? "ABIERTO ✅" : "CERRADO ❌"} · tienda física ${physicalOpen ? "ABIERTA ✅" : "CERRADA ❌"}.`,
                 "",
+                faqsBlock,
+                "",
                 flavorsBlock,
                 "",
                 productsBlock,
@@ -222,10 +236,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "Responde SIEMPRE en español de Colombia.",
               ].filter(Boolean).join("\n");
 
-              // Si hay prompt personalizado por sede, se le concatenan sabores/productos
+              // Si hay prompt personalizado por sede, se le concatenan FAQs/sabores/productos
               // para que la sede pueda personalizar tono pero la IA nunca invente productos.
               const systemPrompt = customPrompt && customPrompt.length > 0
-                ? [customPrompt, "", flavorsBlock, "", productsBlock].filter(Boolean).join("\n")
+                ? [customPrompt, "", faqsBlock, "", flavorsBlock, "", productsBlock].filter(Boolean).join("\n")
                 : defaultPrompt;
 
               // 2) Construir mensaje del usuario (texto o audio)
