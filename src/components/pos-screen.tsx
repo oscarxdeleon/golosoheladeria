@@ -2615,7 +2615,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                 </div>
                 <Input
                   value={l.notes ?? ""}
-                  onChange={(e) => setCart((p) => p.map((x) => x.key === l.key ? { ...x, notes: e.target.value } : x))}
+                  onChange={(e) => setCart((p) => p.map((x) => x.key === l.key ? { ...x, notes: toUpperText(e.target.value) } : x))}
                   placeholder="📝 Nota (opcional): ej. sin azúcar, extra topping…"
                   className="h-8 text-xs bg-background/80"
                 />
