@@ -1095,7 +1095,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
     queryFn: async () => {
       const { data, error } = await supabase
         .from("whatsapp_bot_config")
-        .select("ai_ordering_enabled, ordering_min_amount, ordering_delivery_fee, ordering_delivery_zones, ordering_transfer_info")
+        .select("ai_ordering_enabled, ordering_min_amount, ordering_delivery_fee, ordering_delivery_zones, ordering_transfer_info, ai_dry_run")
         .eq("branch_id", branchId)
         .maybeSingle();
       if (error) throw error;
@@ -1106,11 +1106,13 @@ function OrderingCard({ branchId }: { branchId: string }) {
         delivery_fee: data.ordering_delivery_fee,
         zones: data.ordering_delivery_zones,
         transfer_info: data.ordering_transfer_info,
+        dry_run: data.ai_dry_run,
       } as OrderingCfg;
     },
   });
 
   const [enabled, setEnabled] = useState(false);
+  const [dryRun, setDryRun] = useState(false);
   const [minAmount, setMinAmount] = useState("0");
   const [deliveryFee, setDeliveryFee] = useState("0");
   const [zones, setZones] = useState("");
@@ -1120,6 +1122,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
   useEffect(() => {
     if (!data) return;
     setEnabled(!!data.ordering_enabled);
+    setDryRun(!!data.dry_run);
     setMinAmount(String(data.min_amount ?? 0));
     setDeliveryFee(String(data.delivery_fee ?? 0));
     setZones(data.zones ?? "");
@@ -1132,6 +1135,7 @@ function OrderingCard({ branchId }: { branchId: string }) {
       .from("whatsapp_bot_config")
       .update({
         ai_ordering_enabled: enabled,
+        ai_dry_run: dryRun,
         ordering_min_amount: Number(minAmount) || 0,
         ordering_delivery_fee: Number(deliveryFee) || 0,
         ordering_delivery_zones: zones.trim() || null,
