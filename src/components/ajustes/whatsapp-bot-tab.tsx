@@ -1565,6 +1565,10 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                 extrae los pares y <b>elimina nombres, teléfonos y datos personales</b>. Soporta archivos con
                 50, 100, 200+ pares.
               </p>
+              <label className="mt-2 inline-flex items-center gap-2 text-xs cursor-pointer">
+                <Switch checked={importAsGlobal} onCheckedChange={setImportAsGlobal} />
+                <span>Importar como <b>globales</b> (aplican a las dos sedes)</span>
+              </label>
             </div>
             <label className="cursor-pointer">
               <input
@@ -1603,7 +1607,11 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                 placeholder="Ej: Sí, hacemos domicilio a Chapinero. El costo es $5.000 y el tiempo estimado es 30–40 min."
                 rows={3} className="mt-1" />
             </div>
-            <div className="flex justify-end">
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <label className="inline-flex items-center gap-2 text-xs cursor-pointer">
+                <Switch checked={addGlobal} onCheckedChange={setAddGlobal} />
+                <span>Global (ambas sedes)</span>
+              </label>
               <Button size="sm" onClick={add} disabled={saving}>
                 <Plus className="h-4 w-4 mr-1" />{saving ? "Agregando…" : "Agregar"}
               </Button>
