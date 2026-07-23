@@ -430,7 +430,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               const callAi = async (model: string) => {
                 const bodyReq: Record<string, unknown> = {
-                  model, messages, max_tokens: 800, temperature: 0.7,
+                  model, messages, max_tokens: 2048, temperature: 0.6,
                 };
                 if (orderingTools.length > 0) {
                   bodyReq.tools = orderingTools;
@@ -443,9 +443,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
               };
 
-              // Loop de tool-calling (máx 6 rondas)
+              // Loop de tool-calling (máx 6 rondas). Detecta truncados por longitud
+              // y pide continuación para no cortar la respuesta al cliente.
               let finalReply = "";
               let lastErr: string | null = null;
+              let lastFinishReason: string | null = null;
               for (let round = 0; round < 6; round++) {
                 let aiResp = await callAi("google/gemini-3.6-flash");
                 if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404)) {
@@ -456,22 +458,29 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 if (!aiResp.ok) {
                   const detail = await aiResp.text().catch(() => "");
                   lastErr = detail.slice(0, 500);
-                  return json({ error: "ai_failed", status: aiResp.status, detail: lastErr, reply: null }, 200);
+                  break;
                 }
                 const aiData = await aiResp.json().catch(() => null) as {
-                  choices?: Array<{ message?: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>;
+                  choices?: Array<{ finish_reason?: string; message?: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>;
                 } | null;
-                const msg = aiData?.choices?.[0]?.message;
+                const choice = aiData?.choices?.[0];
+                const msg = choice?.message;
+                lastFinishReason = choice?.finish_reason ?? null;
                 if (!msg) { lastErr = "empty_response"; break; }
 
                 const toolCalls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
                 if (toolCalls.length === 0) {
-                  finalReply = (msg.content ?? "").trim();
+                  const chunk = (msg.content ?? "").trim();
+                  finalReply = finalReply ? `${finalReply}${chunk ? " " + chunk : ""}` : chunk;
+                  // Si el modelo cortó por longitud, pedir continuación una vez más
+                  if (chunk && lastFinishReason === "length" && round < 5) {
+                    messages.push({ role: "assistant", content: chunk });
+                    messages.push({ role: "user", content: "Continúa exactamente desde donde cortaste, sin repetir lo ya dicho, y termina la respuesta." });
+                    continue;
+                  }
                   break;
                 }
-                // Encolar assistant con tool_calls
                 messages.push({ role: "assistant", content: msg.content ?? "", tool_calls: toolCalls });
-                // Ejecutar cada tool y encolar el resultado
                 for (const tc of toolCalls) {
                   let parsedArgs: Record<string, unknown> = {};
                   try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
@@ -485,8 +494,34 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               }
 
+              // Reintento defensivo: si quedó vacío, pedir respuesta directa breve sin tools.
               if (!finalReply) {
-                return json({ error: "ai_empty", detail: lastErr, reply: null }, 200);
+                try {
+                  const retry = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                    method: "POST",
+                    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      model: "google/gemini-2.5-flash",
+                      messages: [
+                        { role: "system", content: finalSystemPrompt },
+                        ...history.map((m) => ({ role: m.role, content: m.content })),
+                        { role: "user", content: userContent },
+                      ],
+                      max_tokens: 1024,
+                      temperature: 0.5,
+                    }),
+                  });
+                  if (retry.ok) {
+                    const rd = await retry.json().catch(() => null) as { choices?: Array<{ message?: { content?: string } }> } | null;
+                    finalReply = (rd?.choices?.[0]?.message?.content ?? "").trim();
+                  }
+                } catch { /* noop */ }
+              }
+
+              // Fallback final: nunca dejar al cliente sin respuesta.
+              if (!finalReply) {
+                finalReply = `¡Hola! 👋 Ando con un problemita para responderte en este momento.\n\nMira nuestro menú con precios y fotos 👉 ${menuLink}\n\nSi es urgente, escríbeme de nuevo en un ratico y te atiendo con gusto. 🍦`;
+                lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
               }
 
               // 6) Persistir turno del usuario + respuesta del bot en memoria
@@ -497,7 +532,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // 7) Registrar uso para rate limit diario
               await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
 
-              return json({ reply: finalReply, source: "ai" });
+              return json({ reply: finalReply, source: "ai", finish_reason: lastFinishReason, warning: lastErr });
             }
             default:
               return json({ error: "unknown_action" }, 400);
