@@ -116,6 +116,7 @@ export function PublicOrder({
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [customerName, setCustomerName] = useState("");
+  const [customerLastName, setCustomerLastName] = useState("");
   const [phone, setPhone] = useState("");
   const [address, setAddress] = useState("");
   const [neighborhood, setNeighborhood] = useState("");
