@@ -1070,3 +1070,185 @@ function AiAssistantCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => v
     </Card>
   );
 }
+
+/* --------------------------------------------------------- */
+/* FAQs — Preguntas y respuestas frecuentes por sede         */
+/* --------------------------------------------------------- */
+
+interface FaqRow {
+  id: string;
+  branch_id: string;
+  question: string;
+  answer: string;
+  sort_order: number;
+  active: boolean;
+}
+
+function FaqManagerCard({ branchId }: { branchId: string }) {
+  const qc = useQueryClient();
+  const { data: faqs = [], isLoading } = useQuery<FaqRow[]>({
+    queryKey: ["whatsapp-bot-faqs", branchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("whatsapp_bot_faqs")
+        .select("id, branch_id, question, answer, sort_order, active")
+        .eq("branch_id", branchId)
+        .order("sort_order", { ascending: true })
+        .order("created_at", { ascending: true });
+      if (error) throw error;
+      return (data ?? []) as FaqRow[];
+    },
+  });
+
+  const [q, setQ] = useState("");
+  const [a, setA] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const add = async () => {
+    const question = q.trim();
+    const answer = a.trim();
+    if (!question || !answer) {
+      toast.error("Escribe la pregunta y la respuesta");
+      return;
+    }
+    setSaving(true);
+    const nextOrder = (faqs.at(-1)?.sort_order ?? 0) + 10;
+    const { error } = await supabase.from("whatsapp_bot_faqs").insert({
+      branch_id: branchId,
+      question,
+      answer,
+      sort_order: nextOrder,
+      active: true,
+    });
+    setSaving(false);
+    if (error) {
+      toast.error("No se pudo agregar", { description: error.message });
+      return;
+    }
+    setQ("");
+    setA("");
+    toast.success("Pregunta agregada");
+    qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
+  };
+
+  const updateField = async (id: string, patch: Partial<FaqRow>) => {
+    const { error } = await supabase.from("whatsapp_bot_faqs").update(patch).eq("id", id);
+    if (error) toast.error("No se pudo actualizar", { description: error.message });
+    qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
+  };
+
+  const remove = async (id: string) => {
+    const { error } = await supabase.from("whatsapp_bot_faqs").delete().eq("id", id);
+    if (error) {
+      toast.error("No se pudo eliminar", { description: error.message });
+      return;
+    }
+    toast.success("Pregunta eliminada");
+    qc.invalidateQueries({ queryKey: ["whatsapp-bot-faqs", branchId] });
+  };
+
+  return (
+    <Card className="border-fuchsia-200">
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <span className="text-lg">📚</span> Preguntas frecuentes (respuestas oficiales)
+          <Badge variant="secondary" className="ml-1 bg-fuchsia-100 text-fuchsia-700 hover:bg-fuchsia-100">
+            Few-shot
+          </Badge>
+        </CardTitle>
+        <CardDescription>
+          Escribe pares de <b>Pregunta / Respuesta</b> con la voz oficial de tu sede. La IA los usa como
+          referencia y responde con esas respuestas cuando el cliente pregunta algo parecido, en lugar de
+          inventar.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        {/* Formulario para agregar */}
+        <div className="rounded-lg border bg-muted/30 p-3 space-y-2">
+          <div>
+            <Label htmlFor="faq-q" className="text-xs font-medium">Pregunta del cliente</Label>
+            <Input
+              id="faq-q"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              placeholder="Ej: ¿tienen domicilio a Chapinero?"
+              className="mt-1"
+            />
+          </div>
+          <div>
+            <Label htmlFor="faq-a" className="text-xs font-medium">Respuesta oficial</Label>
+            <Textarea
+              id="faq-a"
+              value={a}
+              onChange={(e) => setA(e.target.value)}
+              placeholder="Ej: Sí, hacemos domicilio a Chapinero. El costo es $5.000 y el tiempo estimado es 30–40 min."
+              rows={3}
+              className="mt-1"
+            />
+          </div>
+          <div className="flex justify-end">
+            <Button size="sm" onClick={add} disabled={saving}>
+              <Plus className="h-4 w-4 mr-1" />
+              {saving ? "Agregando…" : "Agregar"}
+            </Button>
+          </div>
+        </div>
+
+        {/* Lista existente */}
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Cargando…</p>
+        ) : faqs.length === 0 ? (
+          <p className="text-sm text-muted-foreground text-center py-4">
+            Aún no hay preguntas frecuentes. Agrega la primera para que la IA la use como referencia.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {faqs.map((f) => (
+              <div
+                key={f.id}
+                className={`rounded-lg border p-3 space-y-2 ${f.active ? "bg-card" : "bg-muted/40 opacity-70"}`}
+              >
+                <Input
+                  value={f.question}
+                  onChange={(e) => updateField(f.id, { question: e.target.value })}
+                  className="text-sm font-medium"
+                />
+                <Textarea
+                  value={f.answer}
+                  onChange={(e) => updateField(f.id, { answer: e.target.value })}
+                  rows={3}
+                  className="text-sm"
+                />
+                <div className="flex items-center justify-between pt-1">
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      checked={f.active}
+                      onCheckedChange={(v) => updateField(f.id, { active: v })}
+                    />
+                    <span className="text-xs text-muted-foreground">
+                      {f.active ? "Activa" : "Desactivada"}
+                    </span>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-8 text-rose-600 hover:text-rose-700 hover:bg-rose-50"
+                    onClick={() => remove(f.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Eliminar
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
+          <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+          Solo las preguntas <b>activas</b> se envían a la IA. Guardar es instantáneo.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
