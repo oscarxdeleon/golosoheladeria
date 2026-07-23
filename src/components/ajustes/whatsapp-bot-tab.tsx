@@ -17,11 +17,14 @@ import { toast } from "sonner";
 import {
   MessageCircle, Copy, RefreshCw, Plus, Trash2, QrCode, Download,
   Wifi, WifiOff, CircleAlert, Info, Smartphone, LogOut, RotateCw,
+  Upload, Sparkles, Check, X,
 } from "lucide-react";
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import { useServerFn } from "@tanstack/react-start";
+import { extractFaqsFromChat, type ExtractedFaq } from "@/lib/whatsapp-faq-import.functions";
 
 interface BotConfigRow {
   branch_id: string;
