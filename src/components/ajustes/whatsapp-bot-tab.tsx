@@ -1085,6 +1085,7 @@ interface OrderingCfg {
   delivery_fee: number;
   zones: string | null;
   transfer_info: string | null;
+  dry_run: boolean;
 }
 
 function OrderingCard({ branchId }: { branchId: string }) {
