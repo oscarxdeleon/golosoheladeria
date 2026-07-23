@@ -1414,7 +1414,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     setImporting(true);
     try {
       let order = (faqs.at(-1)?.sort_order ?? 0) + 10;
-      const toInsert: Array<{ branch_id: string; question: string; answer: string; sort_order: number; active: boolean }> = [];
+      const toInsert: Array<{ branch_id: string | null; question: string; answer: string; sort_order: number; active: boolean }> = [];
       const toReplace: Array<{ id: string; question: string; answer: string }> = [];
       let skipped = 0;
 
