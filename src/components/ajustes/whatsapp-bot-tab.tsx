@@ -1076,8 +1076,118 @@ function AiAssistantCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => v
 }
 
 /* --------------------------------------------------------- */
+/* Toma de pedidos por WhatsApp (Fase 2B)                    */
+/* --------------------------------------------------------- */
+
+interface OrderingCfg {
+  ordering_enabled: boolean;
+  min_amount: number;
+  delivery_fee: number;
+  zones: string | null;
+  transfer_info: string | null;
+}
+
+function OrderingCard({ branchId }: { branchId: string }) {
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery<OrderingCfg | null>({
+    queryKey: ["whatsapp-bot-ordering", branchId],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("whatsapp_bot_config")
+        .select("ordering_enabled, min_amount, delivery_fee, zones, transfer_info")
+        .eq("branch_id", branchId)
+        .maybeSingle();
+      if (error) throw error;
+      return (data ?? null) as OrderingCfg | null;
+    },
+  });
+
+  const [enabled, setEnabled] = useState(false);
+  const [minAmount, setMinAmount] = useState("0");
+  const [deliveryFee, setDeliveryFee] = useState("0");
+  const [zones, setZones] = useState("");
+  const [transferInfo, setTransferInfo] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!data) return;
+    setEnabled(!!data.ordering_enabled);
+    setMinAmount(String(data.min_amount ?? 0));
+    setDeliveryFee(String(data.delivery_fee ?? 0));
+    setZones(data.zones ?? "");
+    setTransferInfo(data.transfer_info ?? "");
+  }, [data]);
+
+  const save = async () => {
+    setSaving(true);
+    const { error } = await supabase
+      .from("whatsapp_bot_config")
+      .update({
+        ordering_enabled: enabled,
+        min_amount: Number(minAmount) || 0,
+        delivery_fee: Number(deliveryFee) || 0,
+        zones: zones.trim() || null,
+        transfer_info: transferInfo.trim() || null,
+      })
+      .eq("branch_id", branchId);
+    setSaving(false);
+    if (error) return toast.error("No se pudo guardar", { description: error.message });
+    toast.success("Toma de pedidos actualizada");
+    qc.invalidateQueries({ queryKey: ["whatsapp-bot-ordering", branchId] });
+  };
+
+  return (
+    <Card className="border-emerald-200">
+      <CardHeader className="pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="space-y-1">
+            <CardTitle className="flex items-center gap-2">
+              <span className="text-lg">🛒</span> Toma de pedidos por WhatsApp
+              <Badge variant="secondary" className="ml-1 bg-emerald-100 text-emerald-700 hover:bg-emerald-100">Fase 2B</Badge>
+            </CardTitle>
+            <CardDescription>
+              La IA arma pedidos de <b>domicilio</b> conversando con el cliente. Cada pedido queda
+              como “Bot WhatsApp · Revisar” en Pedidos online para que el cajero lo confirme antes de cocina.
+            </CardDescription>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <Label htmlFor="ord-enabled" className="text-sm">Activar</Label>
+            <Switch id="ord-enabled" checked={enabled} onCheckedChange={setEnabled} disabled={isLoading} />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <Label className="text-sm">Monto mínimo (COP)</Label>
+            <Input inputMode="numeric" value={minAmount} onChange={(e) => setMinAmount(e.target.value.replace(/[^\d]/g, ""))} />
+          </div>
+          <div>
+            <Label className="text-sm">Costo de domicilio por defecto (COP)</Label>
+            <Input inputMode="numeric" value={deliveryFee} onChange={(e) => setDeliveryFee(e.target.value.replace(/[^\d]/g, ""))} />
+          </div>
+        </div>
+        <div>
+          <Label className="text-sm">Zonas de cobertura</Label>
+          <Textarea rows={2} value={zones} onChange={(e) => setZones(e.target.value)} placeholder="Ej: Chapinero, Teusaquillo, Palermo…" />
+        </div>
+        <div>
+          <Label className="text-sm">Datos para transferencia</Label>
+          <Textarea rows={3} value={transferInfo} onChange={(e) => setTransferInfo(e.target.value)} placeholder="Nequi 300..., Bancolombia ahorros 123..., a nombre de …" />
+          <p className="text-xs text-muted-foreground mt-1">La IA los compartirá SOLO si el cliente elige pagar por transferencia.</p>
+        </div>
+        <div className="flex justify-end">
+          <Button onClick={save} disabled={saving || isLoading}>{saving ? "Guardando…" : "Guardar"}</Button>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- */
 /* FAQs — Preguntas y respuestas frecuentes por sede         */
 /* --------------------------------------------------------- */
+
 
 interface FaqRow {
   id: string;
