@@ -644,11 +644,13 @@ export function PublicOrder({
 
       if (source === "online_menu") {
         setCustomerName(savedOnlineCustomer.name || "");
+        setCustomerLastName(savedOnlineCustomer.lastName || "");
         setPhone(savedOnlineCustomer.phone || "");
         setAddress(savedOnlineCustomer.address || "");
         setNeighborhood(savedOnlineCustomer.neighborhood || "");
       } else {
         setCustomerName("");
+        setCustomerLastName("");
         setPhone("");
         setAddress("");
         setNeighborhood("");
