@@ -201,6 +201,54 @@ function rmAuthDir() {
   }
 }
 
+function removeSignalSessionFiles() {
+  if (!fs.existsSync(AUTH_DIR)) return 0;
+  let removed = 0;
+  for (const file of fs.readdirSync(AUTH_DIR)) {
+    if (!/^(session-|sender-key-)/i.test(file)) continue;
+    try {
+      fs.rmSync(path.join(AUTH_DIR, file), { force: true });
+      removed += 1;
+    } catch (e) {
+      logger.warn({ file, err: String(e) }, "could not remove stale signal session file");
+    }
+  }
+  return removed;
+}
+
+async function repairSignalSessions(reason) {
+  const now = Date.now();
+  if (signalRepairInFlight) return;
+  if (now - lastSignalRepairAt < SIGNAL_REPAIR_COOLDOWN_MS) return;
+  signalRepairInFlight = true;
+  lastSignalRepairAt = now;
+  signalDecryptErrorTimes = [];
+  suppressAutoReconnectUntil = now + 15_000;
+  try {
+    state.status = "connecting";
+    state.detail = "Reparando sesión cifrada de WhatsApp sin borrar el QR...";
+    state.lastError = `WhatsApp reportó ${reason}. Se limpiaron claves temporales y se reconectará automáticamente.`;
+    logger.warn({ reason }, "repairing stale WhatsApp signal sessions");
+    if (currentSock) {
+      try { currentSock.ws?.close?.(); } catch { /* noop */ }
+      currentSock = null;
+    }
+    const removed = removeSignalSessionFiles();
+    logger.warn({ removed }, "stale signal session files removed");
+    await pushStatus();
+    setTimeout(() => {
+      signalRepairInFlight = false;
+      startSocket().catch((e) => {
+        signalRepairInFlight = false;
+        logger.error(e);
+      });
+    }, 2500);
+  } catch (e) {
+    signalRepairInFlight = false;
+    logger.warn({ err: String(e) }, "signal repair error");
+  }
+}
+
 let commandInFlight = false;
 async function executeRemoteCommand(cmd) {
   if (commandInFlight) return;
