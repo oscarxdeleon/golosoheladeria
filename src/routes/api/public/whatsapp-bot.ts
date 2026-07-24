@@ -468,9 +468,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               };
 
-              // 5) Llamar Lovable AI Gateway con system + historial + turno actual + tools
+              // 5) Llamar a la IA: preferir Gemini directo (gratis, sin créditos Lovable) si GEMINI_API_KEY existe.
+              const geminiKey = process.env.GEMINI_API_KEY;
               const apiKey = process.env.LOVABLE_API_KEY;
-              if (!apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
+              if (!geminiKey && !apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
@@ -479,20 +480,31 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 { role: "user", content: userContent },
               ];
 
+              // Mapea el nombre "vendor/modelo" al formato que espera cada backend.
+              const mapModel = (m: string) => {
+                if (geminiKey) return m.replace(/^google\//, "").replace(/-preview$/, "");
+                return m;
+              };
+              const aiUrlBase = geminiKey
+                ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+                : "https://ai.gateway.lovable.dev/v1/chat/completions";
+              const aiAuthHeader = geminiKey ? `Bearer ${geminiKey}` : `Bearer ${apiKey}`;
+
               const callAi = async (model: string) => {
                 const bodyReq: Record<string, unknown> = {
-                  model, messages, max_tokens: 2048, temperature: 0.6,
+                  model: mapModel(model), messages, max_tokens: 2048, temperature: 0.6,
                 };
                 if (orderingTools.length > 0) {
                   bodyReq.tools = orderingTools;
                   bodyReq.tool_choice = "auto";
                 }
-                return fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                return fetch(aiUrlBase, {
                   method: "POST",
-                  headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                  headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
                   body: JSON.stringify(bodyReq),
                 });
               };
+
 
               // Loop de tool-calling (máx 6 rondas). Detecta truncados por longitud
               // y pide continuación para no cortar la respuesta al cliente.
