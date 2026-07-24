@@ -399,8 +399,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       return r.ok ? (r.data ?? { empty: true }) : { error: "cart_read_failed" };
                     }
                     case "confirm_order": {
+                      // Guardia dura: exigir customer_name antes de cerrar el pedido
+                      const preCart = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      const preData = (preCart.ok ? preCart.data : null) as { customer_name?: string | null } | null;
+                      const nameOk = typeof preData?.customer_name === "string" && preData.customer_name.trim().length >= 2;
+                      if (!nameOk) {
+                        return { error: "missing_customer_name", message: "Falta el NOMBRE del cliente. Pregúntalo primero con set_delivery_info (customer_name) y luego vuelve a confirmar." };
+                      }
                       if (dryRun) {
-                        // Modo prueba: no insertar en sales. Cancelar carrito para dejarlo limpio.
                         await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
                         const fakeNumber = "TEST-" + Math.floor(1000 + Math.random() * 9000);
                         return { ok: true, dry_run: true, order: { order_number: fakeNumber, simulated: true } };
