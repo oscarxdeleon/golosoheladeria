@@ -405,29 +405,8 @@ function ensureAuthStateBeforeConnect() {
 }
 
 async function tryRestoreAfterLogout(reason) {
-  try {
-    logger.warn({ reason }, "logged out session will not be restored; forcing fresh QR");
-    return false;
-    if (fs.existsSync(SESSION_RESTORE_MARKER)) {
-      state.detail = "WhatsApp cerró la sesión. Ya se intentó restaurar; se necesita volver a vincular.";
-      return false;
-    }
-    if (!restoreAuthStateFromBackup(reason)) return false;
-    if (currentSock) {
-      try { currentSock.ws?.close?.(); } catch { /* noop */ }
-      currentSock = null;
-    }
-    state.status = "connecting";
-    state.qr = null;
-    state.qrDataUrl = null;
-    state.detail = "Sesión recuperada desde copia local. Reconectando automáticamente...";
-    await pushStatus();
-    setTimeout(() => startSocket().catch((e) => logger.error(e)), 2500);
-    return true;
-  } catch (e) {
-    logger.warn({ err: String(e), reason }, "restore after logout failed");
-    return false;
-  }
+  logger.warn({ reason }, "logged out session will not be restored; forcing fresh QR");
+  return false;
 }
 
 async function startFreshPairingAfterLogout(reason) {
