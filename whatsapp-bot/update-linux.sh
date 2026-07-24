@@ -105,11 +105,15 @@ chmod +x "${TARGET_DIR}/update-linux.sh" || true
 
 echo ""
 echo "== Corrigiendo API POS a dominio con Gemini directo =="
-node - <<'NODE'
+GOLOSO_TARGET_DIR="${TARGET_DIR}" GOLOSO_CANONICAL_API_URL="${CANONICAL_API_URL}" node - <<'NODE'
 const fs = require('fs');
 const path = require('path');
-const cfgPath = path.join(process.cwd(), 'config.json');
+const targetDir = process.env.GOLOSO_TARGET_DIR;
 const canonical = process.env.GOLOSO_CANONICAL_API_URL || 'https://golosoheladeria.lovable.app';
+if (!targetDir) {
+  throw new Error('GOLOSO_TARGET_DIR no definido');
+}
+const cfgPath = path.join(targetDir, 'config.json');
 const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
 cfg.apiUrl = canonical;
 fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
