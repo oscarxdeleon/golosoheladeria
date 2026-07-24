@@ -39,7 +39,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.13.0";
+const BOT_VERSION = "8.14.0";
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
@@ -380,7 +380,11 @@ function restoreAuthStateFromBackup(reason = "startup") {
         backupPhone = String(meta.phone || "").replace(/\D/g, "");
       } catch { /* noop */ }
     }
-    if (expectedPhone && backupPhone && expectedPhone !== backupPhone) {
+    if (!expectedPhone) {
+      logger.warn({ reason, backupPhone }, "backup skipped because expected phone is not configured");
+      return false;
+    }
+    if (!backupPhone || expectedPhone !== backupPhone) {
       logger.warn({ expectedPhone, backupPhone }, "backup rejected because phone does not match config");
       return false;
     }
@@ -401,27 +405,8 @@ function ensureAuthStateBeforeConnect() {
 }
 
 async function tryRestoreAfterLogout(reason) {
-  try {
-    if (fs.existsSync(SESSION_RESTORE_MARKER)) {
-      state.detail = "WhatsApp cerró la sesión. Ya se intentó restaurar; se necesita volver a vincular.";
-      return false;
-    }
-    if (!restoreAuthStateFromBackup(reason)) return false;
-    if (currentSock) {
-      try { currentSock.ws?.close?.(); } catch { /* noop */ }
-      currentSock = null;
-    }
-    state.status = "connecting";
-    state.qr = null;
-    state.qrDataUrl = null;
-    state.detail = "Sesión recuperada desde copia local. Reconectando automáticamente...";
-    await pushStatus();
-    setTimeout(() => startSocket().catch((e) => logger.error(e)), 2500);
-    return true;
-  } catch (e) {
-    logger.warn({ err: String(e), reason }, "restore after logout failed");
-    return false;
-  }
+  logger.warn({ reason }, "logged out session will not be restored; forcing fresh QR");
+  return false;
 }
 
 async function startFreshPairingAfterLogout(reason) {
@@ -431,7 +416,7 @@ async function startFreshPairingAfterLogout(reason) {
     currentSock = null;
   }
   state.status = "connecting";
-  state.detail = "WhatsApp cerró la sesión anterior. Se limpió la sesión local y se está generando un QR nuevo para vincular Parque.";
+  state.detail = "WhatsApp cerró la sesión anterior. Se limpió la sesión local, las copias antiguas y se está generando un QR nuevo.";
   await pushStatus();
   setTimeout(() => startSocket().catch((e) => logger.error(e)), 2500);
 }
@@ -496,7 +481,7 @@ async function executeRemoteCommand(cmd) {
         try { currentSock.ws?.close?.(); } catch { /* noop */ }
         currentSock = null;
       }
-      rmAuthDir();
+      resetAuthStateForFreshQr("desvinculación solicitada desde POS");
       await ackCommand("unlink");
       state.status = "connecting";
       state.qr = null;
@@ -842,7 +827,6 @@ async function startSocket() {
       const shouldReconnect = code !== DisconnectReason.loggedOut;
       logger.warn({ code, shouldReconnect }, "connection closed");
       if (Date.now() < suppressAutoReconnectUntil) return;
-      if (!shouldReconnect && await tryRestoreAfterLogout("WhatsApp reportó cierre de sesión")) return;
       if (!shouldReconnect) {
         await startFreshPairingAfterLogout("WhatsApp reportó cierre de sesión y no hubo copia válida para restaurar");
         return;

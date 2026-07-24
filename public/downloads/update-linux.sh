@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.13.0"
+BOT_VERSION="8.14.0"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-https://golosoheladeria.lovable.app/downloads/whatsapp-bot.zip}"
 TARGET_DIR="${1:-$(pwd)}"
@@ -10,15 +10,6 @@ PM2_NAME="${2:-${PM2_NAME:-}}"
 if [[ -z "${TARGET_DIR}" ]]; then
   echo "[ERROR] Debes indicar la carpeta del bot. Ejemplo: bash update-linux.sh /opt/goloso/sede2 goloso-parque" >&2
   exit 1
-fi
-
-if [[ -z "${PM2_NAME}" ]]; then
-  base="$(basename "${TARGET_DIR}" | tr '[:upper:]' '[:lower:]')"
-  if [[ "${base}" == *"sede2"* || "${base}" == *"parque"* ]]; then
-    PM2_NAME="goloso-parque"
-  else
-    PM2_NAME="goloso-bot"
-  fi
 fi
 
 need_cmd() {
@@ -33,6 +24,48 @@ need_cmd npm
 need_cmd pm2
 need_cmd curl
 need_cmd unzip
+
+if [[ -z "${1:-}" && ! -f "${TARGET_DIR}/config.json" ]]; then
+  if [[ -f "/root/goloso-parque/config.json" ]]; then
+    TARGET_DIR="/root/goloso-parque"
+    if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="goloso-parque"; fi
+    echo "ℹ️ No se indicó carpeta; se detectó automáticamente Parque: ${TARGET_DIR}"
+  elif [[ -f "/root/goloso-santa/config.json" ]]; then
+    TARGET_DIR="/root/goloso-santa"
+    if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="goloso-santa"; fi
+    echo "ℹ️ No se indicó carpeta; se detectó automáticamente Santa: ${TARGET_DIR}"
+  else
+    detected="$(pm2 jlist 2>/dev/null | node -e '
+const fs = require("fs");
+let list = [];
+try { list = JSON.parse(fs.readFileSync(0, "utf8") || "[]"); } catch {}
+const pick = list.find(p => /goloso-parque/i.test(p.name || "")) || list.find(p => /goloso-santa/i.test(p.name || "")) || list.find(p => /goloso/i.test(p.name || ""));
+if (pick) {
+  const cwd = pick.pm2_env?.pm_cwd || pick.pm2_env?.PWD || "";
+  const script = pick.pm2_env?.pm_exec_path || "";
+  const dir = cwd || (script ? require("path").dirname(script) : "");
+  if (dir) console.log(`${dir}\t${pick.name || ""}`);
+}
+' || true)"
+    if [[ -n "${detected}" ]]; then
+      TARGET_DIR="${detected%%$'\t'*}"
+      detected_name="${detected#*$'\t'}"
+      if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="${detected_name}"; fi
+      echo "ℹ️ No se indicó carpeta; se detectó automáticamente: ${TARGET_DIR} (${PM2_NAME})"
+    fi
+  fi
+fi
+
+if [[ -z "${PM2_NAME}" ]]; then
+  base="$(basename "${TARGET_DIR}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "${base}" == *"sede2"* || "${base}" == *"parque"* ]]; then
+    PM2_NAME="goloso-parque"
+  elif [[ "${base}" == *"santa"* ]]; then
+    PM2_NAME="goloso-santa"
+  else
+    PM2_NAME="goloso-bot"
+  fi
+fi
 
 TARGET_DIR="$(mkdir -p "${TARGET_DIR}" && cd "${TARGET_DIR}" && pwd)"
 echo ""
