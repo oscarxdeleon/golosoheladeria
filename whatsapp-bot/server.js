@@ -459,24 +459,45 @@ async function startSocket() {
         msg.message.videoMessage?.caption ||
         "";
       const audioNode = msg.message.audioMessage;
-      // Baileys nuevo usa JIDs @lid (anónimos). El teléfono real viene en
-      // senderPn / participantPn. Sin esto, cada usuario aparece con un ID
-      // aleatorio que nunca coincide con la lista sandbox de la IA.
+      // Baileys nuevo usa JIDs @lid (anónimos). El teléfono real puede venir en
+      // varios campos según la versión de WhatsApp del cliente. Probamos todas
+      // las fuentes conocidas para NO perder mensajes de números que no exponen
+      // senderPn (síntoma típico: "solo un número funciona, el otro no").
+      const extractPhone = (val) => {
+        if (!val || typeof val !== "string") return "";
+        const raw = val.split("@")[0].split(":")[0];
+        return /^\d{6,}$/.test(raw) ? raw : "";
+      };
       let phoneSource = "";
-      if (jid.endsWith("@lid")) {
-        phoneSource =
-          msg.key.senderPn ||
-          msg.key.participantPn ||
-          msg.key.senderLid ||
-          "";
-        // senderPn viene con formato "573001234567@s.whatsapp.net"
-        phoneSource = phoneSource.split("@")[0];
-      } else {
-        phoneSource = jid.split("@")[0];
+      const candidates = [
+        !jid.endsWith("@lid") ? jid : "",
+        msg.key.remoteJidAlt,
+        msg.key.senderPn,
+        msg.key.participantPn,
+        msg.key.participantAlt,
+        msg.key.participant,
+        // último recurso: pushName no sirve, pero el LID a veces ES el número
+        jid.endsWith("@lid") ? jid : "",
+      ];
+      for (const c of candidates) {
+        phoneSource = extractPhone(c);
+        if (phoneSource) break;
       }
       const from = phoneSource;
-      // Solo procesar mensajes de números reales (JID de usuario `@s.whatsapp.net`).
-      if (!from || !/^\d{6,}$/.test(from)) continue;
+      if (!from || !/^\d{6,}$/.test(from)) {
+        logger.warn(
+          {
+            jid,
+            remoteJidAlt: msg.key.remoteJidAlt,
+            senderPn: msg.key.senderPn,
+            participantPn: msg.key.participantPn,
+            participantAlt: msg.key.participantAlt,
+            participant: msg.key.participant,
+          },
+          "phone_unresolved — mensaje ignorado (no se pudo extraer número)",
+        );
+        continue;
+      }
       logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode }, "incoming");
 
       // 1) Respuesta fija del POS (bienvenida, menú, fuera de horario…)
