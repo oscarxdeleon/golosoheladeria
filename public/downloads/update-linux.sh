@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.13.0"
+BOT_VERSION="8.14.0"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-https://golosoheladeria.lovable.app/downloads/whatsapp-bot.zip}"
 TARGET_DIR="${1:-$(pwd)}"
