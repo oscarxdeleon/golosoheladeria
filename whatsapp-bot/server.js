@@ -37,7 +37,15 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.5.0";
+const BOT_VERSION = "8.6.0";
+const SIGNAL_REPAIR_THRESHOLD = 3;
+const SIGNAL_REPAIR_WINDOW_MS = 90_000;
+const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
+
+let signalDecryptErrorTimes = [];
+let signalRepairInFlight = false;
+let lastSignalRepairAt = 0;
+let suppressAutoReconnectUntil = 0;
 
 function safeStringify(value) {
   try {
@@ -54,8 +62,26 @@ function writeLog(level, args) {
   fs.appendFile(path.join(__dirname, "bot.log"), line, () => {});
 }
 
+function isSignalDecryptError(args) {
+  const text = args.map(safeStringify).join(" ");
+  return /Failed to decrypt message|MessageCounterError|Key used already|never filled/i.test(text);
+}
+
+function recordSignalDecryptError(args) {
+  if (!isSignalDecryptError(args)) return;
+  const now = Date.now();
+  signalDecryptErrorTimes = [...signalDecryptErrorTimes.filter((at) => now - at < SIGNAL_REPAIR_WINDOW_MS), now];
+  if (signalDecryptErrorTimes.length >= SIGNAL_REPAIR_THRESHOLD) {
+    setTimeout(() => repairSignalSessions("errores repetidos de cifrado de WhatsApp").catch((e) => logger.warn({ err: String(e) }, "signal repair failed")), 250);
+  }
+}
+
 function createSafeLogger(prefix = "") {
-  const emit = (level, args) => writeLog(level, prefix ? [prefix, ...args] : args);
+  const emit = (level, args) => {
+    const finalArgs = prefix ? [prefix, ...args] : args;
+    recordSignalDecryptError(finalArgs);
+    writeLog(level, finalArgs);
+  };
   return {
     level: "info",
     trace: (...args) => emit("trace", args),
@@ -172,6 +198,54 @@ function rmAuthDir() {
     }
   } catch (e) {
     logger.warn({ err: String(e) }, "could not remove auth_state");
+  }
+}
+
+function removeSignalSessionFiles() {
+  if (!fs.existsSync(AUTH_DIR)) return 0;
+  let removed = 0;
+  for (const file of fs.readdirSync(AUTH_DIR)) {
+    if (!/^(session-|sender-key-)/i.test(file)) continue;
+    try {
+      fs.rmSync(path.join(AUTH_DIR, file), { force: true });
+      removed += 1;
+    } catch (e) {
+      logger.warn({ file, err: String(e) }, "could not remove stale signal session file");
+    }
+  }
+  return removed;
+}
+
+async function repairSignalSessions(reason) {
+  const now = Date.now();
+  if (signalRepairInFlight) return;
+  if (now - lastSignalRepairAt < SIGNAL_REPAIR_COOLDOWN_MS) return;
+  signalRepairInFlight = true;
+  lastSignalRepairAt = now;
+  signalDecryptErrorTimes = [];
+  suppressAutoReconnectUntil = now + 15_000;
+  try {
+    state.status = "connecting";
+    state.detail = "Reparando sesión cifrada de WhatsApp sin borrar el QR...";
+    state.lastError = `WhatsApp reportó ${reason}. Se limpiaron claves temporales y se reconectará automáticamente.`;
+    logger.warn({ reason }, "repairing stale WhatsApp signal sessions");
+    if (currentSock) {
+      try { currentSock.ws?.close?.(); } catch { /* noop */ }
+      currentSock = null;
+    }
+    const removed = removeSignalSessionFiles();
+    logger.warn({ removed }, "stale signal session files removed");
+    await pushStatus();
+    setTimeout(() => {
+      signalRepairInFlight = false;
+      startSocket().catch((e) => {
+        signalRepairInFlight = false;
+        logger.error(e);
+      });
+    }, 2500);
+  } catch (e) {
+    signalRepairInFlight = false;
+    logger.warn({ err: String(e) }, "signal repair error");
   }
 }
 
@@ -433,6 +507,7 @@ async function startSocket() {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
       logger.warn({ code, shouldReconnect }, "connection closed");
+      if (Date.now() < suppressAutoReconnectUntil) return;
       state.status = "disconnected";
       state.qr = null;
       state.qrDataUrl = null;
