@@ -557,20 +557,65 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       return r.ok ? r.data : { error: "get_modifiers_failed" };
                     }
                     case "add_to_cart": {
-                      // Leer carrito actual, agregar item, upsert
+                      // Leer carrito actual, agregar item (o reemplazar si ya existe la
+                      // misma línea) y persistir. Dedupe defensiva: si el modelo llama
+                      // add_to_cart varias veces con el MISMO producto+modificadores
+                      // (misma "clave"), tratamos la última llamada como el estado
+                      // deseado y no acumulamos duplicados. Esto evita que 1 ensalada
+                      // termine registrada 2 o 3 veces por reintentos o alucinaciones
+                      // del tool-calling.
                       const cartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                       const cart = (cartRes.ok ? cartRes.data : null) as { items?: unknown[] } | null;
                       const items = Array.isArray(cart?.items) ? [...cart!.items] : [];
-                      items.push({
-                        product_id: args.product_id ?? null,
-                        product_name: args.product_name,
+                      const productName = String(args.product_name ?? "").trim();
+                      const productIdRaw = args.product_id != null ? String(args.product_id).trim() : "";
+                      const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdRaw);
+                      const modifiersArr = Array.isArray(args.modifiers) ? (args.modifiers as Array<Record<string, unknown>>) : [];
+                      const modKey = modifiersArr
+                        .map((m) => String(m?.id ?? m?.name ?? "").trim().toUpperCase())
+                        .filter(Boolean)
+                        .sort()
+                        .join("|");
+                      const productKey = (isValidUuid ? productIdRaw.toLowerCase() : productName.toUpperCase());
+                      const itemKey = `${productKey}::${modKey}`;
+
+                      const keyOf = (it: unknown): string => {
+                        const rec = (it && typeof it === "object" ? it : {}) as Record<string, unknown>;
+                        const pid = rec.product_id != null ? String(rec.product_id).trim() : "";
+                        const pidIsUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pid);
+                        const pname = String(rec.product_name ?? "").trim().toUpperCase();
+                        const pk = pidIsUuid ? pid.toLowerCase() : pname;
+                        const mods = Array.isArray(rec.modifiers) ? (rec.modifiers as Array<Record<string, unknown>>) : [];
+                        const mk = mods
+                          .map((m) => String(m?.id ?? m?.name ?? "").trim().toUpperCase())
+                          .filter(Boolean)
+                          .sort()
+                          .join("|");
+                        return `${pk}::${mk}`;
+                      };
+
+                      const newItem = {
+                        product_id: isValidUuid ? productIdRaw : null,
+                        product_name: productName,
                         unit_price: Number(args.unit_price ?? 0),
-                        qty: Number(args.qty ?? 1),
-                        modifiers: Array.isArray(args.modifiers) ? args.modifiers : [],
+                        qty: Math.max(1, Math.floor(Number(args.qty ?? 1)) || 1),
+                        modifiers: modifiersArr,
                         notes: args.notes ?? null,
-                      });
+                      };
+
+                      const existingIdx = items.findIndex((it) => keyOf(it) === itemKey);
+                      if (existingIdx >= 0) {
+                        // Reemplazar: la llamada más reciente define la cantidad
+                        // deseada. Si el cliente quiere realmente más unidades, la
+                        // IA debe llamar add_to_cart con qty mayor, no repetir.
+                        items[existingIdx] = newItem;
+                      } else {
+                        items.push(newItem);
+                      }
                       const r = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: { items } });
-                      return r.ok ? { ok: true, cart: r.data } : { error: "add_failed", detail: r.data };
+                      return r.ok
+                        ? { ok: true, deduped: existingIdx >= 0, cart: r.data }
+                        : { error: "add_failed", detail: r.data };
                     }
                     case "set_delivery_info": {
                       const patch: Record<string, unknown> = {};
