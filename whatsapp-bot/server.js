@@ -37,7 +37,15 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.5.0";
+const BOT_VERSION = "8.6.0";
+const SIGNAL_REPAIR_THRESHOLD = 3;
+const SIGNAL_REPAIR_WINDOW_MS = 90_000;
+const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
+
+let signalDecryptErrorTimes = [];
+let signalRepairInFlight = false;
+let lastSignalRepairAt = 0;
+let suppressAutoReconnectUntil = 0;
 
 function safeStringify(value) {
   try {
@@ -54,8 +62,26 @@ function writeLog(level, args) {
   fs.appendFile(path.join(__dirname, "bot.log"), line, () => {});
 }
 
+function isSignalDecryptError(args) {
+  const text = args.map(safeStringify).join(" ");
+  return /Failed to decrypt message|MessageCounterError|Key used already|never filled/i.test(text);
+}
+
+function recordSignalDecryptError(args) {
+  if (!isSignalDecryptError(args)) return;
+  const now = Date.now();
+  signalDecryptErrorTimes = [...signalDecryptErrorTimes.filter((at) => now - at < SIGNAL_REPAIR_WINDOW_MS), now];
+  if (signalDecryptErrorTimes.length >= SIGNAL_REPAIR_THRESHOLD) {
+    setTimeout(() => repairSignalSessions("errores repetidos de cifrado de WhatsApp").catch((e) => logger.warn({ err: String(e) }, "signal repair failed")), 250);
+  }
+}
+
 function createSafeLogger(prefix = "") {
-  const emit = (level, args) => writeLog(level, prefix ? [prefix, ...args] : args);
+  const emit = (level, args) => {
+    const finalArgs = prefix ? [prefix, ...args] : args;
+    recordSignalDecryptError(finalArgs);
+    writeLog(level, finalArgs);
+  };
   return {
     level: "info",
     trace: (...args) => emit("trace", args),
