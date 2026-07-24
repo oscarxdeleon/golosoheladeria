@@ -205,7 +205,7 @@ function Update-Config($target) {
     return
   }
   $cfg = Get-Content $configPath -Raw | ConvertFrom-Json
-  $cfg | Add-Member -NotePropertyName apiUrl -NotePropertyValue "https://golosoheladeria.vercel.app" -Force
+  $cfg | Add-Member -NotePropertyName apiUrl -NotePropertyValue "https://golosoheladeria.lovable.app" -Force
   $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $configPath -Encoding UTF8
 }
 
