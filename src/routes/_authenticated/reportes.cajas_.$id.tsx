@@ -160,6 +160,10 @@ function CajaDetailPage() {
   const { isAdmin, roles, rolesLoading } = useAuth();
   const canSeeAllBranches = isAdmin || roles.includes("supervisor");
   const [downloading, setDownloading] = useState(false);
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgeReason, setPurgeReason] = useState("");
+  const [purging, setPurging] = useState(false);
+
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["reportes.session.detail", id],
