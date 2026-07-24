@@ -37,7 +37,9 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.9.0";
+const BOT_VERSION = "8.10.0";
+const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
+const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
@@ -121,7 +123,30 @@ function loadConfig() {
   return raw;
 }
 
+function normalizeApiUrl(value) {
+  try {
+    const parsed = new URL(String(value || CANONICAL_API_URL).trim());
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    parsed.search = "";
+    parsed.hash = "";
+    if (LEGACY_API_HOSTS.has(parsed.hostname)) return CANONICAL_API_URL;
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return CANONICAL_API_URL;
+  }
+}
+
 const config = loadConfig();
+const originalApiUrl = config.apiUrl;
+config.apiUrl = normalizeApiUrl(config.apiUrl);
+if (originalApiUrl !== config.apiUrl) {
+  try {
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify({ ...config, apiUrl: config.apiUrl }, null, 2));
+    console.log(`\nℹ️ API POS actualizada automáticamente: ${config.apiUrl}\n`);
+  } catch (e) {
+    logger.warn({ err: String(e) }, "could not persist canonical apiUrl");
+  }
+}
 
 let state = {
   status: "connecting",     // connecting | qr | connected | disconnected | error

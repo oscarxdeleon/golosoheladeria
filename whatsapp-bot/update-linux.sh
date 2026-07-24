@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.9.0"
+BOT_VERSION="8.10.0"
+CANONICAL_API_URL="https://golosoheladeria.lovable.app"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-https://golosoheladeria.lovable.app/downloads/whatsapp-bot.zip}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
@@ -101,6 +102,19 @@ do
   fi
 done
 chmod +x "${TARGET_DIR}/update-linux.sh" || true
+
+echo ""
+echo "== Corrigiendo API POS a dominio con Gemini directo =="
+node - <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const cfgPath = path.join(process.cwd(), 'config.json');
+const canonical = process.env.GOLOSO_CANONICAL_API_URL || 'https://golosoheladeria.lovable.app';
+const cfg = JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+cfg.apiUrl = canonical;
+fs.writeFileSync(cfgPath, JSON.stringify(cfg, null, 2));
+console.log(`apiUrl=${canonical}`);
+NODE
 
 echo ""
 echo "== Instalando dependencias =="

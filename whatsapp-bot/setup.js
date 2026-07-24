@@ -11,13 +11,23 @@ import { fileURLToPath } from "node:url";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "config.json");
 const SETUP_OK_PATH = path.join(__dirname, ".setup-ok");
-const DEFAULT_API = "https://golosoheladeria.vercel.app";
+const DEFAULT_API = "https://golosoheladeria.lovable.app";
+const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
 const ask = (q) => new Promise((r) => rl.question(q, r));
 
 function normalizeApiUrl(value) {
-  return String(value || DEFAULT_API).trim().replace(/\/+$/, "");
+  try {
+    const parsed = new URL(String(value || DEFAULT_API).trim());
+    parsed.pathname = parsed.pathname.replace(/\/+$/, "");
+    parsed.search = "";
+    parsed.hash = "";
+    if (LEGACY_API_HOSTS.has(parsed.hostname)) return DEFAULT_API;
+    return parsed.toString().replace(/\/+$/, "");
+  } catch {
+    return DEFAULT_API;
+  }
 }
 
 function postJson(apiUrl, payload) {
