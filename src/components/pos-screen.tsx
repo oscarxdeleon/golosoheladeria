@@ -3969,7 +3969,7 @@ function LlevarContactPanel({
             value={customer}
             maxLength={100}
             onFocus={() => setFocusField("name")}
-            onChange={(e) => setCustomer(e.target.value)}
+            onChange={(e) => setCustomer(toUpperText(e.target.value))}
             onKeyDown={handleKey}
             className="h-10 bg-white/90 dark:bg-slate-900/60"
             autoComplete="off"

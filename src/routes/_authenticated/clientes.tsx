@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Plus, Pencil, Trash2, Search, Star, Users, TrendingUp, Phone, MapPin, FileDown, Upload } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { toUpperText } from "@/lib/text-transform";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import { useRef } from "react";
@@ -95,12 +96,12 @@ function ClientesPage() {
       return toast.error(parsed.error.issues[0]?.message ?? "Datos inválidos");
     }
     const payload = {
-      name: parsed.data.name,
+      name: toUpperText(parsed.data.name),
       phone: parsed.data.phone || null,
-      address: parsed.data.address || null,
-      neighborhood: parsed.data.neighborhood || null,
+      address: parsed.data.address ? toUpperText(parsed.data.address) : null,
+      neighborhood: parsed.data.neighborhood ? toUpperText(parsed.data.neighborhood) : null,
       email: parsed.data.email || null,
-      notes: parsed.data.notes || null,
+      notes: parsed.data.notes ? toUpperText(parsed.data.notes) : null,
     };
     const { error } = edit.id
       ? await supabase.from("customers").update(payload).eq("id", edit.id)
@@ -218,7 +219,7 @@ function ClientesPage() {
             <div className="grid gap-3 sm:grid-cols-2">
               <div className="sm:col-span-2">
                 <Label>Nombre *</Label>
-                <Input value={edit?.name ?? ""} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+                <Input value={edit?.name ?? ""} onChange={(e) => setEdit({ ...edit, name: toUpperText(e.target.value) })} />
               </div>
               <div>
                 <Label>Teléfono</Label>
@@ -226,11 +227,11 @@ function ClientesPage() {
               </div>
               <div>
                 <Label>Barrio</Label>
-                <Input value={edit?.neighborhood ?? ""} onChange={(e) => setEdit({ ...edit, neighborhood: e.target.value })} />
+                <Input value={edit?.neighborhood ?? ""} onChange={(e) => setEdit({ ...edit, neighborhood: toUpperText(e.target.value) })} />
               </div>
               <div className="sm:col-span-2">
                 <Label>Dirección</Label>
-                <Input value={edit?.address ?? ""} onChange={(e) => setEdit({ ...edit, address: e.target.value })} />
+                <Input value={edit?.address ?? ""} onChange={(e) => setEdit({ ...edit, address: toUpperText(e.target.value) })} />
               </div>
               <div className="sm:col-span-2">
                 <Label>Email (opcional)</Label>
@@ -238,7 +239,7 @@ function ClientesPage() {
               </div>
               <div className="sm:col-span-2">
                 <Label>Notas</Label>
-                <Textarea rows={2} value={edit?.notes ?? ""} onChange={(e) => setEdit({ ...edit, notes: e.target.value })} />
+                <Textarea rows={2} value={edit?.notes ?? ""} onChange={(e) => setEdit({ ...edit, notes: toUpperText(e.target.value) })} />
               </div>
             </div>
             <DialogFooter>

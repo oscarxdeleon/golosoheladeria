@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { formatMoney, formatDate } from "@/lib/format";
 import { toast } from "sonner";
+import { toUpperText } from "@/lib/text-transform";
 import {
   Search, UserPlus, CreditCard, HandCoins, ArrowLeft, Check,
   User, Phone, MapPin, FileText, Calendar, Wallet, Sparkles, ShieldCheck,
@@ -168,10 +169,10 @@ function CustomerPicker({
     setSaving(true);
     const phone = form.phone.replace(/[^0-9]/g, "");
     const { data, error } = await supabase.from("customers").insert({
-      name: form.name.trim(),
+      name: toUpperText(form.name.trim()),
       phone,
-      address: form.address.trim() || null,
-      notes: [form.document.trim() ? `Doc: ${form.document.trim()}` : "", form.notes.trim()].filter(Boolean).join(" · ") || null,
+      address: form.address.trim() ? toUpperText(form.address.trim()) : null,
+      notes: [form.document.trim() ? `Doc: ${toUpperText(form.document.trim())}` : "", form.notes.trim() ? toUpperText(form.notes.trim()) : ""].filter(Boolean).join(" · ") || null,
     }).select("id,name,phone,address,neighborhood").maybeSingle();
     setSaving(false);
     if (error || !data) {
@@ -199,11 +200,11 @@ function CustomerPicker({
             <h3 className="text-base font-black">Nuevo Cliente</h3>
           </div>
           <div className="grid gap-2.5">
-            <FieldInput icon={User} placeholder="Nombre completo *" value={form.name} onChange={(v) => setForm({ ...form, name: v })} />
-            <FieldInput icon={Phone} placeholder="Celular *" inputMode="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v })} />
-            <FieldInput icon={FileText} placeholder="Documento (opcional)" value={form.document} onChange={(v) => setForm({ ...form, document: v })} />
-            <FieldInput icon={MapPin} placeholder="Dirección (opcional)" value={form.address} onChange={(v) => setForm({ ...form, address: v })} />
-            <Textarea placeholder="Observaciones (opcional)" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} className="rounded-lg" />
+            <FieldInput icon={User} placeholder="Nombre completo *" value={form.name} onChange={(v) => setForm({ ...form, name: toUpperText(v) })} />
+            <FieldInput icon={Phone} placeholder="Celular *" inputMode="tel" value={form.phone} onChange={(v) => setForm({ ...form, phone: v.replace(/[^0-9+ \-()]/g, "") })} />
+            <FieldInput icon={FileText} placeholder="Documento (opcional)" value={form.document} onChange={(v) => setForm({ ...form, document: toUpperText(v) })} />
+            <FieldInput icon={MapPin} placeholder="Dirección (opcional)" value={form.address} onChange={(v) => setForm({ ...form, address: toUpperText(v) })} />
+            <Textarea placeholder="Observaciones (opcional)" rows={2} value={form.notes} onChange={(e) => setForm({ ...form, notes: toUpperText(e.target.value) })} className="rounded-lg" />
           </div>
         </div>
         <DialogFooter className="gap-2">
