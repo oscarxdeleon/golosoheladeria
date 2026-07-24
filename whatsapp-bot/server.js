@@ -507,6 +507,7 @@ async function startSocket() {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
       logger.warn({ code, shouldReconnect }, "connection closed");
+      if (Date.now() < suppressAutoReconnectUntil) return;
       state.status = "disconnected";
       state.qr = null;
       state.qrDataUrl = null;
