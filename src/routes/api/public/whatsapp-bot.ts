@@ -103,7 +103,46 @@ function normalizeHistory(messages: Array<{ role: string; content: string }>) {
     }));
 }
 
-function operationalReply(menuLink: string) {
+function textTokens(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .split(/[^a-z0-9]+/)
+    .filter((word) => word.length >= 3);
+}
+
+function relevanceScore(value: string, words: string[]) {
+  const normalized = ` ${textTokens(value).join(" ")} `;
+  return words.reduce((score, word) => score + (normalized.includes(` ${word} `) ? 2 : normalized.includes(word) ? 1 : 0), 0);
+}
+
+function selectRelevantFaqs<T extends { q?: string; a?: string }>(faqs: T[], input: string, limit = 35) {
+  const words = textTokens(input).slice(0, 16);
+  return faqs
+    .map((faq, index) => ({ faq, index, score: relevanceScore(`${faq.q ?? ""} ${faq.a ?? ""}`, words) }))
+    .sort((a, b) => (b.score - a.score) || (a.index - b.index))
+    .slice(0, limit)
+    .map((item) => item.faq);
+}
+
+function selectRelevantProducts<T extends { name?: string; category?: string | null; is_favorite?: boolean }>(products: T[], input: string, limit = 60) {
+  const words = textTokens(input).slice(0, 16);
+  return products
+    .map((product, index) => ({
+      product,
+      index,
+      score: relevanceScore(`${product.name ?? ""} ${product.category ?? ""}`, words) + (product.is_favorite ? 1 : 0),
+    }))
+    .sort((a, b) => (b.score - a.score) || (a.index - b.index))
+    .slice(0, limit)
+    .map((item) => item.product);
+}
+
+function operationalReply(menuLink: string, takingOrders = false) {
+  if (takingOrders) {
+    return `Listo, te tomo el pedido por aquí. 🍦\n\nDime en un solo mensaje:\n• Producto y sabor\n• Cantidad\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nSi quieres mirar fotos y precios, también está el menú aquí 👉 ${menuLink}`;
+  }
   return `Con gusto te atiendo. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
 }
 
@@ -188,7 +227,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // devuelve como si fuera una respuesta fija.
               const shouldUseAi = fixedData.use_ai === true && msg.trim().length > 0;
               if (shouldUseAi) {
-                const aiFallbackText = operationalReply("https://golosoheladeria.lovable.app/menu");
+                  const orderingCfg = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
+                  const fallbackTakesOrders = orderingCfg.ok && Boolean((orderingCfg.data as { ordering_enabled?: boolean } | null)?.ordering_enabled);
+                  const aiFallbackText = operationalReply("https://golosoheladeria.lovable.app/menu", fallbackTakesOrders);
                 try {
                   const aiUrl = new URL("/api/public/whatsapp-bot", request.url);
                   const aiResp = await fetch(aiUrl, {
@@ -288,7 +329,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   metadata: { context: ctx ?? null },
                 });
                 if (error === "rate_limited") {
-                  const reply = operationalReply("https://golosoheladeria.lovable.app/menu");
+                  const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
+                  const rateLimitTakesOrders = orderCfgRes.ok && Boolean((orderCfgRes.data as { ordering_enabled?: boolean } | null)?.ordering_enabled);
+                  const reply = operationalReply("https://golosoheladeria.lovable.app/menu", rateLimitTakesOrders);
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
                 return json({ error, reply: null, conversation_id: conversationId }, 200);
@@ -314,7 +357,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const flavorGroups = Array.isArray(ctx.flavor_groups)
                 ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
                 : [];
-              const products = Array.isArray(ctx.products) ? ctx.products as Array<{ name?: string; price?: number; category?: string | null }> : [];
+              const allProducts = Array.isArray(ctx.products) ? ctx.products as Array<{ name?: string; price?: number; category?: string | null; is_favorite?: boolean }> : [];
+              const products = selectRelevantProducts(allProducts, text, 60);
 
               const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
 
@@ -349,7 +393,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : "";
 
               // FAQs curadas por la sede — Opción 3 (few-shot).
-              const faqs = Array.isArray(ctx.faqs) ? ctx.faqs as Array<{ q?: string; a?: string }> : [];
+              const allFaqs = Array.isArray(ctx.faqs) ? ctx.faqs as Array<{ q?: string; a?: string }> : [];
+              const faqs = selectRelevantFaqs(allFaqs, text, 35);
               const faqsBlock = faqs.length > 0
                 ? "PREGUNTAS FRECUENTES DE ESTA SEDE (respuestas oficiales — cuando el cliente pregunte algo parecido, usa esta respuesta tal cual, adaptando solo el saludo):\n" +
                   faqs
@@ -460,6 +505,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const orderingPromptBlock = orderingEnabled ? [
                 "",
                 "🛒 TOMA DE PEDIDOS (SOLO DOMICILIO):",
+                "- REGLA SUPERIOR: si el cliente dice que quiere pedir, menciona un producto, una cantidad, un sabor, dirección o pago, NO respondas solo con el link del menú. Atiéndelo por WhatsApp y avanza el pedido paso a paso usando las herramientas.",
                 `- Domicilio: ${onlineOpen ? "ABIERTO" : "CERRADO — no aceptes pedidos ahora, invita a volver en horario"}.`,
                 `- Monto mínimo del pedido (subtotal antes de domicilio): ${fmtCOP(Number(orderCfg?.min_amount ?? 0))}.`,
                 `- Costo de domicilio por defecto: ${fmtCOP(Number(orderCfg?.delivery_fee ?? 0))} (ajústalo si la zona lo requiere).`,
@@ -571,10 +617,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               };
 
-              // 5) Llamar a la IA: preferir Gemini directo (gratis, sin créditos Lovable) si GEMINI_API_KEY existe.
+              // 5) Llamar a la IA. En producción priorizamos Lovable AI Gateway: evita
+              // los cortes de cuota del API directo de Gemini que dejaban al bot en fallback.
               const geminiKey = process.env.GEMINI_API_KEY;
               const apiKey = process.env.LOVABLE_API_KEY;
               if (!geminiKey && !apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
+              const useGeminiDirect = Boolean(geminiKey);
+              const primaryModel = "google/gemini-3.1-flash-lite";
+              const fallbackModel = useGeminiDirect ? "google/gemini-3-flash-preview" : "openai/gpt-5.4-mini";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
@@ -585,13 +635,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Mapea el nombre "vendor/modelo" al formato que espera cada backend.
               const mapModel = (m: string) => {
-                if (geminiKey) return m.replace(/^google\//, "");
+                if (useGeminiDirect) return m.replace(/^google\//, "");
                 return m;
               };
-              const aiUrlBase = geminiKey
+              const aiUrlBase = useGeminiDirect
                 ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
                 : "https://ai.gateway.lovable.dev/v1/chat/completions";
-              const aiAuthHeader = geminiKey ? `Bearer ${geminiKey}` : `Bearer ${apiKey}`;
+              const aiHeaders: Record<string, string> = useGeminiDirect
+                ? { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" }
+                : { "Lovable-API-Key": String(apiKey), "Content-Type": "application/json", "X-Lovable-AIG-SDK": "manual-fetch" };
 
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
               const callAiOnce = async (model: string) => {
@@ -607,7 +659,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 try {
                   return await fetch(aiUrlBase, {
                     method: "POST",
-                    headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
+                    headers: aiHeaders,
                     body: JSON.stringify(bodyReq),
                     signal: controller.signal,
                   });
@@ -644,23 +696,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const aiStarted = performance.now();
                 let aiResp: Response;
                 try {
-                  aiResp = await callAi("google/gemini-2.5-flash");
+                  aiResp = await callAi(primaryModel);
                 } catch (error) {
                   await logBotEvent(token, conversationId, from, "ai_request_exception", {
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error,
-                    metadata: { round, model: "google/gemini-2.5-flash" },
+                    metadata: { round, model: primaryModel },
                   });
                   try {
-                    aiResp = await callAi("google/gemini-2.5-flash-lite");
+                    aiResp = await callAi(fallbackModel);
                   } catch (fallbackError) {
                     lastErr = trimForLog(fallbackError, 500);
                     await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
                       ok: false,
                       durationMs: elapsedMs(aiStarted),
                       error: fallbackError,
-                    metadata: { round, model: "google/gemini-2.5-flash-lite" },
+                      metadata: { round, model: fallbackModel },
                     });
                     break;
                   }
@@ -670,9 +722,20 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: `HTTP ${aiResp.status}`,
-                    metadata: { round, model: "google/gemini-2.5-flash" },
+                    metadata: { round, model: primaryModel },
                   });
-                  aiResp = await callAi("google/gemini-2.5-flash-lite");
+                  try {
+                    aiResp = await callAi(fallbackModel);
+                  } catch (fallbackError) {
+                    lastErr = trimForLog(fallbackError, 500);
+                    await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
+                      ok: false,
+                      durationMs: elapsedMs(aiStarted),
+                      error: fallbackError,
+                      metadata: { round, model: fallbackModel },
+                    });
+                    break;
+                  }
                 }
                 if (aiResp.status === 429) {
                   lastErr = "ai_rate_limited_after_retries";
@@ -756,9 +819,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 try {
                   const retry = await fetch(aiUrlBase, {
                     method: "POST",
-                    headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
+                    headers: aiHeaders,
                     body: JSON.stringify({
-                      model: mapModel("google/gemini-2.5-flash-lite"),
+                      model: mapModel(fallbackModel),
                       messages: [
                         { role: "system", content: finalSystemPrompt },
                         ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -778,7 +841,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
-                finalReply = operationalReply(menuLink);
+                finalReply = operationalReply(menuLink, orderingEnabled);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
