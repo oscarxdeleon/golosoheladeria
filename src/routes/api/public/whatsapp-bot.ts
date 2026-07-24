@@ -758,7 +758,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     method: "POST",
                     headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      model: mapModel("google/gemini-3.5-flash"),
+                      model: mapModel("google/gemini-2.5-flash-lite"),
                       messages: [
                         { role: "system", content: finalSystemPrompt },
                         ...history.map((m) => ({ role: m.role, content: m.content })),
