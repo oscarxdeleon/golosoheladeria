@@ -39,12 +39,16 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.11.0";
+const BOT_VERSION = "8.12.0";
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
+const SESSION_BACKUP_DIR = path.join(__dirname, "auth_state_backups");
+const SESSION_BACKUP_LATEST_DIR = path.join(SESSION_BACKUP_DIR, "latest");
+const SESSION_META_PATH = path.join(__dirname, "session-meta.json");
+const SESSION_RESTORE_MARKER = path.join(__dirname, ".session-restore-attempted");
 
 let signalDecryptErrorTimes = [];
 let signalRepairInFlight = false;
@@ -281,6 +285,123 @@ function rmAuthDir() {
     }
   } catch (e) {
     logger.warn({ err: String(e) }, "could not remove auth_state");
+  }
+}
+
+function copyDirSafe(source, target) {
+  if (!fs.existsSync(source)) return false;
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.rmSync(target, { recursive: true, force: true });
+  fs.cpSync(source, target, { recursive: true, force: true });
+  return true;
+}
+
+function readSessionMeta() {
+  try {
+    if (!fs.existsSync(SESSION_META_PATH)) return null;
+    return JSON.parse(fs.readFileSync(SESSION_META_PATH, "utf-8"));
+  } catch (e) {
+    logger.warn({ err: String(e) }, "could not read session meta");
+    return null;
+  }
+}
+
+function writeSessionMeta(phone) {
+  if (!phone) return;
+  try {
+    const meta = {
+      phone: String(phone),
+      updatedAt: new Date().toISOString(),
+      folder: __dirname,
+      version: BOT_VERSION,
+    };
+    fs.writeFileSync(SESSION_META_PATH, JSON.stringify(meta, null, 2));
+  } catch (e) {
+    logger.warn({ err: String(e) }, "could not write session meta");
+  }
+}
+
+function hasUsableAuthState(dir = AUTH_DIR) {
+  try {
+    return fs.existsSync(path.join(dir, "creds.json"));
+  } catch {
+    return false;
+  }
+}
+
+function backupAuthState(reason = "manual") {
+  try {
+    if (!hasUsableAuthState(AUTH_DIR)) return false;
+    copyDirSafe(AUTH_DIR, SESSION_BACKUP_LATEST_DIR);
+    const meta = readSessionMeta();
+    const backupMeta = {
+      ...(meta || {}),
+      reason,
+      backedUpAt: new Date().toISOString(),
+      version: BOT_VERSION,
+    };
+    fs.writeFileSync(path.join(SESSION_BACKUP_DIR, "latest-meta.json"), JSON.stringify(backupMeta, null, 2));
+    logger.info({ reason, phone: backupMeta.phone }, "auth_state backup refreshed");
+    return true;
+  } catch (e) {
+    logger.warn({ err: String(e), reason }, "auth_state backup failed");
+    return false;
+  }
+}
+
+function restoreAuthStateFromBackup(reason = "startup") {
+  try {
+    if (!hasUsableAuthState(SESSION_BACKUP_LATEST_DIR)) return false;
+    const expectedPhone = String(config.expectedPhone || config.phone || "").replace(/\D/g, "");
+    const metaPath = path.join(SESSION_BACKUP_DIR, "latest-meta.json");
+    let backupPhone = "";
+    if (fs.existsSync(metaPath)) {
+      try {
+        const meta = JSON.parse(fs.readFileSync(metaPath, "utf-8"));
+        backupPhone = String(meta.phone || "").replace(/\D/g, "");
+      } catch { /* noop */ }
+    }
+    if (expectedPhone && backupPhone && expectedPhone !== backupPhone) {
+      logger.warn({ expectedPhone, backupPhone }, "backup rejected because phone does not match config");
+      return false;
+    }
+    copyDirSafe(SESSION_BACKUP_LATEST_DIR, AUTH_DIR);
+    fs.writeFileSync(SESSION_RESTORE_MARKER, new Date().toISOString());
+    state.lastError = `Se restauró automáticamente la sesión guardada de WhatsApp (${reason}).`;
+    logger.warn({ reason, backupPhone }, "auth_state restored from backup");
+    return true;
+  } catch (e) {
+    logger.warn({ err: String(e), reason }, "auth_state restore failed");
+    return false;
+  }
+}
+
+function ensureAuthStateBeforeConnect() {
+  if (hasUsableAuthState(AUTH_DIR)) return;
+  restoreAuthStateFromBackup("faltaba auth_state/creds.json antes de conectar");
+}
+
+async function tryRestoreAfterLogout(reason) {
+  try {
+    if (fs.existsSync(SESSION_RESTORE_MARKER)) {
+      state.detail = "WhatsApp cerró la sesión. Ya se intentó restaurar; se necesita volver a vincular.";
+      return false;
+    }
+    if (!restoreAuthStateFromBackup(reason)) return false;
+    if (currentSock) {
+      try { currentSock.ws?.close?.(); } catch { /* noop */ }
+      currentSock = null;
+    }
+    state.status = "connecting";
+    state.qr = null;
+    state.qrDataUrl = null;
+    state.detail = "Sesión recuperada desde copia local. Reconectando automáticamente...";
+    await pushStatus();
+    setTimeout(() => startSocket().catch((e) => logger.error(e)), 2500);
+    return true;
+  } catch (e) {
+    logger.warn({ err: String(e), reason }, "restore after logout failed");
+    return false;
   }
 }
 
@@ -636,6 +757,7 @@ async function startSocket() {
   state.status = "connecting";
   state.detail = "Preparando sesión de WhatsApp...";
   console.log("\nConectando con WhatsApp. El QR puede tardar unos segundos...\n");
+  ensureAuthStateBeforeConnect();
   const { state: authState, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
   const version = await getSafeBaileysVersion();
   state.detail = "Esperando respuesta de WhatsApp para generar el QR...";
@@ -650,7 +772,10 @@ async function startSocket() {
   if (version) socketConfig.version = version;
   const sock = makeWASocket(socketConfig);
 
-  sock.ev.on("creds.update", saveCreds);
+  sock.ev.on("creds.update", async (...args) => {
+    await saveCreds(...args);
+    backupAuthState("creds.update");
+  });
 
   sock.ev.on("connection.update", async (update) => {
     const { connection, lastDisconnect, qr } = update;
@@ -674,6 +799,9 @@ async function startSocket() {
       state.qrDataUrl = null;
       state.phone = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
       state.detail = "Conectado correctamente.";
+      writeSessionMeta(state.phone);
+      backupAuthState("connection.open");
+      try { if (fs.existsSync(SESSION_RESTORE_MARKER)) fs.rmSync(SESSION_RESTORE_MARKER, { force: true }); } catch { /* noop */ }
       logger.info({ phone: state.phone }, "connected");
       console.log(`\n✅ WhatsApp conectado${state.phone ? `: +${state.phone}` : ""}.\n`);
       pushStatus();
@@ -683,6 +811,7 @@ async function startSocket() {
       const shouldReconnect = code !== DisconnectReason.loggedOut;
       logger.warn({ code, shouldReconnect }, "connection closed");
       if (Date.now() < suppressAutoReconnectUntil) return;
+      if (!shouldReconnect && await tryRestoreAfterLogout("WhatsApp reportó cierre de sesión")) return;
       state.status = "disconnected";
       state.qr = null;
       state.qrDataUrl = null;
