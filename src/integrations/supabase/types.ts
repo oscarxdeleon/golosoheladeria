@@ -3376,6 +3376,10 @@ export type Database = {
         Returns: Json
       }
       admin_delete_app_user: { Args: { _user_id: string }; Returns: undefined }
+      admin_purge_cash_session: {
+        Args: { _cash_session_id: string; _reason: string }
+        Returns: Json
+      }
       admin_release_deleted_user_email: {
         Args: { _email?: string; _user_id: string }
         Returns: undefined
