@@ -2,11 +2,16 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +22,7 @@ import {
 } from "@/lib/reports";
 import { downloadShiftPdf } from "@/lib/shift-pdf";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_authenticated/reportes/cajas_/$id")({
   head: () => ({ meta: [{ title: "Detalle de arqueo · Reportes" }] }),
@@ -154,6 +160,10 @@ function CajaDetailPage() {
   const { isAdmin, roles, rolesLoading } = useAuth();
   const canSeeAllBranches = isAdmin || roles.includes("supervisor");
   const [downloading, setDownloading] = useState(false);
+  const [purgeOpen, setPurgeOpen] = useState(false);
+  const [purgeReason, setPurgeReason] = useState("");
+  const [purging, setPurging] = useState(false);
+
 
   const { data: detail, isLoading } = useQuery({
     queryKey: ["reportes.session.detail", id],
@@ -336,7 +346,17 @@ function CajaDetailPage() {
             <Button onClick={() => window.print()} variant="outline" className="border-rose-300 bg-white text-rose-600 hover:bg-rose-50 hover:text-rose-700 gap-2 font-bold flex-1">
               <Printer className="h-4 w-4" /> Imprimir Reporte
             </Button>
+            {isAdmin && (
+              <Button
+                onClick={() => { setPurgeReason(""); setPurgeOpen(true); }}
+                variant="outline"
+                className="w-full border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive gap-2 font-bold"
+              >
+                <Trash2 className="h-4 w-4" /> Eliminar cierre de prueba
+              </Button>
+            )}
           </div>
+
         </div>
       </Card>
 
@@ -573,9 +593,75 @@ function CajaDetailPage() {
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Diálogo: Eliminar cierre de prueba (solo admin) */}
+      <Dialog open={purgeOpen} onOpenChange={(o) => { if (!purging) setPurgeOpen(o); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="text-destructive flex items-center gap-2">
+              <Trash2 className="h-5 w-5" /> Eliminar cierre de prueba
+            </DialogTitle>
+            <DialogDescription className="space-y-2 pt-2">
+              <span className="block">
+                Esta acción <strong>elimina permanentemente</strong> el arqueo <strong>#{turnNumber}</strong> junto con TODOS sus registros asociados:
+              </span>
+              <span className="block text-xs">
+                ventas, ítems, comandas, gastos, depósitos, compras, créditos y pagos ligados a esta sesión.
+              </span>
+              <span className="block text-xs font-semibold text-destructive">
+                La acción es irreversible. Úsala únicamente para eliminar datos de pruebas.
+              </span>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label htmlFor="purge-reason" className="text-sm font-semibold">Motivo de la eliminación</Label>
+            <Textarea
+              id="purge-reason"
+              value={purgeReason}
+              onChange={(e) => setPurgeReason(e.target.value)}
+              placeholder="Ej.: sesión creada durante pruebas del sistema el 24/07"
+              rows={3}
+              disabled={purging}
+            />
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setPurgeOpen(false)} disabled={purging}>Cancelar</Button>
+            <Button
+              variant="destructive"
+              disabled={purging || purgeReason.trim().length < 3}
+              onClick={async () => {
+                setPurging(true);
+                try {
+                  const { data, error } = await supabase.rpc("admin_purge_cash_session", {
+                    _cash_session_id: id,
+                    _reason: purgeReason.trim(),
+                  });
+                  if (error) throw error;
+                  const counts = (data as { deleted_counts?: Record<string, number> } | null)?.deleted_counts ?? {};
+                  const total = Object.values(counts).reduce((a, n) => a + Number(n || 0), 0);
+                  toast.success("Cierre de prueba eliminado", {
+                    description: `Se eliminaron ${total} registro(s) asociados.`,
+                  });
+                  setPurgeOpen(false);
+                  await queryClient.invalidateQueries({ queryKey: ["reportes.cajas.rpc"] });
+                  await queryClient.invalidateQueries({ queryKey: ["reportes.session.detail"] });
+                  void navigate({ to: "/reportes/cajas", replace: true });
+                } catch (e) {
+                  toast.error("No se pudo eliminar el cierre", { description: (e as Error).message });
+                } finally {
+                  setPurging(false);
+                }
+              }}
+            >
+              {purging ? "Eliminando…" : "Eliminar definitivamente"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
 
 /* ---------------- Sub-components ---------------- */
 
