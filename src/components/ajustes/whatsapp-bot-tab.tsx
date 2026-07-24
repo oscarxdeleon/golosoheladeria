@@ -438,7 +438,7 @@ function WelcomeCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => void 
               value={m}
               onChange={(e) => setMessages((arr) => arr.map((x, ix) => ix === i ? e.target.value : x))}
               rows={2}
-              placeholder="Ej: ¡Hola! Gracias por escribir a Goloso 🍨"
+              placeholder="Ej: 👋 ¡Hola! Soy Golosito, tu asistente. Será un gusto ayudarte con tu pedido 🍦"
             />
             <Button variant="ghost" size="icon" onClick={() => setMessages((arr) => arr.filter((_, ix) => ix !== i))} disabled={messages.length <= 1}>
               <Trash2 className="h-4 w-4" />
@@ -951,7 +951,7 @@ function ReportRecipientsCard({ branchId }: { branchId: string }) {
 /* Asistente IA (Fase 1 MVP) — Modo sandbox                  */
 /* --------------------------------------------------------- */
 
-const DEFAULT_AI_PROMPT = `Eres el asistente virtual de Heladería Goloso. Tono cercano, juvenil y con emojis de helado 🍦🍨. Respuestas cortas (2-3 líneas máx). Si el cliente quiere pedir, dirígelo al link del menú. Si pregunta por sabores o precios específicos, envíale el link. No inventes promociones ni precios. Si no sabes algo, di que un asesor lo contacta pronto. Responde SIEMPRE en español.`;
+const DEFAULT_AI_PROMPT = `Eres Golosito, el asistente oficial de Heladería Goloso. Preséntate SOLO al inicio de la conversación como "soy Golosito, tu asistente" — NUNCA uses "asistente virtual", "bot", "IA" ni "chatbot", y no repitas tu nombre en cada mensaje. Tono amable, cálido, alegre, respetuoso y profesional. Español neutro (nada de 'parcero', 'bro', 'amigo', 'mi amor'). Respuestas cortas (2-3 líneas máx.) y con emojis de helado 🍦🍨 solo cuando aporten. Si el cliente quiere pedir, dirígelo al link del menú. No inventes promociones ni precios. Responde SIEMPRE en español.`;
 
 function AiAssistantCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => void }) {
   const [enabled, setEnabled] = useState<boolean>(cfg.ai_enabled);
