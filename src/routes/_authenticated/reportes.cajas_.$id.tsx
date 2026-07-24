@@ -346,7 +346,17 @@ function CajaDetailPage() {
             <Button onClick={() => window.print()} variant="outline" className="border-rose-300 bg-white text-rose-600 hover:bg-rose-50 hover:text-rose-700 gap-2 font-bold flex-1">
               <Printer className="h-4 w-4" /> Imprimir Reporte
             </Button>
+            {isAdmin && (
+              <Button
+                onClick={() => { setPurgeReason(""); setPurgeOpen(true); }}
+                variant="outline"
+                className="w-full border-destructive/40 bg-destructive/5 text-destructive hover:bg-destructive/10 hover:text-destructive gap-2 font-bold"
+              >
+                <Trash2 className="h-4 w-4" /> Eliminar cierre de prueba
+              </Button>
+            )}
           </div>
+
         </div>
       </Card>
 
