@@ -12,15 +12,6 @@ if [[ -z "${TARGET_DIR}" ]]; then
   exit 1
 fi
 
-if [[ -z "${PM2_NAME}" ]]; then
-  base="$(basename "${TARGET_DIR}" | tr '[:upper:]' '[:lower:]')"
-  if [[ "${base}" == *"sede2"* || "${base}" == *"parque"* ]]; then
-    PM2_NAME="goloso-parque"
-  else
-    PM2_NAME="goloso-bot"
-  fi
-fi
-
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "[ERROR] Falta instalar '$1' en este servidor." >&2
@@ -37,11 +28,11 @@ need_cmd unzip
 if [[ -z "${1:-}" && ! -f "${TARGET_DIR}/config.json" ]]; then
   if [[ -f "/root/goloso-parque/config.json" ]]; then
     TARGET_DIR="/root/goloso-parque"
-    PM2_NAME="${PM2_NAME:-goloso-parque}"
+    if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="goloso-parque"; fi
     echo "ℹ️ No se indicó carpeta; se detectó automáticamente Parque: ${TARGET_DIR}"
   elif [[ -f "/root/goloso-santa/config.json" ]]; then
     TARGET_DIR="/root/goloso-santa"
-    PM2_NAME="${PM2_NAME:-goloso-santa}"
+    if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="goloso-santa"; fi
     echo "ℹ️ No se indicó carpeta; se detectó automáticamente Santa: ${TARGET_DIR}"
   else
     detected="$(pm2 jlist 2>/dev/null | node -e '
@@ -59,7 +50,7 @@ if (pick) {
     if [[ -n "${detected}" ]]; then
       TARGET_DIR="${detected%%$'\t'*}"
       detected_name="${detected#*$'\t'}"
-      PM2_NAME="${PM2_NAME:-${detected_name}}"
+      if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="${detected_name}"; fi
       echo "ℹ️ No se indicó carpeta; se detectó automáticamente: ${TARGET_DIR} (${PM2_NAME})"
     fi
   fi
