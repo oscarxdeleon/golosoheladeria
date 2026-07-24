@@ -8,7 +8,7 @@ import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Bell, BellOff, X } from "lucide-react";
 
-const PUBLIC_ORDER_SOURCES = ["online_menu", "kiosk", "table_qr"] as const;
+const PUBLIC_ORDER_SOURCES = ["online_menu", "kiosk", "table_qr", "whatsapp_bot"] as const;
 const ACK_STORAGE_KEY = "goloso.pos.publicOrderAlerts.seen.v1";
 const BACKSTOP_WINDOW_MS = 24 * 60 * 60 * 1000;
 
