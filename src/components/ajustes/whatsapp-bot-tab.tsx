@@ -438,7 +438,7 @@ function WelcomeCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => void 
               value={m}
               onChange={(e) => setMessages((arr) => arr.map((x, ix) => ix === i ? e.target.value : x))}
               rows={2}
-              placeholder="Ej: ¡Hola! Gracias por escribir a Goloso 🍨"
+              placeholder="Ej: 👋 ¡Hola! Soy Golosito, tu asistente. Será un gusto ayudarte con tu pedido 🍦"
             />
             <Button variant="ghost" size="icon" onClick={() => setMessages((arr) => arr.filter((_, ix) => ix !== i))} disabled={messages.length <= 1}>
               <Trash2 className="h-4 w-4" />
