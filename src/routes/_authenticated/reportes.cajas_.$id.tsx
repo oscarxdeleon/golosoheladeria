@@ -2,11 +2,16 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { format } from "date-fns";
-import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp } from "lucide-react";
+import { ArrowLeft, Download, Printer, FileText, TrendingDown, TrendingUp, Trash2 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { useBranch } from "@/contexts/branch-context";
 import { useAuth } from "@/hooks/use-auth";
@@ -17,6 +22,7 @@ import {
 } from "@/lib/reports";
 import { downloadShiftPdf } from "@/lib/shift-pdf";
 import { toast } from "sonner";
+
 
 export const Route = createFileRoute("/_authenticated/reportes/cajas_/$id")({
   head: () => ({ meta: [{ title: "Detalle de arqueo · Reportes" }] }),
