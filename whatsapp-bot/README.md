@@ -12,6 +12,23 @@ Si el bot ya estaba conectado en ese PC, **no borres la carpeta anterior** ni la
 
 Mientras `auth_state/` exista y WhatsApp no haya cerrado la sesión desde el celular, **no tendrás que vincular nuevamente con QR**.
 
+## Actualización definitiva en Ubuntu / Droplet con PM2
+
+Si en los logs sigue saliendo una versión vieja como `8.4.0`, el proceso PM2 está arrancando desde una carpeta antigua o `git pull` no está actualizando el código real. Ejecuta este comando en el servidor para descargar el paquete publicado, copiarlo sobre la carpeta correcta y reiniciar PM2 desde esa misma ruta:
+
+```bash
+curl -fsSL https://golosoheladeria.lovable.app/downloads/update-linux.sh | bash -s -- /opt/goloso/sede2 goloso-parque
+```
+
+Luego valida:
+
+```bash
+pm2 logs goloso-parque --lines 40 --nostream
+curl -s http://localhost:8791/status.json
+```
+
+Debe aparecer `Versión : 8.8.0`. Si aparece otra versión, PM2 está apuntando a otra carpeta; el log ahora muestra la línea `Carpeta : ...` para identificarla.
+
 Si por error ejecutas `install-windows.bat`, esta versión primero intenta detectar la instalación anterior y convertir el proceso en actualización segura. Solo pedirá token y QR cuando no encuentre una instalación anterior con `auth_state/`.
 
 ## Instalación nueva (Windows)
@@ -35,6 +52,7 @@ El bot queda registrado para **arrancar solo con Windows**. Al apagar el PC se d
 - `setup.js` — configuración interactiva del token y URL para instalaciones nuevas.
 - `SOLUCION-SIN-SABER-CARPETA.bat` — busca automáticamente la sesión anterior aunque no sepas la ruta.
 - `ACTUALIZAR-SIN-QR.bat` — actualización segura que conserva la sesión de WhatsApp.
+- `update-linux.sh` — actualización segura para Ubuntu/Droplet con PM2.
 - `config.json` — se genera al ejecutar setup (contiene el token, mantener privado).
 - `auth_state/` — sesión de WhatsApp guardada por Baileys. **No borrar** (perdería la vinculación).
 - `bot.log` / `bot-out.log` — logs.
