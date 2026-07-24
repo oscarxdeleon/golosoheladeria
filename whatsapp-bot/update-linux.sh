@@ -34,6 +34,48 @@ need_cmd pm2
 need_cmd curl
 need_cmd unzip
 
+if [[ -z "${1:-}" && ! -f "${TARGET_DIR}/config.json" ]]; then
+  if [[ -f "/root/goloso-parque/config.json" ]]; then
+    TARGET_DIR="/root/goloso-parque"
+    PM2_NAME="${PM2_NAME:-goloso-parque}"
+    echo "ℹ️ No se indicó carpeta; se detectó automáticamente Parque: ${TARGET_DIR}"
+  elif [[ -f "/root/goloso-santa/config.json" ]]; then
+    TARGET_DIR="/root/goloso-santa"
+    PM2_NAME="${PM2_NAME:-goloso-santa}"
+    echo "ℹ️ No se indicó carpeta; se detectó automáticamente Santa: ${TARGET_DIR}"
+  else
+    detected="$(pm2 jlist 2>/dev/null | node -e '
+const fs = require("fs");
+let list = [];
+try { list = JSON.parse(fs.readFileSync(0, "utf8") || "[]"); } catch {}
+const pick = list.find(p => /goloso-parque/i.test(p.name || "")) || list.find(p => /goloso-santa/i.test(p.name || "")) || list.find(p => /goloso/i.test(p.name || ""));
+if (pick) {
+  const cwd = pick.pm2_env?.pm_cwd || pick.pm2_env?.PWD || "";
+  const script = pick.pm2_env?.pm_exec_path || "";
+  const dir = cwd || (script ? require("path").dirname(script) : "");
+  if (dir) console.log(`${dir}\t${pick.name || ""}`);
+}
+' || true)"
+    if [[ -n "${detected}" ]]; then
+      TARGET_DIR="${detected%%$'\t'*}"
+      detected_name="${detected#*$'\t'}"
+      PM2_NAME="${PM2_NAME:-${detected_name}}"
+      echo "ℹ️ No se indicó carpeta; se detectó automáticamente: ${TARGET_DIR} (${PM2_NAME})"
+    fi
+  fi
+fi
+
+if [[ -z "${PM2_NAME}" ]]; then
+  base="$(basename "${TARGET_DIR}" | tr '[:upper:]' '[:lower:]')"
+  if [[ "${base}" == *"sede2"* || "${base}" == *"parque"* ]]; then
+    PM2_NAME="goloso-parque"
+  elif [[ "${base}" == *"santa"* ]]; then
+    PM2_NAME="goloso-santa"
+  else
+    PM2_NAME="goloso-bot"
+  fi
+fi
+
 TARGET_DIR="$(mkdir -p "${TARGET_DIR}" && cd "${TARGET_DIR}" && pwd)"
 echo ""
 echo "🍨 Goloso WhatsApp Bot — actualización Ubuntu/PM2"
