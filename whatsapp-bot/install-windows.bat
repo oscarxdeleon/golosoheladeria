@@ -95,7 +95,7 @@ echo.
 echo === Configuracion de la sede ===
 if exist "config.json" (
   echo Se encontro config.json existente. Se conserva el token guardado y NO se pide token nuevo.
-  powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='config.json'; $cfg=Get-Content $p -Raw | ConvertFrom-Json; $cfg | Add-Member -NotePropertyName apiUrl -NotePropertyValue 'https://golosoheladeria.vercel.app' -Force; $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $p -Encoding UTF8"
+  powershell -NoProfile -ExecutionPolicy Bypass -Command "$p='config.json'; $cfg=Get-Content $p -Raw | ConvertFrom-Json; $cfg | Add-Member -NotePropertyName apiUrl -NotePropertyValue 'https://golosoheladeria.lovable.app' -Force; $cfg | ConvertTo-Json -Depth 10 | Set-Content -Path $p -Encoding UTF8"
 ) else (
   echo Pega solo el token de la sede. La URL del POS se configura automaticamente.
   echo Si este PC ya tenia el bot vinculado, cancela y usa ACTUALIZAR-SIN-QR.bat para conservar la sesion.
