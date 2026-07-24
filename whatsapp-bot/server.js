@@ -36,8 +36,10 @@ const REPLY_DELAY_MAX = 5000;
 const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
+const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
+const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.10.0";
+const BOT_VERSION = "8.11.0";
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
@@ -166,8 +168,46 @@ let state = {
   lastReplySource: null,
   lastReplyError: null,
   lastAiError: null,
+  lastConversationId: null,
+  lastBackendLatencyMs: null,
   detail: "Iniciando conexión con WhatsApp...",
 };
+
+function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function postBackendJson(payload, { label = "backend", timeoutMs = BACKEND_REQUEST_TIMEOUT_MS, retries = 2 } = {}) {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
+    const started = Date.now();
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    try {
+      const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ...payload, token: config.token, version: BOT_VERSION }),
+        signal: controller.signal,
+      });
+      const text = await res.text();
+      let data = null;
+      try { data = text ? JSON.parse(text) : null; } catch { data = { raw: text.slice(0, 500) }; }
+      state.lastBackendLatencyMs = Date.now() - started;
+      logger.info({ label, attempt, status: res.status, ms: state.lastBackendLatencyMs, conversationId: data?.conversation_id }, "backend response");
+      if (data?.conversation_id) state.lastConversationId = data.conversation_id;
+      if (res.ok || (res.status < 500 && res.status !== 429)) return { ok: res.ok, status: res.status, data, text };
+      lastErr = `HTTP ${res.status}: ${text.slice(0, 300)}`;
+    } catch (e) {
+      lastErr = e?.name === "AbortError" ? `${label} timeout ${Math.round(timeoutMs / 1000)}s` : String(e);
+      logger.warn({ label, attempt, err: lastErr }, "backend request failed");
+    } finally {
+      clearTimeout(timer);
+    }
+    if (attempt < retries) await wait(BACKEND_RETRY_DELAY_MS * (attempt + 1));
+  }
+  return { ok: false, status: 0, data: null, text: lastErr || "backend_request_failed", error: lastErr || "backend_request_failed" };
+}
 
 function escapeHtml(value) {
   return String(value ?? "")
@@ -334,16 +374,12 @@ async function executeRemoteCommand(cmd) {
 
 async function handleIncoming(from, body) {
   try {
-    const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ action: "incoming", token: config.token, from, message: body }),
-    });
+    const res = await postBackendJson({ action: "incoming", from, message: body }, { label: "incoming" });
     if (!res.ok) {
-      logger.warn({ status: res.status }, "incoming push failed");
+      logger.warn({ status: res.status, body: res.text }, "incoming push failed");
       return null;
     }
-    const data = await res.json();
+    const data = res.data;
     return data && typeof data === "object" ? data : { reply: null };
   } catch (e) {
     logger.warn({ err: String(e) }, "incoming error");
@@ -352,29 +388,24 @@ async function handleIncoming(from, body) {
 }
 
 function buildSafetyReply() {
-  return "¡Hola! 👋 En este momento estoy teniendo un problema para responder automáticamente.\n\nPuedes ver el menú y hacer tu pedido aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi me escribes de nuevo en un momento, te atiendo con gusto. 🍦";
+  return "Con gusto te atiendo. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 https://golosoheladeria.lovable.app/menu\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.";
 }
 
 async function requestAiReply(from, { text, audioB64, audioMime }) {
   try {
-    const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        action: "ai_reply",
-        token: config.token,
-        from,
-        text: text || "",
-        audio_b64: audioB64 || "",
-        audio_mime: audioMime || "",
-      }),
-    });
+    const res = await postBackendJson({
+      action: "ai_reply",
+      from,
+      text: text || "",
+      audio_b64: audioB64 || "",
+      audio_mime: audioMime || "",
+    }, { label: "ai_reply", timeoutMs: 60_000, retries: 2 });
     if (!res.ok) {
-      logger.warn({ status: res.status }, "ai_reply http fail");
+      logger.warn({ status: res.status, body: res.text }, "ai_reply http fail");
       state.lastAiError = `ai_reply respondió HTTP ${res.status}`;
       return null;
     }
-    const data = await res.json();
+    const data = res.data || {};
     if (data.error) {
       state.lastAiError = String(data.error);
       logger.info({ err: data.error }, "ai_reply skipped");
@@ -440,6 +471,72 @@ async function getSafeBaileysVersion() {
 
 let currentSock = null;
 let outboundInFlight = false;
+const incomingQueues = new Map();
+
+function enqueueIncoming(from, task) {
+  const previous = incomingQueues.get(from) || Promise.resolve();
+  const next = previous
+    .catch(() => {})
+    .then(task)
+    .finally(() => {
+      if (incomingQueues.get(from) === next) incomingQueues.delete(from);
+    });
+  incomingQueues.set(from, next);
+  return next;
+}
+
+async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
+  logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode }, "incoming");
+  state.lastIncomingAt = Date.now();
+  state.lastIncomingFrom = from;
+  state.lastIncomingPreview = text ? text.slice(0, 120) : audioNode ? "[nota de voz]" : "[sin texto]";
+  state.lastReplySource = null;
+  state.lastReplyError = null;
+
+  // 1) Respuesta fija del POS (bienvenida, menú, fuera de horario…)
+  let reply = null;
+  let incomingData = null;
+  if (text) {
+    incomingData = await handleIncoming(from, text);
+    reply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
+    if (reply) state.lastReplySource = incomingData?.source || incomingData?.matched_trigger || "fixed";
+  }
+
+  // 2) Fallback IA: si no hubo respuesta fija Y hay texto o nota de voz,
+  //    pedimos al backend un reply generado (respeta sandbox/límite/enabled).
+  const shouldUseAi = !reply && (text || audioNode) && (audioNode || incomingData?.use_ai === true || incomingData?.error);
+  if (shouldUseAi) {
+    let audioB64 = "";
+    let audioMime = "";
+    if (audioNode) {
+      try {
+        const buf = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage });
+        if (buf && buf.length <= AI_MAX_AUDIO_BYTES) {
+          audioB64 = buf.toString("base64");
+          audioMime = audioNode.mimetype || "audio/ogg";
+        } else {
+          logger.warn({ from, size: buf?.length }, "audio too large, skipping");
+        }
+      } catch (e) {
+        logger.warn({ err: String(e) }, "audio download failed");
+      }
+    }
+    reply = await requestAiReply(from, { text: text || "", audioB64, audioMime });
+    if (reply) state.lastReplySource = "ai";
+    if (!reply && incomingData?.use_ai === true) {
+      reply = buildSafetyReply();
+      state.lastReplySource = "operational";
+    }
+  }
+
+  if (reply) {
+    await new Promise((r) => setTimeout(r, humanDelay()));
+    const sent = await sendReply(sock, msg, from, reply);
+    if (sent.ok) {
+      logger.info({ from, source: state.lastReplySource, conversationId: state.lastConversationId }, "replied");
+    }
+  }
+}
 
 function normalizeOutboundPhone(raw) {
   let digits = String(raw || "").replace(/\D/g, "");
@@ -651,56 +748,7 @@ async function startSocket() {
         );
         continue;
       }
-      logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode }, "incoming");
-      state.lastIncomingAt = Date.now();
-      state.lastIncomingFrom = from;
-      state.lastIncomingPreview = text ? text.slice(0, 120) : audioNode ? "[nota de voz]" : "[sin texto]";
-      state.lastReplySource = null;
-      state.lastReplyError = null;
-
-      // 1) Respuesta fija del POS (bienvenida, menú, fuera de horario…)
-      let reply = null;
-      let incomingData = null;
-      if (text) {
-        incomingData = await handleIncoming(from, text);
-        reply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
-        if (reply) state.lastReplySource = incomingData?.source || incomingData?.matched_trigger || "fixed";
-      }
-
-      // 2) Fallback IA: si no hubo respuesta fija Y hay texto o nota de voz,
-      //    pedimos al backend un reply generado (respeta sandbox/límite/enabled).
-      const shouldUseAi = !reply && (text || audioNode) && (audioNode || incomingData?.use_ai === true || incomingData?.error);
-      if (shouldUseAi) {
-        let audioB64 = "";
-        let audioMime = "";
-        if (audioNode) {
-          try {
-            const buf = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage });
-            if (buf && buf.length <= AI_MAX_AUDIO_BYTES) {
-              audioB64 = buf.toString("base64");
-              audioMime = audioNode.mimetype || "audio/ogg";
-            } else {
-              logger.warn({ from, size: buf?.length }, "audio too large, skipping");
-            }
-          } catch (e) {
-            logger.warn({ err: String(e) }, "audio download failed");
-          }
-        }
-        reply = await requestAiReply(from, { text: text || "", audioB64, audioMime });
-        if (reply) state.lastReplySource = "ai";
-        if (!reply && incomingData?.use_ai === true) {
-          reply = buildSafetyReply();
-          state.lastReplySource = "safety";
-        }
-      }
-
-      if (reply) {
-        await new Promise((r) => setTimeout(r, humanDelay()));
-        const sent = await sendReply(sock, msg, from, reply);
-        if (sent.ok) {
-          logger.info({ from }, "replied");
-        }
-      }
+      await enqueueIncoming(from, () => processResolvedIncoming(sock, msg, from, text, audioNode, jid));
     }
   });
 
@@ -745,7 +793,7 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
+      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
       return;
     }
     res.writeHead(404); res.end();

@@ -2881,6 +2881,53 @@ export type Database = {
           },
         ]
       }
+      whatsapp_ai_diagnostics: {
+        Row: {
+          branch_id: string | null
+          conversation_id: string
+          created_at: string
+          duration_ms: number | null
+          error: string | null
+          id: string
+          metadata: Json
+          ok: boolean
+          phone: string | null
+          stage: string
+        }
+        Insert: {
+          branch_id?: string | null
+          conversation_id: string
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          metadata?: Json
+          ok?: boolean
+          phone?: string | null
+          stage: string
+        }
+        Update: {
+          branch_id?: string | null
+          conversation_id?: string
+          created_at?: string
+          duration_ms?: number | null
+          error?: string | null
+          id?: string
+          metadata?: Json
+          ok?: boolean
+          phone?: string | null
+          stage?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_ai_diagnostics_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_ai_messages: {
         Row: {
           branch_id: string
@@ -2959,6 +3006,7 @@ export type Database = {
           after_hours_cooldown_hours: number
           after_hours_enabled: boolean
           after_hours_messages: string[]
+          ai_daily_limit_per_phone: number | null
           ai_dry_run: boolean
           ai_enabled: boolean
           ai_last_reply_at: string | null
@@ -3001,6 +3049,7 @@ export type Database = {
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          ai_daily_limit_per_phone?: number | null
           ai_dry_run?: boolean
           ai_enabled?: boolean
           ai_last_reply_at?: string | null
@@ -3043,6 +3092,7 @@ export type Database = {
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
+          ai_daily_limit_per_phone?: number | null
           ai_dry_run?: boolean
           ai_enabled?: boolean
           ai_last_reply_at?: string | null
@@ -3761,6 +3811,19 @@ export type Database = {
       }
       whatsapp_bot_ai_history: {
         Args: { _limit?: number; _phone: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_bot_ai_log_event: {
+        Args: {
+          _conversation_id: string
+          _duration_ms?: number
+          _error?: string
+          _metadata?: Json
+          _ok?: boolean
+          _phone: string
+          _stage: string
+          _token: string
+        }
         Returns: Json
       }
       whatsapp_bot_ai_ordering_config: {

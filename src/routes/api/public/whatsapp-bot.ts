@@ -47,6 +47,66 @@ async function callRpc(name: string, params: Record<string, unknown>) {
   return { ok: res.ok, status: res.status, data };
 }
 
+function makeConversationId(phone: string) {
+  const cleanPhone = phone.replace(/\D/g, "");
+  const suffix = cleanPhone.slice(-4) || "anon";
+  const randomId = typeof crypto !== "undefined" && "randomUUID" in crypto
+    ? crypto.randomUUID()
+    : Math.random().toString(36).slice(2);
+  return `wa-${Date.now()}-${suffix}-${randomId}`;
+}
+
+function elapsedMs(start: number) {
+  return Math.max(0, Math.round(performance.now() - start));
+}
+
+function trimForLog(value: unknown, max = 800) {
+  if (value == null) return "";
+  if (typeof value === "string") return value.slice(0, max);
+  try {
+    return JSON.stringify(value).slice(0, max);
+  } catch {
+    return String(value).slice(0, max);
+  }
+}
+
+async function logBotEvent(
+  token: string,
+  conversationId: string,
+  phone: string,
+  stage: string,
+  data: { ok?: boolean; durationMs?: number; error?: unknown; metadata?: Record<string, unknown> } = {},
+) {
+  try {
+    await callRpc("whatsapp_bot_ai_log_event", {
+      _token: token,
+      _conversation_id: conversationId,
+      _phone: phone,
+      _stage: stage,
+      _ok: data.ok !== false,
+      _duration_ms: typeof data.durationMs === "number" ? data.durationMs : null,
+      _error: data.error == null ? null : trimForLog(data.error, 1000),
+      _metadata: data.metadata ?? {},
+    });
+  } catch {
+    // Logging must never break a customer conversation.
+  }
+}
+
+function normalizeHistory(messages: Array<{ role: string; content: string }>) {
+  return messages
+    .filter((message) => message.role === "user" || message.role === "assistant")
+    .slice(-10)
+    .map((message) => ({
+      role: message.role,
+      content: message.content.slice(0, 1200),
+    }));
+}
+
+function operationalReply(menuLink: string) {
+  return `Con gusto te atiendo. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
+}
+
 export const Route = createFileRoute("/api/public/whatsapp-bot")({
   server: {
     handlers: {
@@ -128,7 +188,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // devuelve como si fuera una respuesta fija.
               const shouldUseAi = fixedData.use_ai === true && msg.trim().length > 0;
               if (shouldUseAi) {
-                const aiFallbackText = "¡Hola! 👋 En este momento estoy teniendo un problema para responder automáticamente.\n\nPuedes ver el menú y hacer tu pedido aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi me escribes de nuevo en un momento, te atiendo con gusto. 🍦";
+                const aiFallbackText = operationalReply("https://golosoheladeria.lovable.app/menu");
                 try {
                   const aiUrl = new URL("/api/public/whatsapp-bot", request.url);
                   const aiResp = await fetch(aiUrl, {
@@ -200,15 +260,51 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const audioB64 = typeof body.audio_b64 === "string" ? body.audio_b64.trim() : "";
               if (!text && !audioB64) return json({ error: "missing_input" }, 400);
 
+              const conversationId = makeConversationId(from);
+              const requestStarted = performance.now();
+              await logBotEvent(token, conversationId, from, "request_received", {
+                metadata: { hasText: Boolean(text), hasAudio: Boolean(audioB64), textLength: text.length },
+              });
+
               // 1) Contexto de sede + validación sandbox + rate limit
+              const contextStarted = performance.now();
               const ctxRes = await callRpc("whatsapp_bot_ai_context", { _token: token, _phone: from });
-              if (!ctxRes.ok) return json({ error: "rpc_failed", detail: ctxRes.data }, ctxRes.status);
+              if (!ctxRes.ok) {
+                await logBotEvent(token, conversationId, from, "context_rpc_failed", {
+                  ok: false,
+                  durationMs: elapsedMs(contextStarted),
+                  error: ctxRes.data,
+                  metadata: { status: ctxRes.status },
+                });
+                return json({ error: "rpc_failed", detail: ctxRes.data, conversation_id: conversationId }, ctxRes.status);
+              }
               const ctx = ctxRes.data as Record<string, unknown> | null;
               if (!ctx || (ctx as { error?: string }).error) {
-                return json({ error: (ctx as { error?: string })?.error ?? "context_error", reply: null }, 200);
+                const error = (ctx as { error?: string })?.error ?? "context_error";
+                await logBotEvent(token, conversationId, from, "context_blocked", {
+                  ok: false,
+                  durationMs: elapsedMs(contextStarted),
+                  error,
+                  metadata: { context: ctx ?? null },
+                });
+                if (error === "rate_limited") {
+                  const reply = operationalReply("https://golosoheladeria.lovable.app/menu");
+                  return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
+                }
+                return json({ error, reply: null, conversation_id: conversationId }, 200);
               }
+              await logBotEvent(token, conversationId, from, "context_loaded", {
+                durationMs: elapsedMs(contextStarted),
+                metadata: {
+                  usageToday: ctx.usage_today ?? null,
+                  dailyLimit: ctx.daily_limit ?? null,
+                  products: Array.isArray(ctx.products) ? ctx.products.length : 0,
+                  faqs: Array.isArray(ctx.faqs) ? ctx.faqs.length : 0,
+                  flavorGroups: Array.isArray(ctx.flavor_groups) ? ctx.flavor_groups.length : 0,
+                },
+              });
               const branchName = String(ctx.branch_name ?? "Heladería Goloso");
-              const menuLink = String(ctx.menu_link ?? "https://golosoheladeria.vercel.app/menu");
+              const menuLink = String(ctx.menu_link ?? "https://golosoheladeria.lovable.app/menu");
               const onlineOpen = Boolean(ctx.online_open);
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
@@ -229,7 +325,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     .map((g) => {
                       const items = (g.flavors ?? [])
                         .filter((f) => f && f.name)
-                        .map((f) => `  - ${f!.name}${f!.extra_price ? ` (+${fmtCOP(Number(f!.extra_price))})` : ""}`)
+                        .map((f) => `  - ${f.name}${f.extra_price ? ` (+${fmtCOP(Number(f.extra_price))})` : ""}`)
                         .join("\n");
                       return `【${g.group_name ?? "Sabores"}】\n${items}`;
                     })
@@ -242,7 +338,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 if (!p.name || typeof p.price !== "number") continue;
                 const cat = (p.category ?? "Otros").toString();
                 if (!productsByCat.has(cat)) productsByCat.set(cat, []);
-                productsByCat.get(cat)!.push({ name: String(p.name), price: Number(p.price) });
+                const categoryItems = productsByCat.get(cat);
+                if (categoryItems) categoryItems.push({ name: String(p.name), price: Number(p.price) });
               }
               const productsBlock = productsByCat.size > 0
                 ? "PRODUCTOS Y PRECIOS ACTUALES DE ESTA SEDE, AGRUPADOS POR CATEGORÍA (usa SOLO estos precios reales; respeta la categoría al recomendar):\n" +
@@ -318,6 +415,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // 2) Cargar historial reciente (memoria conversacional Fase 2)
               let history: Array<{ role: string; content: string }> = [];
+              const historyStarted = performance.now();
               const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
               if (histRes.ok && histRes.data && typeof histRes.data === "object") {
                 const msgs = (histRes.data as { messages?: unknown }).messages;
@@ -327,6 +425,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   );
                 }
               }
+              history = normalizeHistory(history);
+              await logBotEvent(token, conversationId, from, "history_loaded", {
+                durationMs: elapsedMs(historyStarted),
+                metadata: { messages: history.length, ok: histRes.ok, status: histRes.status },
+              });
 
               // 3) Construir mensaje del turno actual (texto o audio)
               const userContent: Array<Record<string, unknown>> = [];
@@ -482,7 +585,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Mapea el nombre "vendor/modelo" al formato que espera cada backend.
               const mapModel = (m: string) => {
-                if (geminiKey) return m.replace(/^google\//, "").replace(/-preview$/, "");
+                if (geminiKey) return m.replace(/^google\//, "");
                 return m;
               };
               const aiUrlBase = geminiKey
@@ -490,7 +593,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : "https://ai.gateway.lovable.dev/v1/chat/completions";
               const aiAuthHeader = geminiKey ? `Bearer ${geminiKey}` : `Bearer ${apiKey}`;
 
-              const callAi = async (model: string) => {
+              const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+              const callAiOnce = async (model: string) => {
                 const bodyReq: Record<string, unknown> = {
                   model: mapModel(model), messages, max_tokens: 2048, temperature: 0.6,
                 };
@@ -498,11 +602,36 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   bodyReq.tools = orderingTools;
                   bodyReq.tool_choice = "auto";
                 }
-                return fetch(aiUrlBase, {
-                  method: "POST",
-                  headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
-                  body: JSON.stringify(bodyReq),
-                });
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 35_000);
+                try {
+                  return await fetch(aiUrlBase, {
+                    method: "POST",
+                    headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
+                    body: JSON.stringify(bodyReq),
+                    signal: controller.signal,
+                  });
+                } finally {
+                  clearTimeout(timer);
+                }
+              };
+
+              const callAi = async (model: string) => {
+                let lastResponse: Response | null = null;
+                let lastError: unknown;
+                for (let attempt = 0; attempt < 3; attempt += 1) {
+                  try {
+                    const response = await callAiOnce(model);
+                    lastResponse = response;
+                    if (response.ok || (response.status !== 429 && response.status < 500)) return response;
+                    await pause(500 * (attempt + 1));
+                  } catch (error) {
+                    lastError = error;
+                    await pause(500 * (attempt + 1));
+                  }
+                }
+                if (lastResponse) return lastResponse;
+                throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "ai_fetch_failed"));
               };
 
 
@@ -512,15 +641,68 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               let lastErr: string | null = null;
               let lastFinishReason: string | null = null;
               for (let round = 0; round < 6; round++) {
-                let aiResp = await callAi("google/gemini-3.6-flash");
-                if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404)) {
-                  aiResp = await callAi("google/gemini-2.5-flash");
+                const aiStarted = performance.now();
+                let aiResp: Response;
+                try {
+                  aiResp = await callAi("google/gemini-3.6-flash");
+                } catch (error) {
+                  await logBotEvent(token, conversationId, from, "ai_request_exception", {
+                    ok: false,
+                    durationMs: elapsedMs(aiStarted),
+                    error,
+                    metadata: { round, model: "google/gemini-3.6-flash" },
+                  });
+                  try {
+                    aiResp = await callAi("google/gemini-3.5-flash");
+                  } catch (fallbackError) {
+                    lastErr = trimForLog(fallbackError, 500);
+                    await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
+                      ok: false,
+                      durationMs: elapsedMs(aiStarted),
+                      error: fallbackError,
+                    metadata: { round, model: "google/gemini-3.5-flash" },
+                    });
+                    break;
+                  }
                 }
-                if (aiResp.status === 429) return json({ error: "ai_rate_limited", reply: null }, 200);
-                if (aiResp.status === 402) return json({ error: "ai_credits_exhausted", reply: null }, 200);
+                if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404 || aiResp.status === 429)) {
+                  await logBotEvent(token, conversationId, from, "ai_primary_failed", {
+                    ok: false,
+                    durationMs: elapsedMs(aiStarted),
+                    error: `HTTP ${aiResp.status}`,
+                    metadata: { round, model: "google/gemini-3.6-flash" },
+                  });
+                  aiResp = await callAi("google/gemini-3.5-flash");
+                }
+                if (aiResp.status === 429) {
+                  lastErr = "ai_rate_limited_after_retries";
+                  await logBotEvent(token, conversationId, from, "ai_rate_limited", {
+                    ok: false,
+                    durationMs: elapsedMs(aiStarted),
+                    error: lastErr,
+                    metadata: { round },
+                  });
+                  break;
+                }
+                if (aiResp.status === 402) {
+                  lastErr = "ai_credits_exhausted";
+                  await logBotEvent(token, conversationId, from, "ai_credits_exhausted", {
+                    ok: false,
+                    durationMs: elapsedMs(aiStarted),
+                    error: lastErr,
+                    metadata: { round },
+                  });
+                  break;
+                }
                 if (!aiResp.ok) {
                   const detail = await aiResp.text().catch(() => "");
                   lastErr = detail.slice(0, 500);
+                  await logBotEvent(token, conversationId, from, "ai_http_failed", {
+                    ok: false,
+                    durationMs: elapsedMs(aiStarted),
+                    error: lastErr,
+                    metadata: { round, status: aiResp.status },
+                  });
                   break;
                 }
                 const aiData = await aiResp.json().catch(() => null) as {
@@ -529,6 +711,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const choice = aiData?.choices?.[0];
                 const msg = choice?.message;
                 lastFinishReason = choice?.finish_reason ?? null;
+                await logBotEvent(token, conversationId, from, "ai_round_completed", {
+                  durationMs: elapsedMs(aiStarted),
+                  metadata: { round, finishReason: lastFinishReason, hasMessage: Boolean(msg) },
+                });
                 if (!msg) { lastErr = "empty_response"; break; }
 
                 const toolCalls = Array.isArray(msg.tool_calls) ? msg.tool_calls : [];
@@ -547,7 +733,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 for (const tc of toolCalls) {
                   let parsedArgs: Record<string, unknown> = {};
                   try { parsedArgs = JSON.parse(tc.function.arguments || "{}"); } catch { /* keep empty */ }
+                  const toolStarted = performance.now();
                   const result = await execTool(tc.function.name, parsedArgs);
+                  const toolResult = result && typeof result === "object" ? result as Record<string, unknown> : {};
+                  await logBotEvent(token, conversationId, from, `tool_${tc.function.name}`, {
+                    ok: !("error" in toolResult),
+                    durationMs: elapsedMs(toolStarted),
+                    error: toolResult.error,
+                    metadata: { round },
+                  });
                   messages.push({
                     role: "tool",
                     tool_call_id: tc.id,
@@ -564,7 +758,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     method: "POST",
                     headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      model: mapModel("google/gemini-2.5-flash"),
+                      model: mapModel("google/gemini-3.5-flash"),
                       messages: [
                         { role: "system", content: finalSystemPrompt },
                         ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -582,21 +776,47 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               }
 
 
-              // Fallback final: nunca dejar al cliente sin respuesta.
+              // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
-                finalReply = `¡Hola! 👋 Ando con un problemita para responderte en este momento.\n\nMira nuestro menú con precios y fotos 👉 ${menuLink}\n\nSi es urgente, escríbeme de nuevo en un ratico y te atiendo con gusto. 🍦`;
+                finalReply = operationalReply(menuLink);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
+                await logBotEvent(token, conversationId, from, "operational_fallback_used", {
+                  ok: false,
+                  error: lastErr,
+                  metadata: { finishReason: lastFinishReason },
+                });
               }
 
               // 6) Persistir turno del usuario + respuesta del bot en memoria
               const userLog = text && text.length > 0 ? text : "[nota de voz]";
-              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
-              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
+              const persistStarted = performance.now();
+              const userSave = await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
+              const assistantSave = await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
+              await logBotEvent(token, conversationId, from, "memory_persisted", {
+                ok: userSave.ok && assistantSave.ok,
+                durationMs: elapsedMs(persistStarted),
+                error: !userSave.ok ? userSave.data : !assistantSave.ok ? assistantSave.data : null,
+                metadata: { userStatus: userSave.status, assistantStatus: assistantSave.status },
+              });
 
               // 7) Registrar uso para rate limit diario
-              await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+              const usageStarted = performance.now();
+              const usageResult = await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+              await logBotEvent(token, conversationId, from, "usage_recorded", {
+                ok: usageResult.ok,
+                durationMs: elapsedMs(usageStarted),
+                error: usageResult.ok ? null : usageResult.data,
+                metadata: { status: usageResult.status },
+              });
 
-              return json({ reply: finalReply, source: "ai", finish_reason: lastFinishReason, warning: lastErr });
+              await logBotEvent(token, conversationId, from, "request_completed", {
+                ok: !lastErr,
+                durationMs: elapsedMs(requestStarted),
+                error: lastErr,
+                metadata: { finishReason: lastFinishReason, replyLength: finalReply.length },
+              });
+
+              return json({ reply: finalReply, source: lastErr ? "ai_operational" : "ai", finish_reason: lastFinishReason, warning: lastErr, conversation_id: conversationId });
             }
             default:
               return json({ error: "unknown_action" }, 400);
