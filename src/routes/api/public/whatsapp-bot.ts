@@ -145,7 +145,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     const aiData = await aiResp.json().catch(() => null) as Record<string, unknown> | null;
                     const aiReply = typeof aiData?.reply === "string" ? aiData.reply.trim() : "";
                     if (aiReply) {
-                      return json({ ...fixedData, ...aiData, reply: aiReply, source: "incoming_ai_fallback" });
+                      return json({ ...fixedData, ...(aiData ?? {}), reply: aiReply, source: "incoming_ai_fallback" });
                     }
                     return json({ ...fixedData, reply: aiFallbackText, source: "incoming_ai_safety", ai_error: aiData?.error ?? "empty_ai_reply" });
                   }
