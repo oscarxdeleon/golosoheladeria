@@ -39,7 +39,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.12.0";
+const BOT_VERSION = "8.13.0";
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
@@ -288,6 +288,25 @@ function rmAuthDir() {
   }
 }
 
+function resetAuthStateForFreshQr(reason = "logged_out") {
+  try {
+    rmAuthDir();
+    fs.rmSync(SESSION_BACKUP_DIR, { recursive: true, force: true });
+    fs.rmSync(SESSION_META_PATH, { force: true });
+    fs.rmSync(SESSION_RESTORE_MARKER, { force: true });
+    state.phone = null;
+    state.qr = null;
+    state.qrDataUrl = null;
+    state.lastError = null;
+    logger.warn({ reason }, "auth_state and backups cleared to generate a fresh QR");
+    return true;
+  } catch (e) {
+    state.lastError = `No se pudo limpiar la sesión para generar QR nuevo: ${String(e)}`;
+    logger.warn({ err: String(e), reason }, "fresh QR reset failed");
+    return false;
+  }
+}
+
 function copyDirSafe(source, target) {
   if (!fs.existsSync(source)) return false;
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -403,6 +422,18 @@ async function tryRestoreAfterLogout(reason) {
     logger.warn({ err: String(e), reason }, "restore after logout failed");
     return false;
   }
+}
+
+async function startFreshPairingAfterLogout(reason) {
+  resetAuthStateForFreshQr(reason);
+  if (currentSock) {
+    try { currentSock.ws?.close?.(); } catch { /* noop */ }
+    currentSock = null;
+  }
+  state.status = "connecting";
+  state.detail = "WhatsApp cerró la sesión anterior. Se limpió la sesión local y se está generando un QR nuevo para vincular Parque.";
+  await pushStatus();
+  setTimeout(() => startSocket().catch((e) => logger.error(e)), 2500);
 }
 
 function removeSignalSessionFiles() {
@@ -812,12 +843,16 @@ async function startSocket() {
       logger.warn({ code, shouldReconnect }, "connection closed");
       if (Date.now() < suppressAutoReconnectUntil) return;
       if (!shouldReconnect && await tryRestoreAfterLogout("WhatsApp reportó cierre de sesión")) return;
+      if (!shouldReconnect) {
+        await startFreshPairingAfterLogout("WhatsApp reportó cierre de sesión y no hubo copia válida para restaurar");
+        return;
+      }
       state.status = "disconnected";
       state.qr = null;
       state.qrDataUrl = null;
-      state.detail = shouldReconnect ? "Conexión cerrada. Reintentando automáticamente..." : "Sesión cerrada desde WhatsApp. Borra auth_state y vuelve a instalar para generar un QR nuevo.";
+      state.detail = "Conexión cerrada. Reintentando automáticamente...";
       pushStatus();
-      if (shouldReconnect) setTimeout(() => startSocket().catch((e) => logger.error(e)), 5000);
+      setTimeout(() => startSocket().catch((e) => logger.error(e)), 5000);
     }
   });
 

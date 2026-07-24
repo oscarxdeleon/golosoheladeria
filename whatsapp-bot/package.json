@@ -1,6 +1,6 @@
 {
   "name": "goloso-whatsapp-bot",
-  "version": "8.12.0",
+  "version": "8.13.0",
   "description": "Bot local de WhatsApp para Heladería Goloso (integración con el POS)",
   "type": "module",
   "main": "server.js",
