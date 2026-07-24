@@ -37,8 +37,8 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.6.0";
-const SIGNAL_REPAIR_THRESHOLD = 3;
+const BOT_VERSION = "8.7.0";
+const SIGNAL_REPAIR_THRESHOLD = 1;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
 
@@ -95,7 +95,18 @@ function createSafeLogger(prefix = "") {
 }
 
 const logger = createSafeLogger();
+installConsoleSignalRepairHook();
 let activeLocalPort = REQUESTED_LOCAL_PORT;
+
+function installConsoleSignalRepairHook() {
+  for (const method of ["log", "warn", "error"]) {
+    const original = console[method].bind(console);
+    console[method] = (...args) => {
+      try { recordSignalDecryptError(args); } catch { /* noop */ }
+      original(...args);
+    };
+  }
+}
 
 function loadConfig() {
   if (!fs.existsSync(CONFIG_PATH)) {
