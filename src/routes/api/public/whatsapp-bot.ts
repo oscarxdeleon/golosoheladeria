@@ -644,23 +644,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const aiStarted = performance.now();
                 let aiResp: Response;
                 try {
-                  aiResp = await callAi("google/gemini-3.6-flash");
+                  aiResp = await callAi("google/gemini-2.5-flash");
                 } catch (error) {
                   await logBotEvent(token, conversationId, from, "ai_request_exception", {
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error,
-                    metadata: { round, model: "google/gemini-3.6-flash" },
+                    metadata: { round, model: "google/gemini-2.5-flash" },
                   });
                   try {
-                    aiResp = await callAi("google/gemini-3.5-flash");
+                    aiResp = await callAi("google/gemini-2.5-flash-lite");
                   } catch (fallbackError) {
                     lastErr = trimForLog(fallbackError, 500);
                     await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
                       ok: false,
                       durationMs: elapsedMs(aiStarted),
                       error: fallbackError,
-                    metadata: { round, model: "google/gemini-3.5-flash" },
+                    metadata: { round, model: "google/gemini-2.5-flash-lite" },
                     });
                     break;
                   }
@@ -670,9 +670,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: `HTTP ${aiResp.status}`,
-                    metadata: { round, model: "google/gemini-3.6-flash" },
+                    metadata: { round, model: "google/gemini-2.5-flash" },
                   });
-                  aiResp = await callAi("google/gemini-3.5-flash");
+                  aiResp = await callAi("google/gemini-2.5-flash-lite");
                 }
                 if (aiResp.status === 429) {
                   lastErr = "ai_rate_limited_after_retries";
