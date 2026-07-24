@@ -117,6 +117,45 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 _body: msg,
               });
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
+              const fixedData = (r.data && typeof r.data === "object" ? r.data : {}) as Record<string, unknown>;
+              const fixedReply = typeof fixedData.reply === "string" ? fixedData.reply.trim() : "";
+              if (fixedReply) return json(r.data);
+
+              // Defensa definitiva: versiones antiguas/intermedias del bot local solo
+              // leen la respuesta del action "incoming" y no siempre ejecutan el
+              // fallback "ai_reply". Si la base de datos indica que este número debe
+              // ser atendido por IA, el endpoint genera la respuesta aquí mismo y la
+              // devuelve como si fuera una respuesta fija.
+              const shouldUseAi = fixedData.use_ai === true && msg.trim().length > 0;
+              if (shouldUseAi) {
+                const aiFallbackText = "¡Hola! 👋 En este momento estoy teniendo un problema para responder automáticamente.\n\nPuedes ver el menú y hacer tu pedido aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi me escribes de nuevo en un momento, te atiendo con gusto. 🍦";
+                try {
+                  const aiUrl = new URL("/api/public/whatsapp-bot", request.url);
+                  const aiResp = await fetch(aiUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      action: "ai_reply",
+                      token,
+                      from,
+                      text: msg,
+                    }),
+                  });
+                  if (aiResp.ok) {
+                    const aiData = await aiResp.json().catch(() => null) as Record<string, unknown> | null;
+                    const aiReply = typeof aiData?.reply === "string" ? aiData.reply.trim() : "";
+                    if (aiReply) {
+                      return json({ ...fixedData, ...(aiData ?? {}), reply: aiReply, source: "incoming_ai_fallback" });
+                    }
+                    return json({ ...fixedData, reply: aiFallbackText, source: "incoming_ai_safety", ai_error: aiData?.error ?? "empty_ai_reply" });
+                  }
+                  const detail = await aiResp.text().catch(() => "");
+                  return json({ ...fixedData, reply: aiFallbackText, source: "incoming_ai_safety", ai_error: `ai_http_${aiResp.status}`, detail: detail.slice(0, 300) });
+                } catch (e) {
+                  return json({ ...fixedData, reply: aiFallbackText, source: "incoming_ai_safety", ai_error: e instanceof Error ? e.message : String(e) });
+                }
+              }
+
               return json(r.data);
             }
             case "pending": {

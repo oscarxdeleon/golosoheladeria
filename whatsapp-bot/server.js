@@ -37,7 +37,7 @@ const OUTBOUND_DELAY_MIN = 1500;
 const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.8.0";
+const BOT_VERSION = "8.9.0";
 const SIGNAL_REPAIR_THRESHOLD = 1;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
@@ -134,6 +134,13 @@ let state = {
   lastOutboundPollAt: null,
   lastOutboundCount: 0,
   lastOutboundError: null,
+  lastIncomingAt: null,
+  lastIncomingFrom: null,
+  lastIncomingPreview: null,
+  lastReplyAt: null,
+  lastReplySource: null,
+  lastReplyError: null,
+  lastAiError: null,
   detail: "Iniciando conexión con WhatsApp...",
 };
 
@@ -312,11 +319,15 @@ async function handleIncoming(from, body) {
       return null;
     }
     const data = await res.json();
-    return data.reply || null;
+    return data && typeof data === "object" ? data : { reply: null };
   } catch (e) {
     logger.warn({ err: String(e) }, "incoming error");
-    return null;
+    return { reply: null, error: String(e), use_ai: true };
   }
+}
+
+function buildSafetyReply() {
+  return "¡Hola! 👋 En este momento estoy teniendo un problema para responder automáticamente.\n\nPuedes ver el menú y hacer tu pedido aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi me escribes de nuevo en un momento, te atiendo con gusto. 🍦";
 }
 
 async function requestAiReply(from, { text, audioB64, audioMime }) {
@@ -335,15 +346,46 @@ async function requestAiReply(from, { text, audioB64, audioMime }) {
     });
     if (!res.ok) {
       logger.warn({ status: res.status }, "ai_reply http fail");
+      state.lastAiError = `ai_reply respondió HTTP ${res.status}`;
       return null;
     }
     const data = await res.json();
-    if (data.error) logger.info({ err: data.error }, "ai_reply skipped");
+    if (data.error) {
+      state.lastAiError = String(data.error);
+      logger.info({ err: data.error }, "ai_reply skipped");
+    } else {
+      state.lastAiError = null;
+    }
     return data.reply || null;
   } catch (e) {
-    logger.warn({ err: String(e) }, "ai_reply error");
+    const err = String(e);
+    state.lastAiError = err;
+    logger.warn({ err }, "ai_reply error");
     return null;
   }
+}
+
+async function sendReply(sock, msg, from, reply) {
+  const targets = [];
+  const originalJid = msg.key.remoteJid;
+  if (originalJid) targets.push(originalJid);
+  const phone = normalizeOutboundPhone(from);
+  if (phone) targets.push(`${phone}@s.whatsapp.net`);
+  const uniqueTargets = [...new Set(targets.filter(Boolean))];
+  let lastErr = null;
+  for (const jid of uniqueTargets) {
+    try {
+      await sock.sendMessage(jid, { text: reply });
+      state.lastReplyAt = Date.now();
+      state.lastReplyError = null;
+      return { ok: true, jid };
+    } catch (e) {
+      lastErr = String(e);
+      logger.warn({ err: lastErr, jid }, "reply send failed");
+    }
+  }
+  state.lastReplyError = lastErr || "No se pudo enviar respuesta";
+  return { ok: false, error: state.lastReplyError };
 }
 
 function humanDelay() {
@@ -585,14 +627,25 @@ async function startSocket() {
         continue;
       }
       logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode }, "incoming");
+      state.lastIncomingAt = Date.now();
+      state.lastIncomingFrom = from;
+      state.lastIncomingPreview = text ? text.slice(0, 120) : audioNode ? "[nota de voz]" : "[sin texto]";
+      state.lastReplySource = null;
+      state.lastReplyError = null;
 
       // 1) Respuesta fija del POS (bienvenida, menú, fuera de horario…)
       let reply = null;
-      if (text) reply = await handleIncoming(from, text);
+      let incomingData = null;
+      if (text) {
+        incomingData = await handleIncoming(from, text);
+        reply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
+        if (reply) state.lastReplySource = incomingData?.source || incomingData?.matched_trigger || "fixed";
+      }
 
       // 2) Fallback IA: si no hubo respuesta fija Y hay texto o nota de voz,
       //    pedimos al backend un reply generado (respeta sandbox/límite/enabled).
-      if (!reply && (text || audioNode)) {
+      const shouldUseAi = !reply && (text || audioNode) && (audioNode || incomingData?.use_ai === true || incomingData?.error);
+      if (shouldUseAi) {
         let audioB64 = "";
         let audioMime = "";
         if (audioNode) {
@@ -608,38 +661,19 @@ async function startSocket() {
             logger.warn({ err: String(e) }, "audio download failed");
           }
         }
-        try {
-          const aiRes = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action: "ai_reply",
-              token: config.token,
-              from,
-              text: text || "",
-              audio_b64: audioB64,
-              audio_mime: audioMime,
-            }),
-          });
-          if (aiRes.ok) {
-            const aiData = await aiRes.json();
-            if (aiData && aiData.reply) reply = String(aiData.reply);
-            else if (aiData && aiData.error) logger.info({ err: aiData.error }, "ai_reply skipped");
-          } else {
-            logger.warn({ status: aiRes.status }, "ai_reply http fail");
-          }
-        } catch (e) {
-          logger.warn({ err: String(e) }, "ai_reply error");
+        reply = await requestAiReply(from, { text: text || "", audioB64, audioMime });
+        if (reply) state.lastReplySource = "ai";
+        if (!reply && incomingData?.use_ai === true) {
+          reply = buildSafetyReply();
+          state.lastReplySource = "safety";
         }
       }
 
       if (reply) {
         await new Promise((r) => setTimeout(r, humanDelay()));
-        try {
-          await sock.sendMessage(msg.key.remoteJid, { text: reply });
+        const sent = await sendReply(sock, msg, from, reply);
+        if (sent.ok) {
           logger.info({ from }, "replied");
-        } catch (e) {
-          logger.warn({ err: String(e) }, "reply send failed");
         }
       }
     }
@@ -686,7 +720,7 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
+      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
       return;
     }
     res.writeHead(404); res.end();
