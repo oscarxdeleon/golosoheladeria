@@ -10,7 +10,7 @@ Si el bot ya estaba conectado en ese PC, **no borres la carpeta anterior** ni la
 2. Ejecuta **`SOLUCION-SIN-SABER-CARPETA.bat`** si no sabes dónde quedó instalado el bot anterior. También funciona **`ACTUALIZAR-SIN-QR.bat`**.
 3. El actualizador hará una búsqueda profunda en Windows, conservará `config.json` y `auth_state/`, reemplazará solo el código del bot y lo iniciará de nuevo.
 
-Mientras `auth_state/` exista y WhatsApp no haya cerrado la sesión desde el celular, **no tendrás que vincular nuevamente con QR**.
+Mientras `auth_state/` exista y WhatsApp no haya cerrado la sesión desde el celular, **no tendrás que vincular nuevamente con QR**. Esta versión además crea una copia local en `auth_state_backups/latest/` y la restaura automáticamente si la carpeta activa se daña o desaparece durante un reinicio/actualización.
 
 ## Actualización definitiva en Ubuntu / Droplet con PM2
 
@@ -27,7 +27,7 @@ pm2 logs goloso-parque --lines 40 --nostream
 curl -s http://localhost:8791/status.json
 ```
 
-Debe aparecer `Versión : 8.8.0`. Si aparece otra versión, PM2 está apuntando a otra carpeta; el log ahora muestra la línea `Carpeta : ...` para identificarla.
+Debe aparecer `Versión : 8.12.0`. Si aparece otra versión, PM2 está apuntando a otra carpeta; el log ahora muestra la línea `Carpeta : ...` para identificarla.
 
 Si por error ejecutas `install-windows.bat`, esta versión primero intenta detectar la instalación anterior y convertir el proceso en actualización segura. Solo pedirá token y QR cuando no encuentre una instalación anterior con `auth_state/`.
 
