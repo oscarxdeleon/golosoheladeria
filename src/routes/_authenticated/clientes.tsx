@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogT
 import { Plus, Pencil, Trash2, Search, Star, Users, TrendingUp, Phone, MapPin, FileDown, Upload } from "lucide-react";
 import { formatMoney } from "@/lib/format";
 import { toast } from "sonner";
+import { toUpperText } from "@/lib/text-transform";
 import { z } from "zod";
 import * as XLSX from "xlsx";
 import { useRef } from "react";
@@ -95,12 +96,12 @@ function ClientesPage() {
       return toast.error(parsed.error.issues[0]?.message ?? "Datos inválidos");
     }
     const payload = {
-      name: parsed.data.name,
+      name: toUpperText(parsed.data.name),
       phone: parsed.data.phone || null,
-      address: parsed.data.address || null,
-      neighborhood: parsed.data.neighborhood || null,
+      address: parsed.data.address ? toUpperText(parsed.data.address) : null,
+      neighborhood: parsed.data.neighborhood ? toUpperText(parsed.data.neighborhood) : null,
       email: parsed.data.email || null,
-      notes: parsed.data.notes || null,
+      notes: parsed.data.notes ? toUpperText(parsed.data.notes) : null,
     };
     const { error } = edit.id
       ? await supabase.from("customers").update(payload).eq("id", edit.id)
