@@ -560,11 +560,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // Reintento defensivo: si quedó vacío, pedir respuesta directa breve sin tools.
               if (!finalReply) {
                 try {
-                  const retry = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+                  const retry = await fetch(aiUrlBase, {
                     method: "POST",
-                    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+                    headers: { Authorization: aiAuthHeader, "Content-Type": "application/json" },
                     body: JSON.stringify({
-                      model: "google/gemini-2.5-flash",
+                      model: mapModel("google/gemini-2.5-flash"),
                       messages: [
                         { role: "system", content: finalSystemPrompt },
                         ...history.map((m) => ({ role: m.role, content: m.content })),
@@ -580,6 +580,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   }
                 } catch { /* noop */ }
               }
+
 
               // Fallback final: nunca dejar al cliente sin respuesta.
               if (!finalReply) {
