@@ -328,8 +328,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "1) Usa search_products para encontrar el producto exacto que pide el cliente (no inventes precios).",
                 "2) Si el producto tiene grupos de modificadores (sabores, toppings, etc.), llama get_modifiers y ofrece SOLO las opciones que devuelve.",
                 "3) Cuando tengas producto+modificadores+cantidad, llama add_to_cart. Repite hasta armar el pedido completo.",
-                "4) Pregunta y guarda con set_delivery_info: nombre, dirección completa, barrio, método de pago (cash o transfer), notas si aplica.",
-                "5) Antes de confirmar, muestra un RESUMEN completo con productos, subtotal, domicilio, total, y método de pago, y pide confirmación explícita ('¿confirmas el pedido?').",
+                "4) Pregunta y guarda con set_delivery_info los datos EN ESTE ORDEN, SIN OMITIR NINGUNO:",
+                "   a) NOMBRE del cliente (OBLIGATORIO — SIEMPRE pregunta primero '¿A nombre de quién registro el pedido?' y NO continues con dirección/barrio/pago hasta tenerlo).",
+                "   b) Dirección completa.",
+                "   c) Barrio.",
+                "   d) Método de pago (cash o transfer).",
+                "   e) Notas adicionales si aplica.",
+                "   ⚠️ NUNCA llames confirm_order si no has capturado el NOMBRE del cliente. Si intentas confirmar sin nombre, el sistema rechazará el pedido.",
+                "5) Antes de confirmar, muestra un RESUMEN completo incluyendo NOMBRE del cliente, productos, subtotal, domicilio, total y método de pago; pide confirmación explícita ('¿Confirmas el pedido, [nombre]?').",
                 "6) Solo cuando el cliente diga SÍ / CONFIRMO / DALE, llama confirm_order. Devolverá el nº de pedido.",
                 "7) Si el cliente cambia de opinión, llama cancel_order.",
                 "8) Recuerda: el pedido queda PENDIENTE DE REVISIÓN por el cajero. Dile al cliente: 'Tu pedido quedó registrado con el nº X y será confirmado en unos minutos por nuestro equipo.'",
@@ -393,8 +399,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       return r.ok ? (r.data ?? { empty: true }) : { error: "cart_read_failed" };
                     }
                     case "confirm_order": {
+                      // Guardia dura: exigir customer_name antes de cerrar el pedido
+                      const preCart = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      const preData = (preCart.ok ? preCart.data : null) as { customer_name?: string | null } | null;
+                      const nameOk = typeof preData?.customer_name === "string" && preData.customer_name.trim().length >= 2;
+                      if (!nameOk) {
+                        return { error: "missing_customer_name", message: "Falta el NOMBRE del cliente. Pregúntalo primero con set_delivery_info (customer_name) y luego vuelve a confirmar." };
+                      }
                       if (dryRun) {
-                        // Modo prueba: no insertar en sales. Cancelar carrito para dejarlo limpio.
                         await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
                         const fakeNumber = "TEST-" + Math.floor(1000 + Math.random() * 9000);
                         return { ok: true, dry_run: true, order: { order_number: fakeNumber, simulated: true } };
