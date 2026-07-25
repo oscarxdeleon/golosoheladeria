@@ -1142,6 +1142,30 @@ export type Database = {
         }
         Relationships: []
       }
+      gemini_quota_daily: {
+        Row: {
+          alert_80_sent: boolean
+          alert_95_sent: boolean
+          call_count: number
+          updated_at: string
+          usage_date: string
+        }
+        Insert: {
+          alert_80_sent?: boolean
+          alert_95_sent?: boolean
+          call_count?: number
+          updated_at?: string
+          usage_date?: string
+        }
+        Update: {
+          alert_80_sent?: boolean
+          alert_95_sent?: boolean
+          call_count?: number
+          updated_at?: string
+          usage_date?: string
+        }
+        Relationships: []
+      }
       inventory_movements: {
         Row: {
           created_at: string
@@ -2360,6 +2384,8 @@ export type Database = {
           command_formats: Json
           delivery_fee: number
           enable_tips: boolean
+          gemini_alert_emails: string[]
+          gemini_daily_limit: number
           id: number
           local_print_url: string | null
           logo_url: string | null
@@ -2391,6 +2417,8 @@ export type Database = {
           command_formats?: Json
           delivery_fee?: number
           enable_tips?: boolean
+          gemini_alert_emails?: string[]
+          gemini_daily_limit?: number
           id?: number
           local_print_url?: string | null
           logo_url?: string | null
@@ -2422,6 +2450,8 @@ export type Database = {
           command_formats?: Json
           delivery_fee?: number
           enable_tips?: boolean
+          gemini_alert_emails?: string[]
+          gemini_daily_limit?: number
           id?: number
           local_print_url?: string | null
           logo_url?: string | null
@@ -3777,6 +3807,15 @@ export type Database = {
       }
       terminal_record_attendance: { Args: { _payload: Json }; Returns: Json }
       touch_tablet_last_seen: { Args: { _token: string }; Returns: undefined }
+      track_gemini_call: {
+        Args: { _source?: string }
+        Returns: {
+          alert_emails: string[]
+          alert_level: string
+          call_count: number
+          daily_limit: number
+        }[]
+      }
       whatsapp_bot_ack_command: {
         Args: { _command: string; _token: string }
         Returns: Json
