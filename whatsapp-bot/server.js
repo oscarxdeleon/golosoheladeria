@@ -1094,7 +1094,10 @@ function listenOnAvailablePort(server, port, remainingAttempts) {
 }
 
 async function main() {
-  if (!acquireInstanceLock()) return;
+  if (!acquireInstanceLock()) {
+    setInterval(() => {}, 60_000);
+    return;
+  }
   console.log(`\n🍨 Goloso WhatsApp Bot`);
   console.log(`   Versión : ${BOT_VERSION}`);
   console.log(`   Carpeta : ${__dirname}`);

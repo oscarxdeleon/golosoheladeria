@@ -110,7 +110,35 @@ if [[ "${downloaded_version}" != "${BOT_VERSION}" ]]; then
 fi
 
 echo ""
-echo "== Deteniendo proceso anterior =="
+echo "== Deteniendo proceso anterior y duplicados de la misma sede =="
+pm2_json="${tmp_dir}/pm2.json"
+pm2 jlist > "${pm2_json}" 2>/dev/null || echo "[]" > "${pm2_json}"
+mapfile -t duplicate_pm2_names < <(GOLOSO_TARGET_DIR="${TARGET_DIR}" GOLOSO_PM2_NAME="${PM2_NAME}" GOLOSO_PM2_JSON="${pm2_json}" node <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const targetDir = process.env.GOLOSO_TARGET_DIR;
+const pm2Name = process.env.GOLOSO_PM2_NAME;
+const pm2Json = process.env.GOLOSO_PM2_JSON;
+let targetToken = '';
+try { targetToken = JSON.parse(fs.readFileSync(path.join(targetDir, 'config.json'), 'utf8')).token || ''; } catch {}
+let list = [];
+try { list = JSON.parse(fs.readFileSync(pm2Json, 'utf8') || '[]'); } catch {}
+const names = new Set();
+for (const p of list) {
+  const name = String(p.name || '');
+  const cwd = p.pm2_env?.pm_cwd || p.pm2_env?.PWD || '';
+  const script = p.pm2_env?.pm_exec_path || '';
+  const dir = cwd || (script ? path.dirname(script) : '');
+  let token = '';
+  try { token = dir ? JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).token || '' : ''; } catch {}
+  if (name === pm2Name || (targetToken && token && token === targetToken)) names.add(name || String(p.pm_id));
+}
+for (const name of names) console.log(name);
+NODE
+)
+for old_name in "${duplicate_pm2_names[@]:-}"; do
+  [[ -n "${old_name}" ]] && pm2 delete "${old_name}" >/dev/null 2>&1 || true
+done
 pm2 stop "${PM2_NAME}" >/dev/null 2>&1 || true
 
 echo ""
