@@ -183,6 +183,58 @@ function operationalReply(menuLink: string, takingOrders = false) {
   return `Con gusto te atiendo. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
 }
 
+/**
+ * Cortocircuito de ahorro de créditos. Detecta mensajes triviales
+ * (agradecimientos, "ok", emojis, saludos cortos, pedidos de menú)
+ * y devuelve una respuesta determinista SIN llamar al modelo de IA.
+ * Cada llamada evitada ahorra ~13.000 tokens de entrada.
+ */
+function shortCircuitReply(input: string, menuLink: string): { reply: string; event: string | null } | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const normalized = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[¿?¡!.,;:()"']/g, "")
+    .trim();
+  const words = normalized.split(/\s+/).filter(Boolean);
+  // Solo evaluamos mensajes cortos para no atrapar preguntas reales.
+  if (words.length > 4) return null;
+
+  // Solo emojis / stickers / signos → no responder (0 créditos, evita ruido).
+  const onlyEmojis = /^[\p{Emoji}\p{Extended_Pictographic}\s❤️👍👌🙏✨🍦🍨🥤]+$/u.test(raw);
+  if (onlyEmojis) return { reply: "", event: null };
+
+  // Agradecimientos → respuesta breve + sticker de gracias.
+  if (/\b(gracias|thanks|thank|agradezco|muy amable|mil gracias|dios te pague)\b/.test(normalized)) {
+    return { reply: "¡Con mucho gusto! 🍦 Estamos para servirte cuando quieras.", event: "thanks" };
+  }
+
+  // Confirmaciones triviales → no ameritan respuesta (o breve).
+  if (/^(ok|okay|listo|dale|vale|bueno|si|sii|siii|no|nop|va|bien|perfecto|entendido|👍|👌|🙏)$/.test(normalized)) {
+    return { reply: "", event: null };
+  }
+
+  // Pedido de menú → link directo, sin IA.
+  if (/\b(menu|menú|carta|catalogo|catálogo|precios|lista)\b/.test(normalized)) {
+    return {
+      reply: `Aquí está nuestro menú con fotos y precios actualizados 👉 ${menuLink}\n\nSi quieres pedir por aquí, dime qué te provoca. 🍦`,
+      event: "menu",
+    };
+  }
+
+  // Saludos cortos sin más contexto → bienvenida breve + link.
+  if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
+    return {
+      reply: `¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nTe comparto el menú con fotos y precios 👉 ${menuLink}\n\nDime en qué te ayudo.`,
+      event: "welcome",
+    };
+  }
+
+  return null;
+}
+
 export const Route = createFileRoute("/api/public/whatsapp-bot")({
   server: {
     handlers: {
