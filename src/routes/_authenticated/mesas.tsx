@@ -263,7 +263,7 @@ function MesasPage() {
       _reason: releaseReason.trim(),
     });
     setReleasing(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(translateError(error.message));
     toast.success(`Mesa ${releaseMesa.number} liberada`);
     setReleaseMesa(null);
     setReleaseReason("");
