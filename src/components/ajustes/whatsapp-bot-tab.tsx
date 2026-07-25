@@ -326,6 +326,27 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               <RotateCw className={`mr-2 h-4 w-4 ${busyCmd === "reconnect" ? "animate-spin" : ""}`} /> Reconectar
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRestartOpen(true)}
+              disabled={busyCmd !== null}
+              title="Reinicia el servicio del bot en el servidor (PM2 lo respawnará)."
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${busyCmd === "restart" ? "animate-spin" : ""}`} /> 🚀 Reiniciar Bot
+            </Button>
+            {isAdmin && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setUpdateOpen(true)}
+                disabled={busyCmd !== null}
+                title="Descarga la última versión y reinicia el bot automáticamente."
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Download className={`mr-2 h-4 w-4 ${busyCmd === "update" ? "animate-spin" : ""}`} /> 🔄 Actualizar Bot
+              </Button>
+            )}
+            <Button
               variant="destructive"
               size="sm"
               onClick={() => setUnlinkOpen(true)}
@@ -333,6 +354,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             >
               <LogOut className="mr-2 h-4 w-4" /> Desvincular dispositivo
             </Button>
+
             <div className="flex items-center gap-2">
               <Switch id="bot-enabled" checked={cfg.enabled} onCheckedChange={toggleEnabled} />
               <Label htmlFor="bot-enabled" className="text-sm font-semibold">Bot activo</Label>
