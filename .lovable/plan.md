@@ -1,87 +1,73 @@
-# Fase 2B — Bot toma pedidos de domicilio
+## Objetivo
+Bloquear al **Cajero** de liberar, mover, fusionar o cancelar mesas/pedidos. Solo **Admin/Supervisor** podrán hacerlo. Añadir un **Panel de Pedidos Activos en Tiempo Real** en el módulo Admin con capacidad de cancelar/liberar con auditoría.
 
-El bot arma el pedido conversando con el cliente, y cuando este confirma, entra al POS como pedido pendiente en la pestaña "Pedidos online" con badge especial 🤖 para que el cajero revise antes de imprimir comanda.
+---
 
-## Alcance confirmado
+## 1. Backend (SQL) — validación de rol
 
-- **Solo domicilio** en Fase 2B (recoger y programado se agregan en 2C si funciona bien).
-- **Cajero revisa y confirma** antes de que la comanda vaya a cocina.
-- **Pago**: efectivo o transferencia con confirmación manual del cajero.
+Nueva migración que refuerza roles en las RPC existentes:
 
-## Piezas a construir
+- `release_table(_table_id, _reason)`: exigir `has_role(uid,'admin') OR has_role(uid,'supervisor')`. Si no, `RAISE EXCEPTION 'ROLE_FORBIDDEN: Esta acción requiere autorización...'`.
+- `move_table(...)`: misma validación.
+- `merge_tables(...)`: misma validación.
+- `cancel_sale(...)`: ya restringido — mejorar el mensaje de error para incluir el texto estándar.
+- Nuevo RPC `admin_delete_sale(_sale_id, _reason)` (SECURITY DEFINER):
+  - Solo admin/supervisor.
+  - Marca `status='cancelled'`, revierte inventario, libera mesa si aplica, escribe en `audit_log` con `action='delete_sale'`, guarda rol.
+- Todas las acciones ya escriben en `audit_log` y/o `table_events`; verificar que incluyan `cancelled_by_role`.
 
-### 1. Base de datos
+## 2. Frontend — bloqueo en UI
 
-- Nueva tabla `whatsapp_ai_carts` (borrador del pedido en curso por cliente/sede): items, dirección, teléfono, método de pago, estado (`building` / `confirmed` / `cancelled` / `posted`).
-- Extender `sales` con `ai_review_status text` (`pending_review` / `approved` / `rejected`) y `source` = `'whatsapp_bot'`.
-- Nuevas RPCs invocables por el endpoint del bot (via token de sede):
-  - `whatsapp_bot_ai_search_products(_token, _query)` → devuelve productos activos que matcheen, con precios reales.
-  - `whatsapp_bot_ai_get_flavors(_token, _product_id)` → sabores disponibles del grupo modificador correcto.
-  - `whatsapp_bot_ai_cart_upsert(_token, _phone, _payload)` → crea/actualiza carrito borrador.
-  - `whatsapp_bot_ai_cart_confirm(_token, _phone)` → valida carrito, inserta en `sales` + `sale_items` con `ai_review_status='pending_review'`, devuelve nº pedido.
-- RLS: admins/supervisores ven los carritos; el bot escribe vía SECURITY DEFINER con token.
+**Archivo `src/routes/_authenticated/mesas.tsx`**
+- Leer rol desde `useAuth()` (ya existe helper `hasRole`).
+- Deshabilitar/ocultar botones "Liberar", "Mover", "Fusionar", "Cancelar pedido" cuando el usuario no es admin ni supervisor.
+- Si intentan la acción por otra vía → `toast.error("Esta acción requiere autorización. Comunícate con un Administrador o Supervisor...")`.
 
-### 2. Endpoint IA con tool-calling
+**Archivo `src/lib/sales-cancellation.ts`**
+- Traducir el mensaje de error de PostgREST al texto estándar cuando venga `ROLE_FORBIDDEN`.
 
-Modificar `src/routes/api/public/whatsapp-bot.ts` (acción `ai_reply`):
-- Ampliar el llamado a Gemini con **function calling**: se declaran las tools `search_products`, `get_flavors`, `add_to_cart`, `set_delivery_info`, `show_cart`, `confirm_order`, `cancel_order`.
-- Loop de hasta 5 rondas: el modelo pide tool → servidor ejecuta RPC → devuelve resultado → modelo continúa hasta responder al cliente.
-- Cada tool valida contra la DB (precios/sabores/stock reales, nada inventado).
-- Bloqueos automáticos: fuera de horario → responde con opción de programar (Fase 2C) o rechaza; sin dirección → no permite confirmar.
+## 3. Panel de Pedidos Activos en Tiempo Real
 
-### 3. Panel de revisión en el POS
+**Nuevo archivo `src/routes/_authenticated/pedidos-activos.tsx`** (ruta `/pedidos-activos`)
+- Gate: solo visible/accesible para admin y supervisor (redirige con toast si otro rol entra).
+- Query con `useQuery` a `sales` filtrando `status IN ('pending','confirmed','ready')` de la sede actual (o todas si admin y sin sede seleccionada).
+- Suscripción realtime a `sales` y `sale_items` (patrón `use-realtime-branch-sync` ya existe).
+- Tabs / secciones por `order_type`:
+  - 🍽️ Mesa · 🛍️ Para llevar · 🛵 Domicilio · 🌐 En línea · 🤖 Autopedidos (kiosco)
+- Cada card muestra: `#ticket`, tipo, estado, `created_at`, cliente, mesa, total, `user_name`, sede.
+- Acciones (solo admin/supervisor):
+  - **Cancelar** → dialog con motivo obligatorio (min 3 chars) + confirmación "¿Está seguro…" → llama `cancel_sale`.
+  - **Eliminar** → dialog con motivo + confirmación → llama nuevo RPC `admin_delete_sale`.
+  - **Liberar mesa** (si `table_id` existe) → dialog con motivo → llama `release_table`.
 
-Modificar `src/routes/_authenticated/pedidos-online.tsx`:
-- Los pedidos con `ai_review_status='pending_review'` aparecen con banner amarillo **🤖 Pedido IA — Revisar**.
-- Botones: **Aprobar y imprimir comanda** / **Editar** / **Rechazar**.
-- Al aprobar → cambia estado, dispara impresión de comanda (mismo flujo actual), notifica al cliente por WhatsApp: *"¡Pedido confirmado! 🎉 Llega en ~X min."*
-- Al rechazar → notifica al cliente con motivo.
+**Añadir enlace en el sidebar del admin** (`src/components/app-sidebar.tsx` o similar) — enlace "Pedidos activos" visible solo para admin/supervisor.
 
-### 4. Notificaciones al cliente
+## 4. Auditoría
 
-Reutiliza `whatsapp_outbound_queue` existente:
-- Confirmación con nº pedido y ETA cuando el cajero aprueba.
-- Aviso "salió a domicilio" cuando cambia estado (ya existe).
+Todas las RPC anteriores ya insertan en `audit_log` con `user_id`, `user_name`, `branch_id`, `action`, `meta`. Añadir en `meta`:
+- `role` (admin/supervisor)
+- `order_type`
+- `reason`
 
-### 5. Salvaguardas
+## 5. Pruebas
 
-- **Confirmación explícita** antes de crear pedido — el bot debe mostrar resumen y esperar "sí"/"confirmo".
-- **Dedup**: si el mismo número confirma dos veces seguidas en 60s → segundo pedido rechazado.
-- **Rate limit**: máx 3 pedidos por número por día vía bot.
-- **Log de auditoría**: cada acción tool queda en `whatsapp_bot_messages` para depuración.
-- **Modo sandbox sigue vigente**: la toma de pedidos IA solo funciona para los números autorizados hasta que la actives para todos.
+- Iniciar sesión como cajero → verificar que en `/mesas` los botones estén deshabilitados y que la llamada directa a `release_table` devuelva error controlado.
+- Iniciar sesión como admin → cancelar pedido de mesa, para llevar y domicilio → verificar en `audit_log`.
+- Verificar realtime del panel: crear pedido en otra pestaña, aparece sin refrescar.
 
-## Configuración por sede (nueva sección en pestaña WhatsApp Bot)
+---
 
-- Toggle **"Bot puede tomar pedidos"** (independiente del toggle de conversación).
-- Monto mínimo de domicilio.
-- Zonas/barrios de cobertura (texto libre que el bot lee).
-- Costo de domicilio base o por zona.
-- Datos de transferencia (Nequi/Daviplata/número) que el bot comparte cuando el cliente elige transferir.
+## Archivos afectados
 
-## Fuera de alcance (Fase 2C+)
-
-- Pedidos para recoger.
-- Programación de pedidos fuera de horario.
-- Cálculo automático de domicilio por distancia GPS.
-- Pasarela de pago en línea.
-- Modificación del pedido después de aprobado.
-
-## Orden de implementación
-
-1. Migración DB (tabla `whatsapp_ai_carts` + columnas `ai_review_status` + RPCs).
-2. Endpoint IA con tool-calling (mensaje más largo — es el corazón).
-3. Panel de revisión en `pedidos-online.tsx`.
-4. Configuración en pestaña WhatsApp Bot.
-5. Prueba en sandbox con tu número.
-
-Total estimado: 4-5 mensajes de build hasta tener el flujo end-to-end funcionando en sandbox.
+- `supabase/migrations/*_role_lock_tables.sql` (nueva)
+- `src/routes/_authenticated/mesas.tsx`
+- `src/lib/sales-cancellation.ts`
+- `src/routes/_authenticated/pedidos-activos.tsx` (nueva)
+- `src/components/app-sidebar.tsx` (o el archivo del menú)
 
 ## Detalles técnicos
 
-- **Modelo**: `google/gemini-3.6-flash` (soporta function calling nativo, ya lo usamos). Fallback `openai/gpt-5.5` si Gemini rechaza el tool schema.
-- **Tool schemas** definidos en el endpoint TS, sin bounds estrictos (siguiendo `ai-sdk-agent-patterns`: los límites van en el prompt, no en el schema, para evitar rechazos del gateway).
-- **Estado del carrito** persistido en DB, no en memoria — el bot es stateless y varias sedes comparten worker.
-- **Sin cambios en el bot local (Baileys)** — el flujo actual `incoming → ai_reply → send` sigue igual, todo el trabajo nuevo pasa server-side.
-
-¿Apruebas? Si dices **sí** arranco por la migración.
+- Validación de rol **siempre en SQL** (SECURITY DEFINER RPC con `has_role`), UI solo es UX.
+- `admin_delete_sale` marca `cancelled` en vez de `DELETE` físico para preservar historial fiscal.
+- Realtime: `supabase.channel('active-orders').on('postgres_changes',{event:'*',table:'sales'},...)` con teardown en `useEffect` cleanup.
+- El panel filtra por `branch_id` según `useBranch()`; admin sin sede ve todas.

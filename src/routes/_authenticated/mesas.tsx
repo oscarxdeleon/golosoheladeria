@@ -128,7 +128,18 @@ function UsersMini() {
 function MesasPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, roles } = useAuth();
+  const canManageTables = isAdmin || roles.includes("supervisor");
+  const ROLE_FORBIDDEN_MSG = "Esta acción requiere autorización. Comunícate con un Administrador o Supervisor para liberar, mover, fusionar o anular esta mesa.";
+  const translateError = (msg: string) =>
+    msg?.includes("ROLE_FORBIDDEN") ? ROLE_FORBIDDEN_MSG : msg;
+  const guardManage = () => {
+    if (!canManageTables) {
+      toast.error(ROLE_FORBIDDEN_MSG);
+      return false;
+    }
+    return true;
+  };
   const { activeBranchId, activeBranch } = useBranch();
   const [createOpen, setCreateOpen] = useState(false);
   const [newNumber, setNewNumber] = useState("");
@@ -246,13 +257,14 @@ function MesasPage() {
     if (releaseReason.trim().length < 3) {
       return toast.error("Ingresa un motivo (mínimo 3 caracteres)");
     }
+    if (!guardManage()) return;
     setReleasing(true);
     const { error } = await supabase.rpc("release_table", {
       _table_id: releaseMesa.id,
       _reason: releaseReason.trim(),
     });
     setReleasing(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(translateError(error.message));
     toast.success(`Mesa ${releaseMesa.number} liberada`);
     setReleaseMesa(null);
     setReleaseReason("");
@@ -261,6 +273,7 @@ function MesasPage() {
 
   async function doMove(force = false) {
     if (!moveFrom || !moveTarget) return;
+    if (!guardManage()) return;
     setMoving(true);
     const { error } = await supabase.rpc("move_table", {
       _from_table_id: moveFrom.id,
@@ -276,7 +289,7 @@ function MesasPage() {
         }
         return;
       }
-      return toast.error(error.message);
+      return toast.error(translateError(error.message));
     }
     toast.success(`Pedido movido a Mesa ${moveTarget.number}`);
     setMoveFrom(null);
@@ -302,6 +315,7 @@ function MesasPage() {
     if (!mergePrincipal) return toast.error("Selecciona la mesa principal");
     const sources = mergeSelected.filter((id) => id !== mergePrincipal);
     if (sources.length === 0) return toast.error("Selecciona al menos una mesa a fusionar");
+    if (!guardManage()) return;
     setMerging(true);
     const { error } = await supabase.rpc("merge_tables", {
       _principal_id: mergePrincipal,
@@ -309,7 +323,7 @@ function MesasPage() {
       _reason: undefined,
     });
     setMerging(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(translateError(error.message));
     toast.success("Mesas fusionadas");
     cancelMerge();
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
@@ -321,7 +335,7 @@ function MesasPage() {
       _principal_id: splitTarget.id,
       _reason: undefined,
     });
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(translateError(error.message));
     toast.success("Mesas separadas");
     setSplitTarget(null);
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
@@ -469,9 +483,11 @@ function MesasPage() {
       {/* Barra de acciones: fusionar/separar mesas + crear */}
       <div className="flex flex-wrap items-center justify-end gap-2">
         {!mergeMode ? (
-          <Button size="sm" variant="outline" onClick={() => setMergeMode(true)}>
-            <Link2 className="h-4 w-4" /> Fusionar mesas
-          </Button>
+          canManageTables && (
+            <Button size="sm" variant="outline" onClick={() => setMergeMode(true)}>
+              <Link2 className="h-4 w-4" /> Fusionar mesas
+            </Button>
+          )
         ) : (
           <>
             <span className="text-xs text-muted-foreground">
@@ -571,7 +587,7 @@ function MesasPage() {
               )}
 
               {/* acciones flotantes */}
-              {status === "occupied" && (
+              {status === "occupied" && canManageTables && (
                 <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-1.5">
                   <span
                     role="button"

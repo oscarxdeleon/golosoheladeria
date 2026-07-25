@@ -30,6 +30,7 @@ import { Route as AuthenticatedReportesRouteImport } from './routes/_authenticat
 import { Route as AuthenticatedRepartidoresRouteImport } from './routes/_authenticated/repartidores'
 import { Route as AuthenticatedPosRouteImport } from './routes/_authenticated/pos'
 import { Route as AuthenticatedPedidosOnlineRouteImport } from './routes/_authenticated/pedidos-online'
+import { Route as AuthenticatedPedidosActivosRouteImport } from './routes/_authenticated/pedidos-activos'
 import { Route as AuthenticatedOpinionesRouteImport } from './routes/_authenticated/opiniones'
 import { Route as AuthenticatedMonitoreoRouteImport } from './routes/_authenticated/monitoreo'
 import { Route as AuthenticatedMesasAdminRouteImport } from './routes/_authenticated/mesas-admin'
@@ -186,6 +187,12 @@ const AuthenticatedPedidosOnlineRoute =
   AuthenticatedPedidosOnlineRouteImport.update({
     id: '/pedidos-online',
     path: '/pedidos-online',
+    getParentRoute: () => AuthenticatedRouteRoute,
+  } as any)
+const AuthenticatedPedidosActivosRoute =
+  AuthenticatedPedidosActivosRouteImport.update({
+    id: '/pedidos-activos',
+    path: '/pedidos-activos',
     getParentRoute: () => AuthenticatedRouteRoute,
   } as any)
 const AuthenticatedOpinionesRoute = AuthenticatedOpinionesRouteImport.update({
@@ -479,6 +486,7 @@ export interface FileRoutesByFullPath {
   '/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/monitoreo': typeof AuthenticatedMonitoreoRoute
   '/opiniones': typeof AuthenticatedOpinionesRoute
+  '/pedidos-activos': typeof AuthenticatedPedidosActivosRoute
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/repartidores': typeof AuthenticatedRepartidoresRoute
@@ -549,6 +557,7 @@ export interface FileRoutesByTo {
   '/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/monitoreo': typeof AuthenticatedMonitoreoRoute
   '/opiniones': typeof AuthenticatedOpinionesRoute
+  '/pedidos-activos': typeof AuthenticatedPedidosActivosRoute
   '/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/pos': typeof AuthenticatedPosRoute
   '/repartidores': typeof AuthenticatedRepartidoresRoute
@@ -619,6 +628,7 @@ export interface FileRoutesById {
   '/_authenticated/mesas-admin': typeof AuthenticatedMesasAdminRoute
   '/_authenticated/monitoreo': typeof AuthenticatedMonitoreoRoute
   '/_authenticated/opiniones': typeof AuthenticatedOpinionesRoute
+  '/_authenticated/pedidos-activos': typeof AuthenticatedPedidosActivosRoute
   '/_authenticated/pedidos-online': typeof AuthenticatedPedidosOnlineRoute
   '/_authenticated/pos': typeof AuthenticatedPosRoute
   '/_authenticated/repartidores': typeof AuthenticatedRepartidoresRoute
@@ -691,6 +701,7 @@ export interface FileRouteTypes {
     | '/mesas-admin'
     | '/monitoreo'
     | '/opiniones'
+    | '/pedidos-activos'
     | '/pedidos-online'
     | '/pos'
     | '/repartidores'
@@ -761,6 +772,7 @@ export interface FileRouteTypes {
     | '/mesas-admin'
     | '/monitoreo'
     | '/opiniones'
+    | '/pedidos-activos'
     | '/pedidos-online'
     | '/pos'
     | '/repartidores'
@@ -830,6 +842,7 @@ export interface FileRouteTypes {
     | '/_authenticated/mesas-admin'
     | '/_authenticated/monitoreo'
     | '/_authenticated/opiniones'
+    | '/_authenticated/pedidos-activos'
     | '/_authenticated/pedidos-online'
     | '/_authenticated/pos'
     | '/_authenticated/repartidores'
@@ -1033,6 +1046,13 @@ declare module '@tanstack/react-router' {
       path: '/pedidos-online'
       fullPath: '/pedidos-online'
       preLoaderRoute: typeof AuthenticatedPedidosOnlineRouteImport
+      parentRoute: typeof AuthenticatedRouteRoute
+    }
+    '/_authenticated/pedidos-activos': {
+      id: '/_authenticated/pedidos-activos'
+      path: '/pedidos-activos'
+      fullPath: '/pedidos-activos'
+      preLoaderRoute: typeof AuthenticatedPedidosActivosRouteImport
       parentRoute: typeof AuthenticatedRouteRoute
     }
     '/_authenticated/opiniones': {
@@ -1425,6 +1445,7 @@ interface AuthenticatedRouteRouteChildren {
   AuthenticatedMesasAdminRoute: typeof AuthenticatedMesasAdminRoute
   AuthenticatedMonitoreoRoute: typeof AuthenticatedMonitoreoRoute
   AuthenticatedOpinionesRoute: typeof AuthenticatedOpinionesRoute
+  AuthenticatedPedidosActivosRoute: typeof AuthenticatedPedidosActivosRoute
   AuthenticatedPedidosOnlineRoute: typeof AuthenticatedPedidosOnlineRoute
   AuthenticatedPosRoute: typeof AuthenticatedPosRoute
   AuthenticatedRepartidoresRoute: typeof AuthenticatedRepartidoresRoute
@@ -1469,6 +1490,7 @@ const AuthenticatedRouteRouteChildren: AuthenticatedRouteRouteChildren = {
   AuthenticatedMesasAdminRoute: AuthenticatedMesasAdminRoute,
   AuthenticatedMonitoreoRoute: AuthenticatedMonitoreoRoute,
   AuthenticatedOpinionesRoute: AuthenticatedOpinionesRoute,
+  AuthenticatedPedidosActivosRoute: AuthenticatedPedidosActivosRoute,
   AuthenticatedPedidosOnlineRoute: AuthenticatedPedidosOnlineRoute,
   AuthenticatedPosRoute: AuthenticatedPosRoute,
   AuthenticatedRepartidoresRoute: AuthenticatedRepartidoresRoute,
@@ -1528,13 +1550,3 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
