@@ -39,7 +39,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.14.0";
+const BOT_VERSION = "8.15.0";
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
@@ -514,7 +514,7 @@ async function handleIncoming(from, body) {
     const res = await postBackendJson({ action: "incoming", from, message: body }, { label: "incoming" });
     if (!res.ok) {
       logger.warn({ status: res.status, body: res.text }, "incoming push failed");
-      return null;
+      return { reply: null, error: res.text || `HTTP ${res.status}`, use_ai: true };
     }
     const data = res.data;
     return data && typeof data === "object" ? data : { reply: null };
@@ -536,7 +536,7 @@ async function requestAiReply(from, { text, audioB64, audioMime }) {
       text: text || "",
       audio_b64: audioB64 || "",
       audio_mime: audioMime || "",
-    }, { label: "ai_reply", timeoutMs: 60_000, retries: 2 });
+    }, { label: "ai_reply", timeoutMs: 35_000, retries: 1 });
     if (!res.ok) {
       logger.warn({ status: res.status, body: res.text }, "ai_reply http fail");
       state.lastAiError = `ai_reply respondió HTTP ${res.status}`;
@@ -568,7 +568,7 @@ async function sendReply(sock, msg, from, reply) {
   let lastErr = null;
   for (const jid of uniqueTargets) {
     try {
-      await sock.sendMessage(jid, { text: reply });
+      await withTimeout(sock.sendMessage(jid, { text: reply }), 15_000, "Enviar respuesta por WhatsApp");
       state.lastReplyAt = Date.now();
       state.lastReplyError = null;
       return { ok: true, jid };
@@ -615,6 +615,9 @@ function enqueueIncoming(from, task) {
   const next = previous
     .catch(() => {})
     .then(task)
+    .catch((e) => {
+      logger.warn({ err: String(e), from }, "incoming task failed");
+    })
     .finally(() => {
       if (incomingQueues.get(from) === next) incomingQueues.delete(from);
     });
@@ -660,7 +663,7 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
     }
     reply = await requestAiReply(from, { text: text || "", audioB64, audioMime });
     if (reply) state.lastReplySource = "ai";
-    if (!reply && incomingData?.use_ai === true) {
+    if (!reply && shouldUseAi) {
       reply = buildSafetyReply();
       state.lastReplySource = "operational";
     }
@@ -739,11 +742,11 @@ async function pollOutbound() {
       if (!to || !item.body) { failed.push(item.id); continue; }
       const jid = `${to}@s.whatsapp.net`;
       try {
-        const exists = await currentSock.onWhatsApp(jid).catch(() => null);
+        const exists = await withTimeout(currentSock.onWhatsApp(jid).catch(() => null), 10_000, "Validar número de WhatsApp");
         if (Array.isArray(exists) && exists.length > 0 && exists[0]?.exists === false) {
           throw new Error(`El número ${to} no aparece activo en WhatsApp`);
         }
-        await currentSock.sendMessage(jid, { text: String(item.body) });
+        await withTimeout(currentSock.sendMessage(jid, { text: String(item.body) }), 20_000, "Enviar mensaje saliente");
         sent.push(item.id);
         logger.info({ to }, "outbound sent");
         await new Promise((r) => setTimeout(r, OUTBOUND_DELAY_MIN + Math.random() * (OUTBOUND_DELAY_MAX - OUTBOUND_DELAY_MIN)));
@@ -826,7 +829,14 @@ async function startSocket() {
       const code = lastDisconnect?.error?.output?.statusCode;
       const shouldReconnect = code !== DisconnectReason.loggedOut;
       logger.warn({ code, shouldReconnect }, "connection closed");
-      if (Date.now() < suppressAutoReconnectUntil) return;
+      if (Date.now() < suppressAutoReconnectUntil) {
+        const waitMs = Math.max(1_000, suppressAutoReconnectUntil - Date.now() + 750);
+        state.status = "connecting";
+        state.detail = "Reconexión pausada brevemente mientras se repara la sesión cifrada. Se reintentará automáticamente.";
+        pushStatus();
+        setTimeout(() => startSocket().catch((e) => logger.error(e)), waitMs);
+        return;
+      }
       if (!shouldReconnect) {
         await startFreshPairingAfterLogout("WhatsApp reportó cierre de sesión y no hubo copia válida para restaurar");
         return;

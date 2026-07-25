@@ -147,6 +147,14 @@ function operationalReply(menuLink: string, takingOrders = false) {
   return `Con gusto te atiendo. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
 }
 
+const AI_TOTAL_BUDGET_MS = 28_000;
+const AI_CALL_TIMEOUT_MS = 14_000;
+const AI_MAX_TOOL_ROUNDS = 3;
+
+function hasAiBudget(startedAt: number, reserveMs = 2_500) {
+  return elapsedMs(startedAt) < AI_TOTAL_BUDGET_MS - reserveMs;
+}
+
 /**
  * Cortocircuito de ahorro de créditos. Detecta mensajes triviales
  * (agradecimientos, "ok", emojis, saludos cortos, pedidos de menú)
@@ -280,41 +288,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 return json(r.data);
               }
 
-              // Defensa definitiva: versiones antiguas/intermedias del bot local solo
-              // leen la respuesta del action "incoming" y no siempre ejecutan el
-              // fallback "ai_reply". Si la base de datos indica que este número debe
-              // ser atendido por IA, el endpoint genera la respuesta aquí mismo y la
-              // devuelve como si fuera una respuesta fija.
+              // El bot local es quien debe pedir `ai_reply` cuando `use_ai=true`.
+              // Antes se hacía un fetch recursivo a este mismo endpoint desde aquí,
+              // duplicando latencia y dejando mensajes sin respuesta cuando la IA
+              // tardaba. Ahora `incoming` solo resuelve reglas fijas y devuelve la
+              // instrucción para que el bot haga la llamada separada con fallback local.
               const shouldUseAi = fixedData.use_ai === true && msg.trim().length > 0;
               if (shouldUseAi) {
-                  const orderingCfg = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
-                  const fallbackTakesOrders = orderingCfg.ok && Boolean((orderingCfg.data as { ordering_enabled?: boolean } | null)?.ordering_enabled);
-                  const aiFallbackText = operationalReply("https://golosoheladeria.lovable.app/menu", fallbackTakesOrders);
-                try {
-                  const aiUrl = new URL("/api/public/whatsapp-bot", request.url);
-                  const aiResp = await fetch(aiUrl, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                      action: "ai_reply",
-                      token,
-                      from,
-                      text: msg,
-                    }),
-                  });
-                  if (aiResp.ok) {
-                    const aiData = await aiResp.json().catch(() => null) as Record<string, unknown> | null;
-                    const aiReply = typeof aiData?.reply === "string" ? aiData.reply.trim() : "";
-                    if (aiReply) {
-                      return json({ ...fixedData, ...(aiData ?? {}), reply: aiReply, source: "incoming_ai_fallback" });
-                    }
-                    return json({ ...fixedData, reply: aiFallbackText, source: "incoming_ai_safety", ai_error: aiData?.error ?? "empty_ai_reply" });
-                  }
-                  const detail = await aiResp.text().catch(() => "");
-                  return json({ ...fixedData, reply: aiFallbackText, source: "incoming_ai_safety", ai_error: `ai_http_${aiResp.status}`, detail: detail.slice(0, 300) });
-                } catch (e) {
-                  return json({ ...fixedData, reply: aiFallbackText, source: "incoming_ai_safety", ai_error: e instanceof Error ? e.message : String(e) });
-                }
+                return json({ ...fixedData, reply: null, use_ai: true, source: "incoming_rules_only" });
               }
 
               return json(r.data);
@@ -437,7 +418,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const flavorGroups = Array.isArray(ctx.flavor_groups)
                 ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
                 : [];
-              const allProducts = Array.isArray(ctx.products) ? ctx.products as Array<{ name?: string; price?: number; category?: string | null; is_favorite?: boolean }> : [];
+              const allProducts = Array.isArray(ctx.products) ? ctx.products as Array<{ id?: string; name?: string; price?: number; category?: string | null; is_favorite?: boolean }> : [];
               // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
               const products = selectRelevantProducts(allProducts, text, 20);
 
@@ -458,18 +439,18 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : "SABORES: no hay lista sincronizada; si preguntan, invita a ver el menú en línea.";
 
               // Agrupar productos por categoría para que el prompt sea legible
-              const productsByCat = new Map<string, Array<{ name: string; price: number }>>();
+              const productsByCat = new Map<string, Array<{ id?: string; name: string; price: number }>>();
               for (const p of products) {
                 if (!p.name || typeof p.price !== "number") continue;
                 const cat = (p.category ?? "Otros").toString();
                 if (!productsByCat.has(cat)) productsByCat.set(cat, []);
                 const categoryItems = productsByCat.get(cat);
-                if (categoryItems) categoryItems.push({ name: String(p.name), price: Number(p.price) });
+                if (categoryItems) categoryItems.push({ id: p.id, name: String(p.name), price: Number(p.price) });
               }
               const productsBlock = productsByCat.size > 0
                 ? "PRODUCTOS Y PRECIOS ACTUALES DE ESTA SEDE, AGRUPADOS POR CATEGORÍA (usa SOLO estos precios reales; respeta la categoría al recomendar):\n" +
                   Array.from(productsByCat.entries())
-                    .map(([cat, items]) => `【${cat}】\n` + items.map((i) => `- ${i.name}: ${fmtCOP(i.price)}`).join("\n"))
+                    .map(([cat, items]) => `【${cat}】\n` + items.map((i) => `- ${i.name}: ${fmtCOP(i.price)}${i.id ? ` (id:${i.id})` : ""}`).join("\n"))
                     .join("\n")
                 : "";
 
@@ -649,7 +630,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       // del tool-calling.
                       const cartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                       const cart = (cartRes.ok ? cartRes.data : null) as { items?: unknown[] } | null;
-                      const items = Array.isArray(cart?.items) ? [...cart!.items] : [];
+                      const items = Array.isArray(cart?.items) ? [...cart.items] : [];
                       const productName = String(args.product_name ?? "").trim();
                       const productIdRaw = args.product_id != null ? String(args.product_id).trim() : "";
                       const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdRaw);
@@ -754,8 +735,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const apiKey = process.env.LOVABLE_API_KEY;
               if (!geminiKey && !apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
               const useGeminiDirect = Boolean(geminiKey);
-              const primaryModel = "google/gemini-3.1-flash-lite";
-              const fallbackModel = useGeminiDirect ? "google/gemini-3-flash-preview" : "openai/gpt-5.4-mini";
+              const primaryModel = "google/gemini-2.5-flash";
+              const fallbackModel = useGeminiDirect ? "google/gemini-2.5-flash" : "openai/gpt-5.5";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
@@ -786,7 +767,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   bodyReq.tool_choice = "auto";
                 }
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 35_000);
+                const timer = setTimeout(() => controller.abort(), AI_CALL_TIMEOUT_MS);
                 try {
                   return await fetch(aiUrlBase, {
                     method: "POST",
@@ -802,7 +783,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const callAi = async (model: string) => {
                 let lastResponse: Response | null = null;
                 let lastError: unknown;
-                for (let attempt = 0; attempt < 3; attempt += 1) {
+                for (let attempt = 0; attempt < 2; attempt += 1) {
                   try {
                     const response = await callAiOnce(model);
                     lastResponse = response;
@@ -817,15 +798,24 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "ai_fetch_failed"));
               };
 
-
-              // Loop de tool-calling (máx 6 rondas). Detecta truncados por longitud
+              // Loop de tool-calling con presupuesto global: evita que una conversación
+              // bloquee al bot local hasta agotar su timeout de WhatsApp.
               // y pide continuación para no cortar la respuesta al cliente.
               let finalReply = "";
               let lastErr: string | null = null;
               let lastFinishReason: string | null = null;
               let orderConfirmed = false;
-              // Reducido de 6 → 3: cap de rondas de tool-calling para evitar loops caros.
-              for (let round = 0; round < 3; round++) {
+              let confirmedOrderNumber: string | null = null;
+              for (let round = 0; round < AI_MAX_TOOL_ROUNDS; round++) {
+                if (!hasAiBudget(requestStarted)) {
+                  lastErr = "ai_budget_exhausted";
+                  await logBotEvent(token, conversationId, from, "ai_budget_exhausted", {
+                    ok: false,
+                    durationMs: elapsedMs(requestStarted),
+                    metadata: { round },
+                  });
+                  break;
+                }
                 const aiStarted = performance.now();
                 let aiResp: Response;
                 try {
@@ -917,8 +907,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 if (toolCalls.length === 0) {
                   const chunk = (msg.content ?? "").trim();
                   finalReply = finalReply ? `${finalReply}${chunk ? " " + chunk : ""}` : chunk;
-                  // Si el modelo cortó por longitud, pedir continuación una vez más
-                  if (chunk && lastFinishReason === "length" && round < 5) {
+                  // Si el modelo cortó por longitud, pedir continuación una sola vez y solo si hay presupuesto.
+                  if (chunk && lastFinishReason === "length" && round < 1 && hasAiBudget(requestStarted, 8_000)) {
                     messages.push({ role: "assistant", content: chunk });
                     messages.push({ role: "user", content: "Continúa exactamente desde donde cortaste, sin repetir lo ya dicho, y termina la respuesta." });
                     continue;
@@ -932,6 +922,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   const toolStarted = performance.now();
                   const result = await execTool(tc.function.name, parsedArgs);
                   const toolResult = result && typeof result === "object" ? result as Record<string, unknown> : {};
+                  if (tc.function.name === "confirm_order" && toolResult.ok === true) {
+                    const order = toolResult.order && typeof toolResult.order === "object" ? toolResult.order as Record<string, unknown> : {};
+                    confirmedOrderNumber = String(order.order_number ?? order.ticket_number ?? "").trim() || null;
+                  }
                   await logBotEvent(token, conversationId, from, `tool_${tc.function.name}`, {
                     ok: !("error" in toolResult),
                     durationMs: elapsedMs(toolStarted),
@@ -947,28 +941,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               }
 
-              // Reintento defensivo: si quedó vacío, pedir respuesta directa breve sin tools.
-              if (!finalReply) {
-                try {
-                  const retry = await fetch(aiUrlBase, {
-                    method: "POST",
-                    headers: aiHeaders,
-                    body: JSON.stringify({
-                      model: mapModel(fallbackModel),
-                      messages: [
-                        { role: "system", content: finalSystemPrompt },
-                        ...history.map((m) => ({ role: m.role, content: m.content })),
-                        { role: "user", content: userContent },
-                      ],
-                      max_tokens: 1024,
-                      temperature: 0.5,
-                    }),
-                  });
-                  if (retry.ok) {
-                    const rd = await retry.json().catch(() => null) as { choices?: Array<{ message?: { content?: string } }> } | null;
-                    finalReply = (rd?.choices?.[0]?.message?.content ?? "").trim();
-                  }
-                } catch { /* noop */ }
+              if (!finalReply && orderConfirmed) {
+                finalReply = confirmedOrderNumber
+                  ? `Tu pedido quedó registrado con el nº ${confirmedOrderNumber}. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.`
+                  : "Tu pedido quedó registrado. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.";
               }
 
 

@@ -4,6 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 
 export const Route = createFileRoute("/")({
   ssr: false,
+  head: () => ({
+    meta: [
+      { title: "Heladería Goloso POS" },
+      { name: "description", content: "Acceso al sistema POS de Heladería Goloso para ventas, mesas, caja, domicilios y administración." },
+      { property: "og:title", content: "Heladería Goloso POS" },
+      { property: "og:description", content: "Sistema POS de Heladería Goloso para ventas, mesas, caja y domicilios." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+    ],
+  }),
   component: IndexRedirect,
 });
 
