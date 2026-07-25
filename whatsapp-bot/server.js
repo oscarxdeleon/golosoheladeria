@@ -507,10 +507,44 @@ async function executeRemoteCommand(cmd) {
       setTimeout(() => startSocket().catch((e) => logger.error(e)), 1500);
       return;
     }
+    if (cmd === "restart") {
+      state.detail = "Reiniciando servicio por solicitud del POS...";
+      await ackCommand("restart");
+      await pushStatus();
+      logger.warn("remote restart requested — exiting so PM2 respawns");
+      setTimeout(() => process.exit(0), 1200);
+      return;
+    }
+    if (cmd === "update") {
+      state.detail = "Actualizando bot por solicitud del POS...";
+      await ackCommand("update");
+      await pushStatus();
+      try {
+        const { spawn } = require("child_process");
+        const script = path.join(__dirname, "update-linux.sh");
+        if (!fs.existsSync(script)) {
+          logger.warn({ script }, "update-linux.sh no encontrado");
+          return;
+        }
+        const logPath = path.join(__dirname, "last-update.log");
+        const out = fs.openSync(logPath, "a");
+        const child = spawn("bash", [script, __dirname], {
+          detached: true,
+          stdio: ["ignore", out, out],
+          env: { ...process.env },
+        });
+        child.unref();
+        logger.warn({ pid: child.pid, logPath }, "update script launched (PM2 respawnará el bot al terminar)");
+      } catch (e) {
+        logger.error({ err: String(e) }, "no se pudo lanzar update-linux.sh");
+      }
+      return;
+    }
   } finally {
     commandInFlight = false;
   }
 }
+
 
 async function handleIncoming(from, body) {
   try {
