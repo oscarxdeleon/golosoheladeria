@@ -84,7 +84,7 @@ Reglas ESTRICTAS:
  *  3. Dedupe por pregunta normalizada.
  */
 export async function extractFaqs(text: string): Promise<ExtractFaqsResult> {
-  const apiKey = process.env.LOVABLE_API_KEY;
+  const apiKey = process.env.GEMINI_API_KEY || process.env.LOVABLE_API_KEY;
   const warnings: string[] = [];
 
   // Paso 1: parser determinista
