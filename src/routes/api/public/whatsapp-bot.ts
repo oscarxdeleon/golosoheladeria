@@ -464,13 +464,42 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
 
+              // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
+              // Antes de invocar el modelo (que consume ~13k tokens de input),
+              // detectamos mensajes triviales y respondemos deterministamente.
+              const shortCircuit = shortCircuitReply(text, menuLink);
+              if (shortCircuit) {
+                await logBotEvent(token, conversationId, from, "short_circuit_hit", {
+                  durationMs: elapsedMs(requestStarted),
+                  metadata: { event: shortCircuit.event, replyLength: shortCircuit.reply.length },
+                });
+                if (!shortCircuit.reply) {
+                  return json({ reply: null, source: "short_circuit_silent", conversation_id: conversationId }, 200);
+                }
+                const payload: Record<string, unknown> = {
+                  reply: shortCircuit.reply,
+                  source: "short_circuit",
+                  conversation_id: conversationId,
+                };
+                if (shortCircuit.event) {
+                  const sticker = await pickSticker(token, shortCircuit.event);
+                  if (sticker) {
+                    payload.sticker_url = sticker.url;
+                    payload.sticker_event = sticker.event_key;
+                    payload.sticker_label = sticker.label;
+                  }
+                }
+                return json(payload, 200);
+              }
+
               // Sabores AGRUPADOS por grupo de modificador (para no mezclar
               // sabores de helado con sabores de jugo, malteadas, etc.)
               const flavorGroups = Array.isArray(ctx.flavor_groups)
                 ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
                 : [];
               const allProducts = Array.isArray(ctx.products) ? ctx.products as Array<{ name?: string; price?: number; category?: string | null; is_favorite?: boolean }> : [];
-              const products = selectRelevantProducts(allProducts, text, 60);
+              // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
+              const products = selectRelevantProducts(allProducts, text, 20);
 
               const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
 
