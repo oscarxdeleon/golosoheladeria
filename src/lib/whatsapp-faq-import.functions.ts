@@ -34,11 +34,22 @@ Reglas ESTRICTAS:
 - Máximo ${maxPairs} pares en esta respuesta. Prioriza los más frecuentes.
 - Sin texto fuera del JSON.`;
 
-  const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  // Prefer direct Google AI Studio (GEMINI_API_KEY) to avoid Lovable AI credits.
+  const geminiKey = process.env.GEMINI_API_KEY;
+  const useGeminiDirect = Boolean(geminiKey);
+  const url = useGeminiDirect
+    ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+    : "https://ai.gateway.lovable.dev/v1/chat/completions";
+  const headers: Record<string, string> = useGeminiDirect
+    ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
+    : { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
+  const model = useGeminiDirect ? "gemini-2.5-flash" : "google/gemini-2.5-flash";
+
+  const resp = await fetch(url, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    headers,
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
+      model,
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: chunk },
@@ -52,6 +63,7 @@ Reglas ESTRICTAS:
     if (resp.status === 402) throw new Error("Créditos de IA agotados. Contacta al administrador.");
     throw new Error(`AI error ${resp.status}: ${errText.slice(0, 200)}`);
   }
+
   const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = json?.choices?.[0]?.message?.content ?? "{}";
   let parsed: { pairs?: Array<{ question?: unknown; answer?: unknown }> } = {};
