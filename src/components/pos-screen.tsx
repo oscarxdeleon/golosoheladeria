@@ -658,7 +658,7 @@ export async function printPaymentReceipt(o: {
     console.warn("[print] comprobante electrónico no impreso: servidor local no disponible");
   }
 }
-}
+
 
 
 
