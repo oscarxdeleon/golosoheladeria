@@ -356,7 +356,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               variant="outline"
               size="sm"
               onClick={() => setRestartOpen(true)}
-              disabled={busyCmd !== null}
+              disabled={busyCmd !== null || needsManualBridgeUpdate}
               title="Reinicia el servicio del bot en el servidor (PM2 lo respawnará)."
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${busyCmd === "restart" ? "animate-spin" : ""}`} /> 🚀 Reiniciar Bot
