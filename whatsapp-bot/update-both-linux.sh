@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.19.0"
+BOT_VERSION="8.19.1"
 BASE_URL="https://golosoheladeria.lovable.app"
 UPDATE_URL="${BASE_URL}/downloads/update-linux.sh?v=${BOT_VERSION}"
-ZIP_URL="${BASE_URL}/downloads/whatsapp-bot-v8.19.zip"
+ZIP_URL="${BASE_URL}/downloads/whatsapp-bot-v8.19.1.zip"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
