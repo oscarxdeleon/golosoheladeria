@@ -39,7 +39,10 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.16.0";
+const BOT_VERSION = "8.17.0";
+const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
+const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
+const WATCHDOG_MAX_NO_HEARTBEAT_MS = 10 * 60_000; // 10 min sin ningún evento → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
@@ -1002,6 +1005,44 @@ async function main() {
   setInterval(pushStatus, HEARTBEAT_MS);
   setInterval(pollOutbound, OUTBOUND_POLL_MS);
   void pushStatus();
+
+  // ---- Watchdog: auto-reinicio si el bot queda "pegado" ----
+  // pm2 (o systemd/nssm) volverá a levantar el proceso al hacer exit(1).
+  let watchdogSince = Date.now();
+  let watchdogLastStatus = state.status;
+  setInterval(() => {
+    const now = Date.now();
+    if (state.status !== watchdogLastStatus) {
+      watchdogLastStatus = state.status;
+      watchdogSince = now;
+    }
+    const stuckMs = now - watchdogSince;
+    const noHeartbeatMs = state.lastIncomingAt || state.lastReplyAt
+      ? now - Math.max(state.lastIncomingAt || 0, state.lastReplyAt || 0)
+      : 0;
+
+    if ((state.status === "disconnected" || state.status === "connecting" || state.status === "error")
+        && stuckMs > WATCHDOG_MAX_DISCONNECTED_MS) {
+      logger.error({ status: state.status, stuckMs }, "watchdog: sin conexión >5min, reiniciando proceso");
+      console.error(`\n⚠️  Watchdog: sin conexión hace ${Math.round(stuckMs/1000)}s. Reiniciando…\n`);
+      process.exit(1);
+    }
+    if (state.status === "connected" && noHeartbeatMs > WATCHDOG_MAX_NO_HEARTBEAT_MS) {
+      logger.warn({ noHeartbeatMs }, "watchdog: sin actividad >10min, reiniciando por precaución");
+      process.exit(1);
+    }
+  }, WATCHDOG_INTERVAL_MS);
+
+  // Errores no controlados: log y salida (pm2 lo revive)
+  process.on("uncaughtException", (err) => {
+    logger.error({ err: String(err), stack: err?.stack }, "uncaughtException — saliendo para reinicio");
+    console.error("uncaughtException:", err);
+    setTimeout(() => process.exit(1), 500);
+  });
+  process.on("unhandledRejection", (reason) => {
+    logger.error({ reason: safeStringify(reason) }, "unhandledRejection");
+  });
+
   await startSocket().catch((e) => {
     logger.error(e);
     state.status = "error";
