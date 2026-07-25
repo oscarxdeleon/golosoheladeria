@@ -568,10 +568,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
 
+              // Antes de silenciar mensajes cortos como "sí", "ok" o emojis,
+              // verificamos si el cliente tiene un carrito activo. En una toma de
+              // pedido, esos mensajes pueden ser confirmaciones reales y deben
+              // pasar al flujo operativo/IA, no al ahorro de créditos.
+              let activeCartHasItems = false;
+              try {
+                const cartProbe = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                const cartProbeData = (cartProbe.ok ? cartProbe.data : null) as Record<string, unknown> | null;
+                activeCartHasItems = Array.isArray(cartProbeData?.items) && cartProbeData.items.length > 0;
+              } catch {
+                activeCartHasItems = false;
+              }
+
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = shortCircuitReply(text, menuLink);
+              const shortCircuit = activeCartHasItems ? null : shortCircuitReply(text, menuLink);
               if (shortCircuit) {
                 await logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
