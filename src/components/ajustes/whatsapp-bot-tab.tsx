@@ -1952,3 +1952,110 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
     </Card>
   );
 }
+
+/* ------------------------- Stickers manager ------------------------- */
+
+interface StickerRow {
+  id: string;
+  event_key: string;
+  label: string;
+  storage_path: string | null;
+  file_url: string | null;
+  sort_order: number;
+  active: boolean;
+}
+
+const EVENT_OPTIONS = [
+  { value: "welcome", label: "Bienvenida" },
+  { value: "menu", label: "Menú / catálogo" },
+  { value: "thanks", label: "Agradecimiento" },
+  { value: "order_confirmed", label: "Pedido confirmado" },
+];
+
+function StickerManagerCard({ branchId }: { branchId: string }) {
+  const qc = useQueryClient();
+  const getUrl = useServerFn(getStickerSignedUrl);
+  const list = useServerFn(listBranchStickers);
+  const update = useServerFn(updateSticker);
+  const { data: stickers, isLoading } = useQuery({
+    queryKey: ["whatsapp-stickers", branchId],
+    queryFn: () => list({ data: { branchId } }),
+  });
+  const [urls, setUrls] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    if (!stickers) return;
+    let cancelled = false;
+    (async () => {
+      const map: Record<string, string> = {};
+      for (const s of stickers) {
+        if (!s.storage_path && !s.file_url) continue;
+        try {
+          const path = s.storage_path ?? String(s.file_url).replace(/^stickers\//, "");
+          const r = await getUrl({ data: { path } });
+          map[s.id] = r.url;
+        } catch { /* ignore */ }
+      }
+      if (!cancelled) setUrls(map);
+    })();
+    return () => { cancelled = true; };
+  }, [stickers, getUrl]);
+
+  const toggle = async (id: string, active: boolean) => {
+    await update({ data: { id, patch: { active } } });
+    qc.invalidateQueries({ queryKey: ["whatsapp-stickers", branchId] });
+    toast(active ? "Sticker activado" : "Sticker desactivado");
+  };
+
+  const changeEvent = async (id: string, event_key: string) => {
+    await update({ data: { id, patch: { event_key } } });
+    qc.invalidateQueries({ queryKey: ["whatsapp-stickers", branchId] });
+    toast("Evento actualizado");
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base flex items-center gap-2"><Sparkles className="h-4 w-4" />Stickers de Golosito</CardTitle>
+        <CardDescription>Stickers oficiales que el bot envía automáticamente según el momento de la conversación.</CardDescription>
+      </CardHeader>
+      <CardContent>
+        {isLoading ? (
+          <div className="text-sm text-muted-foreground">Cargando stickers…</div>
+        ) : !stickers || stickers.length === 0 ? (
+          <div className="text-sm text-muted-foreground">No hay stickers configurados para esta sede.</div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4">
+            {stickers.map((s) => (
+              <div key={s.id} className={`rounded-lg border p-3 space-y-3 ${s.active ? "bg-card" : "bg-muted/40 opacity-60"}`}>
+                <div className="aspect-square rounded-md bg-white/80 flex items-center justify-center overflow-hidden">
+                  {urls[s.id] ? (
+                    <img src={urls[s.id]} alt={s.label} className="w-full h-full object-contain" />
+                  ) : (
+                    <span className="text-xs text-muted-foreground">Sin vista previa</span>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <div className="text-sm font-medium truncate" title={s.label}>{s.label}</div>
+                  <Select value={s.event_key} onValueChange={(v) => changeEvent(s.id, v)}>
+                    <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {EVENT_OPTIONS.map((o) => (<SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
+                  <div className="flex items-center justify-between">
+                    <Label className="text-xs">Activo</Label>
+                    <Switch checked={s.active} onCheckedChange={(v) => toggle(s.id, v)} />
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground mt-4">
+          El bot envía el sticker según el evento: bienvenida, menú, agradecimiento o pedido confirmado. Si varios stickers comparten el mismo evento, elige uno al azar.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
