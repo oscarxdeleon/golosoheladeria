@@ -672,55 +672,8 @@ function MesasPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!qrMesa} onOpenChange={(o) => !o && setQrMesa(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>QR · {qrMesa?.label ?? `Mesa ${qrMesa?.number}`}</DialogTitle>
-            <DialogDescription>
-              El cliente escanea con su teléfono y pide directamente desde la mesa.
-            </DialogDescription>
-          </DialogHeader>
-          {qrMesa && (
-            <div className="flex flex-col items-center gap-3">
-              <div id={`mesa-qr-${qrMesa.number}`} className="rounded-xl border bg-white p-4">
-                <QRCodeCanvas value={`${origin}/t/${qrMesa.number}`} size={220} level="M" />
-              </div>
-              <div className="text-xs text-muted-foreground break-all text-center font-mono">
-                {origin}/t/{qrMesa.number}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${origin}/t/${qrMesa.number}`);
-                    toast.success("Link copiado");
-                  }}
-                >
-                  <Copy className="h-4 w-4" /> Copiar link
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const canvas = document.querySelector<HTMLCanvasElement>(`#mesa-qr-${qrMesa.number} canvas`);
-                    if (!canvas) return;
-                    const a = document.createElement("a");
-                    a.href = canvas.toDataURL("image/png");
-                    a.download = `mesa-${qrMesa.number}-qr.png`;
-                    a.click();
-                  }}
-                >
-                  <Download className="h-4 w-4" /> Descargar
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground text-center px-2">
-                Imprime el QR y pégalo sobre la mesa. Imprime una etiqueta resistente al agua.
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
+
 
       {/* Release with mandatory reason */}
       <Dialog open={!!releaseMesa} onOpenChange={(o) => { if (!o) { setReleaseMesa(null); setReleaseReason(""); } }}>
