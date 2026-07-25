@@ -3042,6 +3042,8 @@ export type Database = {
       }
       whatsapp_bot_config: {
         Row: {
+          active_instance_id: string | null
+          active_instance_started_at: string | null
           after_hours_cooldown_hours: number
           after_hours_enabled: boolean
           after_hours_messages: string[]
@@ -3062,6 +3064,7 @@ export type Database = {
           device_token: string
           enabled: boolean
           greet_cooldown_hours: number
+          last_connected_at: string | null
           last_outbound_error: string | null
           last_outbound_poll_at: string | null
           last_outbound_poll_count: number
@@ -3085,6 +3088,8 @@ export type Database = {
           welcome_messages: string[]
         }
         Insert: {
+          active_instance_id?: string | null
+          active_instance_started_at?: string | null
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
@@ -3105,6 +3110,7 @@ export type Database = {
           device_token?: string
           enabled?: boolean
           greet_cooldown_hours?: number
+          last_connected_at?: string | null
           last_outbound_error?: string | null
           last_outbound_poll_at?: string | null
           last_outbound_poll_count?: number
@@ -3128,6 +3134,8 @@ export type Database = {
           welcome_messages?: string[]
         }
         Update: {
+          active_instance_id?: string | null
+          active_instance_started_at?: string | null
           after_hours_cooldown_hours?: number
           after_hours_enabled?: boolean
           after_hours_messages?: string[]
@@ -3148,6 +3156,7 @@ export type Database = {
           device_token?: string
           enabled?: boolean
           greet_cooldown_hours?: number
+          last_connected_at?: string | null
           last_outbound_error?: string | null
           last_outbound_poll_at?: string | null
           last_outbound_poll_count?: number
@@ -3936,10 +3945,28 @@ export type Database = {
         }
         Returns: Json
       }
-      whatsapp_bot_report_status: {
-        Args: { _phone?: string; _qr?: string; _status: string; _token: string }
-        Returns: Json
-      }
+      whatsapp_bot_report_status:
+        | {
+            Args: {
+              _phone?: string
+              _qr?: string
+              _status: string
+              _token: string
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _instance_id?: string
+              _phone?: string
+              _qr?: string
+              _started_at?: string
+              _status: string
+              _token: string
+              _version?: string
+            }
+            Returns: Json
+          }
       whatsapp_bot_request_command: {
         Args: { _branch_id: string; _command: string }
         Returns: Json
