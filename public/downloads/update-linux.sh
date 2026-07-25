@@ -215,5 +215,12 @@ for port in 8791 8790 8792 8793; do
 done
 
 echo ""
+echo "== Instalando auto-actualización diaria (cron 4:00 AM) =="
+cron_marker="# goloso-auto-update ${PM2_NAME}"
+cron_line="0 4 * * * curl -fsSL https://golosoheladeria.lovable.app/downloads/update-linux.sh | bash -s ${TARGET_DIR} ${PM2_NAME} >> /var/log/goloso-${PM2_NAME}-update.log 2>&1 ${cron_marker}"
+( crontab -l 2>/dev/null | grep -v "${cron_marker}" ; echo "${cron_line}" ) | crontab -
+echo "Cron instalado: se actualizará automáticamente cada día a las 4:00 AM"
+
+echo ""
 echo "✅ Actualización completa. Debe verse: Versión : ${BOT_VERSION}"
 echo "   Si PM2 vuelve a mostrar una versión vieja, ejecuta: pm2 describe ${PM2_NAME}"
