@@ -3606,6 +3606,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         </DialogContent>
       </Dialog>
 
+      {/* Diálogo obligatorio para pagos electrónicos (Nequi/Bancolombia) */}
+      <ElectronicPaymentDialog
+        open={electronicPaymentMethod != null}
+        method={electronicPaymentMethod}
+        total={total}
+        loading={paying}
+        onCancel={() => {
+          setElectronicPaymentMethod(null);
+          setPayDialogOpen(true);
+        }}
+        onConfirm={(last4) => {
+          const method = electronicPaymentMethod;
+          if (!method) return;
+          setElectronicPaymentMethod(null);
+          void pay(method, { transaction_last4: last4 });
+        }}
+      />
+
+
+
       {/* Dialogo para ingresar propina */}
       <Dialog open={tipDialogOpen} onOpenChange={(o) => setTipDialogOpen(o)}>
         <DialogContent className="sm:max-w-sm">
