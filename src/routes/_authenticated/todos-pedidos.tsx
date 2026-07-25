@@ -72,7 +72,29 @@ interface Sale {
   notes: string | null;
   delivery_address: string | null;
   table_id: string | null;
+  cash_tendered: number | null;
+  cancelled_at: string | null;
+  cancelled_by_name: string | null;
+  cancelled_by_role: string | null;
+  cancellation_reason: string | null;
+  cancellation_reason_code: string | null;
   sale_items: Item[];
+}
+
+function formatDateTimeLong(iso: string) {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const time = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+  return `${date} · ${time}`;
+}
+
+function roleLabel(role: string | null | undefined): string {
+  switch ((role ?? "").toLowerCase()) {
+    case "admin":      return "Administrador";
+    case "supervisor": return "Supervisor";
+    case "cajero":     return "Cajero";
+    default:           return role ?? "—";
+  }
 }
 
 function shortTicket(n: number) {
