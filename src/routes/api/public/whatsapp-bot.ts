@@ -794,8 +794,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               }
 
               const useGeminiDirect = true;
-              const primaryModel = "gemini-2.0-flash";
-              const fallbackModel = "gemini-2.0-flash-lite";
+              // flash-lite tiene 30 rpm free vs 15 rpm de flash — soporta mejor
+              // ráfagas de tool-calling. flash queda como fallback cuando lite
+              // 429/5xx.
+              const primaryModel = "gemini-2.0-flash-lite";
+              const fallbackModel = "gemini-2.0-flash";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
@@ -837,15 +840,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const callAi = async (model: string) => {
                 let lastResponse: Response | null = null;
                 let lastError: unknown;
-                for (let attempt = 0; attempt < 2; attempt += 1) {
+                // Backoff exponencial: 500, 1500, 3000 ms. 3 intentos totales.
+                const backoffs = [500, 1500, 3000];
+                for (let attempt = 0; attempt < 3; attempt += 1) {
                   try {
                     const response = await callAiOnce(model);
                     lastResponse = response;
                     if (response.ok || (response.status !== 429 && response.status < 500)) return response;
-                    await pause(500 * (attempt + 1));
+                    await pause(backoffs[attempt] ?? 3000);
                   } catch (error) {
                     lastError = error;
-                    await pause(500 * (attempt + 1));
+                    await pause(backoffs[attempt] ?? 3000);
                   }
                 }
                 if (lastResponse) return lastResponse;
