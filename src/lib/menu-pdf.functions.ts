@@ -81,9 +81,6 @@ Reglas:
       content = json?.choices?.[0]?.message?.content ?? "{}";
     }
 
-    const json: unknown = await resp.json();
-    const content = (json as { choices?: Array<{ message?: { content?: string } }> })
-      ?.choices?.[0]?.message?.content ?? "{}";
 
     let parsed: { items?: ParsedMenuItem[] } = {};
     try {
