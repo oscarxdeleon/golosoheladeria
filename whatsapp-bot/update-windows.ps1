@@ -228,25 +228,28 @@ function Ensure-Dependencies($target) {
 
 function Register-Startup($target) {
   Write-Step "Registrando inicio automatico"
+  $q = [char]34
+  $vbsPath = Join-Path $target 'start-hidden.vbs'
   $startup = [Environment]::GetFolderPath("Startup")
   $lnkPath = Join-Path $startup "Goloso WhatsApp Bot.lnk"
   $shell = New-Object -ComObject WScript.Shell
   $shortcut = $shell.CreateShortcut($lnkPath)
-  $shortcut.TargetPath = "wscript.exe"
-  $shortcut.Arguments = "`"$(Join-Path $target "start-hidden.vbs")`""
+  $shortcut.TargetPath = 'wscript.exe'
+  $shortcut.Arguments = $q + $vbsPath + $q
   $shortcut.WorkingDirectory = $target
   $shortcut.WindowStyle = 7
-  $shortcut.IconLocation = "wscript.exe, 0"
-  $shortcut.Description = "Goloso WhatsApp Bot"
+  $shortcut.IconLocation = 'wscript.exe, 0'
+  $shortcut.Description = 'Goloso WhatsApp Bot'
   $shortcut.Save()
 
-  $runValue = "wscript.exe `"$(Join-Path $target "start-hidden.vbs")`""
-  New-ItemProperty -Path "HKCU:\Software\Microsoft\Windows\CurrentVersion\Run" -Name "GolosoWhatsAppBot" -Value $runValue -PropertyType String -Force | Out-Null
+  $runValue = 'wscript.exe ' + $q + $vbsPath + $q
+  New-ItemProperty -Path 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'GolosoWhatsAppBot' -Value $runValue -PropertyType String -Force | Out-Null
 }
 
 function Start-Bot($target) {
   Write-Step "Iniciando bot actualizado"
-  Start-Process -FilePath "wscript.exe" -ArgumentList "//nologo `"$(Join-Path $target "start-hidden.vbs")`"" -WorkingDirectory $target | Out-Null
+  $vbsPath = Join-Path $target 'start-hidden.vbs'
+  Start-Process -FilePath 'wscript.exe' -ArgumentList @('//nologo', $vbsPath) -WorkingDirectory $target | Out-Null
   $ok = $false
   for ($i = 0; $i -lt 30; $i++) {
     try {
@@ -315,5 +318,5 @@ Register-Startup $TargetDir
 Start-Bot $TargetDir
 
 Write-Host ""
-Write-Host "✅ Actualizacion completa." -ForegroundColor Green
-Write-Host "No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR."
+Write-Host 'Actualizacion completa.' -ForegroundColor Green
+Write-Host 'No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR.'

@@ -27,7 +27,7 @@ pm2 logs goloso-parque --lines 40 --nostream
 curl -s http://localhost:8791/status.json
 ```
 
-Debe aparecer `Versión : 8.19.1`. Si aparece otra versión, PM2 está apuntando a otra carpeta; el log ahora muestra la línea `Carpeta : ...` para identificarla.
+Debe aparecer `Versión : 8.19.2`. Si aparece otra versión, PM2 está apuntando a otra carpeta; el log ahora muestra la línea `Carpeta : ...` para identificarla.
 
 Si por error ejecutas `install-windows.bat`, esta versión primero intenta detectar la instalación anterior y convertir el proceso en actualización segura. Solo pedirá token y QR cuando no encuentre una instalación anterior con `auth_state/`.
 
