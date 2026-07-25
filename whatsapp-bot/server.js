@@ -40,7 +40,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.1";
+const BOT_VERSION = "8.20.2";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const WATCHDOG_MAX_NO_HEARTBEAT_MS = 10 * 60_000; // 10 min sin ningún evento → exit
@@ -942,10 +942,10 @@ async function startSocket() {
         await startFreshPairingAfterLogout("WhatsApp reportó cierre de sesión y no hubo copia válida para restaurar");
         return;
       }
-      state.status = "disconnected";
+      state.status = "connecting";
       state.qr = null;
       state.qrDataUrl = null;
-      state.detail = "Conexión cerrada. Reintentando automáticamente...";
+      state.detail = "WhatsApp cerró la conexión momentáneamente. Reconectando automáticamente...";
       pushStatus();
       setTimeout(() => startSocket().catch((e) => logger.error(e)), 5000);
     }

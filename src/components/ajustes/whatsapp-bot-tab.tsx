@@ -46,6 +46,7 @@ interface BotConfigRow {
   qr_code: string | null;
   qr_generated_at: string | null;
   last_seen_at: string | null;
+  last_connected_at: string | null;
   device_token: string;
   connected_phone: string | null;
   bot_version: string | null;
@@ -215,8 +216,19 @@ export function WhatsAppBotTab() {
 
 /* --------------------------------------------------------- */
 
+function getDisplayConnectionStatus(cfg: BotConfigRow) {
+  if (cfg.connection_status === "connected") return cfg.connection_status;
+  if (!cfg.connected_phone || !cfg.last_connected_at) return cfg.connection_status;
+  const connectedAgoMs = Date.now() - new Date(cfg.last_connected_at).getTime();
+  if (connectedAgoMs >= 0 && connectedAgoMs < 2 * 60_000 && ["disconnected", "connecting", "error", "qr"].includes(cfg.connection_status)) {
+    return "connected";
+  }
+  return cfg.connection_status;
+}
+
 function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: BranchRow; onChanged: () => void }) {
-  const meta = STATUS_META[cfg.connection_status] ?? STATUS_META.disconnected;
+  const displayConnectionStatus = getDisplayConnectionStatus(cfg);
+  const meta = STATUS_META[displayConnectionStatus] ?? STATUS_META.disconnected;
   const Icon = meta.icon;
   const [qrOpen, setQrOpen] = useState(false);
   const lastSeenText = useMemo(() => {
@@ -340,7 +352,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             {cfg.last_outbound_error && (
               <div className="mt-1 text-xs font-medium text-destructive">Error envío reportes: {cfg.last_outbound_error}</div>
             )}
-            {cfg.qr_generated_at && cfg.connection_status !== "connected" && (
+            {cfg.qr_generated_at && displayConnectionStatus !== "connected" && (
               <div className="text-xs text-muted-foreground">QR generado: {new Date(cfg.qr_generated_at).toLocaleString()}</div>
             )}
           </div>
