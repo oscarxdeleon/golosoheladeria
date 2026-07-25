@@ -839,7 +839,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
               const callAiOnce = async (model: string) => {
                 const bodyReq: Record<string, unknown> = {
-                  model: mapModel(model), messages, max_tokens: 2048, temperature: 0.6,
+                  model: mapModel(model), messages, max_tokens: 800, temperature: 0.6,
                 };
                 if (orderingTools.length > 0) {
                   bodyReq.tools = orderingTools;
