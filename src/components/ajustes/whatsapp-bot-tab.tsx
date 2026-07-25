@@ -249,6 +249,15 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
         <CardDescription>Conexión con WhatsApp de la sede {branch?.name ?? ""}.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-sm text-emerald-900">
+          <div className="mb-2 font-semibold">Cómo vincular WhatsApp en 3 pasos</div>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>Presiona <b>Ver / Generar QR</b> aquí abajo.</li>
+            <li>En el celular de la sede abre WhatsApp Business → Menú (⋮) → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b>.</li>
+            <li>Escanea el código que aparece en pantalla. Listo — el estado pasará a <b>Conectado</b> en segundos.</li>
+          </ol>
+          <p className="mt-2 text-xs text-emerald-800/80">No necesitas entrar al servidor ni ejecutar comandos. Si el QR no aparece, presiona <b>Regenerar QR</b> dentro del mismo diálogo.</p>
+        </div>
         <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
           <div className={`grid h-14 w-14 place-items-center rounded-full ${meta.color} text-white shadow-lg`}>
             <Icon className="h-7 w-7" />
