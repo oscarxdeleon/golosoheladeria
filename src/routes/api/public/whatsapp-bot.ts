@@ -231,6 +231,20 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               return json(r.data);
             }
+            case "stickers": {
+              const stickers = await getActiveStickers(token);
+              const withUrls = await Promise.all(
+                stickers.map(async (s) => ({
+                  id: s.id,
+                  event_key: s.event_key,
+                  label: s.label,
+                  sort_order: s.sort_order,
+                  active: s.active,
+                  url: s.storage_path ? await signedStickerUrl(s.storage_path) : null,
+                })),
+              );
+              return json({ stickers: withUrls.filter((s) => s.url) });
+            }
             case "status": {
               const status = String(body.status ?? "").trim();
               if (!status) return json({ error: "missing_status" }, 400);
