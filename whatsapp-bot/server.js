@@ -53,6 +53,9 @@ const SESSION_BACKUP_DIR = path.join(__dirname, "auth_state_backups");
 const SESSION_BACKUP_LATEST_DIR = path.join(SESSION_BACKUP_DIR, "latest");
 const SESSION_META_PATH = path.join(__dirname, "session-meta.json");
 const SESSION_RESTORE_MARKER = path.join(__dirname, ".session-restore-attempted");
+const INSTANCE_LOCK_PATH = path.join(__dirname, ".goloso-bot.lock");
+const INSTANCE_STARTED_AT = new Date().toISOString();
+const INSTANCE_ID = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
 let signalDecryptErrorTimes = [];
 let signalRepairInFlight = false;
@@ -158,6 +161,63 @@ if (originalApiUrl !== config.apiUrl) {
   }
 }
 
+function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0 || pid === process.pid) return false;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readInstanceLock() {
+  try {
+    if (!fs.existsSync(INSTANCE_LOCK_PATH)) return null;
+    return JSON.parse(fs.readFileSync(INSTANCE_LOCK_PATH, "utf-8"));
+  } catch {
+    return null;
+  }
+}
+
+function writeInstanceLock() {
+  const payload = {
+    pid: process.pid,
+    instanceId: INSTANCE_ID,
+    startedAt: INSTANCE_STARTED_AT,
+    folder: __dirname,
+    tokenTail: String(config.token || "").slice(-6),
+    version: BOT_VERSION,
+  };
+  fs.writeFileSync(INSTANCE_LOCK_PATH, JSON.stringify(payload, null, 2));
+}
+
+function releaseInstanceLock() {
+  try {
+    const current = readInstanceLock();
+    if (current?.instanceId === INSTANCE_ID) fs.rmSync(INSTANCE_LOCK_PATH, { force: true });
+  } catch { /* noop */ }
+}
+
+function acquireInstanceLock() {
+  const current = readInstanceLock();
+  const currentPid = Number(current?.pid || 0);
+  if (current?.instanceId && isProcessAlive(currentPid)) {
+    const message = `Ya existe otro Goloso Bot activo en esta carpeta (PID ${currentPid}). Este proceso queda inactivo para evitar estados duplicados.`;
+    console.warn(`\n⚠️ ${message}\n`);
+    logger.warn({ lock: current }, "duplicate bot instance blocked by local lock");
+    return false;
+  }
+  if (current?.instanceId) {
+    logger.warn({ lock: current }, "stale local lock replaced");
+  }
+  writeInstanceLock();
+  process.on("exit", releaseInstanceLock);
+  process.on("SIGINT", () => { releaseInstanceLock(); process.exit(0); });
+  process.on("SIGTERM", () => { releaseInstanceLock(); process.exit(0); });
+  return true;
+}
+
 let state = {
   status: "connecting",     // connecting | qr | connected | disconnected | error
   qr: null,                  // string cuando status === "qr"
@@ -235,6 +295,8 @@ async function pushStatus() {
       qr: state.qr,
       phone: state.phone,
       version: BOT_VERSION,
+      instance_id: INSTANCE_ID,
+      started_at: INSTANCE_STARTED_AT,
     };
     const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
