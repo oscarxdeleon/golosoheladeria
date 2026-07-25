@@ -341,8 +341,8 @@ function PedidosActivosPage() {
       {/* Cancel Sale Dialog */}
       <CancelSaleDialog
         open={!!cancelSale}
-        saleId={cancelSale?.id ?? undefined}
-        ticketLabel={cancelSale?.ticket_number ? `#${cancelSale.ticket_number}` : null}
+        saleId={cancelSale?.id ?? null}
+        ticketLabel={cancelSale?.ticket_number ? `#${cancelSale.ticket_number}` : undefined}
         onOpenChange={(v) => { if (!v) setCancelSale(null); }}
         onCancelled={() => {
           qc.invalidateQueries({ queryKey: ["pedidos-activos", activeBranchId] });
