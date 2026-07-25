@@ -273,7 +273,6 @@ function MesasPage() {
 
   async function doMove(force = false) {
     if (!moveFrom || !moveTarget) return;
-    if (!guardManage()) return;
     setMoving(true);
     const { error } = await supabase.rpc("move_table", {
       _from_table_id: moveFrom.id,
