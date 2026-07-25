@@ -320,7 +320,7 @@ function MesasPage() {
       _reason: undefined,
     });
     setMerging(false);
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(translateError(error.message));
     toast.success("Mesas fusionadas");
     cancelMerge();
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
