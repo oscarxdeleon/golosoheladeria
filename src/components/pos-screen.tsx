@@ -1527,6 +1527,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_fee: deliveryFee,
             tip_amount: effectiveTip,
             cash_tendered: method === "Efectivo" ? (cashReceived !== "" ? Number(cashReceived) : Number(total)) : null,
+            payment_transaction_last4: transactionLast4,
+
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,total,payment_method,created_at")
