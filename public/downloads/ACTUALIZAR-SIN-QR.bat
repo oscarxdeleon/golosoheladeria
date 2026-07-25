@@ -14,9 +14,10 @@ echo   - config.json  ^(token actual^)
 echo   - auth_state\  ^(sesion de WhatsApp vinculada^)
 echo.
 
-where powershell >nul 2>nul
+where node >nul 2>nul
 if errorlevel 1 (
-  echo [ERROR] PowerShell no esta disponible en este Windows.
+  echo [ERROR] Node.js no esta instalado en este Windows.
+  echo Descarga Node 18+ desde https://nodejs.org e intenta de nuevo.
   pause
   exit /b 1
 )
@@ -24,7 +25,7 @@ if errorlevel 1 (
 REM --- Intento 1: deteccion automatica + busqueda profunda ---
 echo Buscando automaticamente la instalacion anterior del bot en este PC...
 echo No necesitas saber donde esta la carpeta: se revisaran ubicaciones comunes.
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-windows.ps1"
+node "%~dp0update-windows.js"
 set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 
@@ -48,7 +49,7 @@ set /p MANUAL=Pega la ruta completa de la carpeta anterior ^(o ENTER para cancel
 if not defined MANUAL goto :cancel
 if "%MANUAL%"=="" goto :cancel
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-windows.ps1" -TargetPath "%MANUAL%" -Force
+node "%~dp0update-windows.js" --target "%MANUAL%" --force
 set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 

@@ -13,14 +13,15 @@ echo Este proceso buscara la sesion anterior de WhatsApp en este PC.
 echo No necesitas conocer la ruta de la carpeta vieja.
 echo.
 
-where powershell >nul 2>nul
+where node >nul 2>nul
 if errorlevel 1 (
-  echo [ERROR] PowerShell no esta disponible en este Windows.
+  echo [ERROR] Node.js no esta instalado en este Windows.
+  echo Descarga Node 18+ desde https://nodejs.org e intenta de nuevo.
   pause
   exit /b 1
 )
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-windows.ps1"
+node "%~dp0update-windows.js"
 set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 
@@ -39,7 +40,7 @@ set /p MANUAL=Carpeta posible ^(opcional^):
 if not defined MANUAL goto :cancel
 if "%MANUAL%"=="" goto :cancel
 
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-windows.ps1" -TargetPath "%MANUAL%" -Force
+node "%~dp0update-windows.js" --target "%MANUAL%" --force
 set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 
