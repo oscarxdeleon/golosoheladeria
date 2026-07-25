@@ -3342,6 +3342,7 @@ export type Database = {
         }
         Returns: Json
       }
+      _whatsapp_normalize_text: { Args: { _value: string }; Returns: string }
       admin_cash_session_detail_rpc: {
         Args: { _cash_session_id: string }
         Returns: Json
