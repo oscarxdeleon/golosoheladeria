@@ -1048,9 +1048,8 @@ function AiAssistantCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => v
               <Badge variant="secondary" className="ml-1 bg-violet-100 text-violet-700 hover:bg-violet-100">Beta</Badge>
             </CardTitle>
             <CardDescription>
-              Cuando el bot no tiene una respuesta fija (bienvenida, menú, fuera de horario), la IA responde
-              de forma natural, incluye interpretación de notas de voz 🎙️. En modo pruebas solo responde a los
-              números autorizados.
+              Cuando el bot no tiene una respuesta fija (bienvenida, menú, fuera de horario), Golosito responde
+              de forma natural, toma pedidos y puede interpretar notas de voz 🎙️.
             </CardDescription>
           </div>
           <div className="flex items-center gap-2 shrink-0">
@@ -1062,20 +1061,20 @@ function AiAssistantCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => v
       <CardContent className="space-y-4">
         <div>
           <Label htmlFor="ai-numbers" className="text-sm font-medium">
-            Números autorizados en pruebas (modo sandbox)
+            Números de prueba opcionales
           </Label>
           <Textarea
             id="ai-numbers"
             value={numbersText}
             onChange={(e) => setNumbersText(e.target.value)}
-            placeholder={"573001234567\n573109876543"}
+            placeholder={"Déjalo vacío para responder a todos los clientes\n573001234567"}
             rows={4}
             className="mt-1 font-mono text-sm"
           />
           <p className="text-xs text-muted-foreground mt-1.5 flex gap-1.5 items-start">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            Uno por línea. Formato con código de país (Colombia: 57…). La IA <b>solo</b> responderá a estos
-            números; los demás clientes seguirán viendo las respuestas fijas actuales.
+            Déjalo vacío para que Golosito responda a todos los clientes. Si escribes números aquí, la IA
+            responderá solo a esos números de prueba.
           </p>
           {parsedNumbers.length > 0 && (
             <div className="mt-2 flex flex-wrap gap-1.5">
@@ -1107,8 +1106,8 @@ function AiAssistantCard({ cfg, onSaved }: { cfg: BotConfigRow; onSaved: () => v
             className="text-sm"
           />
           <p className="text-xs text-muted-foreground mt-1.5">
-            Deja vacío para usar la personalidad por defecto (juvenil, con emojis). El nombre de la sede,
-            los horarios y el link del menú se agregan automáticamente al prompt.
+            Deja vacío para usar la personalidad oficial de Golosito. El nombre de la sede,
+            los horarios y el link del menú se agregan automáticamente.
           </p>
         </div>
 
