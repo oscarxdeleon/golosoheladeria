@@ -23,12 +23,13 @@ function VentasPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id,ticket_number,total,payment_method,user_name,customer_name,created_at")
+        .select("id,ticket_number,total,payment_method,user_name,customer_name,created_at,payment_transaction_last4")
         .order("created_at", { ascending: false })
         .limit(200);
       return data ?? [];
     },
   });
+
 
   const { data: detail } = useQuery({
     queryKey: ["sale-detail", selected],
@@ -71,7 +72,16 @@ function VentasPage() {
                   <TableCell>{formatDate(s.created_at)}</TableCell>
                   <TableCell>{s.user_name ?? "—"}</TableCell>
                   <TableCell>{s.customer_name ?? "—"}</TableCell>
-                  <TableCell>{s.payment_method}</TableCell>
+                  <TableCell>
+                    <div className="flex flex-col">
+                      <span>{s.payment_method}</span>
+                      {s.payment_transaction_last4 && (
+                        <span className="text-[11px] font-mono text-muted-foreground">
+                          Trx **** {s.payment_transaction_last4}
+                        </span>
+                      )}
+                    </div>
+                  </TableCell>
                   <TableCell className="text-right font-medium">{formatMoney(s.total)}</TableCell>
                   <TableCell>
                     <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>

@@ -32,6 +32,7 @@ import { toUpperText } from "@/lib/text-transform";
 import { VoiceMicButton } from "@/components/voice-input";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
 import { AiOrderDialog } from "@/components/ai-order-dialog";
+import { ElectronicPaymentDialog } from "@/components/electronic-payment-dialog";
 import type { ParsedOrderItem, ParsedOrder } from "@/lib/ai-order-parser.functions";
 
 
@@ -606,6 +607,62 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
 }
 
 
+/**
+ * Imprime el comprobante compacto de pago electrónico (Nequi/Bancolombia).
+ * Se genera automáticamente después de registrar la venta y sirve como soporte
+ * físico para la conciliación de pagos al cierre de caja.
+ *
+ * El Print Server (>= 2.21.0) reconoce el tipo `payment_receipt` y aplica una
+ * plantilla térmica ultra compacta que resalta el TOTAL, el MEDIO DE PAGO y
+ * los últimos 4 dígitos de la transacción. En Print Servers anteriores el
+ * payload cae en la plantilla estándar, así que el comprobante siempre se
+ * imprime aunque el cliente no haya actualizado.
+ */
+export async function printPaymentReceipt(o: {
+  ticket: number | null;
+  total: number;
+  payment_method: string;
+  transaction_last4: string;
+  customer?: string;
+  user_name?: string;
+  created_at?: string;
+  branding?: Branding;
+}): Promise<void> {
+  const cajaCfg = await fetchCajaPrinter();
+  const b = o.branding ?? DEFAULT_BRANDING;
+  const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
+  const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
+  const payload: PrintPayload = {
+    type: "payment_receipt",
+    ticket: o.ticket,
+    ticket_number: o.ticket,
+    header: "",
+    items: [],
+    total: o.total,
+    payment_method: o.payment_method,
+    payment_transaction_last4: o.transaction_last4,
+    customer: o.customer,
+    user_name: o.user_name,
+    created_at: o.created_at ?? new Date().toISOString(),
+    business_name: b.business_name,
+    nit: b.nit ?? undefined,
+    address_biz: b.address ?? undefined,
+    phone_biz: b.phone ?? undefined,
+    logo_url: logoUrl,
+    logo_fallback_url: logoFallbackUrl,
+    footer_text: "Conservar para conciliación de caja",
+    printer_ip: cajaCfg.ip,
+    printer_port: cajaCfg.port,
+    open_drawer: false,
+  };
+  const ok = await sendToLocalPrinter(payload);
+  if (!ok) {
+    console.warn("[print] comprobante electrónico no impreso: servidor local no disponible");
+  }
+}
+
+
+
 
 
 
@@ -721,6 +778,9 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [abonoDialogOpen, setAbonoDialogOpen] = useState(false);
   const [courtesyDialogOpen, setCourtesyDialogOpen] = useState(false);
   const [courtesyReason, setCourtesyReason] = useState("");
+  // Diálogo obligatorio para pagos electrónicos (Nequi/Bancolombia).
+  const [electronicPaymentMethod, setElectronicPaymentMethod] = useState<string | null>(null);
+
   // Direcciones guardadas del cliente (lookup por teléfono)
   type SavedAddress = { id: string; label: string; address: string; neighborhood: string | null; reference: string | null; phone: string | null; is_default: boolean };
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([]);
@@ -1420,7 +1480,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
   async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
+    // Extrae los últimos 4 dígitos de la transacción cuando el pago es
+    // electrónico (Nequi/Bancolombia). Se almacenan tanto en el detalle JSON
+    // (compatibilidad con reportes anteriores) como en la columna dedicada
+    // `payment_transaction_last4` para búsquedas rápidas.
+    const rawLast4 = paymentDetails && typeof paymentDetails.transaction_last4 === "string"
+      ? String(paymentDetails.transaction_last4).replace(/\D/g, "").slice(0, 4)
+      : "";
+    const transactionLast4 = /^[0-9]{4}$/.test(rawLast4) ? rawLast4 : null;
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
+
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       return toast.error("Sin conexión — no puedes cobrar hasta recuperar internet");
@@ -1461,6 +1530,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_fee: deliveryFee,
             tip_amount: effectiveTip,
             cash_tendered: method === "Efectivo" ? (cashReceived !== "" ? Number(cashReceived) : Number(total)) : null,
+            payment_transaction_last4: transactionLast4,
+
           })
           .eq("id", pendingSaleId)
           .select("id,ticket_number,total,payment_method,created_at")
@@ -1496,6 +1567,8 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_fee: deliveryFee,
             tip_amount: effectiveTip,
             cash_tendered: method === "Efectivo" ? (cashReceived !== "" ? Number(cashReceived) : Number(total)) : null,
+            payment_transaction_last4: transactionLast4,
+
           })
           .select("id,ticket_number,total,payment_method,created_at")
           .maybeSingle();
@@ -1672,6 +1745,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         printPayload: ticketPayload,
         redirectTo,
       });
+
+      // Impresión automática del comprobante compacto para pagos electrónicos.
+      // No requiere confirmación del cajero: es el soporte físico del pago
+      // para conciliar el cierre de caja y debe salir SIEMPRE.
+      if (transactionLast4) {
+        setTimeout(() => {
+          void printPaymentReceipt({
+            ticket: sale!.ticket_number,
+            total: Number(sale!.total),
+            payment_method: sale!.payment_method,
+            transaction_last4: transactionLast4,
+            customer: snapshotCustomer,
+            user_name: snapshotUserName,
+            created_at: sale!.created_at,
+            branding,
+          });
+        }, 0);
+      }
+
+
 
 
 
@@ -3447,9 +3540,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       } else if (isCourtesy) {
                         setCourtesyReason("");
                         setCourtesyDialogOpen(true);
+                      } else if (isNequi || isBanco) {
+                        // Pagos electrónicos: exigir los últimos 4 dígitos
+                        // de la transacción antes de registrar el cobro.
+                        setElectronicPaymentMethod(m.name);
                       } else {
                         void pay(m.name);
                       }
+
                     } catch (err) {
                       console.error("[pos] payment click error", err);
                       toast.error("No se pudo iniciar el cobro.");
@@ -3507,6 +3605,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Diálogo obligatorio para pagos electrónicos (Nequi/Bancolombia) */}
+      <ElectronicPaymentDialog
+        open={electronicPaymentMethod != null}
+        method={electronicPaymentMethod}
+        total={total}
+        loading={paying}
+        onCancel={() => {
+          setElectronicPaymentMethod(null);
+          setPayDialogOpen(true);
+        }}
+        onConfirm={(last4) => {
+          const method = electronicPaymentMethod;
+          if (!method) return;
+          setElectronicPaymentMethod(null);
+          void pay(method, { transaction_last4: last4 });
+        }}
+      />
+
+
 
       {/* Dialogo para ingresar propina */}
       <Dialog open={tipDialogOpen} onOpenChange={(o) => setTipDialogOpen(o)}>

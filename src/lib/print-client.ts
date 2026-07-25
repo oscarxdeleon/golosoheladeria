@@ -8,7 +8,7 @@ import type { CommandFormat, CommandFormatsMap } from "@/lib/command-format";
 import { DEFAULT_FORMATS, normalizeFormat } from "@/lib/command-format";
 
 export type PrintPayload = {
-  type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer";
+  type: "comanda" | "precuenta" | "ticket" | "comprobante" | "drawer" | "payment_receipt";
   /** Identificador único del trabajo — el Print Server lo usa para idempotencia
    *  (ventana de 10 min). Si no se provee, el cliente genera uno estable a
    *  partir del contenido para evitar impresiones duplicadas ante reintentos. */
@@ -27,6 +27,8 @@ export type PrintPayload = {
   tip?: number;
   total?: number;
   payment_method?: string;
+  /** Últimos 4 dígitos de la transacción (solo Nequi/Bancolombia) para conciliación. */
+  payment_transaction_last4?: string;
   customer?: string;
   notes?: string;
   address?: string;
@@ -54,6 +56,7 @@ export type PrintPayload = {
    *  al imprimir comandas). El Print Server lo aplica al renderizar. */
   command_format?: CommandFormat;
 };
+
 
 
 const LS_KEY = "LOCAL_PRINT_URL";
