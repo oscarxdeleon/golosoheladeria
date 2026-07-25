@@ -2852,6 +2852,7 @@ export type Database = {
           expires_at: string
           id: string
           items: Json
+          order_type: string
           payment_method: string | null
           phone: string
           posted_sale_id: string | null
@@ -2872,6 +2873,7 @@ export type Database = {
           expires_at?: string
           id?: string
           items?: Json
+          order_type?: string
           payment_method?: string | null
           phone: string
           posted_sale_id?: string | null
@@ -2892,6 +2894,7 @@ export type Database = {
           expires_at?: string
           id?: string
           items?: Json
+          order_type?: string
           payment_method?: string | null
           phone?: string
           posted_sale_id?: string | null

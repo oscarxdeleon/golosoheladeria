@@ -40,7 +40,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.19.3";
+const BOT_VERSION = "8.20.0";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const WATCHDOG_MAX_NO_HEARTBEAT_MS = 10 * 60_000; // 10 min sin ningún evento → exit
@@ -562,7 +562,7 @@ async function handleIncoming(from, body) {
 }
 
 function buildSafetyReply() {
-  return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 https://golosoheladeria.lovable.app/menu\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.";
+  return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.";
 }
 
 async function requestAiReply(from, { text, audioB64, audioMime }) {

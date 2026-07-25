@@ -166,12 +166,136 @@ function fallbackOrderReply(input: string, menuLink: string, takingOrders: boole
   if (detected) {
     return `¡Perfecto! Soy Golosito y te ayudo con tu pedido. 🍦\n\nTengo anotado que quieres ${detected}.\n\nPara completarlo, por favor envíame:\n• Cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nTambién puedes ver el menú con fotos y precios aquí 👉 ${menuLink}`;
   }
-  // Si ya hay conversación en curso, NO repetir el mensaje operativo genérico
-  // (era la causa del ciclo: el bot volvía a pedir "producto + cantidad + nombre..."
-  // aunque el cliente ya estuviera en medio del pedido). Mejor guardar silencio
-  // y dejar que el cliente escriba de nuevo, en lugar de reiniciar el flujo.
-  if (hasHistory) return "";
+  if (hasHistory) {
+    return `Te sigo ayudando con tu pedido. 🍦\n\nPara poder registrarlo bien, envíame lo que falte:\n• Producto y cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio, o si es para recoger\n• Pago: efectivo o transferencia\n\nMenú con fotos y precios 👉 ${menuLink}`;
+  }
   return operationalReply(menuLink, true);
+}
+
+type ProductLite = {
+  id?: string;
+  name?: string;
+  price?: number;
+  category?: string | null;
+  is_favorite?: boolean;
+  modifier_group_ids?: unknown;
+};
+
+type OrderConfigLite = {
+  ordering_enabled?: boolean;
+  min_amount?: number;
+  delivery_fee?: number;
+  zones?: string | null;
+  transfer_info?: string | null;
+  dry_run?: boolean;
+} | null;
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s#.,-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseQuantity(input: string) {
+  const normalized = normalizeText(input);
+  const words: Record<string, number> = {
+    un: 1, una: 1, uno: 1,
+    dos: 2, tres: 3, cuatro: 4, cinco: 5,
+    seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+  };
+  for (const [word, qty] of Object.entries(words)) {
+    if (new RegExp(`\\b${word}\\b`).test(normalized)) return qty;
+  }
+  const digit = normalized.match(/(?:^|\s)(\d{1,2})(?:\s+(?:x|de|unidad|unidades|vaso|vasos|copa|copas|cono|conos|helado|helados|malteada|malteadas|jugo|jugos|banana|ensalada|brownie)\b)/)?.[1];
+  if (digit) return Math.max(1, Math.min(20, Number(digit)));
+  return 1;
+}
+
+function detectOrderType(input: string) {
+  const normalized = normalizeText(input);
+  if (/\b(recoger|recojo|paso por|pasaria|pasaría|para llevar|retiro|heladeria|heladeria)\b/.test(normalized)) return "pickup";
+  if (/\b(domicilio|direccion|dirección|enviar|envio|envío|mandar|llevar|barrio)\b/.test(normalized)) return "delivery";
+  return null;
+}
+
+function detectPayment(input: string) {
+  const normalized = normalizeText(input);
+  if (/\b(efectivo|cash)\b/.test(normalized)) return "cash";
+  if (/\b(transferencia|transferir|nequi|bancolombia|daviplata|qr)\b/.test(normalized)) return "transfer";
+  return null;
+}
+
+function extractField(input: string, labels: string[]) {
+  const lines = input.split(/[\n;]+/).map((line) => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    const normalizedLine = normalizeText(line);
+    for (const label of labels) {
+      const normalizedLabel = normalizeText(label);
+      if (normalizedLine.startsWith(normalizedLabel)) {
+        return line.replace(new RegExp(`^\\s*${label}\\s*[:#-]?\\s*`, "i"), "").trim();
+      }
+    }
+  }
+  const escaped = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const match = input.match(new RegExp(`(?:${escaped})\\s*[:#-]?\\s*([^\n;,.]+(?:[#\wÁÉÍÓÚáéíóúÑñ\s-]*))`, "i"));
+  return match?.[1]?.trim() ?? null;
+}
+
+function extractCustomerName(input: string) {
+  const explicit = extractField(input, ["nombre", "a nombre de", "mi nombre es", "me llamo", "soy"]);
+  if (!explicit) return null;
+  return explicit.replace(/\b(direccion|dirección|barrio|pago|efectivo|transferencia).*$/i, "").trim();
+}
+
+function extractAddress(input: string) {
+  return extractField(input, ["direccion", "dirección", "dir", "address"]);
+}
+
+function extractNeighborhood(input: string) {
+  return extractField(input, ["barrio", "sector"]);
+}
+
+function isConfirmation(input: string) {
+  return /\b(si|sí|confirmo|confirmar|dale|listo|correcto|esta bien|está bien|ok|perfecto|hagale|hágale)\b/i.test(input);
+}
+
+function productScore(product: ProductLite, input: string) {
+  const haystack = normalizeText(`${product.name ?? ""} ${product.category ?? ""}`);
+  const query = normalizeText(input);
+  if (!product.name || !query) return 0;
+  if (query.includes(haystack) || haystack.includes(query)) return 100;
+  const words = textTokens(String(product.name)).filter((word) => word.length >= 3);
+  return words.reduce((score, word) => score + (query.includes(word) ? 12 : 0), 0) + (product.is_favorite ? 2 : 0);
+}
+
+function findRequestedProduct(products: ProductLite[], input: string) {
+  return products
+    .map((product) => ({ product, score: productScore(product, input) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || String(a.product.name ?? "").localeCompare(String(b.product.name ?? "")))[0]?.product ?? null;
+}
+
+function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number) => string) {
+  const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+  const lines = items.map((item) => {
+    const qty = Number(item.qty ?? 1);
+    const name = String(item.product_name ?? item.name ?? "Producto");
+    const unit = Number(item.unit_price ?? 0);
+    return `• ${qty} x ${name} — ${fmtCOP(qty * unit)}`;
+  });
+  const subtotal = Number(cart?.subtotal ?? 0);
+  const fee = Number(cart?.delivery_fee ?? 0);
+  const total = Number(cart?.total ?? subtotal + fee);
+  return [
+    ...lines,
+    `Subtotal: ${fmtCOP(subtotal)}`,
+    fee > 0 ? `Domicilio: ${fmtCOP(fee)}` : null,
+    `Total: ${fmtCOP(total)}`,
+  ].filter(Boolean).join("\n");
 }
 
 const AI_TOTAL_BUDGET_MS = 28_000;
@@ -446,7 +570,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const flavorGroups = Array.isArray(ctx.flavor_groups)
                 ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
                 : [];
-              const allProducts = Array.isArray(ctx.products) ? ctx.products as Array<{ id?: string; name?: string; price?: number; category?: string | null; is_favorite?: boolean }> : [];
+              const allProducts = Array.isArray(ctx.products) ? ctx.products as ProductLite[] : [];
               // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
               const products = selectRelevantProducts(allProducts, text, 20);
 
@@ -630,7 +754,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 { type: "function", function: { name: "search_products", description: "Busca productos activos de la sede por nombre. Devuelve id, name, price, modifier_group_ids.", parameters: { type: "object", properties: { query: { type: "string", description: "Palabra clave del producto que busca el cliente." } }, required: ["query"] } } },
                 { type: "function", function: { name: "get_modifiers", description: "Obtiene los grupos de modificadores (sabores, toppings) disponibles para un producto.", parameters: { type: "object", properties: { product_id: { type: "string" } }, required: ["product_id"] } } },
                 { type: "function", function: { name: "add_to_cart", description: "Agrega un item al carrito del cliente. Los modificadores deben venir con id, name y price obtenidos de get_modifiers.", parameters: { type: "object", properties: { product_id: { type: "string" }, product_name: { type: "string" }, unit_price: { type: "number" }, qty: { type: "number" }, modifiers: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, price: { type: "number" } } } }, notes: { type: "string" } }, required: ["product_name", "unit_price", "qty"] } } },
-                { type: "function", function: { name: "set_delivery_info", description: "Guarda los datos de entrega y pago en el carrito.", parameters: { type: "object", properties: { customer_name: { type: "string" }, delivery_address: { type: "string" }, delivery_neighborhood: { type: "string" }, delivery_notes: { type: "string" }, payment_method: { type: "string", description: "'cash' o 'transfer'" }, delivery_fee: { type: "number" } } } } },
+                { type: "function", function: { name: "set_delivery_info", description: "Guarda los datos de entrega, tipo de pedido y pago en el carrito.", parameters: { type: "object", properties: { order_type: { type: "string", description: "'delivery' para domicilio o 'pickup' para recoger" }, customer_name: { type: "string" }, delivery_address: { type: "string" }, delivery_neighborhood: { type: "string" }, delivery_notes: { type: "string" }, payment_method: { type: "string", description: "'cash' o 'transfer'" }, delivery_fee: { type: "number" } } } } },
                 { type: "function", function: { name: "show_cart", description: "Muestra el contenido actual del carrito (útil antes de confirmar).", parameters: { type: "object", properties: {} } } },
                 { type: "function", function: { name: "confirm_order", description: "Confirma el pedido y lo envía al POS. Solo llámalo cuando el cliente lo confirme explícitamente.", parameters: { type: "object", properties: {} } } },
                 { type: "function", function: { name: "cancel_order", description: "Cancela el carrito en construcción.", parameters: { type: "object", properties: {} } } },
@@ -711,7 +835,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     }
                     case "set_delivery_info": {
                       const patch: Record<string, unknown> = {};
-                      for (const k of ["customer_name", "delivery_address", "delivery_neighborhood", "delivery_notes", "payment_method"]) {
+                      for (const k of ["order_type", "customer_name", "delivery_address", "delivery_neighborhood", "delivery_notes", "payment_method"]) {
                         if (typeof args[k] === "string" && (args[k] as string).length > 0) patch[k] = args[k];
                       }
                       if (typeof args.delivery_fee === "number") patch.delivery_fee = args.delivery_fee;
@@ -757,6 +881,110 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               };
 
+              const buildOperationalOrderReply = async () => {
+                if (!orderingEnabled || !text) return null;
+
+                const normalized = normalizeText(text);
+                const currentCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                const currentCart = (currentCartRes.ok ? currentCartRes.data : null) as Record<string, unknown> | null;
+                const currentItems = Array.isArray(currentCart?.items) ? currentCart.items as Array<Record<string, unknown>> : [];
+                const patch: Record<string, unknown> = {};
+                const orderType = detectOrderType(text);
+                const payment = detectPayment(text);
+                const customerName = extractCustomerName(text);
+                const address = extractAddress(text);
+                const neighborhood = extractNeighborhood(text);
+
+                if (orderType) patch.order_type = orderType;
+                if (payment) patch.payment_method = payment;
+                if (customerName && customerName.length >= 2) patch.customer_name = customerName;
+                if (address && address.length >= 3) patch.delivery_address = address;
+                if (neighborhood && neighborhood.length >= 2) patch.delivery_neighborhood = neighborhood;
+                if (orderType === "delivery" || (!orderType && (currentCart?.order_type ?? "delivery") === "delivery")) {
+                  patch.delivery_fee = Number(orderCfg?.delivery_fee ?? currentCart?.delivery_fee ?? 0);
+                }
+
+                const product = findRequestedProduct(allProducts, text);
+                if (product?.name && typeof product.price === "number") {
+                  const qty = parseQuantity(text);
+                  const productId = typeof product.id === "string" ? product.id : null;
+                  const itemKey = productId ?? product.name.toUpperCase();
+                  const keyOf = (item: Record<string, unknown>) => String(item.product_id ?? item.product_name ?? "").toUpperCase();
+                  const nextItems = [...currentItems];
+                  const nextItem = {
+                    product_id: productId,
+                    product_name: product.name,
+                    unit_price: Number(product.price),
+                    qty,
+                    modifiers: [],
+                    notes: null,
+                  };
+                  const idx = nextItems.findIndex((item) => keyOf(item) === itemKey.toUpperCase());
+                  if (idx >= 0) nextItems[idx] = nextItem;
+                  else nextItems.push(nextItem);
+                  patch.items = nextItems;
+                }
+
+                const hasPatch = Object.keys(patch).length > 0;
+                const hasCart = currentItems.length > 0;
+                const looksLikeOrderTurn = hasPatch || hasCart || /\b(quiero|dame|deme|pedido|pedir|domicilio|recoger|confirmo|confirmar|si|sí|banana|helado|malteada|jugo|waffle|brownie|ensalada|cholado|fresas|copa|cono|vaso)\b/.test(normalized);
+                if (!looksLikeOrderTurn) return null;
+
+                let cart = currentCart;
+                if (hasPatch) {
+                  const upsert = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: patch });
+                  if (upsert.ok && upsert.data && typeof upsert.data === "object") cart = upsert.data as Record<string, unknown>;
+                }
+
+                const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+                const effectiveOrderType = String(cart?.order_type ?? patch.order_type ?? "delivery");
+                const missing: string[] = [];
+                if (items.length === 0) missing.push("producto y cantidad");
+                if (!String(cart?.customer_name ?? "").trim()) missing.push("nombre");
+                if (effectiveOrderType === "delivery") {
+                  if (!String(cart?.delivery_address ?? "").trim()) missing.push("dirección");
+                  if (!String(cart?.delivery_neighborhood ?? "").trim()) missing.push("barrio");
+                }
+                if (!String(cart?.payment_method ?? "").trim()) missing.push("método de pago");
+
+                if (isConfirmation(text) && missing.length === 0) {
+                  const confirm = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
+                  if (confirm.ok && confirm.data && typeof confirm.data === "object") {
+                    const confirmed = confirm.data as Record<string, unknown>;
+                    const number = String(confirmed.order_number ?? confirmed.ticket_number ?? "").trim();
+                    return number
+                      ? `Tu pedido quedó registrado con el nº ${number}. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.`
+                      : "Tu pedido quedó registrado. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.";
+                  }
+                }
+
+                if (items.length > 0) {
+                  const summary = summarizeCart(cart, fmtCOP);
+                  if (missing.length > 0) {
+                    return `¡Perfecto! Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
+                  }
+                  return `Tengo listo este resumen:\n\n${summary}\n\n¿Confirmas el pedido?`;
+                }
+
+                if (product === null && /\b(quiero|dame|deme|pedido|pedir|domicilio|recoger)\b/.test(normalized)) {
+                  return fallbackOrderReply(text, menuLink, true, history.length > 0);
+                }
+
+                return null;
+              };
+
+              const operationalOrderReply = await buildOperationalOrderReply();
+              if (operationalOrderReply) {
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: operationalOrderReply });
+                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                await logBotEvent(token, conversationId, from, "operational_order_flow", {
+                  durationMs: elapsedMs(requestStarted),
+                  metadata: { replyLength: operationalOrderReply.length },
+                });
+                return json({ reply: operationalOrderReply, source: "operational_order_flow", conversation_id: conversationId }, 200);
+              }
+
               // 5) Llamar a la IA. En producción priorizamos Google AI Studio directo
               // para no consumir créditos de Lovable. Si un modelo deja de estar
               // disponible para la clave actual, pasamos a un modelo estable distinto.
@@ -794,11 +1022,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               }
 
               const useGeminiDirect = true;
-              // flash-lite tiene 30 rpm free vs 15 rpm de flash — soporta mejor
-              // ráfagas de tool-calling. flash queda como fallback cuando lite
-              // 429/5xx.
-              const primaryModel = "gemini-2.0-flash-lite";
-              const fallbackModel = "gemini-2.0-flash";
+              const primaryModel = "gemini-2.0-flash";
+              const fallbackModel = "gemini-2.0-flash-lite";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
