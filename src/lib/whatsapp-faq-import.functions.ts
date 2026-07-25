@@ -67,6 +67,7 @@ Reglas ESTRICTAS:
 
   const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = json?.choices?.[0]?.message?.content ?? "{}";
+  if (useGeminiDirect) void trackGeminiCall("faq_import");
   let parsed: { pairs?: Array<{ question?: unknown; answer?: unknown }> } = {};
   try { parsed = JSON.parse(content); } catch {
     const m = content.match(/\{[\s\S]*\}/);
