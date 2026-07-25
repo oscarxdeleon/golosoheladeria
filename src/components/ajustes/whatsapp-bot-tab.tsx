@@ -241,7 +241,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | "update" | null>(null);
+
   const [progressStep, setProgressStep] = useState<string | null>(null);
   const needsManualBridgeUpdate = compareVersions(cfg.bot_version, REMOTE_MANAGEMENT_MIN_VERSION) < 0;
 
