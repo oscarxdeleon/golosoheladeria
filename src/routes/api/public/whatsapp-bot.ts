@@ -975,7 +975,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 metadata: { finishReason: lastFinishReason, replyLength: finalReply.length },
               });
 
-              return json({ reply: finalReply, source: lastErr ? "ai_operational" : "ai", finish_reason: lastFinishReason, warning: lastErr, conversation_id: conversationId });
+              const stickerEvent = detectStickerEvent(text, undefined, orderConfirmed);
+              let stickerMeta: { sticker_url: string; sticker_event: string; sticker_label: string } | undefined;
+              if (stickerEvent) {
+                const sticker = await pickSticker(token, stickerEvent);
+                if (sticker) {
+                  stickerMeta = { sticker_url: sticker.url, sticker_event: sticker.event_key, sticker_label: sticker.label };
+                }
+              }
+
+              return json({
+                reply: finalReply,
+                source: lastErr ? "ai_operational" : "ai",
+                finish_reason: lastFinishReason,
+                warning: lastErr,
+                conversation_id: conversationId,
+                ...stickerMeta,
+              });
             }
             default:
               return json({ error: "unknown_action" }, 400);
