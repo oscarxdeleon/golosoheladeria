@@ -148,12 +148,17 @@ function operationalReply(menuLink: string, takingOrders = false) {
   return `¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
 }
 
-function normalizeMenuLink(value: unknown, fallback = "https://golosoheladeria.lovable.app/menu") {
+const PUBLIC_MENU_BASE = "https://golosoheladeria.vercel.app";
+const DEFAULT_MENU_LINK = `${PUBLIC_MENU_BASE}/menu`;
+
+function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
   const raw = typeof value === "string" && value.trim() ? value.trim() : fallback;
-  return raw.replace("https://golosoheladeria.vercel.app", "https://golosoheladeria.lovable.app");
+  return raw
+    .replace(/https:\/\/golosoheladeria\.lovable\.app/gi, PUBLIC_MENU_BASE)
+    .replace(/https:\/\/id-preview--[a-z0-9-]+\.lovable\.app/gi, PUBLIC_MENU_BASE);
 }
 
-function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean) {
+function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false) {
   if (!takingOrders) return operationalReply(menuLink, false);
   const normalized = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
   const productHints = ["banana split", "ensalada de frutas", "brownie", "helado", "malteada", "jugo", "waffle", "cholado", "fresas", "copa", "cono", "vaso"];
@@ -161,6 +166,11 @@ function fallbackOrderReply(input: string, menuLink: string, takingOrders: boole
   if (detected) {
     return `¡Perfecto! Soy Golosito y te ayudo con tu pedido. 🍦\n\nTengo anotado que quieres ${detected}.\n\nPara completarlo, por favor envíame:\n• Cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nTambién puedes ver el menú con fotos y precios aquí 👉 ${menuLink}`;
   }
+  // Si ya hay conversación en curso, NO repetir el mensaje operativo genérico
+  // (era la causa del ciclo: el bot volvía a pedir "producto + cantidad + nombre..."
+  // aunque el cliente ya estuviera en medio del pedido). Mejor guardar silencio
+  // y dejar que el cliente escriba de nuevo, en lugar de reiniciar el flujo.
+  if (hasHistory) return "";
   return operationalReply(menuLink, true);
 }
 
