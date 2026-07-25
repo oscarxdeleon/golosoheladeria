@@ -273,7 +273,6 @@ function MesasPage() {
 
   async function doMove(force = false) {
     if (!moveFrom || !moveTarget) return;
-    if (!guardManage()) return;
     setMoving(true);
     const { error } = await supabase.rpc("move_table", {
       _from_table_id: moveFrom.id,
@@ -587,7 +586,7 @@ function MesasPage() {
               )}
 
               {/* acciones flotantes */}
-              {status === "occupied" && canManageTables && (
+              {status === "occupied" && (
                 <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-1.5">
                   <span
                     role="button"
@@ -597,14 +596,16 @@ function MesasPage() {
                   >
                     <ArrowRightLeft className="h-3 w-3" /> Mover
                   </span>
-                  <span
-                    role="button"
-                    onClick={(e) => { e.stopPropagation(); setReleaseMesa(m); setReleaseReason(""); }}
-                    className="inline-flex items-center gap-1 rounded-lg bg-background/80 px-2 py-1 text-[11px] font-semibold text-destructive shadow-sm backdrop-blur transition hover:bg-background"
-                    title="Liberar mesa"
-                  >
-                    <LogOut className="h-3 w-3" /> Liberar
-                  </span>
+                  {canManageTables && (
+                    <span
+                      role="button"
+                      onClick={(e) => { e.stopPropagation(); setReleaseMesa(m); setReleaseReason(""); }}
+                      className="inline-flex items-center gap-1 rounded-lg bg-background/80 px-2 py-1 text-[11px] font-semibold text-destructive shadow-sm backdrop-blur transition hover:bg-background"
+                      title="Liberar mesa"
+                    >
+                      <LogOut className="h-3 w-3" /> Liberar
+                    </span>
+                  )}
                   {hasMerged && (
                     <span
                       role="button"
