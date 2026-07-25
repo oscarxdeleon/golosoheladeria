@@ -28,11 +28,13 @@ need_cmd curl
 need_cmd unzip
 
 if [[ -z "${1:-}" && ! -f "${TARGET_DIR}/config.json" ]]; then
-  detected="$(pm2 jlist 2>/dev/null | node - <<'NODE'
+  pm2_snapshot="$(mktemp)"
+  pm2 jlist > "${pm2_snapshot}" 2>/dev/null || echo "[]" > "${pm2_snapshot}"
+  detected="$(PM2_SNAPSHOT="${pm2_snapshot}" node <<'NODE'
 const fs = require('fs');
 const path = require('path');
 let list = [];
-try { list = JSON.parse(fs.readFileSync(0, 'utf8') || '[]'); } catch {}
+try { list = JSON.parse(fs.readFileSync(process.env.PM2_SNAPSHOT, 'utf8') || '[]'); } catch {}
 const candidates = [];
 for (const p of list) {
   const name = String(p.name || '');
@@ -61,6 +63,7 @@ const pick = candidates[0];
 if (pick && pick.score >= 8) console.log(`${pick.dir}\t${pick.name || 'goloso-bot'}`);
 NODE
 )"
+  rm -f "${pm2_snapshot}"
   if [[ -n "${detected}" ]]; then
     TARGET_DIR="${detected%%$'\t'*}"
     detected_name="${detected#*$'\t'}"
