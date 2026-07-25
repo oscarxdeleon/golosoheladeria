@@ -399,10 +399,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 if (error === "rate_limited") {
                   const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
                   const rateLimitTakesOrders = orderCfgRes.ok && Boolean((orderCfgRes.data as { ordering_enabled?: boolean } | null)?.ordering_enabled);
-                  const reply = fallbackOrderReply(text, "https://golosoheladeria.lovable.app/menu", rateLimitTakesOrders);
+                  const reply = fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders);
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
-                const fallbackReply = fallbackOrderReply(text, "https://golosoheladeria.lovable.app/menu", true);
+                const fallbackReply = fallbackOrderReply(text, DEFAULT_MENU_LINK, true);
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
               await logBotEvent(token, conversationId, from, "context_loaded", {
@@ -416,7 +416,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 },
               });
               const branchName = String(ctx.branch_name ?? "Heladería Goloso");
-              const menuLink = normalizeMenuLink(ctx.menu_link, "https://golosoheladeria.lovable.app/menu");
+              const menuLink = normalizeMenuLink(ctx.menu_link, DEFAULT_MENU_LINK);
               const onlineOpen = Boolean(ctx.online_open);
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
