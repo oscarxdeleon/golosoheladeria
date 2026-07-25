@@ -386,6 +386,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           started_at?: string;
           pollStatus?: string;
           pollCount?: number;
+          to?: string;
+          body?: string;
+          purpose?: string;
           // Asistente IA (Fase 1)
           text?: string;
           audio_b64?: string;
