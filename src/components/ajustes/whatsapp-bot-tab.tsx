@@ -317,25 +317,59 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
 
         <Dialog open={qrOpen} onOpenChange={setQrOpen}>
           <DialogContent className="max-w-md">
-            <DialogHeader><DialogTitle>Escanea el QR desde WhatsApp</DialogTitle></DialogHeader>
+            <DialogHeader><DialogTitle>Vincular WhatsApp por QR</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
                 <li>Abre WhatsApp Business en el celular de la sede.</li>
                 <li>Menú (⋮) → <b>Dispositivos vinculados</b> → <b>Vincular un dispositivo</b>.</li>
-                <li>Escanea este código.</li>
+                <li>Escanea el código que aparece aquí abajo.</li>
               </ol>
               <div className="grid place-items-center rounded-xl border bg-white p-4 min-h-[320px]">
                 {cfg.qr_code ? (
-                  <QRCodeCanvas value={cfg.qr_code} size={280} includeMargin />
+                  <div className="space-y-2 text-center">
+                    <QRCodeCanvas value={cfg.qr_code} size={280} includeMargin />
+                    {cfg.qr_generated_at && (
+                      <p className="text-[10px] text-muted-foreground">Actualizado {new Date(cfg.qr_generated_at).toLocaleTimeString()}</p>
+                    )}
+                  </div>
+                ) : cfg.connection_status === "connected" ? (
+                  <div className="space-y-3 p-4 text-center text-sm">
+                    <Wifi className="mx-auto h-10 w-10 text-emerald-500" />
+                    <p className="font-semibold text-foreground">Ya hay una sesión activa</p>
+                    {cfg.connected_phone && <p className="text-xs text-muted-foreground">Número vinculado: +{cfg.connected_phone}</p>}
+                    <p className="text-xs text-muted-foreground">Para vincular otro teléfono presiona el botón de abajo. La sesión actual se cerrará.</p>
+                  </div>
                 ) : (
                   <div className="space-y-2 p-6 text-center text-sm text-muted-foreground">
-                    <QrCode className="mx-auto h-10 w-10 opacity-40" />
-                    <p className="font-semibold text-foreground">Aún no hay QR disponible</p>
-                    <p>Instala el bot en el PC de la sede. Si ya lo instalaste, abre <b>http://localhost:8790</b> en ese mismo PC: allí debe aparecer el QR o el error exacto.</p>
+                    <QrCode className="mx-auto h-10 w-10 animate-pulse opacity-40" />
+                    <p className="font-semibold text-foreground">Generando QR…</p>
+                    <p>Puede tardar entre 10 y 30 segundos. El QR aparecerá aquí automáticamente.</p>
+                    <p className="text-xs">Si no aparece en 1 minuto, presiona <b>Regenerar QR</b>.</p>
                   </div>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">El QR se refresca solo mientras el bot está en modo de vinculación.</p>
+              <div className="flex flex-col gap-2 sm:flex-row">
+                <Button
+                  className="flex-1"
+                  onClick={() => sendCommand("unlink")}
+                  disabled={busyCmd !== null}
+                  variant={cfg.connection_status === "connected" ? "destructive" : "default"}
+                >
+                  <RotateCw className={`mr-2 h-4 w-4 ${busyCmd === "unlink" ? "animate-spin" : ""}`} />
+                  {cfg.connection_status === "connected" ? "Cerrar sesión y generar nuevo QR" : "Regenerar QR"}
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => sendCommand("reconnect")}
+                  disabled={busyCmd !== null}
+                >
+                  <RefreshCw className={`mr-2 h-4 w-4 ${busyCmd === "reconnect" ? "animate-spin" : ""}`} />
+                  Reintentar
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Todo ocurre automáticamente desde este panel. No necesitas abrir el PC de la sede ni ejecutar comandos.
+              </p>
             </div>
           </DialogContent>
         </Dialog>
