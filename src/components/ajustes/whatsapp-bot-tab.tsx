@@ -691,8 +691,7 @@ function BotVersionInfoCard({
           ))}
         </div>
       )}
-      </CardContent>
-    </Card>
+    </div>
   );
 }
 
