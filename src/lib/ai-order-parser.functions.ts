@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { trackGeminiCall } from "@/lib/gemini-quota.server";
 
 export interface ParsedOrderItem {
   product_id: string;
@@ -90,6 +91,7 @@ Mesas activas: ${mesaNumbers.join(", ") || "(ninguna)"}`;
       }
       const json = (await resp.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       content = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+      void trackGeminiCall("ai_order_parser");
     } else {
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",

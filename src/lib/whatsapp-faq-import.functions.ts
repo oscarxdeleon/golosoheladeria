@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { parseFaqText, stripWhatsAppMetadata, chunkText } from "./faq-parser";
+import { trackGeminiCall } from "@/lib/gemini-quota.server";
 
 export interface ExtractedFaq {
   question: string;
@@ -66,6 +67,7 @@ Reglas ESTRICTAS:
 
   const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
   const content = json?.choices?.[0]?.message?.content ?? "{}";
+  if (useGeminiDirect) void trackGeminiCall("faq_import");
   let parsed: { pairs?: Array<{ question?: unknown; answer?: unknown }> } = {};
   try { parsed = JSON.parse(content); } catch {
     const m = content.match(/\{[\s\S]*\}/);

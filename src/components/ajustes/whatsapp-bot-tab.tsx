@@ -29,6 +29,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { GeminiQuotaCard } from "./gemini-quota-card";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
 
@@ -192,6 +193,7 @@ export function WhatsAppBotTab() {
       <OrderingCard branchId={cfg.branch_id} />
       <FaqManagerCard branchId={cfg.branch_id} />
       <ReportRecipientsCard branchId={cfg.branch_id} />
+      {isAdmin && <GeminiQuotaCard />}
       <MessagesCard messages={messages} />
     </div>
   );
