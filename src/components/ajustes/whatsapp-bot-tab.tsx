@@ -33,6 +33,13 @@ import { GeminiQuotaCard } from "./gemini-quota-card";
 import { UpdateReconnectWizard } from "./update-reconnect-wizard";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
+import {
+  BOT_NAME,
+  BOT_VERSION,
+  BOT_DOWNLOAD_FILENAME,
+  BOT_LATEST_DOWNLOAD_URL,
+  BOT_VERSION_HISTORY,
+} from "@/lib/bot-version";
 
 
 
@@ -78,7 +85,7 @@ interface MessageRow {
   received_at: string;
 }
 
-const WHATSAPP_BOT_DOWNLOAD_URL = "/downloads/whatsapp-bot.zip";
+const WHATSAPP_BOT_DOWNLOAD_URL = BOT_LATEST_DOWNLOAD_URL;
 const REMOTE_MANAGEMENT_MIN_VERSION = "8.17.1";
 
 function compareVersions(a?: string | null, b = REMOTE_MANAGEMENT_MIN_VERSION): number {
@@ -595,8 +602,8 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button asChild variant="outline" size="sm">
-              <a href={WHATSAPP_BOT_DOWNLOAD_URL} download="whatsapp-bot.zip">
-                <Download className="mr-2 h-4 w-4" /> Descargar actualización sin QR
+              <a href={WHATSAPP_BOT_DOWNLOAD_URL} download={BOT_DOWNLOAD_FILENAME}>
+                <Download className="mr-2 h-4 w-4" /> Descargar {BOT_DOWNLOAD_FILENAME}
               </a>
             </Button>
             <Button variant="ghost" size="sm" onClick={rotateToken}>
@@ -605,9 +612,85 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
           </div>
           <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
             <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            Para actualizar sin saber la carpeta anterior, usa SOLUCION-SIN-SABER-CARPETA.bat. Solo se pedirá QR si auth_state fue borrada o WhatsApp cerró la sesión.
+            El archivo se descarga como <code>{BOT_DOWNLOAD_FILENAME}</code>. Usa SOLUCION-SIN-SABER-CARPETA.bat si no recuerdas la carpeta anterior. Solo se pedirá QR si auth_state fue borrada o WhatsApp cerró la sesión.
           </p>
         </div>
+
+        <BotVersionInfoCard installedVersion={cfg.bot_version} lastSeenAt={cfg.last_seen_at} />
+      </CardContent>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- */
+
+function BotVersionInfoCard({
+  installedVersion,
+  lastSeenAt,
+}: {
+  installedVersion: string | null;
+  lastSeenAt: string | null;
+}) {
+  const [showHistory, setShowHistory] = useState(false);
+  const isUpToDate = installedVersion === BOT_VERSION;
+  const installedLabel = installedVersion ? `v${installedVersion}` : "desconocida";
+  const lastUpdateLabel = lastSeenAt ? new Date(lastSeenAt).toLocaleString() : "—";
+
+  return (
+    <div className="rounded-xl border bg-card p-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="space-y-1 text-sm">
+          <div><span className="text-muted-foreground">Bot:</span> <b>{BOT_NAME}</b></div>
+          <div>
+            <span className="text-muted-foreground">Versión instalada:</span>{" "}
+            <b>{installedLabel}</b>{" "}
+            <span className="text-xs text-muted-foreground">/ última publicada: v{BOT_VERSION}</span>
+          </div>
+          <div><span className="text-muted-foreground">Última señal:</span> {lastUpdateLabel}</div>
+          <div>
+            <span className="text-muted-foreground">Archivo actual:</span>{" "}
+            <code className="text-xs">{BOT_DOWNLOAD_FILENAME}</code>
+          </div>
+        </div>
+        <Badge className={isUpToDate ? "bg-emerald-500" : "bg-amber-500"}>
+          {isUpToDate ? "Actualizado" : "Actualización disponible"}
+        </Badge>
+      </div>
+
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => setShowHistory((v) => !v)}
+        className="h-8 px-2 text-xs"
+      >
+        {showHistory ? <ChevronDown className="mr-1 h-3.5 w-3.5" /> : <ChevronRight className="mr-1 h-3.5 w-3.5" />}
+        Historial de versiones ({BOT_VERSION_HISTORY.length})
+      </Button>
+
+      {showHistory && (
+        <div className="rounded-lg border bg-muted/30 divide-y">
+          {BOT_VERSION_HISTORY.map((entry) => (
+            <div key={entry.version} className="p-3 text-xs space-y-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <b className="text-sm">v{entry.version}</b>
+                <span className="text-muted-foreground">{entry.date}</span>
+                <Badge
+                  variant="outline"
+                  className={
+                    entry.status === "exitosa"
+                      ? "border-emerald-500 text-emerald-700"
+                      : "border-rose-500 text-rose-700"
+                  }
+                >
+                  {entry.status === "exitosa" ? "Exitosa" : "Fallida"}
+                </Badge>
+                <span className="text-muted-foreground">· {entry.author}</span>
+              </div>
+              <div className="text-muted-foreground">{entry.notes}</div>
+            </div>
+          ))}
+        </div>
+      )}
       </CardContent>
     </Card>
   );
