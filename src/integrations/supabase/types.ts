@@ -2218,7 +2218,9 @@ export type Database = {
           cancelled_at: string | null
           cancelled_by: string | null
           cancelled_by_name: string | null
+          cancelled_by_role: string | null
           cash_session_id: string | null
+          cash_tendered: number | null
           courier_id: string | null
           created_at: string
           customer_id: string | null
@@ -2260,7 +2262,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_name?: string | null
+          cancelled_by_role?: string | null
           cash_session_id?: string | null
+          cash_tendered?: number | null
           courier_id?: string | null
           created_at?: string
           customer_id?: string | null
@@ -2302,7 +2306,9 @@ export type Database = {
           cancelled_at?: string | null
           cancelled_by?: string | null
           cancelled_by_name?: string | null
+          cancelled_by_role?: string | null
           cash_session_id?: string | null
+          cash_tendered?: number | null
           courier_id?: string | null
           created_at?: string
           customer_id?: string | null
