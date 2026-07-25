@@ -456,6 +456,21 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               return json(r.data);
             }
+            case "enqueue_reply": {
+              const to = String(body.to ?? "").trim();
+              const replyBody = String(body.body ?? "").trim();
+              const purpose = String(body.purpose ?? "chatbot_reply").trim() || "chatbot_reply";
+              if (!to) return json({ error: "missing_to" }, 400);
+              if (!replyBody) return json({ error: "missing_body" }, 400);
+              const r = await callRpc("whatsapp_bot_enqueue_reply", {
+                _token: token,
+                _to: to,
+                _body: replyBody,
+                _purpose: purpose,
+              });
+              if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
+              return json(r.data);
+            }
             case "pending": {
               const r = await callRpc("whatsapp_bot_get_pending", { _token: token });
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
