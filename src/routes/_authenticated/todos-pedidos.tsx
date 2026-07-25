@@ -168,7 +168,7 @@ function TodosPedidosPage() {
     queryFn: async () => {
       let q = supabase
         .from("sales")
-        .select("id,ticket_number,total,subtotal,payment_method,customer_name,customer_phone,delivery_phone,user_name,order_type,status,branch_id,cash_session_id,created_at,notes,delivery_address,table_id,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)")
+        .select("id,ticket_number,total,subtotal,payment_method,customer_name,customer_phone,delivery_phone,user_name,order_type,status,branch_id,cash_session_id,created_at,notes,delivery_address,table_id,cash_tendered,cancelled_at,cancelled_by_name,cancelled_by_role,cancellation_reason,cancellation_reason_code,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)")
         .eq("branch_id", activeBranchId!)
         .order("created_at", { ascending: false })
         .limit(500);
