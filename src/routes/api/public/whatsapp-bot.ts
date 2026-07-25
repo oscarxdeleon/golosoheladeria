@@ -255,7 +255,16 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               const fixedData = (r.data && typeof r.data === "object" ? r.data : {}) as Record<string, unknown>;
               const fixedReply = typeof fixedData.reply === "string" ? fixedData.reply.trim() : "";
-              if (fixedReply) return json(r.data);
+              if (fixedReply) {
+                const eventKey = detectStickerEvent(msg, String(fixedData.matched_trigger ?? ""));
+                if (eventKey) {
+                  const sticker = await pickSticker(token, eventKey);
+                  if (sticker) {
+                    return json({ ...fixedData, sticker_url: sticker.url, sticker_event: sticker.event_key, sticker_label: sticker.label });
+                  }
+                }
+                return json(r.data);
+              }
 
               // Defensa definitiva: versiones antiguas/intermedias del bot local solo
               // leen la respuesta del action "incoming" y no siempre ejecutan el
