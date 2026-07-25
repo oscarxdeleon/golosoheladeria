@@ -287,7 +287,7 @@ function MesasPage() {
         }
         return;
       }
-      return toast.error(error.message);
+      return toast.error(translateError(error.message));
     }
     toast.success(`Pedido movido a Mesa ${moveTarget.number}`);
     setMoveFrom(null);
