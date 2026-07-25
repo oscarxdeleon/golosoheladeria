@@ -23,12 +23,13 @@ function VentasPage() {
     queryFn: async () => {
       const { data } = await supabase
         .from("sales")
-        .select("id,ticket_number,total,payment_method,user_name,customer_name,created_at")
+        .select("id,ticket_number,total,payment_method,user_name,customer_name,created_at,payment_transaction_last4")
         .order("created_at", { ascending: false })
         .limit(200);
       return data ?? [];
     },
   });
+
 
   const { data: detail } = useQuery({
     queryKey: ["sale-detail", selected],
