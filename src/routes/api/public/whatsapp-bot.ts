@@ -751,44 +751,41 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // para no consumir créditos de Lovable. Si un modelo deja de estar
               // disponible para la clave actual, pasamos a un modelo estable distinto.
               const geminiKey = process.env.GEMINI_API_KEY;
-              const apiKey = process.env.LOVABLE_API_KEY;
-              if (!geminiKey && !apiKey) {
+              if (!geminiKey) {
                 const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
                 });
-                return json({ error: "ai_not_configured", reply, source: "operational", conversation_id: conversationId }, 200);
+                return json({ error: "gemini_not_configured", reply, source: "operational_no_lovable_credits", conversation_id: conversationId }, 200);
               }
 
-              // Preflight cuota Gemini: si la cuota gratuita diaria ya se agotó y NO hay
-              // fallback pago (LOVABLE_API_KEY), evitamos hacer la llamada (que devolvería 429)
+              // Preflight cuota Gemini: si la cuota gratuita diaria ya se agotó,
+              // evitamos llamar Lovable AI para no consumir créditos de la cuenta.
               // y contestamos directamente con una respuesta operativa sin IA.
-              if (geminiKey && !apiKey) {
-                const q = await callRpc("gemini_quota_status", {});
-                const qData = Array.isArray(q.data) ? q.data[0] : q.data;
-                const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
-                if (exhausted) {
-                  const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
-                  await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
-                    ok: false,
-                    metadata: qData ?? null,
-                  });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
-                  await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-                  return json({
-                    reply,
-                    source: "quota_exhausted_operational",
-                    warning: "gemini_quota_exhausted",
-                    conversation_id: conversationId,
-                  });
-                }
+              const q = await callRpc("gemini_quota_status", {});
+              const qData = Array.isArray(q.data) ? q.data[0] : q.data;
+              const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
+              if (exhausted) {
+                const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
+                await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
+                  ok: false,
+                  metadata: qData ?? null,
+                });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                return json({
+                  reply,
+                  source: "quota_exhausted_operational_no_lovable_credits",
+                  warning: "gemini_quota_exhausted",
+                  conversation_id: conversationId,
+                });
               }
 
-              const useGeminiDirect = Boolean(geminiKey);
-              const primaryModel = useGeminiDirect ? "gemini-2.0-flash" : "openai/gpt-5.5";
-              const fallbackModel = useGeminiDirect ? "gemini-2.0-flash-lite" : "openai/gpt-5.5";
+              const useGeminiDirect = true;
+              const primaryModel = "gemini-2.0-flash";
+              const fallbackModel = "gemini-2.0-flash-lite";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
@@ -802,7 +799,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : "https://ai.gateway.lovable.dev/v1/chat/completions";
               const aiHeaders: Record<string, string> = useGeminiDirect
                 ? { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" }
-                : { "Lovable-API-Key": String(apiKey), "Content-Type": "application/json", "X-Lovable-AIG-SDK": "manual-fetch" };
+                : { "Content-Type": "application/json" };
 
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
               const callAiOnce = async (model: string) => {
