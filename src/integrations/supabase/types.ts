@@ -2239,6 +2239,7 @@ export type Database = {
           order_type: string
           payment_details: Json | null
           payment_method: string
+          payment_transaction_last4: string | null
           printed_at: string | null
           scheduled_for: string | null
           source: string
@@ -2283,6 +2284,7 @@ export type Database = {
           order_type?: string
           payment_details?: Json | null
           payment_method: string
+          payment_transaction_last4?: string | null
           printed_at?: string | null
           scheduled_for?: string | null
           source?: string
@@ -2327,6 +2329,7 @@ export type Database = {
           order_type?: string
           payment_details?: Json | null
           payment_method?: string
+          payment_transaction_last4?: string | null
           printed_at?: string | null
           scheduled_for?: string | null
           source?: string
