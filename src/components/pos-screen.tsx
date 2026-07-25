@@ -1477,7 +1477,16 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
 
 
   async function pay(method: string, paymentDetails?: Record<string, unknown> | null, creditCustomer?: { id: string; name: string } | null) {
+    // Extrae los últimos 4 dígitos de la transacción cuando el pago es
+    // electrónico (Nequi/Bancolombia). Se almacenan tanto en el detalle JSON
+    // (compatibilidad con reportes anteriores) como en la columna dedicada
+    // `payment_transaction_last4` para búsquedas rápidas.
+    const rawLast4 = paymentDetails && typeof paymentDetails.transaction_last4 === "string"
+      ? String(paymentDetails.transaction_last4).replace(/\D/g, "").slice(0, 4)
+      : "";
+    const transactionLast4 = /^[0-9]{4}$/.test(rawLast4) ? rawLast4 : null;
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
+
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
     if (typeof navigator !== "undefined" && !navigator.onLine) {
       return toast.error("Sin conexión — no puedes cobrar hasta recuperar internet");
