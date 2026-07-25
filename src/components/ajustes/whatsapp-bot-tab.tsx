@@ -224,12 +224,6 @@ export function WhatsAppBotTab() {
 /* --------------------------------------------------------- */
 
 function getDisplayConnectionStatus(cfg: BotConfigRow) {
-  if (cfg.connection_status === "connected") return cfg.connection_status;
-  if (!cfg.connected_phone || !cfg.last_connected_at) return cfg.connection_status;
-  const connectedAgoMs = Date.now() - new Date(cfg.last_connected_at).getTime();
-  if (connectedAgoMs >= 0 && connectedAgoMs < 2 * 60_000 && ["disconnected", "connecting", "error", "qr"].includes(cfg.connection_status)) {
-    return "connected";
-  }
   return cfg.connection_status;
 }
 
