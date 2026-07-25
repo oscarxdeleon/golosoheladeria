@@ -93,6 +93,43 @@ async function logBotEvent(
   }
 }
 
+async function getActiveStickers(token: string) {
+  const r = await callRpc("whatsapp_bot_get_stickers", { _token: token });
+  if (!r.ok || !Array.isArray(r.data)) return [];
+  return r.data as Array<{ id: string; event_key: string; label: string; storage_path: string | null; sort_order: number; active: boolean }>;
+}
+
+async function signedStickerUrl(storagePath: string) {
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data, error } = await supabaseAdmin.storage.from("stickers").createSignedUrl(storagePath, 60 * 60 * 24);
+    if (error || !data?.signedUrl) return null;
+    return data.signedUrl;
+  } catch {
+    return null;
+  }
+}
+
+async function pickSticker(token: string, eventKey: string) {
+  const stickers = await getActiveStickers(token);
+  const candidates = stickers.filter((s) => s.event_key === eventKey && s.active && s.storage_path);
+  if (candidates.length === 0) return null;
+  const picked = candidates[Math.floor(Math.random() * candidates.length)];
+  const url = await signedStickerUrl(picked.storage_path!);
+  if (!url) return null;
+  return { event_key: picked.event_key, label: picked.label, url };
+}
+
+function detectStickerEvent(message: string, matchedTrigger?: string, aiOrderConfirmed = false): string | null {
+  const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (aiOrderConfirmed) return "order_confirmed";
+  if (/\b(gracias|thank|thanks|agradezco|te agradezco|muy amable)\b/.test(normalized)) return "thanks";
+  if (matchedTrigger === "menu") return "menu";
+  if (matchedTrigger === "welcome") return "welcome";
+  if (matchedTrigger === "after_hours" || matchedTrigger === "pickup_after_hours") return "welcome";
+  return null;
+}
+
 function normalizeHistory(messages: Array<{ role: string; content: string }>) {
   return messages
     .filter((message) => message.role === "user" || message.role === "assistant")
@@ -194,6 +231,20 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               return json(r.data);
             }
+            case "stickers": {
+              const stickers = await getActiveStickers(token);
+              const withUrls = await Promise.all(
+                stickers.map(async (s) => ({
+                  id: s.id,
+                  event_key: s.event_key,
+                  label: s.label,
+                  sort_order: s.sort_order,
+                  active: s.active,
+                  url: s.storage_path ? await signedStickerUrl(s.storage_path) : null,
+                })),
+              );
+              return json({ stickers: withUrls.filter((s) => s.url) });
+            }
             case "status": {
               const status = String(body.status ?? "").trim();
               if (!status) return json({ error: "missing_status" }, 400);
@@ -218,7 +269,16 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               const fixedData = (r.data && typeof r.data === "object" ? r.data : {}) as Record<string, unknown>;
               const fixedReply = typeof fixedData.reply === "string" ? fixedData.reply.trim() : "";
-              if (fixedReply) return json(r.data);
+              if (fixedReply) {
+                const eventKey = detectStickerEvent(msg, String(fixedData.matched_trigger ?? ""));
+                if (eventKey) {
+                  const sticker = await pickSticker(token, eventKey);
+                  if (sticker) {
+                    return json({ ...fixedData, sticker_url: sticker.url, sticker_event: sticker.event_key, sticker_label: sticker.label });
+                  }
+                }
+                return json(r.data);
+              }
 
               // Defensa definitiva: versiones antiguas/intermedias del bot local solo
               // leen la respuesta del action "incoming" y no siempre ejecutan el
@@ -646,7 +706,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                         return { ok: true, dry_run: true, order: { order_number: fakeNumber, simulated: true } };
                       }
                       const r = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
-                      if (r.ok) return { ok: true, order: r.data };
+                      if (r.ok) {
+                        orderConfirmed = true;
+                        return { ok: true, order: r.data };
+                      }
                       const detail = (r.data as { message?: string } | string) ?? "";
                       const msg = typeof detail === "string" ? detail : (detail?.message ?? JSON.stringify(detail));
                       return { error: "confirm_failed", message: msg };
@@ -738,6 +801,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               let finalReply = "";
               let lastErr: string | null = null;
               let lastFinishReason: string | null = null;
+              let orderConfirmed = false;
               for (let round = 0; round < 6; round++) {
                 const aiStarted = performance.now();
                 let aiResp: Response;
@@ -925,7 +989,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 metadata: { finishReason: lastFinishReason, replyLength: finalReply.length },
               });
 
-              return json({ reply: finalReply, source: lastErr ? "ai_operational" : "ai", finish_reason: lastFinishReason, warning: lastErr, conversation_id: conversationId });
+              const stickerEvent = detectStickerEvent(text, undefined, orderConfirmed);
+              let stickerMeta: { sticker_url: string; sticker_event: string; sticker_label: string } | undefined;
+              if (stickerEvent) {
+                const sticker = await pickSticker(token, stickerEvent);
+                if (sticker) {
+                  stickerMeta = { sticker_url: sticker.url, sticker_event: sticker.event_key, sticker_label: sticker.label };
+                }
+              }
+
+              return json({
+                reply: finalReply,
+                source: lastErr ? "ai_operational" : "ai",
+                finish_reason: lastFinishReason,
+                warning: lastErr,
+                conversation_id: conversationId,
+                ...stickerMeta,
+              });
             }
             default:
               return json({ error: "unknown_action" }, 400);
