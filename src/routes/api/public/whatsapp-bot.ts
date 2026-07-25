@@ -143,9 +143,25 @@ function selectRelevantProducts<T extends { name?: string; category?: string | n
 
 function operationalReply(menuLink: string, takingOrders = false) {
   if (takingOrders) {
-    return `Listo, te tomo el pedido por aquí. 🍦\n\nDime en un solo mensaje:\n• Producto y sabor\n• Cantidad\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nSi quieres mirar fotos y precios, también está el menú aquí 👉 ${menuLink}`;
+    return `¡Perfecto! Soy Golosito y te tomo el pedido por aquí. 🍦\n\nPara avanzarlo, dime en un solo mensaje:\n• Producto y sabor\n• Cantidad\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nSi quieres mirar fotos y precios, también está el menú aquí 👉 ${menuLink}`;
   }
-  return `Con gusto te atiendo. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
+  return `¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
+}
+
+function normalizeMenuLink(value: unknown, fallback = "https://golosoheladeria.lovable.app/menu") {
+  const raw = typeof value === "string" && value.trim() ? value.trim() : fallback;
+  return raw.replace("https://golosoheladeria.vercel.app", "https://golosoheladeria.lovable.app");
+}
+
+function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean) {
+  if (!takingOrders) return operationalReply(menuLink, false);
+  const normalized = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  const productHints = ["banana split", "ensalada de frutas", "brownie", "helado", "malteada", "jugo", "waffle", "cholado", "fresas", "copa", "cono", "vaso"];
+  const detected = productHints.find((hint) => normalized.includes(hint));
+  if (detected) {
+    return `¡Perfecto! Soy Golosito y te ayudo con tu pedido. 🍦\n\nTengo anotado que quieres ${detected}.\n\nPara completarlo, por favor envíame:\n• Cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nTambién puedes ver el menú con fotos y precios aquí 👉 ${menuLink}`;
+  }
+  return operationalReply(menuLink, true);
 }
 
 const AI_TOTAL_BUDGET_MS = 28_000;
@@ -373,10 +389,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 if (error === "rate_limited") {
                   const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
                   const rateLimitTakesOrders = orderCfgRes.ok && Boolean((orderCfgRes.data as { ordering_enabled?: boolean } | null)?.ordering_enabled);
-                  const reply = operationalReply("https://golosoheladeria.lovable.app/menu", rateLimitTakesOrders);
+                  const reply = fallbackOrderReply(text, "https://golosoheladeria.lovable.app/menu", rateLimitTakesOrders);
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
-                return json({ error, reply: null, conversation_id: conversationId }, 200);
+                const fallbackReply = fallbackOrderReply(text, "https://golosoheladeria.lovable.app/menu", true);
+                return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
               await logBotEvent(token, conversationId, from, "context_loaded", {
                 durationMs: elapsedMs(contextStarted),
@@ -389,7 +406,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 },
               });
               const branchName = String(ctx.branch_name ?? "Heladería Goloso");
-              const menuLink = String(ctx.menu_link ?? "https://golosoheladeria.lovable.app/menu");
+              const menuLink = normalizeMenuLink(ctx.menu_link, "https://golosoheladeria.lovable.app/menu");
               const onlineOpen = Boolean(ctx.online_open);
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
@@ -734,37 +751,41 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // para no consumir créditos de Lovable. Si un modelo deja de estar
               // disponible para la clave actual, pasamos a un modelo estable distinto.
               const geminiKey = process.env.GEMINI_API_KEY;
-              const apiKey = process.env.LOVABLE_API_KEY;
-              if (!geminiKey && !apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
-
-              // Preflight cuota Gemini: si la cuota gratuita diaria ya se agotó y NO hay
-              // fallback pago (LOVABLE_API_KEY), evitamos hacer la llamada (que devolvería 429)
-              // y contestamos directamente con una respuesta operativa sin IA.
-              if (geminiKey && !apiKey) {
-                const q = await callRpc("gemini_quota_status", {});
-                const qData = Array.isArray(q.data) ? q.data[0] : q.data;
-                const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
-                if (exhausted) {
-                  const reply = operationalReply(menuLink, orderingEnabled);
-                  await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
-                    ok: false,
-                    metadata: qData ?? null,
-                  });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
-                  await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-                  return json({
-                    reply,
-                    source: "quota_exhausted_operational",
-                    warning: "gemini_quota_exhausted",
-                    conversation_id: conversationId,
-                  });
-                }
+              if (!geminiKey) {
+                const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
+                await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
+                  ok: false,
+                  metadata: { orderingEnabled },
+                });
+                return json({ error: "gemini_not_configured", reply, source: "operational_no_lovable_credits", conversation_id: conversationId }, 200);
               }
 
-              const useGeminiDirect = Boolean(geminiKey);
-              const primaryModel = useGeminiDirect ? "google/gemini-2.0-flash" : "google/gemini-2.0-flash";
-              const fallbackModel = useGeminiDirect ? "google/gemini-1.5-flash" : "openai/gpt-5.5";
+              // Preflight cuota Gemini: si la cuota gratuita diaria ya se agotó,
+              // evitamos llamar Lovable AI para no consumir créditos de la cuenta.
+              // y contestamos directamente con una respuesta operativa sin IA.
+              const q = await callRpc("gemini_quota_status", {});
+              const qData = Array.isArray(q.data) ? q.data[0] : q.data;
+              const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
+              if (exhausted) {
+                const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
+                await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
+                  ok: false,
+                  metadata: qData ?? null,
+                });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                return json({
+                  reply,
+                  source: "quota_exhausted_operational_no_lovable_credits",
+                  warning: "gemini_quota_exhausted",
+                  conversation_id: conversationId,
+                });
+              }
+
+              const useGeminiDirect = true;
+              const primaryModel = "gemini-2.0-flash";
+              const fallbackModel = "gemini-2.0-flash-lite";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
@@ -773,22 +794,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 { role: "user", content: userContent },
               ];
 
-              // Mapea el nombre "vendor/modelo" al formato que espera cada backend.
-              const mapModel = (m: string) => {
-                if (useGeminiDirect) return m.replace(/^google\//, "");
-                return m;
-              };
               const aiUrlBase = useGeminiDirect
                 ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
                 : "https://ai.gateway.lovable.dev/v1/chat/completions";
               const aiHeaders: Record<string, string> = useGeminiDirect
                 ? { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" }
-                : { "Lovable-API-Key": String(apiKey), "Content-Type": "application/json", "X-Lovable-AIG-SDK": "manual-fetch" };
+                : { "Content-Type": "application/json" };
 
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
               const callAiOnce = async (model: string) => {
                 const bodyReq: Record<string, unknown> = {
-                  model: mapModel(model), messages, max_tokens: 800, temperature: 0.6,
+                  model, messages, max_tokens: 800, temperature: 0.6,
                 };
                 if (orderingTools.length > 0) {
                   bodyReq.tools = orderingTools;
@@ -888,6 +904,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     break;
                   }
                 }
+                if (!aiResp.ok && aiResp.status === 404 && useGeminiDirect) {
+                  const detail = await aiResp.text().catch(() => "");
+                  lastErr = detail.slice(0, 500) || "gemini_model_not_available";
+                  await logBotEvent(token, conversationId, from, "ai_model_not_available_operational", {
+                    ok: false,
+                    durationMs: elapsedMs(aiStarted),
+                    error: lastErr,
+                    metadata: { round, model: fallbackModel },
+                  });
+                  break;
+                }
                 if (aiResp.status === 429) {
                   lastErr = "ai_rate_limited_after_retries";
                   await logBotEvent(token, conversationId, from, "ai_rate_limited", {
@@ -979,7 +1006,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
-                finalReply = operationalReply(menuLink, orderingEnabled);
+                finalReply = fallbackOrderReply(text, menuLink, orderingEnabled);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,

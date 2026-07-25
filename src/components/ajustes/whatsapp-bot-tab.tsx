@@ -76,6 +76,18 @@ interface MessageRow {
 }
 
 const WHATSAPP_BOT_DOWNLOAD_URL = "/downloads/whatsapp-bot.zip";
+const REMOTE_MANAGEMENT_MIN_VERSION = "8.17.1";
+
+function compareVersions(a?: string | null, b = REMOTE_MANAGEMENT_MIN_VERSION): number {
+  const left = String(a ?? "0").split(".").map((part) => Number(part) || 0);
+  const right = b.split(".").map((part) => Number(part) || 0);
+  const max = Math.max(left.length, right.length);
+  for (let i = 0; i < max; i += 1) {
+    const delta = (left[i] ?? 0) - (right[i] ?? 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
 
 function normalizeColombiaWhatsApp(raw: string): string {
   const digits = String(raw ?? "").replace(/\D+/g, "");
@@ -229,6 +241,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
   const [updateOpen, setUpdateOpen] = useState(false);
   const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | "update" | null>(null);
   const [progressStep, setProgressStep] = useState<string | null>(null);
+  const needsManualBridgeUpdate = compareVersions(cfg.bot_version, REMOTE_MANAGEMENT_MIN_VERSION) < 0;
 
   const sendCommand = async (command: "unlink" | "reconnect" | "restart" | "update") => {
     setBusyCmd(command);
@@ -291,6 +304,20 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </ol>
           <p className="mt-2 text-xs text-emerald-800/80">No necesitas entrar al servidor ni ejecutar comandos. Si el QR no aparece, presiona <b>Regenerar QR</b> dentro del mismo diálogo.</p>
         </div>
+        {needsManualBridgeUpdate && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+            <div className="mb-2 flex items-center gap-2 font-semibold">
+              <AlertTriangle className="h-4 w-4" /> Actualización puente requerida
+            </div>
+            <p>
+              Esta sede todavía reporta versión <b>v{cfg.bot_version ?? "desconocida"}</b>. Para que los botones
+              <b> Reiniciar Bot</b> y <b>Actualizar Bot</b> funcionen desde este panel, primero instala la actualización descargable una sola vez.
+            </p>
+            <p className="mt-2 text-xs text-amber-900/80">
+              Después de quedar en v8.19.0, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
+            </p>
+          </div>
+        )}
         <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
           <div className={`grid h-14 w-14 place-items-center rounded-full ${meta.color} text-white shadow-lg`}>
             <Icon className="h-7 w-7" />
@@ -329,7 +356,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               variant="outline"
               size="sm"
               onClick={() => setRestartOpen(true)}
-              disabled={busyCmd !== null}
+              disabled={busyCmd !== null || needsManualBridgeUpdate}
               title="Reinicia el servicio del bot en el servidor (PM2 lo respawnará)."
             >
               <RefreshCw className={`mr-2 h-4 w-4 ${busyCmd === "restart" ? "animate-spin" : ""}`} /> 🚀 Reiniciar Bot
@@ -339,7 +366,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                 variant="default"
                 size="sm"
                 onClick={() => setUpdateOpen(true)}
-                disabled={busyCmd !== null}
+                disabled={busyCmd !== null || needsManualBridgeUpdate}
                 title="Descarga la última versión y reinicia el bot automáticamente."
                 className="bg-emerald-600 hover:bg-emerald-700"
               >
