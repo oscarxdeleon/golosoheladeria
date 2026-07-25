@@ -41,7 +41,7 @@ if errorlevel 1 (
 echo.
 echo Buscando una instalacion anterior para actualizar sin pedir token ni QR...
 if not exist "config.json" if not exist "auth_state" (
-  powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0update-windows.ps1" -AutoFromInstaller
+  node "%~dp0update-windows.js" --auto-from-installer
   set "UPDATE_EC=%ERRORLEVEL%"
   if "%UPDATE_EC%"=="0" (
     echo.

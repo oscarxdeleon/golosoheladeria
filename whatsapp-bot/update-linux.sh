@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.19.2"
+BOT_VERSION="8.19.3"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-https://golosoheladeria.lovable.app/downloads/whatsapp-bot-v8.19.2.zip}"
+DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-https://golosoheladeria.lovable.app/downloads/whatsapp-bot-v8.19.3.zip}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
 
@@ -126,6 +126,7 @@ for file in \
   install-windows.bat \
   update-windows.bat \
   update-windows.ps1 \
+  update-windows.js \
   ACTUALIZAR-SIN-QR.bat \
   SOLUCION-SIN-SABER-CARPETA.bat \
   uninstall-windows.bat

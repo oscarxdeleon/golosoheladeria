@@ -1,0 +1,352 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import os from 'node:os';
+import http from 'node:http';
+import { execSync, spawn, spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url));
+const LOCAL_PORT = 8790;
+const API_URL = 'https://golosoheladeria.lovable.app';
+
+const args = process.argv.slice(2);
+const hasFlag = (flag) => args.includes(flag);
+const getValue = (flag) => {
+  const index = args.indexOf(flag);
+  return index >= 0 ? args[index + 1] || '' : '';
+};
+
+const autoFromInstaller = hasFlag('--auto-from-installer');
+const force = hasFlag('--force');
+let targetPath = getValue('--target').trim().replace(/^['"]+|['"]+$/g, '');
+
+function step(text) {
+  console.log('');
+  console.log(`== ${text} ==`);
+}
+
+function exists(filePath) {
+  try {
+    return fs.existsSync(filePath);
+  } catch {
+    return false;
+  }
+}
+
+function isDirectory(filePath) {
+  try {
+    return fs.statSync(filePath).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function resolveFolder(folder) {
+  try {
+    if (!folder || !exists(folder)) return '';
+    return fs.realpathSync(folder);
+  } catch {
+    return '';
+  }
+}
+
+function addCandidate(set, folder) {
+  const resolved = resolveFolder(folder);
+  if (resolved) set.add(resolved);
+}
+
+function isBotFolder(folder) {
+  return exists(path.join(folder, 'config.json')) || exists(path.join(folder, 'auth_state')) || exists(path.join(folder, 'server.js'));
+}
+
+function scoreFolder(folder) {
+  let score = 0;
+  if (exists(path.join(folder, 'auth_state'))) score += 100;
+  if (exists(path.join(folder, 'config.json'))) score += 80;
+  if (exists(path.join(folder, 'server.js'))) score += 40;
+  if (exists(path.join(folder, 'start-hidden.vbs'))) score += 20;
+  if (exists(path.join(folder, 'package.json'))) score += 10;
+  return score;
+}
+
+function searchFolders(root, candidates, maxDepth = 6) {
+  const resolvedRoot = resolveFolder(root);
+  if (!resolvedRoot) return;
+
+  const excluded = new Set(['node_modules', '.git', 'Cache', 'Caches', 'Code Cache', 'Temp', 'tmp']);
+  const queue = [{ folder: resolvedRoot, depth: 0 }];
+  let visited = 0;
+
+  while (queue.length && visited < 50000) {
+    const { folder, depth } = queue.shift();
+    visited += 1;
+
+    const name = path.basename(folder);
+    if (name === 'auth_state') {
+      addCandidate(candidates, path.dirname(folder));
+      continue;
+    }
+
+    if (/Goloso.*Bot/i.test(name) || /WhatsApp.*Bot/i.test(name) || /^whatsapp-bot/i.test(name) || /^BOT/i.test(name)) {
+      addCandidate(candidates, folder);
+    }
+    if (exists(path.join(folder, 'auth_state')) || exists(path.join(folder, 'config.json'))) {
+      addCandidate(candidates, folder);
+    }
+    if (depth >= maxDepth) continue;
+
+    let entries = [];
+    try {
+      entries = fs.readdirSync(folder, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || excluded.has(entry.name)) continue;
+      queue.push({ folder: path.join(folder, entry.name), depth: depth + 1 });
+    }
+  }
+}
+
+function candidatesFromProcessList(candidates) {
+  try {
+    const output = execSync('wmic process where "name=\'node.exe\'" get CommandLine /value', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const line of output.split(/\r?\n/)) {
+      if (!/server\.js/i.test(line)) continue;
+      const match = line.match(/([A-Z]:\\[^\r\n]*?server\.js)/i);
+      if (match) addCandidate(candidates, path.dirname(match[1].trim().replace(/^['"]+|['"]+$/g, '')));
+    }
+  } catch {}
+}
+
+function candidatesFromRegistry(candidates) {
+  try {
+    const output = execSync('reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v GolosoWhatsAppBot', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const match = output.match(/([A-Z]:\\[^\r\n]*?start-hidden\.vbs)/i);
+    if (match) addCandidate(candidates, path.dirname(match[1].trim().replace(/^['"]+|['"]+$/g, '')));
+  } catch {}
+}
+
+function findInstalledBotFolder() {
+  const candidates = new Set();
+
+  candidatesFromProcessList(candidates);
+  candidatesFromRegistry(candidates);
+
+  if (exists(path.join(SOURCE_DIR, 'config.json')) || exists(path.join(SOURCE_DIR, 'auth_state'))) {
+    addCandidate(candidates, SOURCE_DIR);
+  }
+
+  const userProfile = process.env.USERPROFILE || os.homedir();
+  const roots = [
+    path.join(userProfile, 'Desktop'),
+    path.join(userProfile, 'Documents'),
+    path.join(userProfile, 'Downloads'),
+    path.join(process.env.LOCALAPPDATA || '', ''),
+    path.join(process.env.APPDATA || '', ''),
+    path.join(process.env.ProgramFiles || '', 'Goloso WhatsApp Bot'),
+    path.join(process.env.ProgramData || '', 'Goloso WhatsApp Bot'),
+    path.join(userProfile, 'Goloso WhatsApp Bot'),
+    path.join(userProfile, 'BOT'),
+    'C:\\BOT',
+    'C:\\GolosoBot',
+    'C:\\Goloso WhatsApp Bot',
+    userProfile,
+  ].filter(Boolean);
+
+  step('Busqueda profunda automatica');
+  console.log('Revisando Escritorio, Descargas, Documentos, AppData y carpetas comunes...');
+  for (const root of [...new Set(roots)]) searchFolders(root, candidates, 6);
+
+  const valid = [...candidates].filter(isBotFolder);
+  valid.sort((a, b) => {
+    const delta = scoreFolder(b) - scoreFolder(a);
+    if (delta !== 0) return delta;
+    try {
+      return fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs;
+    } catch {
+      return 0;
+    }
+  });
+  return valid[0] || '';
+}
+
+function stopCurrentBot() {
+  step('Cerrando bot anterior');
+  try {
+    const output = execSync('netstat -ano', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const line of output.split(/\r?\n/)) {
+      if (!line.includes(`:${LOCAL_PORT}`) || !/LISTENING/i.test(line)) continue;
+      const parts = line.trim().split(/\s+/);
+      const pid = parts[parts.length - 1];
+      if (/^\d+$/.test(pid)) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });
+    }
+  } catch {}
+}
+
+function copyRecursive(src, dest) {
+  fs.cpSync(src, dest, { recursive: true, force: true });
+}
+
+function copyBotFiles(target) {
+  step('Actualizando archivos del bot');
+  const files = [
+    'server.js',
+    'setup.js',
+    'install-windows.bat',
+    'update-windows.bat',
+    'update-windows.ps1',
+    'update-windows.js',
+    'ACTUALIZAR-SIN-QR.bat',
+    'SOLUCION-SIN-SABER-CARPETA.bat',
+    'start-hidden.vbs',
+    'uninstall-windows.bat',
+    'README.md',
+    'package.json',
+    'package-lock.json',
+  ];
+  for (const file of files) {
+    const src = path.join(SOURCE_DIR, file);
+    const dest = path.join(target, file);
+    if (!exists(src)) continue;
+    if (resolveFolder(src) && resolveFolder(src) === resolveFolder(dest)) continue;
+    fs.copyFileSync(src, dest);
+  }
+}
+
+function updateConfig(target) {
+  const configPath = path.join(target, 'config.json');
+  if (!exists(configPath)) {
+    console.log('No se encontro config.json. Si es instalacion nueva, ejecuta install-windows.bat.');
+    return;
+  }
+  const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+  cfg.apiUrl = API_URL;
+  fs.writeFileSync(configPath, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
+}
+
+function ensureDependencies(target) {
+  if (exists(path.join(target, 'node_modules', '@whiskeysockets', 'baileys'))) return;
+  const sourceModules = path.join(SOURCE_DIR, 'node_modules');
+  if (exists(path.join(sourceModules, '@whiskeysockets', 'baileys'))) {
+    step('Copiando dependencias incluidas');
+    copyRecursive(sourceModules, path.join(target, 'node_modules'));
+    return;
+  }
+  step('Instalando dependencias faltantes');
+  const result = spawnSync('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], { cwd: target, shell: true, stdio: 'inherit' });
+  if (result.status !== 0) process.exit(result.status || 1);
+}
+
+function registerStartup(target) {
+  step('Registrando inicio automatico');
+  const startup = path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
+  const vbsPath = path.join(target, 'start-hidden.vbs');
+  const tempVbs = path.join(os.tmpdir(), `goloso_bot_shortcut_${Date.now()}.vbs`);
+  const linkPath = path.join(startup, 'Goloso WhatsApp Bot.lnk');
+  const vbs = [
+    'Set ws = WScript.CreateObject("WScript.Shell")',
+    `Set s = ws.CreateShortcut("${linkPath.replace(/\\/g, '\\\\')}")`,
+    's.TargetPath = "wscript.exe"',
+    `s.Arguments = "\"${vbsPath.replace(/\\/g, '\\\\')}\""`,
+    `s.WorkingDirectory = "${target.replace(/\\/g, '\\\\')}"`,
+    's.WindowStyle = 7',
+    's.IconLocation = "wscript.exe, 0"',
+    's.Description = "Goloso WhatsApp Bot"',
+    's.Save',
+  ].join('\r\n');
+  try {
+    fs.writeFileSync(tempVbs, vbs, 'utf8');
+    spawnSync('cscript', ['//nologo', tempVbs], { shell: true, stdio: 'ignore' });
+  } finally {
+    try { fs.unlinkSync(tempVbs); } catch {}
+  }
+  spawnSync('reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'GolosoWhatsAppBot', '/t', 'REG_SZ', '/d', `wscript.exe "${vbsPath}"`, '/f'], { shell: true, stdio: 'ignore' });
+}
+
+function waitForPanel() {
+  return new Promise((resolve) => {
+    const started = Date.now();
+    const tick = () => {
+      const req = http.get({ hostname: 'localhost', port: LOCAL_PORT, path: '/status.json', timeout: 1000 }, (res) => {
+        res.resume();
+        resolve(true);
+      });
+      req.on('error', () => {
+        if (Date.now() - started > 30000) resolve(false);
+        else setTimeout(tick, 1000);
+      });
+      req.on('timeout', () => {
+        req.destroy();
+      });
+    };
+    tick();
+  });
+}
+
+async function startBot(target) {
+  step('Iniciando bot actualizado');
+  spawn('wscript.exe', ['//nologo', path.join(target, 'start-hidden.vbs')], { cwd: target, detached: true, stdio: 'ignore', shell: true }).unref();
+  const ok = await waitForPanel();
+  if (ok) {
+    spawn('cmd', ['/c', 'start', '', `http://localhost:${LOCAL_PORT}`], { detached: true, stdio: 'ignore', shell: true }).unref();
+  } else {
+    console.log('El bot se actualizo, pero el panel local no respondio en 30s. Revisa bot-out.log.');
+  }
+}
+
+async function main() {
+  console.log('');
+  console.log('Goloso WhatsApp Bot - actualizacion sin QR');
+  console.log('Este proceso conserva config.json y auth_state para no volver a vincular WhatsApp.');
+
+  let targetDir = '';
+  if (targetPath) {
+    if (!exists(targetPath)) {
+      console.log(`La ruta indicada no existe: ${targetPath}`);
+      process.exit(4);
+    }
+    targetDir = fs.realpathSync(targetPath);
+  } else {
+    targetDir = findInstalledBotFolder();
+  }
+
+  if (!targetDir) {
+    console.log('No se encontro automaticamente la carpeta anterior del bot.');
+    process.exit(2);
+  }
+
+  console.log(`Carpeta detectada: ${targetDir}`);
+  if (!exists(path.join(targetDir, 'auth_state'))) {
+    console.log('AVISO: No se encontro auth_state en esa carpeta.');
+    if (autoFromInstaller) process.exit(3);
+    if (!force) {
+      console.log('Este PC no tiene una sesion de WhatsApp previa que conservar.');
+      console.log('Cancelando actualizacion sin QR. Usa install-windows.bat para instalacion nueva.');
+      process.exit(3);
+    }
+    console.log('Continuando por --force. Es posible que WhatsApp pida QR.');
+  }
+
+  const backupDir = path.join(targetDir, `backup-before-update-${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}`);
+  fs.mkdirSync(backupDir, { recursive: true });
+  if (exists(path.join(targetDir, 'config.json'))) fs.copyFileSync(path.join(targetDir, 'config.json'), path.join(backupDir, 'config.json'));
+  if (exists(path.join(targetDir, 'auth_state'))) copyRecursive(path.join(targetDir, 'auth_state'), path.join(backupDir, 'auth_state'));
+
+  stopCurrentBot();
+  copyBotFiles(targetDir);
+  updateConfig(targetDir);
+  ensureDependencies(targetDir);
+  registerStartup(targetDir);
+  await startBot(targetDir);
+
+  console.log('');
+  console.log('Actualizacion completa.');
+  console.log('No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR.');
+}
+
+main().catch((error) => {
+  console.error('[ERROR]', error?.message || error);
+  process.exit(1);
+});
