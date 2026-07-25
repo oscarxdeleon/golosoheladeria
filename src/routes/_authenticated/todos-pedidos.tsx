@@ -219,7 +219,8 @@ function TodosPedidosPage() {
   }
 
   function canCancel(sale: Sale): boolean {
-    // Botón visible en todo pedido no anulado; el RPC valida permisos por rol.
+    // Solo administrador o supervisor pueden anular pedidos.
+    if (!isAdmin && !isSupervisor) return false;
     if (sale.status === "cancelled") return false;
     return true;
   }
