@@ -1743,7 +1743,7 @@ function EditarSedeTab({ initialBranchId }: { initialBranchId?: string | null } 
                 <Input
                   value={form.online_menu_url ?? ""}
                   onChange={(e) => setForm({ ...form, online_menu_url: e.target.value })}
-                  placeholder="https://golosoheladeria.lovable.app/menu?sede=santa"
+                  placeholder="https://golosoheladeria.vercel.app/menu?sede=santa"
                   className="font-mono text-sm"
                 />
                 <Button
