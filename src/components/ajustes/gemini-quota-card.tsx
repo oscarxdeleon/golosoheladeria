@@ -162,7 +162,7 @@ export function GeminiQuotaCard() {
               value={limitInput}
               onChange={(e) => setLimitInput(e.target.value)}
             />
-            <p className="text-xs text-muted-foreground">Google ofrece ~1500 req/día gratis para gemini-2.5-flash.</p>
+            <p className="text-xs text-muted-foreground">Google ofrece cuota gratuita diaria para el modelo Gemini activo.</p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="gemini-emails">Correos para alertas</Label>

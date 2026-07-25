@@ -73,7 +73,7 @@ Mesas activas: ${mesaNumbers.join(", ") || "(ninguna)"}`;
     let content = "{}";
     if (geminiKey) {
       const resp = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -97,7 +97,7 @@ Mesas activas: ${mesaNumbers.join(", ") || "(ninguna)"}`;
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
         body: JSON.stringify({
-          model: "google/gemini-2.5-flash",
+          model: "google/gemini-2.0-flash",
           messages: [
             { role: "system", content: systemPrompt },
             { role: "user", content: data.text },

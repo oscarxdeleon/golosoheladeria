@@ -730,8 +730,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               };
 
-              // 5) Llamar a la IA. En producción priorizamos Lovable AI Gateway: evita
-              // los cortes de cuota del API directo de Gemini que dejaban al bot en fallback.
+              // 5) Llamar a la IA. En producción priorizamos Google AI Studio directo
+              // para no consumir créditos de Lovable. Si un modelo deja de estar
+              // disponible para la clave actual, pasamos a un modelo estable distinto.
               const geminiKey = process.env.GEMINI_API_KEY;
               const apiKey = process.env.LOVABLE_API_KEY;
               if (!geminiKey && !apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
@@ -762,8 +763,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               }
 
               const useGeminiDirect = Boolean(geminiKey);
-              const primaryModel = "google/gemini-2.5-flash";
-              const fallbackModel = useGeminiDirect ? "google/gemini-2.5-flash" : "openai/gpt-5.5";
+              const primaryModel = useGeminiDirect ? "google/gemini-2.0-flash" : "google/gemini-2.0-flash";
+              const fallbackModel = useGeminiDirect ? "google/gemini-1.5-flash" : "openai/gpt-5.5";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [

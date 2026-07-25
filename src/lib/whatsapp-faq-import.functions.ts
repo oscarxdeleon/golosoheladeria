@@ -44,7 +44,7 @@ Reglas ESTRICTAS:
   const headers: Record<string, string> = useGeminiDirect
     ? { "Content-Type": "application/json", Authorization: `Bearer ${geminiKey}` }
     : { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` };
-  const model = useGeminiDirect ? "gemini-2.5-flash" : "google/gemini-2.5-flash";
+  const model = useGeminiDirect ? "gemini-2.0-flash" : "google/gemini-2.0-flash";
 
   const resp = await fetch(url, {
     method: "POST",

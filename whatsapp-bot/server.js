@@ -15,6 +15,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
+import { spawn } from "node:child_process";
 import QRCode from "qrcode";
 import makeWASocket, {
   useMultiFileAuthState,
@@ -39,7 +40,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.17.0";
+const BOT_VERSION = "8.18.0";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const WATCHDOG_MAX_NO_HEARTBEAT_MS = 10 * 60_000; // 10 min sin ningún evento → exit
@@ -520,7 +521,6 @@ async function executeRemoteCommand(cmd) {
       await ackCommand("update");
       await pushStatus();
       try {
-        const { spawn } = require("child_process");
         const script = path.join(__dirname, "update-linux.sh");
         if (!fs.existsSync(script)) {
           logger.warn({ script }, "update-linux.sh no encontrado");
