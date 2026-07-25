@@ -1,73 +1,65 @@
 ## Objetivo
-Bloquear al **Cajero** de liberar, mover, fusionar o cancelar mesas/pedidos. Solo **Admin/Supervisor** podrán hacerlo. Añadir un **Panel de Pedidos Activos en Tiempo Real** en el módulo Admin con capacidad de cancelar/liberar con auditoría.
 
----
+Añadir un botón **"Actualizar y Reconectar"** en Ajustes → WhatsApp Bot que ejecute de forma automática todo el ciclo: verificar → detener → actualizar → reiniciar → validar sesión → mostrar QR si es necesario → esperar vinculación → probar → confirmar operativo. Todo desde el POS, sin SSH.
 
-## 1. Backend (SQL) — validación de rol
+## Arquitectura
 
-Nueva migración que refuerza roles en las RPC existentes:
+La infraestructura ya existe:
+- RPC `whatsapp_bot_request_command` (backend) → cola de comandos por sede
+- `whatsapp-bot/server.js` v8.20.1 en cada Droplet consume la cola cada ~5s y ejecuta `restart` / `update`
+- Endpoint público `/api/public/whatsapp-bot` reporta heartbeat, versión, estado de conexión y QR
 
-- `release_table(_table_id, _reason)`: exigir `has_role(uid,'admin') OR has_role(uid,'supervisor')`. Si no, `RAISE EXCEPTION 'ROLE_FORBIDDEN: Esta acción requiere autorización...'`.
-- `move_table(...)`: misma validación.
-- `merge_tables(...)`: misma validación.
-- `cancel_sale(...)`: ya restringido — mejorar el mensaje de error para incluir el texto estándar.
-- Nuevo RPC `admin_delete_sale(_sale_id, _reason)` (SECURITY DEFINER):
-  - Solo admin/supervisor.
-  - Marca `status='cancelled'`, revierte inventario, libera mesa si aplica, escribe en `audit_log` con `action='delete_sale'`, guarda rol.
-- Todas las acciones ya escriben en `audit_log` y/o `table_events`; verificar que incluyan `cancelled_by_role`.
+Lo que falta es orquestar los pasos existentes en un solo flujo guiado desde la UI, sin agregar comandos nuevos al bot.
 
-## 2. Frontend — bloqueo en UI
+## Cambios
 
-**Archivo `src/routes/_authenticated/mesas.tsx`**
-- Leer rol desde `useAuth()` (ya existe helper `hasRole`).
-- Deshabilitar/ocultar botones "Liberar", "Mover", "Fusionar", "Cancelar pedido" cuando el usuario no es admin ni supervisor.
-- Si intentan la acción por otra vía → `toast.error("Esta acción requiere autorización. Comunícate con un Administrador o Supervisor...")`.
+### 1. Backend — nuevo endpoint público de auto-prueba
+`src/routes/api/public/whatsapp-bot-selftest.ts` (server route): dado `branch_id`, dispara un mensaje sintético contra el mismo pipeline que usa Baileys (usa `handleIncomingMessage` interno) y devuelve `{ok, latency_ms, reply}`. Sirve como paso final "el chatbot responde".
 
-**Archivo `src/lib/sales-cancellation.ts`**
-- Traducir el mensaje de error de PostgREST al texto estándar cuando venga `ROLE_FORBIDDEN`.
+### 2. Backend — RPC de estado consolidado
+Añadir `whatsapp_bot_full_status(branch_id)` que retorne en una sola llamada: `version`, `connected`, `has_qr`, `qr`, `last_heartbeat_at`, `pending_commands`, `last_command_status`. Reduce polling.
 
-## 3. Panel de Pedidos Activos en Tiempo Real
+### 3. Frontend — componente `UpdateAndReconnectWizard`
+Modal con máquina de estados que ejecuta secuencialmente y muestra cada paso con ✔/✖/⏳:
 
-**Nuevo archivo `src/routes/_authenticated/pedidos-activos.tsx`** (ruta `/pedidos-activos`)
-- Gate: solo visible/accesible para admin y supervisor (redirige con toast si otro rol entra).
-- Query con `useQuery` a `sales` filtrando `status IN ('pending','confirmed','ready')` de la sede actual (o todas si admin y sin sede seleccionada).
-- Suscripción realtime a `sales` y `sale_items` (patrón `use-realtime-branch-sync` ya existe).
-- Tabs / secciones por `order_type`:
-  - 🍽️ Mesa · 🛍️ Para llevar · 🛵 Domicilio · 🌐 En línea · 🤖 Autopedidos (kiosco)
-- Cada card muestra: `#ticket`, tipo, estado, `created_at`, cliente, mesa, total, `user_name`, sede.
-- Acciones (solo admin/supervisor):
-  - **Cancelar** → dialog con motivo obligatorio (min 3 chars) + confirmación "¿Está seguro…" → llama `cancel_sale`.
-  - **Eliminar** → dialog con motivo + confirmación → llama nuevo RPC `admin_delete_sale`.
-  - **Liberar mesa** (si `table_id` existe) → dialog con motivo → llama `release_table`.
+```text
+1. Verificando estado actual         → lee full_status
+2. Enviando orden de actualización   → RPC command 'update'
+3. Actualizando bot (npm/git)        → poll versión hasta cambiar o timeout 3min
+4. Reiniciando servicio              → poll connected/heartbeat
+5. Validando sesión WhatsApp         → si connected=true, salta al paso 8
+6. Generando código QR               → poll has_qr hasta true, muestra QR
+7. Esperando vinculación             → poll connected=true (sin timeout, cancelable)
+8. Ejecutando prueba de mensajería   → llama selftest endpoint
+9. Bot operativo ✅
+```
 
-**Añadir enlace en el sidebar del admin** (`src/components/app-sidebar.tsx` o similar) — enlace "Pedidos activos" visible solo para admin/supervisor.
+Cada paso: título, descripción, estado (pending/running/ok/error), tiempo transcurrido y detalle de error específico ("Bot no respondió en 180s: última versión reportada 8.19.3, se esperaba ≥8.20.1"). Botón "Reintentar este paso" cuando falla.
 
-## 4. Auditoría
+### 4. Botón en `whatsapp-bot-tab.tsx`
+Reemplazar los dos botones separados (Actualizar / Reiniciar) por uno primario grande **"Actualizar y Reconectar"** que abre el wizard. Los individuales quedan colapsados en un menú "Avanzado" para uso puntual.
 
-Todas las RPC anteriores ya insertan en `audit_log` con `user_id`, `user_name`, `branch_id`, `action`, `meta`. Añadir en `meta`:
-- `role` (admin/supervisor)
-- `order_type`
-- `reason`
-
-## 5. Pruebas
-
-- Iniciar sesión como cajero → verificar que en `/mesas` los botones estén deshabilitados y que la llamada directa a `release_table` devuelva error controlado.
-- Iniciar sesión como admin → cancelar pedido de mesa, para llevar y domicilio → verificar en `audit_log`.
-- Verificar realtime del panel: crear pedido en otra pestaña, aparece sin refrescar.
-
----
-
-## Archivos afectados
-
-- `supabase/migrations/*_role_lock_tables.sql` (nueva)
-- `src/routes/_authenticated/mesas.tsx`
-- `src/lib/sales-cancellation.ts`
-- `src/routes/_authenticated/pedidos-activos.tsx` (nueva)
-- `src/components/app-sidebar.tsx` (o el archivo del menú)
+### 5. Independencia por sede
+Todo el flujo recibe `branch_id`; wizard bloquea cambiar de sede mientras corre. Nada global.
 
 ## Detalles técnicos
 
-- Validación de rol **siempre en SQL** (SECURITY DEFINER RPC con `has_role`), UI solo es UX.
-- `admin_delete_sale` marca `cancelled` en vez de `DELETE` físico para preservar historial fiscal.
-- Realtime: `supabase.channel('active-orders').on('postgres_changes',{event:'*',table:'sales'},...)` con teardown en `useEffect` cleanup.
-- El panel filtra por `branch_id` según `useBranch()`; admin sin sede ve todas.
+- **Timeouts**: update 180s, restart 60s, QR gen 45s, vinculación sin timeout (usuario cancela), selftest 15s.
+- **Anti-flapping**: se considera "conectado" solo tras 3 heartbeats consecutivos con `connected=true` (aprovecha protección anti-QR-fantasma ya existente en v8.20.1).
+- **Persistencia**: si el usuario cierra el modal, el proceso continúa en el bot; al reabrir, el wizard reconstruye estado desde `full_status` + `last_command_status`.
+- **Permisos**: gate por rol admin (ya presente en el tab).
+- **Selftest**: solo admin, rate-limit 1/min por sede, no crea pedido real (marca `is_test=true` y hace early-return antes de persistir).
+
+## Archivos
+
+- `supabase/migrations/*` — RPC `whatsapp_bot_full_status`
+- `src/routes/api/public/whatsapp-bot-selftest.ts` — nuevo
+- `src/components/ajustes/update-reconnect-wizard.tsx` — nuevo
+- `src/components/ajustes/whatsapp-bot-tab.tsx` — botón + integración
+- `whatsapp-bot/server.js` — solo si es necesario reportar `last_command_status` en heartbeat (probablemente sí)
+- Nuevo ZIP `v8.21.0` en `/public/downloads/`
+
+## Fuera de alcance
+
+- Cambiar el mecanismo de transporte de comandos (ya funciona).
+- Modificar la lógica de IA/pedidos (fue estabilizada en v8.20.0).

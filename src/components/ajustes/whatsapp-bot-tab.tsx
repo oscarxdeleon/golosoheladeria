@@ -30,8 +30,10 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GeminiQuotaCard } from "./gemini-quota-card";
+import { UpdateReconnectWizard } from "./update-reconnect-wizard";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
+
 
 
 interface BotConfigRow {
@@ -239,7 +241,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | "update" | null>(null);
+
   const [progressStep, setProgressStep] = useState<string | null>(null);
   const needsManualBridgeUpdate = compareVersions(cfg.bot_version, REMOTE_MANAGEMENT_MIN_VERSION) < 0;
 
@@ -340,53 +344,58 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               <div className="text-xs text-muted-foreground">QR generado: {new Date(cfg.qr_generated_at).toLocaleString()}</div>
             )}
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
-              <QrCode className="mr-2 h-4 w-4" /> Ver / Generar QR
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => sendCommand("reconnect")}
-              disabled={busyCmd !== null}
-            >
-              <RotateCw className={`mr-2 h-4 w-4 ${busyCmd === "reconnect" ? "animate-spin" : ""}`} /> Reconectar
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setRestartOpen(true)}
-              disabled={busyCmd !== null || needsManualBridgeUpdate}
-              title="Reinicia el servicio del bot en el servidor (PM2 lo respawnará)."
-            >
-              <RefreshCw className={`mr-2 h-4 w-4 ${busyCmd === "restart" ? "animate-spin" : ""}`} /> 🚀 Reiniciar Bot
-            </Button>
+          <div className="flex w-full flex-col gap-3">
             {isAdmin && (
               <Button
-                variant="default"
-                size="sm"
-                onClick={() => setUpdateOpen(true)}
+                size="lg"
+                onClick={() => setWizardOpen(true)}
                 disabled={busyCmd !== null || needsManualBridgeUpdate}
-                title="Descarga la última versión y reinicia el bot automáticamente."
-                className="bg-emerald-600 hover:bg-emerald-700"
+                className="w-full bg-emerald-600 hover:bg-emerald-700 text-base font-semibold"
+                title="Ejecuta todo el ciclo: actualizar, reiniciar, validar sesión, QR si aplica y verificación final."
               >
-                <Download className={`mr-2 h-4 w-4 ${busyCmd === "update" ? "animate-spin" : ""}`} /> 🔄 Actualizar Bot
+                <RotateCw className="mr-2 h-5 w-5" /> Actualizar y Reconectar
               </Button>
             )}
-            <Button
-              variant="destructive"
-              size="sm"
-              onClick={() => setUnlinkOpen(true)}
-              disabled={busyCmd !== null}
-            >
-              <LogOut className="mr-2 h-4 w-4" /> Desvincular dispositivo
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
+                <QrCode className="mr-2 h-4 w-4" /> Ver / Generar QR
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" size="sm" disabled={busyCmd !== null}>
+                    <MoreHorizontal className="mr-2 h-4 w-4" /> Avanzado
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => sendCommand("reconnect")} disabled={busyCmd !== null}>
+                    <RotateCw className="mr-2 h-4 w-4" /> Reconectar
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setRestartOpen(true)} disabled={busyCmd !== null || needsManualBridgeUpdate}>
+                    <RefreshCw className="mr-2 h-4 w-4" /> Reiniciar bot
+                  </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem onClick={() => setUpdateOpen(true)} disabled={busyCmd !== null || needsManualBridgeUpdate}>
+                      <Download className="mr-2 h-4 w-4" /> Solo actualizar
+                    </DropdownMenuItem>
+                  )}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={() => setUnlinkOpen(true)}
+                    disabled={busyCmd !== null}
+                  >
+                    <LogOut className="mr-2 h-4 w-4" /> Desvincular dispositivo
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
 
-            <div className="flex items-center gap-2">
-              <Switch id="bot-enabled" checked={cfg.enabled} onCheckedChange={toggleEnabled} />
-              <Label htmlFor="bot-enabled" className="text-sm font-semibold">Bot activo</Label>
+              <div className="ml-auto flex items-center gap-2">
+                <Switch id="bot-enabled" checked={cfg.enabled} onCheckedChange={toggleEnabled} />
+                <Label htmlFor="bot-enabled" className="text-sm font-semibold">Bot activo</Label>
+              </div>
             </div>
           </div>
+
         </div>
 
         <AlertDialog open={unlinkOpen} onOpenChange={setUnlinkOpen}>
@@ -513,8 +522,16 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             </div>
           </DialogContent>
         </Dialog>
+
+        <UpdateReconnectWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
+          branchId={cfg.branch_id}
+          branchName={branch?.name}
+        />
       </CardContent>
     </Card>
+
   );
 }
 
