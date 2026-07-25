@@ -257,7 +257,7 @@ function MesasPage() {
     if (releaseReason.trim().length < 3) {
       return toast.error("Ingresa un motivo (mínimo 3 caracteres)");
     }
-    setReleasing(true);
+    if (!guardManage()) { setReleasing(false); return; }
     const { error } = await supabase.rpc("release_table", {
       _table_id: releaseMesa.id,
       _reason: releaseReason.trim(),
