@@ -1495,6 +1495,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
             delivery_neighborhood: orderType === "domicilio" ? neighborhood : null,
             delivery_fee: deliveryFee,
             tip_amount: effectiveTip,
+            cash_tendered: method === "Efectivo" ? (cashReceived !== "" ? Number(cashReceived) : Number(total)) : null,
           })
           .select("id,ticket_number,total,payment_method,created_at")
           .maybeSingle();
