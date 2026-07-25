@@ -1016,7 +1016,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
-                finalReply = fallbackOrderReply(text, menuLink, orderingEnabled);
+                finalReply = fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
