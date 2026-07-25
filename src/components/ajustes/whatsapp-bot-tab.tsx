@@ -260,12 +260,37 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
   const [progressStep, setProgressStep] = useState<string | null>(null);
   const needsManualBridgeUpdate = compareVersions(cfg.bot_version, REMOTE_MANAGEMENT_MIN_VERSION) < 0;
 
+  const pollForChange = async (
+    predicate: (row: BotConfigRow) => boolean,
+    opts: { timeoutMs: number; intervalMs?: number; stepLabel: (elapsedSec: number) => string },
+  ): Promise<BotConfigRow | null> => {
+    const intervalMs = opts.intervalMs ?? 3000;
+    const started = Date.now();
+    while (Date.now() - started < opts.timeoutMs) {
+      const elapsed = Math.round((Date.now() - started) / 1000);
+      setProgressStep(opts.stepLabel(elapsed));
+      const { data } = await supabase
+        .from("whatsapp_bot_config")
+        .select("*")
+        .eq("branch_id", cfg.branch_id)
+        .maybeSingle();
+      const row = data as BotConfigRow | null;
+      if (row && predicate(row)) {
+        qc.setQueryData(["whatsapp-bot-config", cfg.branch_id], row);
+        return row;
+      }
+      await new Promise((r) => setTimeout(r, intervalMs));
+    }
+    return null;
+  };
+
   const sendCommand = async (command: "unlink" | "reconnect" | "restart" | "update") => {
     setBusyCmd(command);
+    const baselineVersion = (cfg.bot_version ?? "").trim();
+    const baselineSeenAt = cfg.last_seen_at ? new Date(cfg.last_seen_at).getTime() : 0;
     if (command === "restart" || command === "update") {
-      setProgressStep("Conectando al servidor…");
+      setProgressStep("Enviando orden al bot…");
     }
-    const started = Date.now();
     const { error } = await supabase.rpc("whatsapp_bot_request_command", {
       _branch_id: cfg.branch_id,
       _command: command,
@@ -278,27 +303,62 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
         : error.message);
       return;
     }
-    if (command === "restart" || command === "update") {
-      const steps = command === "update"
-        ? ["Aplicando configuración…", "Descargando última versión…", "Reiniciando servicio…", "Verificando conexión…"]
-        : ["Aplicando configuración…", "Reiniciando servicio…", "Verificando conexión…"];
-      for (const s of steps) {
-        setProgressStep(s);
-        await new Promise(r => setTimeout(r, command === "update" ? 4000 : 2000));
-      }
-      setProgressStep("Finalizando…");
-      await new Promise(r => setTimeout(r, 1500));
-      const elapsed = Math.round((Date.now() - started) / 1000);
-      toast.success(command === "update"
-        ? `✅ Bot actualizado correctamente (${elapsed}s). PM2 lo reiniciará automáticamente al terminar la descarga.`
-        : `✅ Bot reiniciado (${elapsed}s). El servicio volverá a estar disponible en unos segundos.`);
-    } else {
-      toast.success(
-        command === "unlink"
-          ? "Solicitud enviada. En unos segundos el bot borrará la sesión y generará un nuevo QR."
-          : "Solicitud enviada. El bot está reconectándose."
+
+    if (command === "update") {
+      const result = await pollForChange(
+        (row) => {
+          const reported = (row.bot_version ?? "").trim();
+          return reported !== "" && reported !== baselineVersion && compareVersions(reported, baselineVersion) > 0;
+        },
+        { timeoutMs: 180_000, stepLabel: (s) => `Esperando confirmación del bot… (${s}s / 180s)` },
       );
+      setBusyCmd(null);
+      setProgressStep(null);
+      if (result) {
+        toast.success(`✅ Bot actualizado. Nueva versión reportada: v${result.bot_version}.`);
+      } else {
+        toast.error(
+          `El bot no confirmó una versión nueva en 3 minutos (sigue reportando v${baselineVersion || "desconocida"}). ` +
+          (compareVersions(baselineVersion, REMOTE_MANAGEMENT_MIN_VERSION) < 0
+            ? "Esta versión no acepta comandos remotos. Debes ejecutar la actualización puente una vez desde el servidor."
+            : "Verifica el proceso PM2 en el servidor."),
+          { duration: 12000 },
+        );
+      }
+      onChanged();
+      return;
     }
+
+    if (command === "restart") {
+      const result = await pollForChange(
+        (row) => {
+          const seenAt = row.last_seen_at ? new Date(row.last_seen_at).getTime() : 0;
+          return seenAt > baselineSeenAt + 5000 && row.connection_status !== "disconnected";
+        },
+        { timeoutMs: 60_000, stepLabel: (s) => `Esperando que el servicio vuelva a responder… (${s}s / 60s)` },
+      );
+      setBusyCmd(null);
+      setProgressStep(null);
+      if (result) {
+        toast.success(`✅ Bot reiniciado. Estado actual: ${result.connection_status}.`);
+      } else {
+        toast.error(
+          `El bot no volvió a reportar señal en 60s. ` +
+          (compareVersions(baselineVersion, REMOTE_MANAGEMENT_MIN_VERSION) < 0
+            ? `La versión instalada (v${baselineVersion || "desconocida"}) no acepta comandos remotos: requiere actualización puente.`
+            : "Revisa PM2 en el servidor."),
+          { duration: 12000 },
+        );
+      }
+      onChanged();
+      return;
+    }
+
+    toast.success(
+      command === "unlink"
+        ? "Solicitud enviada. En unos segundos el bot borrará la sesión y generará un nuevo QR."
+        : "Solicitud enviada. El bot está reconectándose."
+    );
     setBusyCmd(null);
     setProgressStep(null);
     onChanged();
