@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { trackGeminiCall } from "@/lib/gemini-quota.server";
 
 export interface ParsedMenuItem {
   name: string;
