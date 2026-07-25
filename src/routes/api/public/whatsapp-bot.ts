@@ -535,7 +535,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // FAQs curadas por la sede — Opción 3 (few-shot).
               const allFaqs = Array.isArray(ctx.faqs) ? ctx.faqs as Array<{ q?: string; a?: string }> : [];
-              const faqs = selectRelevantFaqs(allFaqs, text, 35);
+              // Reducido de 35 → 8: las FAQ menos relevantes rara vez aplican y consumen ~3k tokens.
+              const faqs = selectRelevantFaqs(allFaqs, text, 8);
               const faqsBlock = faqs.length > 0
                 ? "PREGUNTAS FRECUENTES DE ESTA SEDE (respuestas oficiales — cuando el cliente pregunte algo parecido, usa esta respuesta tal cual, adaptando solo el saludo):\n" +
                   faqs
