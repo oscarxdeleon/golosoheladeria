@@ -3308,6 +3308,53 @@ export type Database = {
           },
         ]
       }
+      whatsapp_stickers: {
+        Row: {
+          active: boolean
+          branch_id: string | null
+          created_at: string
+          event_key: string
+          file_url: string | null
+          id: string
+          label: string
+          sort_order: number
+          storage_path: string | null
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          event_key: string
+          file_url?: string | null
+          id?: string
+          label: string
+          sort_order?: number
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          branch_id?: string | null
+          created_at?: string
+          event_key?: string
+          file_url?: string | null
+          id?: string
+          label?: string
+          sort_order?: number
+          storage_path?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_stickers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
