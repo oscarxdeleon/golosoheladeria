@@ -3900,6 +3900,17 @@ export type Database = {
       }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_get_pending: { Args: { _token: string }; Returns: Json }
+      whatsapp_bot_get_stickers: {
+        Args: { _token: string }
+        Returns: {
+          active: boolean
+          event_key: string
+          id: string
+          label: string
+          sort_order: number
+          storage_path: string
+        }[]
+      }
       whatsapp_bot_handle_incoming: {
         Args: { _body: string; _from: string; _token: string }
         Returns: Json
