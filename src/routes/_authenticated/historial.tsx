@@ -132,6 +132,12 @@ function HistorialPage() {
   const cancelledCount = filtered.filter((x) => x.status === "cancelled").length;
 
   function canCancel(sale: SaleRow): boolean {
+    // Solo administrador o supervisor pueden anular pedidos.
+    if (!isAdmin && primaryRole !== "supervisor") return false;
+    if (sale.status === "cancelled") return false;
+    return true;
+  }
+  function _unused_canCancel(sale: SaleRow): boolean {
     if (sale.status === "cancelled") return false;
     if (primaryRole === "supervisor" || primaryRole === "mesero" || primaryRole === "domiciliario") return false;
     if (sale.status === "paid" && !isAdmin) return false;
