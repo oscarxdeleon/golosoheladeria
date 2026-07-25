@@ -794,8 +794,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               }
 
               const useGeminiDirect = true;
-              const primaryModel = "gemini-2.0-flash";
-              const fallbackModel = "gemini-2.0-flash-lite";
+              // flash-lite tiene 30 rpm free vs 15 rpm de flash — soporta mejor
+              // ráfagas de tool-calling. flash queda como fallback cuando lite
+              // 429/5xx.
+              const primaryModel = "gemini-2.0-flash-lite";
+              const fallbackModel = "gemini-2.0-flash";
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
