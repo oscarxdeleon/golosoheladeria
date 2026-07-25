@@ -1055,7 +1055,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               });
 
               return json({
-                reply: finalReply,
+                reply: finalReply || null,
                 source: lastErr ? "ai_operational" : "ai",
                 finish_reason: lastFinishReason,
                 warning: lastErr,
