@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { reconcileTables } from "@/lib/reconcile-tables";
-import { QRCodeCanvas } from "qrcode.react";
+
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Plus, Trash2, QrCode, Copy, Download, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check, ArrowRight, Utensils, Search, Mic, User } from "lucide-react";
+import { Plus, Trash2, LogOut, ArrowRightLeft, ShoppingBag, Bike, Link2, Unlink, X, Check, ArrowRight, Utensils, Search, Mic, User } from "lucide-react";
 import { toast } from "sonner";
 import { formatMoney } from "@/lib/format";
 import { useBranch } from "@/contexts/branch-context";
@@ -144,7 +144,7 @@ function MesasPage() {
   const [createOpen, setCreateOpen] = useState(false);
   const [newNumber, setNewNumber] = useState("");
   const [newSeats, setNewSeats] = useState("4");
-  const [qrMesa, setQrMesa] = useState<Mesa | null>(null);
+  
   const [releaseMesa, setReleaseMesa] = useState<Mesa | null>(null);
   const [releaseReason, setReleaseReason] = useState("");
   const [releasing, setReleasing] = useState(false);
@@ -158,7 +158,7 @@ function MesasPage() {
   const [splitTarget, setSplitTarget] = useState<Mesa | null>(null);
   const [search, setSearch] = useState("");
   const [addToOccupied, setAddToOccupied] = useState<Mesa | null>(null);
-  const origin = typeof window !== "undefined" ? window.location.origin : "";
+  
 
   useRealtimeBranchSync(activeBranchId);
 
@@ -619,16 +619,6 @@ function MesasPage() {
                 </div>
               )}
 
-              {/* icono QR discreto */}
-              <span
-                role="button"
-                onClick={(e) => { e.stopPropagation(); setQrMesa(m); }}
-                className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-lg bg-background/70 text-foreground/70 opacity-0 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground group-hover:opacity-100"
-                aria-label="QR de la mesa"
-                title="QR para pedir desde el teléfono"
-              >
-                <QrCode className="h-3.5 w-3.5" />
-              </span>
               {isAdmin && (
                 <span
                   role="button"
@@ -682,55 +672,8 @@ function MesasPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={!!qrMesa} onOpenChange={(o) => !o && setQrMesa(null)}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>QR · {qrMesa?.label ?? `Mesa ${qrMesa?.number}`}</DialogTitle>
-            <DialogDescription>
-              El cliente escanea con su teléfono y pide directamente desde la mesa.
-            </DialogDescription>
-          </DialogHeader>
-          {qrMesa && (
-            <div className="flex flex-col items-center gap-3">
-              <div id={`mesa-qr-${qrMesa.number}`} className="rounded-xl border bg-white p-4">
-                <QRCodeCanvas value={`${origin}/t/${qrMesa.number}`} size={220} level="M" />
-              </div>
-              <div className="text-xs text-muted-foreground break-all text-center font-mono">
-                {origin}/t/{qrMesa.number}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    navigator.clipboard.writeText(`${origin}/t/${qrMesa.number}`);
-                    toast.success("Link copiado");
-                  }}
-                >
-                  <Copy className="h-4 w-4" /> Copiar link
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    const canvas = document.querySelector<HTMLCanvasElement>(`#mesa-qr-${qrMesa.number} canvas`);
-                    if (!canvas) return;
-                    const a = document.createElement("a");
-                    a.href = canvas.toDataURL("image/png");
-                    a.download = `mesa-${qrMesa.number}-qr.png`;
-                    a.click();
-                  }}
-                >
-                  <Download className="h-4 w-4" /> Descargar
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground text-center px-2">
-                Imprime el QR y pégalo sobre la mesa. Imprime una etiqueta resistente al agua.
-              </p>
-            </div>
-          )}
-        </DialogContent>
-      </Dialog>
+
+
 
       {/* Release with mandatory reason */}
       <Dialog open={!!releaseMesa} onOpenChange={(o) => { if (!o) { setReleaseMesa(null); setReleaseReason(""); } }}>
