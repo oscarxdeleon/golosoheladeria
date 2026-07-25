@@ -93,42 +93,6 @@ async function logBotEvent(
   }
 }
 
-async function getActiveStickers(token: string) {
-  const r = await callRpc("whatsapp_bot_get_stickers", { _token: token });
-  if (!r.ok || !Array.isArray(r.data)) return [];
-  return r.data as Array<{ id: string; event_key: string; label: string; storage_path: string | null; sort_order: number; active: boolean }>;
-}
-
-async function signedStickerUrl(storagePath: string) {
-  try {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const { data, error } = await supabaseAdmin.storage.from("stickers").createSignedUrl(storagePath, 60 * 60 * 24);
-    if (error || !data?.signedUrl) return null;
-    return data.signedUrl;
-  } catch {
-    return null;
-  }
-}
-
-async function pickSticker(token: string, eventKey: string) {
-  const stickers = await getActiveStickers(token);
-  const candidates = stickers.filter((s) => s.event_key === eventKey && s.active && s.storage_path);
-  if (candidates.length === 0) return null;
-  const picked = candidates[Math.floor(Math.random() * candidates.length)];
-  const url = await signedStickerUrl(picked.storage_path!);
-  if (!url) return null;
-  return { event_key: picked.event_key, label: picked.label, url };
-}
-
-function detectStickerEvent(message: string, matchedTrigger?: string, aiOrderConfirmed = false): string | null {
-  const normalized = message.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  if (aiOrderConfirmed) return "order_confirmed";
-  if (/\b(gracias|thank|thanks|agradezco|te agradezco|muy amable)\b/.test(normalized)) return "thanks";
-  if (matchedTrigger === "menu") return "menu";
-  if (matchedTrigger === "welcome") return "welcome";
-  if (matchedTrigger === "after_hours" || matchedTrigger === "pickup_after_hours") return "welcome";
-  return null;
-}
 
 function normalizeHistory(messages: Array<{ role: string; content: string }>) {
   return messages
