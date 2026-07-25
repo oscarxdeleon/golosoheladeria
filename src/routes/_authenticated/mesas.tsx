@@ -619,16 +619,6 @@ function MesasPage() {
                 </div>
               )}
 
-              {/* icono QR discreto */}
-              <span
-                role="button"
-                onClick={(e) => { e.stopPropagation(); setQrMesa(m); }}
-                className="absolute bottom-2 right-2 grid h-7 w-7 place-items-center rounded-lg bg-background/70 text-foreground/70 opacity-0 shadow-sm backdrop-blur transition hover:bg-background hover:text-foreground group-hover:opacity-100"
-                aria-label="QR de la mesa"
-                title="QR para pedir desde el teléfono"
-              >
-                <QrCode className="h-3.5 w-3.5" />
-              </span>
               {isAdmin && (
                 <span
                   role="button"
