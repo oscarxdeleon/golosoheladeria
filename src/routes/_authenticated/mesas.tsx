@@ -332,7 +332,7 @@ function MesasPage() {
       _principal_id: splitTarget.id,
       _reason: undefined,
     });
-    if (error) return toast.error(error.message);
+    if (error) return toast.error(translateError(error.message));
     toast.success("Mesas separadas");
     setSplitTarget(null);
     qc.invalidateQueries({ queryKey: ["restaurant_tables"] });
