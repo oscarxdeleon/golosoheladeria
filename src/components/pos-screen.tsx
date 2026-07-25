@@ -3540,9 +3540,14 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
                       } else if (isCourtesy) {
                         setCourtesyReason("");
                         setCourtesyDialogOpen(true);
+                      } else if (isNequi || isBanco) {
+                        // Pagos electrónicos: exigir los últimos 4 dígitos
+                        // de la transacción antes de registrar el cobro.
+                        setElectronicPaymentMethod(m.name);
                       } else {
                         void pay(m.name);
                       }
+
                     } catch (err) {
                       console.error("[pos] payment click error", err);
                       toast.error("No se pudo iniciar el cobro.");
