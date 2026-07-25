@@ -603,7 +603,9 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
       "[print] ticket no impreso: servidor local no disponible. " +
         'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
     );
+  }
 }
+
 
 /**
  * Imprime el comprobante compacto de pago electrónico (Nequi/Bancolombia).
