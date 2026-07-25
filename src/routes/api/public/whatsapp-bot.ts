@@ -735,6 +735,32 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const geminiKey = process.env.GEMINI_API_KEY;
               const apiKey = process.env.LOVABLE_API_KEY;
               if (!geminiKey && !apiKey) return json({ error: "ai_not_configured", reply: null }, 200);
+
+              // Preflight cuota Gemini: si la cuota gratuita diaria ya se agotó y NO hay
+              // fallback pago (LOVABLE_API_KEY), evitamos hacer la llamada (que devolvería 429)
+              // y contestamos directamente con una respuesta operativa sin IA.
+              if (geminiKey && !apiKey) {
+                const q = await callRpc("gemini_quota_status", {});
+                const qData = Array.isArray(q.data) ? q.data[0] : q.data;
+                const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
+                if (exhausted) {
+                  const reply = operationalReply(menuLink, orderingEnabled);
+                  await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
+                    ok: false,
+                    metadata: qData ?? null,
+                  });
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+                  await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                  return json({
+                    reply,
+                    source: "quota_exhausted_operational",
+                    warning: "gemini_quota_exhausted",
+                    conversation_id: conversationId,
+                  });
+                }
+              }
+
               const useGeminiDirect = Boolean(geminiKey);
               const primaryModel = "google/gemini-2.5-flash";
               const fallbackModel = useGeminiDirect ? "google/gemini-2.5-flash" : "openai/gpt-5.5";
