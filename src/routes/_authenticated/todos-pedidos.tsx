@@ -72,7 +72,29 @@ interface Sale {
   notes: string | null;
   delivery_address: string | null;
   table_id: string | null;
+  cash_tendered: number | null;
+  cancelled_at: string | null;
+  cancelled_by_name: string | null;
+  cancelled_by_role: string | null;
+  cancellation_reason: string | null;
+  cancellation_reason_code: string | null;
   sale_items: Item[];
+}
+
+function formatDateTimeLong(iso: string) {
+  const d = new Date(iso);
+  const date = d.toLocaleDateString("es-CO", { day: "2-digit", month: "2-digit", year: "numeric" });
+  const time = d.toLocaleTimeString("es-CO", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true });
+  return `${date} · ${time}`;
+}
+
+function roleLabel(role: string | null | undefined): string {
+  switch ((role ?? "").toLowerCase()) {
+    case "admin":      return "Administrador";
+    case "supervisor": return "Supervisor";
+    case "cajero":     return "Cajero";
+    default:           return role ?? "—";
+  }
 }
 
 function shortTicket(n: number) {
@@ -146,7 +168,7 @@ function TodosPedidosPage() {
     queryFn: async () => {
       let q = supabase
         .from("sales")
-        .select("id,ticket_number,total,subtotal,payment_method,customer_name,customer_phone,delivery_phone,user_name,order_type,status,branch_id,cash_session_id,created_at,notes,delivery_address,table_id,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)")
+        .select("id,ticket_number,total,subtotal,payment_method,customer_name,customer_phone,delivery_phone,user_name,order_type,status,branch_id,cash_session_id,created_at,notes,delivery_address,table_id,cash_tendered,cancelled_at,cancelled_by_name,cancelled_by_role,cancellation_reason,cancellation_reason_code,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)")
         .eq("branch_id", activeBranchId!)
         .order("created_at", { ascending: false })
         .limit(500);
@@ -439,7 +461,32 @@ function TodosPedidosPage() {
                       {s.delivery_address && (
                         <div className="col-span-2">Dirección: <span className="text-foreground">{s.delivery_address}</span></div>
                       )}
+                      {(isAdmin || isSupervisor) && s.payment_method === "Efectivo" && s.cash_tendered != null && (
+                        <div className="col-span-2">
+                          Pagó con: <span className="text-foreground font-medium">
+                            {Number(s.cash_tendered) > Number(s.total)
+                              ? formatMoney(Number(s.cash_tendered))
+                              : "Valor exacto"}
+                          </span>
+                        </div>
+                      )}
                     </div>
+
+                    {s.status === "cancelled" && (
+                      <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900 space-y-1">
+                        <div className="flex items-center gap-1.5 font-semibold text-rose-700">
+                          <XCircle className="h-4 w-4" /> Pedido anulado
+                        </div>
+                        {s.cancelled_at && (
+                          <div>Fecha y hora: <span className="font-medium">{formatDateTimeLong(s.cancelled_at)}</span></div>
+                        )}
+                        <div>Usuario: <span className="font-medium">{s.cancelled_by_name ?? "—"}</span></div>
+                        <div>Rol: <span className="font-medium">{roleLabel(s.cancelled_by_role)}</span></div>
+                        {s.cancellation_reason && (
+                          <div>Motivo: <span className="font-medium">{s.cancellation_reason}</span></div>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-2">
                       {(s.sale_items ?? []).map((it) => {
                         const mods = Array.isArray(it.modifiers) ? (it.modifiers as Modifier[]) : [];
