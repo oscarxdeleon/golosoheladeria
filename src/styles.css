@@ -15,32 +15,6 @@
 @import "@fontsource/barlow/700.css";
 @import "@fontsource/barlow/800.css";
 
-/* Hide Lovable "Made with Lovable" badge on published site */
-#lovable-badge,
-#lovable-badge-container,
-a#lovable-badge,
-a[href*="lovable.dev"],
-a[href*="lovable.app"][href*="utm"],
-[data-lovable-badge],
-[id^="lovable-"],
-[class*="lovable-badge"],
-[class*="LovableBadge"],
-iframe[src*="lovable.dev"],
-iframe[src*="lovable.app/badge"],
-iframe[title*="Lovable" i],
-iframe[title*="Made with" i] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  position: absolute !important;
-  left: -9999px !important;
-}
-
-
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
@@ -297,23 +271,56 @@ iframe[title*="Made with" i] {
 /* Ocultar badge "Made with Lovable" completamente */
 #lovable-badge,
 #lovable-badge-container,
+#lovable-badge-wrapper,
+#lovable-badge-iframe,
+#lovable-badge-shadow,
+#lovable-badge-root,
+a#lovable-badge,
 a[href*="lovable.dev"],
 a[href*="lovable.app/badge"],
+a[href*="lovable.app"][href*="badge"],
 a[href*="gpteng.co"],
+a[href*="gpt-engineer"],
 [data-lovable-badge],
+[data-lovable-badge="true"],
+[data-testid="lovable-badge"],
 [class*="lovable-badge"],
+[class*="LovableBadge"],
+[class*="MadeWithLovable"],
+[class*="made-with-lovable"],
 [id*="lovable-badge"],
+[id*="LovableBadge"],
 iframe[src*="lovable.dev/badge"],
-iframe[src*="lovable.app/badge"] {
+iframe[src*="lovable.app/badge"],
+iframe[src*="gpteng.co"],
+iframe[title*="Lovable" i],
+iframe[title*="Made with" i],
+iframe[title*="badge" i] {
   display: none !important;
   visibility: hidden !important;
   opacity: 0 !important;
   pointer-events: none !important;
   width: 0 !important;
   height: 0 !important;
+  max-width: 0 !important;
+  max-height: 0 !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
   position: absolute !important;
   left: -9999px !important;
   top: -9999px !important;
+  z-index: -9999 !important;
+  clip: rect(0, 0, 0, 0) !important;
+  clip-path: inset(100%) !important;
+  overflow: hidden !important;
+  transform: scale(0) !important;
+}
+
+/* Forzar que ningún contenedor padre del badge ocupe espacio */
+:has(> #lovable-badge),
+:has(> #lovable-badge-container),
+:has(> [data-lovable-badge]) {
+  display: none !important;
 }
 
 /* ===== Ajustes premium typography scope ===== */
