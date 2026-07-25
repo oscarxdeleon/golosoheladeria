@@ -429,14 +429,6 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   source: "short_circuit",
                   conversation_id: conversationId,
                 };
-                if (shortCircuit.event) {
-                  const sticker = await pickSticker(token, shortCircuit.event);
-                  if (sticker) {
-                    payload.sticker_url = sticker.url;
-                    payload.sticker_event = sticker.event_key;
-                    payload.sticker_label = sticker.label;
-                  }
-                }
                 return json(payload, 200);
               }
 
