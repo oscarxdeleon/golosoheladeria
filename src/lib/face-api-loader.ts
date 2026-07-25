@@ -1,13 +1,25 @@
-import * as faceapi from "face-api.js";
-
 // Models hosted on the official face-api.js CDN (vladmandic mirror is also valid)
 const MODEL_URL = "https://justadudewhohacks.github.io/face-api.js/models";
 
+type FaceApiModule = typeof import("face-api.js");
+
+let faceApiPromise: Promise<FaceApiModule> | null = null;
 let loadingPromise: Promise<void> | null = null;
+
+async function getFaceApi(): Promise<FaceApiModule> {
+  if (typeof window === "undefined") {
+    throw new Error("El reconocimiento facial solo está disponible en el navegador.");
+  }
+  if (!faceApiPromise) {
+    faceApiPromise = import("face-api.js");
+  }
+  return faceApiPromise;
+}
 
 export async function loadFaceModels(): Promise<void> {
   if (loadingPromise) return loadingPromise;
   loadingPromise = (async () => {
+    const faceapi = await getFaceApi();
     await Promise.all([
       faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
       faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
@@ -21,6 +33,7 @@ export async function getFaceDescriptor(
   input: HTMLVideoElement | HTMLImageElement | HTMLCanvasElement,
   opts: { inputSize?: number; scoreThreshold?: number } = {},
 ) {
+  const faceapi = await getFaceApi();
   const detection = await faceapi
     .detectSingleFace(
       input,
