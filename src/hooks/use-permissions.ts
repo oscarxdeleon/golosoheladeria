@@ -36,6 +36,7 @@ export const ALL_ROUTE_KEYS: { key: string; label: string; group: string }[] = [
   { key: "egresos", label: "Historial egresos", group: "Egresos" },
   { key: "deudas", label: "Deudas (cobrar/pagar)", group: "Egresos" },
   { key: "todos-pedidos", label: "Todos los pedidos", group: "Administración" },
+  { key: "pedidos-activos", label: "Pedidos activos (Admin)", group: "Administración" },
   { key: "mesas-admin", label: "Gestión de mesas", group: "Administración" },
   { key: "asistencia", label: "Asistencia", group: "Administración" },
   { key: "empleados", label: "Empleados y Nómina", group: "Administración" },
