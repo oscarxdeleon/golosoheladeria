@@ -183,6 +183,58 @@ function operationalReply(menuLink: string, takingOrders = false) {
   return `Con gusto te atiendo. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
 }
 
+/**
+ * Cortocircuito de ahorro de créditos. Detecta mensajes triviales
+ * (agradecimientos, "ok", emojis, saludos cortos, pedidos de menú)
+ * y devuelve una respuesta determinista SIN llamar al modelo de IA.
+ * Cada llamada evitada ahorra ~13.000 tokens de entrada.
+ */
+function shortCircuitReply(input: string, menuLink: string): { reply: string; event: string | null } | null {
+  const raw = input.trim();
+  if (!raw) return null;
+  const normalized = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[¿?¡!.,;:()"']/g, "")
+    .trim();
+  const words = normalized.split(/\s+/).filter(Boolean);
+  // Solo evaluamos mensajes cortos para no atrapar preguntas reales.
+  if (words.length > 4) return null;
+
+  // Solo emojis / stickers / signos → no responder (0 créditos, evita ruido).
+  const onlyEmojis = /^[\p{Emoji}\p{Extended_Pictographic}\s❤️👍👌🙏✨🍦🍨🥤]+$/u.test(raw);
+  if (onlyEmojis) return { reply: "", event: null };
+
+  // Agradecimientos → respuesta breve + sticker de gracias.
+  if (/\b(gracias|thanks|thank|agradezco|muy amable|mil gracias|dios te pague)\b/.test(normalized)) {
+    return { reply: "¡Con mucho gusto! 🍦 Estamos para servirte cuando quieras.", event: "thanks" };
+  }
+
+  // Confirmaciones triviales → no ameritan respuesta (o breve).
+  if (/^(ok|okay|listo|dale|vale|bueno|si|sii|siii|no|nop|va|bien|perfecto|entendido|👍|👌|🙏)$/.test(normalized)) {
+    return { reply: "", event: null };
+  }
+
+  // Pedido de menú → link directo, sin IA.
+  if (/\b(menu|menú|carta|catalogo|catálogo|precios|lista)\b/.test(normalized)) {
+    return {
+      reply: `Aquí está nuestro menú con fotos y precios actualizados 👉 ${menuLink}\n\nSi quieres pedir por aquí, dime qué te provoca. 🍦`,
+      event: "menu",
+    };
+  }
+
+  // Saludos cortos sin más contexto → bienvenida breve + link.
+  if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
+    return {
+      reply: `¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nTe comparto el menú con fotos y precios 👉 ${menuLink}\n\nDime en qué te ayudo.`,
+      event: "welcome",
+    };
+  }
+
+  return null;
+}
+
 export const Route = createFileRoute("/api/public/whatsapp-bot")({
   server: {
     handlers: {
@@ -412,13 +464,42 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
 
+              // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
+              // Antes de invocar el modelo (que consume ~13k tokens de input),
+              // detectamos mensajes triviales y respondemos deterministamente.
+              const shortCircuit = shortCircuitReply(text, menuLink);
+              if (shortCircuit) {
+                await logBotEvent(token, conversationId, from, "short_circuit_hit", {
+                  durationMs: elapsedMs(requestStarted),
+                  metadata: { event: shortCircuit.event, replyLength: shortCircuit.reply.length },
+                });
+                if (!shortCircuit.reply) {
+                  return json({ reply: null, source: "short_circuit_silent", conversation_id: conversationId }, 200);
+                }
+                const payload: Record<string, unknown> = {
+                  reply: shortCircuit.reply,
+                  source: "short_circuit",
+                  conversation_id: conversationId,
+                };
+                if (shortCircuit.event) {
+                  const sticker = await pickSticker(token, shortCircuit.event);
+                  if (sticker) {
+                    payload.sticker_url = sticker.url;
+                    payload.sticker_event = sticker.event_key;
+                    payload.sticker_label = sticker.label;
+                  }
+                }
+                return json(payload, 200);
+              }
+
               // Sabores AGRUPADOS por grupo de modificador (para no mezclar
               // sabores de helado con sabores de jugo, malteadas, etc.)
               const flavorGroups = Array.isArray(ctx.flavor_groups)
                 ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
                 : [];
               const allProducts = Array.isArray(ctx.products) ? ctx.products as Array<{ name?: string; price?: number; category?: string | null; is_favorite?: boolean }> : [];
-              const products = selectRelevantProducts(allProducts, text, 60);
+              // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
+              const products = selectRelevantProducts(allProducts, text, 20);
 
               const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
 
@@ -454,7 +535,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // FAQs curadas por la sede — Opción 3 (few-shot).
               const allFaqs = Array.isArray(ctx.faqs) ? ctx.faqs as Array<{ q?: string; a?: string }> : [];
-              const faqs = selectRelevantFaqs(allFaqs, text, 35);
+              // Reducido de 35 → 8: las FAQ menos relevantes rara vez aplican y consumen ~3k tokens.
+              const faqs = selectRelevantFaqs(allFaqs, text, 8);
               const faqsBlock = faqs.length > 0
                 ? "PREGUNTAS FRECUENTES DE ESTA SEDE (respuestas oficiales — cuando el cliente pregunte algo parecido, usa esta respuesta tal cual, adaptando solo el saludo):\n" +
                   faqs
@@ -757,7 +839,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
               const callAiOnce = async (model: string) => {
                 const bodyReq: Record<string, unknown> = {
-                  model: mapModel(model), messages, max_tokens: 2048, temperature: 0.6,
+                  model: mapModel(model), messages, max_tokens: 800, temperature: 0.6,
                 };
                 if (orderingTools.length > 0) {
                   bodyReq.tools = orderingTools;
@@ -802,7 +884,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               let lastErr: string | null = null;
               let lastFinishReason: string | null = null;
               let orderConfirmed = false;
-              for (let round = 0; round < 6; round++) {
+              // Reducido de 6 → 3: cap de rondas de tool-calling para evitar loops caros.
+              for (let round = 0; round < 3; round++) {
                 const aiStarted = performance.now();
                 let aiResp: Response;
                 try {
