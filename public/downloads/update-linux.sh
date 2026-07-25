@@ -143,7 +143,7 @@ if [[ ! -f "${tmp_dir}/pkg/server.js" ]]; then
   exit 3
 fi
 
-downloaded_version="$(grep -Eio 'BOT_VERSION[[:space:]]*=[[:space:]]*["'\'''][^"'\'''']+["'\''']' "${tmp_dir}/pkg/server.js" | head -n1 | sed -E 's/.*["'\''']([^"'\'''']+)["'\'''].*/\1/')"
+downloaded_version="$(grep -Eo 'BOT_VERSION[[:space:]]*=[[:space:]]*"[^"]+"' "${tmp_dir}/pkg/server.js" | head -n1 | sed -E 's/.*"([^"]+)"/\1/')"
 if [[ "${downloaded_version}" != "${BOT_VERSION}" ]]; then
   echo "[ERROR] El paquete descargado trae versión ${downloaded_version:-desconocida}, se esperaba ${BOT_VERSION}." >&2
     echo "        URL usada: ${DOWNLOAD_URL}" >&2
