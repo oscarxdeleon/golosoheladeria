@@ -427,8 +427,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </div>
         )}
 
-
+        <Dialog open={qrOpen} onOpenChange={setQrOpen}>
           <DialogContent className="max-w-md">
+
             <DialogHeader><DialogTitle>Vincular WhatsApp por QR</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
