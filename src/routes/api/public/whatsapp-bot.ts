@@ -166,12 +166,136 @@ function fallbackOrderReply(input: string, menuLink: string, takingOrders: boole
   if (detected) {
     return `¡Perfecto! Soy Golosito y te ayudo con tu pedido. 🍦\n\nTengo anotado que quieres ${detected}.\n\nPara completarlo, por favor envíame:\n• Cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nTambién puedes ver el menú con fotos y precios aquí 👉 ${menuLink}`;
   }
-  // Si ya hay conversación en curso, NO repetir el mensaje operativo genérico
-  // (era la causa del ciclo: el bot volvía a pedir "producto + cantidad + nombre..."
-  // aunque el cliente ya estuviera en medio del pedido). Mejor guardar silencio
-  // y dejar que el cliente escriba de nuevo, en lugar de reiniciar el flujo.
-  if (hasHistory) return "";
+  if (hasHistory) {
+    return `Te sigo ayudando con tu pedido. 🍦\n\nPara poder registrarlo bien, envíame lo que falte:\n• Producto y cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio, o si es para recoger\n• Pago: efectivo o transferencia\n\nMenú con fotos y precios 👉 ${menuLink}`;
+  }
   return operationalReply(menuLink, true);
+}
+
+type ProductLite = {
+  id?: string;
+  name?: string;
+  price?: number;
+  category?: string | null;
+  is_favorite?: boolean;
+  modifier_group_ids?: unknown;
+};
+
+type OrderConfigLite = {
+  ordering_enabled?: boolean;
+  min_amount?: number;
+  delivery_fee?: number;
+  zones?: string | null;
+  transfer_info?: string | null;
+  dry_run?: boolean;
+} | null;
+
+function normalizeText(value: string) {
+  return value
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9\s#.,-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function parseQuantity(input: string) {
+  const normalized = normalizeText(input);
+  const digit = normalized.match(/(?:^|\s)(\d{1,2})(?:\s|$)/)?.[1];
+  if (digit) return Math.max(1, Math.min(20, Number(digit)));
+  const words: Record<string, number> = {
+    un: 1, una: 1, uno: 1,
+    dos: 2, tres: 3, cuatro: 4, cinco: 5,
+    seis: 6, siete: 7, ocho: 8, nueve: 9, diez: 10,
+  };
+  for (const [word, qty] of Object.entries(words)) {
+    if (new RegExp(`\\b${word}\\b`).test(normalized)) return qty;
+  }
+  return 1;
+}
+
+function detectOrderType(input: string) {
+  const normalized = normalizeText(input);
+  if (/\b(recoger|recojo|paso por|pasaria|pasaría|para llevar|retiro|heladeria|heladeria)\b/.test(normalized)) return "pickup";
+  if (/\b(domicilio|direccion|dirección|enviar|envio|envío|mandar|llevar|barrio)\b/.test(normalized)) return "delivery";
+  return null;
+}
+
+function detectPayment(input: string) {
+  const normalized = normalizeText(input);
+  if (/\b(efectivo|cash)\b/.test(normalized)) return "cash";
+  if (/\b(transferencia|transferir|nequi|bancolombia|daviplata|qr)\b/.test(normalized)) return "transfer";
+  return null;
+}
+
+function extractField(input: string, labels: string[]) {
+  const lines = input.split(/[\n;]+/).map((line) => line.trim()).filter(Boolean);
+  for (const line of lines) {
+    const normalizedLine = normalizeText(line);
+    for (const label of labels) {
+      const normalizedLabel = normalizeText(label);
+      if (normalizedLine.startsWith(normalizedLabel)) {
+        return line.replace(new RegExp(`^\\s*${label}\\s*[:#-]?\\s*`, "i"), "").trim();
+      }
+    }
+  }
+  const escaped = labels.map((label) => label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const match = input.match(new RegExp(`(?:${escaped})\\s*[:#-]?\\s*([^\n;,.]+(?:[#\wÁÉÍÓÚáéíóúÑñ\s-]*))`, "i"));
+  return match?.[1]?.trim() ?? null;
+}
+
+function extractCustomerName(input: string) {
+  const explicit = extractField(input, ["nombre", "a nombre de", "mi nombre es", "me llamo", "soy"]);
+  if (!explicit) return null;
+  return explicit.replace(/\b(direccion|dirección|barrio|pago|efectivo|transferencia).*$/i, "").trim();
+}
+
+function extractAddress(input: string) {
+  return extractField(input, ["direccion", "dirección", "dir", "address"]);
+}
+
+function extractNeighborhood(input: string) {
+  return extractField(input, ["barrio", "sector"]);
+}
+
+function isConfirmation(input: string) {
+  return /\b(si|sí|confirmo|confirmar|dale|listo|correcto|esta bien|está bien|ok|perfecto|hagale|hágale)\b/i.test(input);
+}
+
+function productScore(product: ProductLite, input: string) {
+  const haystack = normalizeText(`${product.name ?? ""} ${product.category ?? ""}`);
+  const query = normalizeText(input);
+  if (!product.name || !query) return 0;
+  if (query.includes(haystack) || haystack.includes(query)) return 100;
+  const words = textTokens(String(product.name)).filter((word) => word.length >= 3);
+  return words.reduce((score, word) => score + (query.includes(word) ? 12 : 0), 0) + (product.is_favorite ? 2 : 0);
+}
+
+function findRequestedProduct(products: ProductLite[], input: string) {
+  return products
+    .map((product) => ({ product, score: productScore(product, input) }))
+    .filter((item) => item.score > 0)
+    .sort((a, b) => b.score - a.score || String(a.product.name ?? "").localeCompare(String(b.product.name ?? "")))[0]?.product ?? null;
+}
+
+function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number) => string) {
+  const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+  const lines = items.map((item) => {
+    const qty = Number(item.qty ?? 1);
+    const name = String(item.product_name ?? item.name ?? "Producto");
+    const unit = Number(item.unit_price ?? 0);
+    return `• ${qty} x ${name} — ${fmtCOP(qty * unit)}`;
+  });
+  const subtotal = Number(cart?.subtotal ?? 0);
+  const fee = Number(cart?.delivery_fee ?? 0);
+  const total = Number(cart?.total ?? subtotal + fee);
+  return [
+    ...lines,
+    `Subtotal: ${fmtCOP(subtotal)}`,
+    fee > 0 ? `Domicilio: ${fmtCOP(fee)}` : null,
+    `Total: ${fmtCOP(total)}`,
+  ].filter(Boolean).join("\n");
 }
 
 const AI_TOTAL_BUDGET_MS = 28_000;
