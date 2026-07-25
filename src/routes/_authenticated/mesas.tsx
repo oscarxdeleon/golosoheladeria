@@ -587,7 +587,7 @@ function MesasPage() {
               )}
 
               {/* acciones flotantes */}
-              {status === "occupied" && (
+              {status === "occupied" && canManageTables && (
                 <div className="mt-1 flex w-full flex-wrap items-center justify-center gap-1.5">
                   <span
                     role="button"
