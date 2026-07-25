@@ -248,18 +248,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               return json(r.data);
             }
             case "stickers": {
-              const stickers = await getActiveStickers(token);
-              const withUrls = await Promise.all(
-                stickers.map(async (s) => ({
-                  id: s.id,
-                  event_key: s.event_key,
-                  label: s.label,
-                  sort_order: s.sort_order,
-                  active: s.active,
-                  url: s.storage_path ? await signedStickerUrl(s.storage_path) : null,
-                })),
-              );
-              return json({ stickers: withUrls.filter((s) => s.url) });
+              // Funcionalidad eliminada: siempre devolvemos lista vacía para
+              // mantener compatibilidad con versiones antiguas del bot local.
+              return json({ stickers: [] });
             }
             case "status": {
               const status = String(body.status ?? "").trim();
