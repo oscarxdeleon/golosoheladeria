@@ -15,32 +15,6 @@
 @import "@fontsource/barlow/700.css";
 @import "@fontsource/barlow/800.css";
 
-/* Hide Lovable "Made with Lovable" badge on published site */
-#lovable-badge,
-#lovable-badge-container,
-a#lovable-badge,
-a[href*="lovable.dev"],
-a[href*="lovable.app"][href*="utm"],
-[data-lovable-badge],
-[id^="lovable-"],
-[class*="lovable-badge"],
-[class*="LovableBadge"],
-iframe[src*="lovable.dev"],
-iframe[src*="lovable.app/badge"],
-iframe[title*="Lovable" i],
-iframe[title*="Made with" i] {
-  display: none !important;
-  visibility: hidden !important;
-  opacity: 0 !important;
-  pointer-events: none !important;
-  width: 0 !important;
-  height: 0 !important;
-  position: absolute !important;
-  left: -9999px !important;
-}
-
-
-
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
