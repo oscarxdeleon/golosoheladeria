@@ -392,8 +392,32 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               <b> Reiniciar Bot</b> y <b>Actualizar Bot</b> funcionen desde este panel, primero instala la actualización descargable una sola vez.
             </p>
             <p className="mt-2 text-xs text-amber-900/80">
-              Después de quedar en v8.20.1, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
+              Después de quedar en v{REMOTE_MANAGEMENT_MIN_VERSION} o superior, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
             </p>
+            <div className="mt-3">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={async () => {
+                  const { data } = await supabase
+                    .from("whatsapp_bot_config")
+                    .select("*")
+                    .eq("branch_id", cfg.branch_id)
+                    .maybeSingle();
+                  if (data) {
+                    qc.setQueryData(["whatsapp-bot-config", cfg.branch_id], data);
+                    const v = (data as BotConfigRow).bot_version ?? "desconocida";
+                    if (compareVersions(v, REMOTE_MANAGEMENT_MIN_VERSION) >= 0) {
+                      toast.success(`Versión detectada: v${v}. Panel actualizado.`);
+                    } else {
+                      toast.info(`El bot sigue reportando v${v}. Ejecuta la actualización puente en el servidor.`);
+                    }
+                  }
+                }}
+              >
+                <RefreshCw className="mr-2 h-4 w-4" /> Verificar versión ahora
+              </Button>
+            </div>
           </div>
         )}
         <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
