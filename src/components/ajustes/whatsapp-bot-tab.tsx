@@ -193,6 +193,7 @@ export function WhatsAppBotTab() {
       <OrderingCard branchId={cfg.branch_id} />
       <FaqManagerCard branchId={cfg.branch_id} />
       <ReportRecipientsCard branchId={cfg.branch_id} />
+      {isAdmin && <GeminiQuotaCard />}
       <MessagesCard messages={messages} />
     </div>
   );
