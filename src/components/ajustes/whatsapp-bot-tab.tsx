@@ -30,8 +30,10 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GeminiQuotaCard } from "./gemini-quota-card";
+import { UpdateReconnectWizard } from "./update-reconnect-wizard";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
+
 
 
 interface BotConfigRow {
