@@ -202,8 +202,6 @@ function normalizeText(value: string) {
 
 function parseQuantity(input: string) {
   const normalized = normalizeText(input);
-  const digit = normalized.match(/(?:^|\s)(\d{1,2})(?:\s|$)/)?.[1];
-  if (digit) return Math.max(1, Math.min(20, Number(digit)));
   const words: Record<string, number> = {
     un: 1, una: 1, uno: 1,
     dos: 2, tres: 3, cuatro: 4, cinco: 5,
@@ -212,6 +210,8 @@ function parseQuantity(input: string) {
   for (const [word, qty] of Object.entries(words)) {
     if (new RegExp(`\\b${word}\\b`).test(normalized)) return qty;
   }
+  const digit = normalized.match(/(?:^|\s)(\d{1,2})(?:\s+(?:x|de|unidad|unidades|vaso|vasos|copa|copas|cono|conos|helado|helados|malteada|malteadas|jugo|jugos|banana|ensalada|brownie)\b)/)?.[1];
+  if (digit) return Math.max(1, Math.min(20, Number(digit)));
   return 1;
 }
 
