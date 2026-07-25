@@ -39,7 +39,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.15.0";
+const BOT_VERSION = "8.16.0";
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
@@ -72,7 +72,7 @@ function writeLog(level, args) {
 
 function isSignalDecryptError(args) {
   const text = args.map(safeStringify).join(" ");
-  return /Failed to decrypt message|MessageCounterError|Key used already|never filled/i.test(text);
+  return /Failed to decrypt message|Bad MAC|MAC verification failed|MessageCounterError|Key used already|never filled|No session found/i.test(text);
 }
 
 function recordSignalDecryptError(args) {
