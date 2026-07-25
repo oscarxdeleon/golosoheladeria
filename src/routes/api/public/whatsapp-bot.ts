@@ -895,6 +895,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const aiData = await aiResp.json().catch(() => null) as {
                   choices?: Array<{ finish_reason?: string; message?: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>;
                 } | null;
+                if (useGeminiDirect) void trackGeminiCall("whatsapp_bot");
                 const choice = aiData?.choices?.[0];
                 const msg = choice?.message;
                 lastFinishReason = choice?.finish_reason ?? null;
