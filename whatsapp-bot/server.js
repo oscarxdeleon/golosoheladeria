@@ -40,10 +40,9 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.4";
+const BOT_VERSION = "8.20.5";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
-const WATCHDOG_MAX_NO_HEARTBEAT_MS = 10 * 60_000; // 10 min sin ningún evento → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 1;
@@ -61,6 +60,8 @@ let signalDecryptErrorTimes = [];
 let signalRepairInFlight = false;
 let lastSignalRepairAt = 0;
 let suppressAutoReconnectUntil = 0;
+let instanceRetired = false;
+let lastBaileysEventAt = Date.now();
 
 function safeStringify(value) {
   try {
@@ -75,6 +76,12 @@ function safeStringify(value) {
 function writeLog(level, args) {
   const line = `[${new Date().toISOString()}] ${level.toUpperCase()} ${args.map(safeStringify).join(" ")}\n`;
   fs.appendFile(path.join(__dirname, "bot.log"), line, () => {});
+}
+
+function markBaileysEvent(label = "event") {
+  lastBaileysEventAt = Date.now();
+  state.lastBaileysEventAt = lastBaileysEventAt;
+  state.lastBaileysEvent = label;
 }
 
 function isSignalDecryptError(args) {
@@ -290,6 +297,7 @@ function escapeHtml(value) {
 }
 
 async function pushStatus() {
+  if (instanceRetired) return;
   try {
     const body = {
       action: "status",
@@ -300,6 +308,9 @@ async function pushStatus() {
       version: BOT_VERSION,
       instance_id: INSTANCE_ID,
       started_at: INSTANCE_STARTED_AT,
+      unresolved_phone_count: state.unresolvedPhoneCount,
+      last_unresolved_jid: state.lastUnresolvedJid,
+      last_baileys_event_at: state.lastBaileysEventAt ? new Date(state.lastBaileysEventAt).toISOString() : null,
     };
     const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
@@ -322,6 +333,10 @@ async function pushStatus() {
     }
     state.lastPushError = null;
     state.lastPushAt = Date.now();
+    if (data?.duplicate_instance && data?.active_instance_id && data.active_instance_id !== INSTANCE_ID) {
+      retireDuplicateInstance(data.active_instance_id).catch((e) => logger.warn({ err: String(e) }, "duplicate retire failed"));
+      return;
+    }
     // Ejecutar comando remoto si el POS lo pidió (unlink | reconnect).
     if (data?.pending_command) {
       const cmd = String(data.pending_command);
@@ -331,6 +346,19 @@ async function pushStatus() {
   } catch (e) {
     state.lastPushError = String(e);
     logger.warn({ err: String(e) }, "status push error");
+  }
+}
+
+async function retireDuplicateInstance(activeInstanceId) {
+  if (instanceRetired) return;
+  instanceRetired = true;
+  state.status = "disconnected";
+  state.detail = "Este proceso se pausó porque el POS ya detectó otra instancia activa del mismo bot. Esto evita que dos bots consuman los mismos mensajes.";
+  state.lastError = `Instancia duplicada pausada. Instancia activa: ${activeInstanceId || "desconocida"}`;
+  logger.warn({ activeInstanceId, instanceId: INSTANCE_ID }, "duplicate instance retired; closing WhatsApp socket");
+  if (currentSock) {
+    try { currentSock.ws?.close?.(); } catch { /* noop */ }
+    currentSock = null;
   }
 }
 
@@ -842,6 +870,7 @@ async function reportOutboundPoll(status, count = 0, error = null) {
 }
 
 async function pollOutbound() {
+  if (instanceRetired) return;
   if (!currentSock || state.status !== "connected") return;
   if (outboundInFlight) return;
   outboundInFlight = true;
@@ -910,6 +939,7 @@ async function pollOutbound() {
 }
 
 async function startSocket() {
+  if (instanceRetired) return null;
   state.status = "connecting";
   state.detail = "Preparando sesión de WhatsApp...";
   console.log("\nConectando con WhatsApp. El QR puede tardar unos segundos...\n");
@@ -929,11 +959,13 @@ async function startSocket() {
   const sock = makeWASocket(socketConfig);
 
   sock.ev.on("creds.update", async (...args) => {
+    markBaileysEvent("creds.update");
     await saveCreds(...args);
     backupAuthState("creds.update");
   });
 
   sock.ev.on("connection.update", async (update) => {
+    markBaileysEvent("connection.update");
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
       state.status = "qr";
@@ -988,6 +1020,7 @@ async function startSocket() {
   });
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    markBaileysEvent("messages.upsert");
     if (type !== "notify") return;
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
@@ -1028,8 +1061,8 @@ async function startSocket() {
         phoneSource = extractPhone(c);
         if (phoneSource) break;
       }
-      const from = phoneSource;
-      if (!from || !/^\d{6,}$/.test(from)) {
+      const from = phoneSource || jid;
+      if (!phoneSource || !/^\d{6,}$/.test(phoneSource)) {
         state.unresolvedPhoneCount = (state.unresolvedPhoneCount || 0) + 1;
         state.lastUnresolvedJid = jid;
         state.lastUnresolvedAt = Date.now();
@@ -1045,20 +1078,8 @@ async function startSocket() {
             participantAlt: msg.key.participantAlt,
             participant: msg.key.participant,
           },
-          "phone_unresolved — se intentará respuesta directa al JID anónimo",
+          "phone_unresolved — se procesará con JID anónimo para no perder la conversación",
         );
-        if (jid && !jid.endsWith("@g.us") && !jid.endsWith("@broadcast") && !jid.endsWith("@newsletter") && !jid.startsWith("status@")) {
-          try {
-            await withTimeout(sock.sendMessage(jid, { text: buildUnresolvedPhoneReply() }), 15_000, "Enviar respuesta a JID anónimo");
-            state.lastReplyAt = Date.now();
-            state.lastReplySource = "local_unresolved_jid";
-            state.lastReplyError = null;
-          } catch (e) {
-            state.lastReplyError = String(e);
-            logger.warn({ err: String(e), jid }, "reply to unresolved jid failed");
-          }
-        }
-        continue;
       }
       await enqueueIncoming(from, () => processResolvedIncoming(sock, msg, from, text, audioNode, jid));
     }
@@ -1105,7 +1126,7 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, unresolvedPhoneCount: state.unresolvedPhoneCount, lastUnresolvedJid: state.lastUnresolvedJid, lastUnresolvedAt: state.lastUnresolvedAt, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
+      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, unresolvedPhoneCount: state.unresolvedPhoneCount, lastUnresolvedJid: state.lastUnresolvedJid, lastUnresolvedAt: state.lastUnresolvedAt, lastBaileysEventAt: state.lastBaileysEventAt, lastBaileysEvent: state.lastBaileysEvent, instanceId: INSTANCE_ID, instanceRetired, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
       return;
     }
     res.writeHead(404); res.end();
@@ -1172,19 +1193,20 @@ async function main() {
       watchdogSince = now;
     }
     const stuckMs = now - watchdogSince;
-    const noHeartbeatMs = state.lastIncomingAt || state.lastReplyAt
-      ? now - Math.max(state.lastIncomingAt || 0, state.lastReplyAt || 0)
-      : 0;
-
     if ((state.status === "disconnected" || state.status === "connecting" || state.status === "error")
         && stuckMs > WATCHDOG_MAX_DISCONNECTED_MS) {
       logger.error({ status: state.status, stuckMs }, "watchdog: sin conexión >5min, reiniciando proceso");
       console.error(`\n⚠️  Watchdog: sin conexión hace ${Math.round(stuckMs/1000)}s. Reiniciando…\n`);
       process.exit(1);
     }
-    if (state.status === "connected" && noHeartbeatMs > WATCHDOG_MAX_NO_HEARTBEAT_MS) {
-      logger.warn({ noHeartbeatMs }, "watchdog: sin actividad >10min, reiniciando por precaución");
-      process.exit(1);
+    if (state.status === "connected" && currentSock?.ws && currentSock.ws.readyState !== 1) {
+      logger.warn({ readyState: currentSock.ws.readyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
+      try { currentSock.ws?.close?.(); } catch { /* noop */ }
+      currentSock = null;
+      state.status = "connecting";
+      state.detail = "Se detectó la conexión interna cerrada. Reconectando automáticamente sin borrar el QR.";
+      pushStatus();
+      setTimeout(() => startSocket().catch((e) => logger.error(e)), 1500);
     }
   }, WATCHDOG_INTERVAL_MS);
 
