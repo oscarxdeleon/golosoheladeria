@@ -3530,6 +3530,14 @@ export type Database = {
         Args: { _reason?: string; _table_id: string }
         Returns: Json
       }
+      gemini_quota_status: {
+        Args: never
+        Returns: {
+          call_count: number
+          daily_limit: number
+          exhausted: boolean
+        }[]
+      }
       get_active_cash_session: {
         Args: { _branch_id?: string }
         Returns: {
