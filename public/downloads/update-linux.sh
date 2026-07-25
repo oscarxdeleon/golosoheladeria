@@ -3,7 +3,9 @@ set -Eeuo pipefail
 
 BOT_VERSION="8.20.5"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-https://golosoheladeria.lovable.app/downloads/golosito-v8.20.5.zip}"
+PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.5.zip"
+FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.5.zip"
+DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-${PRIMARY_DOWNLOAD_URL}}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
 
@@ -26,33 +28,67 @@ need_cmd curl
 need_cmd unzip
 
 if [[ -z "${1:-}" && ! -f "${TARGET_DIR}/config.json" ]]; then
-  if [[ -f "/root/goloso-parque/config.json" ]]; then
-    TARGET_DIR="/root/goloso-parque"
-    if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="goloso-parque"; fi
-    echo "ℹ️ No se indicó carpeta; se detectó automáticamente Parque: ${TARGET_DIR}"
-  elif [[ -f "/root/goloso-santa/config.json" ]]; then
-    TARGET_DIR="/root/goloso-santa"
-    if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="goloso-santa"; fi
-    echo "ℹ️ No se indicó carpeta; se detectó automáticamente Santa: ${TARGET_DIR}"
-  else
-    detected="$(pm2 jlist 2>/dev/null | node -e '
-const fs = require("fs");
+  pm2_snapshot="$(mktemp)"
+  pm2 jlist > "${pm2_snapshot}" 2>/dev/null || echo "[]" > "${pm2_snapshot}"
+  detected="$(PM2_SNAPSHOT="${pm2_snapshot}" node <<'NODE'
+const fs = require('fs');
+const path = require('path');
 let list = [];
-try { list = JSON.parse(fs.readFileSync(0, "utf8") || "[]"); } catch {}
-const pick = list.find(p => /goloso-parque/i.test(p.name || "")) || list.find(p => /goloso-santa/i.test(p.name || "")) || list.find(p => /goloso/i.test(p.name || ""));
-if (pick) {
-  const cwd = pick.pm2_env?.pm_cwd || pick.pm2_env?.PWD || "";
-  const script = pick.pm2_env?.pm_exec_path || "";
-  const dir = cwd || (script ? require("path").dirname(script) : "");
-  if (dir) console.log(`${dir}\t${pick.name || ""}`);
+try { list = JSON.parse(fs.readFileSync(process.env.PM2_SNAPSHOT, 'utf8') || '[]'); } catch {}
+const candidates = [];
+for (const p of list) {
+  const name = String(p.name || '');
+  const cwd = p.pm2_env?.pm_cwd || p.pm2_env?.PWD || '';
+  const script = p.pm2_env?.pm_exec_path || '';
+  const dir = cwd || (script ? path.dirname(script) : '');
+  if (!dir) continue;
+  const cfg = path.join(dir, 'config.json');
+  const srv = path.join(dir, 'server.js');
+  if (!fs.existsSync(cfg) || !fs.existsSync(srv)) continue;
+  let score = 0;
+  if (/goloso|whatsapp|bot|santa|parque|sede/i.test(name)) score += 4;
+  if (/goloso|whatsapp|bot|santa|parque|sede/i.test(dir)) score += 3;
+  try {
+    const cfgJson = JSON.parse(fs.readFileSync(cfg, 'utf8'));
+    if (cfgJson.token && cfgJson.apiUrl) score += 5;
+  } catch {}
+  try {
+    const server = fs.readFileSync(srv, 'utf8');
+    if (/BOT_VERSION|Baileys|whatsapp/i.test(server)) score += 5;
+  } catch {}
+  candidates.push({ name, dir, score });
 }
-' || true)"
-    if [[ -n "${detected}" ]]; then
-      TARGET_DIR="${detected%%$'\t'*}"
-      detected_name="${detected#*$'\t'}"
-      if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="${detected_name}"; fi
-      echo "ℹ️ No se indicó carpeta; se detectó automáticamente: ${TARGET_DIR} (${PM2_NAME})"
-    fi
+candidates.sort((a, b) => b.score - a.score || a.dir.localeCompare(b.dir));
+const pick = candidates[0];
+if (pick && pick.score >= 8) console.log(`${pick.dir}\t${pick.name || 'goloso-bot'}`);
+NODE
+)"
+  rm -f "${pm2_snapshot}"
+  if [[ -n "${detected}" ]]; then
+    TARGET_DIR="${detected%%$'\t'*}"
+    detected_name="${detected#*$'\t'}"
+    if [[ -z "${PM2_NAME}" ]]; then PM2_NAME="${detected_name}"; fi
+    echo "ℹ️ No se indicó carpeta; se detectó automáticamente por PM2: ${TARGET_DIR} (${PM2_NAME})"
+  else
+    for dir in \
+      /root/goloso-parque /root/goloso-santa \
+      /opt/goloso/sede2 /opt/goloso/sede1 \
+      /opt/goloso-parque /opt/goloso-santa \
+      /root/whatsapp-bot /opt/whatsapp-bot \
+      /root/goloso /opt/goloso
+    do
+      if [[ -f "${dir}/config.json" && -f "${dir}/server.js" ]]; then
+        TARGET_DIR="${dir}"
+        if [[ -z "${PM2_NAME}" ]]; then
+          base="$(basename "${dir}" | tr '[:upper:]' '[:lower:]')"
+          if [[ "${base}" == *"sede2"* || "${base}" == *"parque"* ]]; then PM2_NAME="goloso-parque";
+          elif [[ "${base}" == *"sede1"* || "${base}" == *"santa"* ]]; then PM2_NAME="goloso-santa";
+          else PM2_NAME="goloso-bot"; fi
+        fi
+        echo "ℹ️ No se indicó carpeta; se detectó automáticamente: ${TARGET_DIR}"
+        break
+      fi
+    done
   fi
 fi
 
@@ -94,7 +130,15 @@ trap cleanup EXIT
 
 echo ""
 echo "== Descargando paquete actualizado =="
-curl -fL --retry 3 --retry-delay 2 "${DOWNLOAD_URL}" -o "${tmp_dir}/whatsapp-bot.zip"
+if ! curl -fL --retry 3 --retry-delay 2 "${DOWNLOAD_URL}" -o "${tmp_dir}/whatsapp-bot.zip"; then
+  if [[ "${DOWNLOAD_URL}" != "${FALLBACK_DOWNLOAD_URL}" ]]; then
+    echo "⚠️ Descarga principal falló; intentando mirror Vercel…"
+    DOWNLOAD_URL="${FALLBACK_DOWNLOAD_URL}"
+    curl -fL --retry 3 --retry-delay 2 "${DOWNLOAD_URL}" -o "${tmp_dir}/whatsapp-bot.zip"
+  else
+    exit 3
+  fi
+fi
 unzip -qo "${tmp_dir}/whatsapp-bot.zip" -d "${tmp_dir}/pkg"
 
 if [[ ! -f "${tmp_dir}/pkg/server.js" ]]; then
@@ -102,10 +146,11 @@ if [[ ! -f "${tmp_dir}/pkg/server.js" ]]; then
   exit 3
 fi
 
-downloaded_version="$(grep -Eo 'BOT_VERSION = "[^"]+"' "${tmp_dir}/pkg/server.js" | head -n1 | sed -E 's/.*"([^"]+)"/\1/')"
+downloaded_version="$(grep -Eo 'BOT_VERSION[[:space:]]*=[[:space:]]*"[^"]+"' "${tmp_dir}/pkg/server.js" | head -n1 | sed -E 's/.*"([^"]+)"/\1/')"
 if [[ "${downloaded_version}" != "${BOT_VERSION}" ]]; then
   echo "[ERROR] El paquete descargado trae versión ${downloaded_version:-desconocida}, se esperaba ${BOT_VERSION}." >&2
-  echo "        Puede faltar publicar la app o el CDN aún está sirviendo una versión vieja." >&2
+    echo "        URL usada: ${DOWNLOAD_URL}" >&2
+    echo "        Puede faltar publicar la app o el CDN aún está sirviendo una versión vieja." >&2
   exit 4
 fi
 
