@@ -21,6 +21,7 @@ import { Route as TabletAutoTokenRouteImport } from './routes/tablet-auto.$token
 import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as DownloadsWhatsappBotDotzipRouteImport } from './routes/downloads.whatsapp-bot[.]zip'
+import { Route as DownloadsGolositoDotzipRouteImport } from './routes/downloads.golosito[.]zip'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
 import { Route as AuthenticatedTodosPedidosRouteImport } from './routes/_authenticated/todos-pedidos'
@@ -140,6 +141,11 @@ const DownloadsWhatsappBotDotzipRoute =
     path: '/downloads/whatsapp-bot.zip',
     getParentRoute: () => rootRouteImport,
   } as any)
+const DownloadsGolositoDotzipRoute = DownloadsGolositoDotzipRouteImport.update({
+  id: '/downloads/golosito.zip',
+  path: '/downloads/golosito.zip',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedVentasRoute = AuthenticatedVentasRouteImport.update({
   id: '/ventas',
   path: '/ventas',
@@ -496,6 +502,7 @@ export interface FileRoutesByFullPath {
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
+  '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
@@ -566,6 +573,7 @@ export interface FileRoutesByTo {
   '/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
+  '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/t/$tableNumber': typeof TTableNumberRoute
   '/tablet-auto/$token': typeof TabletAutoTokenRoute
@@ -638,6 +646,7 @@ export interface FileRoutesById {
   '/_authenticated/todos-pedidos': typeof AuthenticatedTodosPedidosRoute
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
+  '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
@@ -711,6 +720,7 @@ export interface FileRouteTypes {
     | '/todos-pedidos'
     | '/usuarios'
     | '/ventas'
+    | '/downloads/golosito.zip'
     | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
     | '/t/$tableNumber'
@@ -781,6 +791,7 @@ export interface FileRouteTypes {
     | '/todos-pedidos'
     | '/usuarios'
     | '/ventas'
+    | '/downloads/golosito.zip'
     | '/downloads/whatsapp-bot.zip'
     | '/t/$tableNumber'
     | '/tablet-auto/$token'
@@ -852,6 +863,7 @@ export interface FileRouteTypes {
     | '/_authenticated/todos-pedidos'
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
+    | '/downloads/golosito.zip'
     | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
     | '/t/$tableNumber'
@@ -888,6 +900,7 @@ export interface RootRouteChildren {
   MenuRoute: typeof MenuRoute
   MisPuntosRoute: typeof MisPuntosRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
+  DownloadsGolositoDotzipRoute: typeof DownloadsGolositoDotzipRoute
   DownloadsWhatsappBotDotzipRoute: typeof DownloadsWhatsappBotDotzipRoute
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
@@ -983,6 +996,13 @@ declare module '@tanstack/react-router' {
       path: '/downloads/whatsapp-bot.zip'
       fullPath: '/downloads/whatsapp-bot.zip'
       preLoaderRoute: typeof DownloadsWhatsappBotDotzipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/downloads/golosito.zip': {
+      id: '/downloads/golosito.zip'
+      path: '/downloads/golosito.zip'
+      fullPath: '/downloads/golosito.zip'
+      preLoaderRoute: typeof DownloadsGolositoDotzipRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_authenticated/ventas': {
@@ -1537,6 +1557,7 @@ const rootRouteChildren: RootRouteChildren = {
   MenuRoute: MenuRoute,
   MisPuntosRoute: MisPuntosRoute,
   TabletPedidosRoute: TabletPedidosRoute,
+  DownloadsGolositoDotzipRoute: DownloadsGolositoDotzipRoute,
   DownloadsWhatsappBotDotzipRoute: DownloadsWhatsappBotDotzipRoute,
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
