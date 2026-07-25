@@ -739,7 +739,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
   const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   const [cancelReason, setCancelReason] = useState("");
   const [cancelling, setCancelling] = useState(false);
-  const canCancelSales = primaryRole === "cajero" || isAdmin;
+  const canCancelSales = isAdmin || primaryRole === "supervisor";
   const [successDialog, setSuccessDialog] = useState<null | {
     ticket: number;
     method: string;
