@@ -522,8 +522,16 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             </div>
           </DialogContent>
         </Dialog>
+
+        <UpdateReconnectWizard
+          open={wizardOpen}
+          onOpenChange={setWizardOpen}
+          branchId={cfg.branch_id}
+          branchName={branch?.name}
+        />
       </CardContent>
     </Card>
+
   );
 }
 
