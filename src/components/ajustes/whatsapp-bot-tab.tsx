@@ -251,6 +251,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
   };
 
   const { isAdmin } = useAuth();
+  const qc = useQueryClient();
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
   const [updateOpen, setUpdateOpen] = useState(false);
