@@ -483,9 +483,11 @@ function MesasPage() {
       {/* Barra de acciones: fusionar/separar mesas + crear */}
       <div className="flex flex-wrap items-center justify-end gap-2">
         {!mergeMode ? (
-          <Button size="sm" variant="outline" onClick={() => setMergeMode(true)}>
-            <Link2 className="h-4 w-4" /> Fusionar mesas
-          </Button>
+          canManageTables && (
+            <Button size="sm" variant="outline" onClick={() => setMergeMode(true)}>
+              <Link2 className="h-4 w-4" /> Fusionar mesas
+            </Button>
+          )
         ) : (
           <>
             <span className="text-xs text-muted-foreground">
