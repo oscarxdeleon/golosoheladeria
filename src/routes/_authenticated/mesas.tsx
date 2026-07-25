@@ -315,6 +315,7 @@ function MesasPage() {
     if (!mergePrincipal) return toast.error("Selecciona la mesa principal");
     const sources = mergeSelected.filter((id) => id !== mergePrincipal);
     if (sources.length === 0) return toast.error("Selecciona al menos una mesa a fusionar");
+    if (!guardManage()) return;
     setMerging(true);
     const { error } = await supabase.rpc("merge_tables", {
       _principal_id: mergePrincipal,
