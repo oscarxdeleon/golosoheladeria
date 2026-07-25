@@ -106,7 +106,7 @@ function LlevarPendientesPage() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const { role, isAdmin } = usePermissions();
-  const canCancel = isAdmin || role === "cajero";
+  const canCancel = isAdmin || role === "supervisor";
 
   const [filter, setFilter] = useState<StatusFilter>("pending");
   const [search, setSearch] = useState("");
