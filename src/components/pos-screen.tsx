@@ -1743,6 +1743,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         redirectTo,
       });
 
+      // Impresión automática del comprobante compacto para pagos electrónicos.
+      // No requiere confirmación del cajero: es el soporte físico del pago
+      // para conciliar el cierre de caja y debe salir SIEMPRE.
+      if (transactionLast4) {
+        setTimeout(() => {
+          void printPaymentReceipt({
+            ticket: sale!.ticket_number,
+            total: Number(sale!.total),
+            payment_method: sale!.payment_method,
+            transaction_last4: transactionLast4,
+            customer: snapshotCustomer,
+            user_name: snapshotUserName,
+            created_at: sale!.created_at,
+            branding,
+          });
+        }, 0);
+      }
+
+
+
 
 
     } catch (err) {
