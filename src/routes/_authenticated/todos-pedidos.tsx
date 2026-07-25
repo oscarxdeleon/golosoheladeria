@@ -461,7 +461,32 @@ function TodosPedidosPage() {
                       {s.delivery_address && (
                         <div className="col-span-2">Dirección: <span className="text-foreground">{s.delivery_address}</span></div>
                       )}
+                      {(isAdmin || isSupervisor) && s.payment_method === "Efectivo" && s.cash_tendered != null && (
+                        <div className="col-span-2">
+                          Pagó con: <span className="text-foreground font-medium">
+                            {Number(s.cash_tendered) > Number(s.total)
+                              ? formatMoney(Number(s.cash_tendered))
+                              : "Valor exacto"}
+                          </span>
+                        </div>
+                      )}
                     </div>
+
+                    {s.status === "cancelled" && (
+                      <div className="rounded-md border border-rose-200 bg-rose-50 p-3 text-xs text-rose-900 space-y-1">
+                        <div className="flex items-center gap-1.5 font-semibold text-rose-700">
+                          <XCircle className="h-4 w-4" /> Pedido anulado
+                        </div>
+                        {s.cancelled_at && (
+                          <div>Fecha y hora: <span className="font-medium">{formatDateTimeLong(s.cancelled_at)}</span></div>
+                        )}
+                        <div>Usuario: <span className="font-medium">{s.cancelled_by_name ?? "—"}</span></div>
+                        <div>Rol: <span className="font-medium">{roleLabel(s.cancelled_by_role)}</span></div>
+                        {s.cancellation_reason && (
+                          <div>Motivo: <span className="font-medium">{s.cancellation_reason}</span></div>
+                        )}
+                      </div>
+                    )}
                     <div className="space-y-2">
                       {(s.sale_items ?? []).map((it) => {
                         const mods = Array.isArray(it.modifiers) ? (it.modifiers as Modifier[]) : [];
