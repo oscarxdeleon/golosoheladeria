@@ -31,7 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
-import { getStickerSignedUrl, listBranchStickers, updateSticker } from "@/lib/stickers.functions";
+
 
 interface BotConfigRow {
   branch_id: string;
