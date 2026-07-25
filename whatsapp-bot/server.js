@@ -40,7 +40,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.2";
+const BOT_VERSION = "8.20.4";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const WATCHDOG_MAX_NO_HEARTBEAT_MS = 10 * 60_000; // 10 min sin ningún evento → exit
@@ -238,6 +238,9 @@ let state = {
   lastAiError: null,
   lastConversationId: null,
   lastBackendLatencyMs: null,
+  unresolvedPhoneCount: 0,
+  lastUnresolvedJid: null,
+  lastUnresolvedAt: null,
   detail: "Iniciando conexión con WhatsApp...",
 };
 
@@ -627,6 +630,10 @@ function buildSafetyReply() {
   return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.";
 }
 
+function buildUnresolvedPhoneReply() {
+  return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nRecibí tu mensaje, pero WhatsApp no me entregó correctamente tu número de contacto.\n\nPor favor envíanos nuevamente tu mensaje o escríbenos desde el número principal para ayudarte con tu pedido.";
+}
+
 async function requestAiReply(from, { text, audioB64, audioMime }) {
   try {
     const res = await postBackendJson({
@@ -657,14 +664,41 @@ async function requestAiReply(from, { text, audioB64, audioMime }) {
   }
 }
 
+async function enqueueBackendReply(from, reply, purpose = "chatbot_reply") {
+  try {
+    const res = await postBackendJson({
+      action: "enqueue_reply",
+      to: from,
+      body: reply,
+      purpose,
+    }, { label: "enqueue_reply", timeoutMs: 15_000, retries: 1 });
+    if (!res.ok || res.data?.error) {
+      const err = res.data?.error || res.text || `HTTP ${res.status}`;
+      state.lastOutboundError = `No se pudo encolar respuesta: ${err}`;
+      logger.warn({ status: res.status, body: res.text, data: res.data }, "enqueue reply failed");
+      return false;
+    }
+    logger.info({ from, id: res.data?.id, deduped: res.data?.deduped }, "reply queued for outbound retry");
+    return true;
+  } catch (e) {
+    state.lastOutboundError = String(e);
+    logger.warn({ err: String(e) }, "enqueue reply error");
+    return false;
+  }
+}
+
 async function sendReply(sock, msg, from, reply) {
   if (typeof reply !== "string" || !reply.trim()) return { ok: false, error: "empty_reply" };
   const cleanReply = reply.trim().slice(0, 3900);
   const targets = [];
   const originalJid = msg.key.remoteJid;
-  if (originalJid) targets.push(originalJid);
   const phone = normalizeOutboundPhone(from);
-  if (phone) targets.push(`${phone}@s.whatsapp.net`);
+  const phoneJid = phone ? `${phone}@s.whatsapp.net` : "";
+  // En WhatsApp reciente muchos mensajes entran como @lid. Baileys puede aceptar
+  // sendMessage(@lid) sin error, pero el cliente no siempre recibe la respuesta.
+  // Por eso, cuando tenemos teléfono resuelto, SIEMPRE preferimos @s.whatsapp.net.
+  if (phoneJid) targets.push(phoneJid);
+  if (originalJid && originalJid !== phoneJid) targets.push(originalJid);
   const uniqueTargets = [...new Set(targets.filter(Boolean))];
   let lastErr = null;
   for (const jid of uniqueTargets) {
@@ -775,6 +809,8 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
     const sent = await sendReply(sock, msg, from, reply);
     if (sent.ok) {
       logger.info({ from, source: state.lastReplySource, conversationId: state.lastConversationId }, "replied");
+    } else {
+      await enqueueBackendReply(from, reply, state.lastReplySource === "ai" ? "chatbot_ai_reply" : "chatbot_reply");
     }
   }
 }
@@ -994,6 +1030,12 @@ async function startSocket() {
       }
       const from = phoneSource;
       if (!from || !/^\d{6,}$/.test(from)) {
+        state.unresolvedPhoneCount = (state.unresolvedPhoneCount || 0) + 1;
+        state.lastUnresolvedJid = jid;
+        state.lastUnresolvedAt = Date.now();
+        state.lastIncomingAt = Date.now();
+        state.lastIncomingFrom = jid || "jid_unresolved";
+        state.lastIncomingPreview = text ? text.slice(0, 120) : audioNode ? "[nota de voz]" : "[sin texto]";
         logger.warn(
           {
             jid,
@@ -1003,8 +1045,19 @@ async function startSocket() {
             participantAlt: msg.key.participantAlt,
             participant: msg.key.participant,
           },
-          "phone_unresolved — mensaje ignorado (no se pudo extraer número)",
+          "phone_unresolved — se intentará respuesta directa al JID anónimo",
         );
+        if (jid && !jid.endsWith("@g.us") && !jid.endsWith("@broadcast") && !jid.endsWith("@newsletter") && !jid.startsWith("status@")) {
+          try {
+            await withTimeout(sock.sendMessage(jid, { text: buildUnresolvedPhoneReply() }), 15_000, "Enviar respuesta a JID anónimo");
+            state.lastReplyAt = Date.now();
+            state.lastReplySource = "local_unresolved_jid";
+            state.lastReplyError = null;
+          } catch (e) {
+            state.lastReplyError = String(e);
+            logger.warn({ err: String(e), jid }, "reply to unresolved jid failed");
+          }
+        }
         continue;
       }
       await enqueueIncoming(from, () => processResolvedIncoming(sock, msg, from, text, audioNode, jid));
@@ -1052,7 +1105,7 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
+      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, unresolvedPhoneCount: state.unresolvedPhoneCount, lastUnresolvedJid: state.lastUnresolvedJid, lastUnresolvedAt: state.lastUnresolvedAt, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
       return;
     }
     res.writeHead(404); res.end();

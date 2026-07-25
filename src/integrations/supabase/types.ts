@@ -3921,6 +3921,10 @@ export type Database = {
         Args: { _query: string; _token: string }
         Returns: Json
       }
+      whatsapp_bot_enqueue_reply: {
+        Args: { _body: string; _purpose?: string; _to: string; _token: string }
+        Returns: Json
+      }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_get_pending: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_handle_incoming: {
@@ -3945,28 +3949,18 @@ export type Database = {
         }
         Returns: Json
       }
-      whatsapp_bot_report_status:
-        | {
-            Args: {
-              _phone?: string
-              _qr?: string
-              _status: string
-              _token: string
-            }
-            Returns: Json
-          }
-        | {
-            Args: {
-              _instance_id?: string
-              _phone?: string
-              _qr?: string
-              _started_at?: string
-              _status: string
-              _token: string
-              _version?: string
-            }
-            Returns: Json
-          }
+      whatsapp_bot_report_status: {
+        Args: {
+          _instance_id?: string
+          _phone?: string
+          _qr?: string
+          _started_at?: string
+          _status: string
+          _token: string
+          _version?: string
+        }
+        Returns: Json
+      }
       whatsapp_bot_request_command: {
         Args: { _branch_id: string; _command: string }
         Returns: Json
