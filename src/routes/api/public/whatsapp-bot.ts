@@ -419,6 +419,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 _status: status,
                 _qr: body.qr ?? null,
                 _phone: body.phone ?? null,
+                _version: body.version ?? null,
+                _instance_id: body.instance_id ?? null,
+                _started_at: body.started_at ?? null,
               });
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               return json(r.data);
