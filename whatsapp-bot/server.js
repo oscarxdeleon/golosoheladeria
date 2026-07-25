@@ -40,7 +40,7 @@ const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.2";
+const BOT_VERSION = "8.20.3";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const WATCHDOG_MAX_NO_HEARTBEAT_MS = 10 * 60_000; // 10 min sin ningún evento → exit
@@ -657,14 +657,41 @@ async function requestAiReply(from, { text, audioB64, audioMime }) {
   }
 }
 
+async function enqueueBackendReply(from, reply, purpose = "chatbot_reply") {
+  try {
+    const res = await postBackendJson({
+      action: "enqueue_reply",
+      to: from,
+      body: reply,
+      purpose,
+    }, { label: "enqueue_reply", timeoutMs: 15_000, retries: 1 });
+    if (!res.ok || res.data?.error) {
+      const err = res.data?.error || res.text || `HTTP ${res.status}`;
+      state.lastOutboundError = `No se pudo encolar respuesta: ${err}`;
+      logger.warn({ status: res.status, body: res.text, data: res.data }, "enqueue reply failed");
+      return false;
+    }
+    logger.info({ from, id: res.data?.id, deduped: res.data?.deduped }, "reply queued for outbound retry");
+    return true;
+  } catch (e) {
+    state.lastOutboundError = String(e);
+    logger.warn({ err: String(e) }, "enqueue reply error");
+    return false;
+  }
+}
+
 async function sendReply(sock, msg, from, reply) {
   if (typeof reply !== "string" || !reply.trim()) return { ok: false, error: "empty_reply" };
   const cleanReply = reply.trim().slice(0, 3900);
   const targets = [];
   const originalJid = msg.key.remoteJid;
-  if (originalJid) targets.push(originalJid);
   const phone = normalizeOutboundPhone(from);
-  if (phone) targets.push(`${phone}@s.whatsapp.net`);
+  const phoneJid = phone ? `${phone}@s.whatsapp.net` : "";
+  // En WhatsApp reciente muchos mensajes entran como @lid. Baileys puede aceptar
+  // sendMessage(@lid) sin error, pero el cliente no siempre recibe la respuesta.
+  // Por eso, cuando tenemos teléfono resuelto, SIEMPRE preferimos @s.whatsapp.net.
+  if (phoneJid) targets.push(phoneJid);
+  if (originalJid && originalJid !== phoneJid) targets.push(originalJid);
   const uniqueTargets = [...new Set(targets.filter(Boolean))];
   let lastErr = null;
   for (const jid of uniqueTargets) {
@@ -775,6 +802,8 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
     const sent = await sendReply(sock, msg, from, reply);
     if (sent.ok) {
       logger.info({ from, source: state.lastReplySource, conversationId: state.lastConversationId }, "replied");
+    } else {
+      await enqueueBackendReply(from, reply, state.lastReplySource === "ai" ? "chatbot_ai_reply" : "chatbot_reply");
     }
   }
 }
