@@ -378,8 +378,56 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </AlertDialogContent>
         </AlertDialog>
 
+        <AlertDialog open={restartOpen} onOpenChange={setRestartOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Reiniciar el Bot de WhatsApp?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Durante unos segundos el servicio se reiniciará automáticamente. Se aplicarán las configuraciones actuales y la sesión de WhatsApp se conservará (no necesitas escanear el QR de nuevo).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => sendCommand("restart")}>Sí, reiniciar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
 
-        <Dialog open={qrOpen} onOpenChange={setQrOpen}>
+        <AlertDialog open={updateOpen} onOpenChange={setUpdateOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Actualizar el Bot a la última versión?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se descargará la última versión publicada, se aplicarán las nuevas configuraciones y el servicio se reiniciará automáticamente. La sesión de WhatsApp se conserva. Esta operación puede tardar entre 30 segundos y 2 minutos. Solo un Administrador puede ejecutarla.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => sendCommand("update")}>Sí, actualizar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {progressStep && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm">
+            <div className="w-[90%] max-w-md rounded-2xl border bg-card p-6 shadow-2xl">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
+                <div>
+                  <div className="text-base font-semibold">
+                    {busyCmd === "update" ? "Actualizando Bot de WhatsApp" : "Reiniciando Bot de WhatsApp"}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{progressStep}</div>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                No cierres esta ventana. El servicio se restablecerá automáticamente.
+              </p>
+            </div>
+          </div>
+        )}
+
+
           <DialogContent className="max-w-md">
             <DialogHeader><DialogTitle>Vincular WhatsApp por QR</DialogTitle></DialogHeader>
             <div className="space-y-4">
