@@ -32,6 +32,7 @@ import { toUpperText } from "@/lib/text-transform";
 import { VoiceMicButton } from "@/components/voice-input";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
 import { AiOrderDialog } from "@/components/ai-order-dialog";
+import { ElectronicPaymentDialog } from "@/components/electronic-payment-dialog";
 import type { ParsedOrderItem, ParsedOrder } from "@/lib/ai-order-parser.functions";
 
 
