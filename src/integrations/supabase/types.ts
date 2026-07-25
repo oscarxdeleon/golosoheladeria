@@ -3413,6 +3413,10 @@ export type Database = {
         Returns: Json
       }
       admin_delete_app_user: { Args: { _user_id: string }; Returns: undefined }
+      admin_delete_sale: {
+        Args: { _reason: string; _sale_id: string }
+        Returns: Json
+      }
       admin_purge_cash_session: {
         Args: { _cash_session_id: string; _reason: string }
         Returns: Json
