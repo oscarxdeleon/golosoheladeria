@@ -23,8 +23,9 @@ export const parseOrderWithAI = createServerFn({ method: "POST" })
     return { text: d.text.slice(0, 2000), branchId: d.branchId };
   })
   .handler(async ({ data, context }): Promise<ParsedOrder> => {
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY no configurado");
+    const geminiKey = process.env.GEMINI_API_KEY;
+    const lovableKey = process.env.LOVABLE_API_KEY;
+    if (!geminiKey && !lovableKey) throw new Error("Falta GEMINI_API_KEY o LOVABLE_API_KEY");
 
     // Cargar catálogo activo de la sede
     const [{ data: products }, { data: mesas }] = await Promise.all([
@@ -68,31 +69,49 @@ ${catalog.map((p) => `${p.id} | ${p.name}`).join("\n")}
 
 Mesas activas: ${mesaNumbers.join(", ") || "(ninguna)"}`;
 
-    const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: data.text },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-
-    if (!resp.ok) {
-      const errText = await resp.text().catch(() => "");
-      if (resp.status === 429) throw new Error("Servicio de IA saturado, intenta de nuevo en unos segundos");
-      if (resp.status === 402) throw new Error("Créditos de IA agotados. Contacta al administrador.");
-      throw new Error(`AI error ${resp.status}: ${errText.slice(0, 200)}`);
+    let content = "{}";
+    if (geminiKey) {
+      const resp = await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            systemInstruction: { parts: [{ text: systemPrompt }] },
+            contents: [{ role: "user", parts: [{ text: data.text }] }],
+            generationConfig: { responseMimeType: "application/json" },
+          }),
+        },
+      );
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        if (resp.status === 429) throw new Error("Servicio de IA saturado, intenta de nuevo en unos segundos");
+        throw new Error(`Gemini error ${resp.status}: ${errText.slice(0, 200)}`);
+      }
+      const json = (await resp.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
+      content = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+    } else {
+      const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+        body: JSON.stringify({
+          model: "google/gemini-2.5-flash",
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: data.text },
+          ],
+          response_format: { type: "json_object" },
+        }),
+      });
+      if (!resp.ok) {
+        const errText = await resp.text().catch(() => "");
+        if (resp.status === 429) throw new Error("Servicio de IA saturado, intenta de nuevo en unos segundos");
+        if (resp.status === 402) throw new Error("Créditos de IA agotados. Contacta al administrador.");
+        throw new Error(`AI error ${resp.status}: ${errText.slice(0, 200)}`);
+      }
+      const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
+      content = json?.choices?.[0]?.message?.content ?? "{}";
     }
-
-    const json = (await resp.json()) as { choices?: Array<{ message?: { content?: string } }> };
-    const content = json?.choices?.[0]?.message?.content ?? "{}";
     let parsed: Partial<ParsedOrder> = {};
     try { parsed = JSON.parse(content); } catch {
       const m = content.match(/\{[\s\S]*\}/);
