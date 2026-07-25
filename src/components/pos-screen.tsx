@@ -603,7 +603,61 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
       "[print] ticket no impreso: servidor local no disponible. " +
         'Configura localStorage.LOCAL_PRINT_URL="http://localhost:3001/print"',
     );
+}
+
+/**
+ * Imprime el comprobante compacto de pago electrónico (Nequi/Bancolombia).
+ * Se genera automáticamente después de registrar la venta y sirve como soporte
+ * físico para la conciliación de pagos al cierre de caja.
+ *
+ * El Print Server (>= 2.21.0) reconoce el tipo `payment_receipt` y aplica una
+ * plantilla térmica ultra compacta que resalta el TOTAL, el MEDIO DE PAGO y
+ * los últimos 4 dígitos de la transacción. En Print Servers anteriores el
+ * payload cae en la plantilla estándar, así que el comprobante siempre se
+ * imprime aunque el cliente no haya actualizado.
+ */
+export async function printPaymentReceipt(o: {
+  ticket: number | null;
+  total: number;
+  payment_method: string;
+  transaction_last4: string;
+  customer?: string;
+  user_name?: string;
+  created_at?: string;
+  branding?: Branding;
+}): Promise<void> {
+  const cajaCfg = await fetchCajaPrinter();
+  const b = o.branding ?? DEFAULT_BRANDING;
+  const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
+  const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
+  const payload: PrintPayload = {
+    type: "payment_receipt",
+    ticket: o.ticket,
+    ticket_number: o.ticket,
+    header: "",
+    items: [],
+    total: o.total,
+    payment_method: o.payment_method,
+    payment_transaction_last4: o.transaction_last4,
+    customer: o.customer,
+    user_name: o.user_name,
+    created_at: o.created_at ?? new Date().toISOString(),
+    business_name: b.business_name,
+    nit: b.nit ?? undefined,
+    address_biz: b.address ?? undefined,
+    phone_biz: b.phone ?? undefined,
+    logo_url: logoUrl,
+    logo_fallback_url: logoFallbackUrl,
+    footer_text: "Conservar para conciliación de caja",
+    printer_ip: cajaCfg.ip,
+    printer_port: cajaCfg.port,
+    open_drawer: false,
+  };
+  const ok = await sendToLocalPrinter(payload);
+  if (!ok) {
+    console.warn("[print] comprobante electrónico no impreso: servidor local no disponible");
   }
+}
 }
 
 
