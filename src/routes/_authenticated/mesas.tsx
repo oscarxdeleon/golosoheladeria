@@ -128,7 +128,18 @@ function UsersMini() {
 function MesasPage() {
   const qc = useQueryClient();
   const navigate = useNavigate();
-  const { isAdmin } = useAuth();
+  const { isAdmin, roles } = useAuth();
+  const canManageTables = isAdmin || roles.includes("supervisor");
+  const ROLE_FORBIDDEN_MSG = "Esta acción requiere autorización. Comunícate con un Administrador o Supervisor para liberar, mover, fusionar o anular esta mesa.";
+  const translateError = (msg: string) =>
+    msg?.includes("ROLE_FORBIDDEN") ? ROLE_FORBIDDEN_MSG : msg;
+  const guardManage = () => {
+    if (!canManageTables) {
+      toast.error(ROLE_FORBIDDEN_MSG);
+      return false;
+    }
+    return true;
+  };
   const { activeBranchId, activeBranch } = useBranch();
   const [createOpen, setCreateOpen] = useState(false);
   const [newNumber, setNewNumber] = useState("");
