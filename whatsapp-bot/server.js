@@ -844,6 +844,7 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
 }
 
 function normalizeOutboundPhone(raw) {
+  if (String(raw || "").includes("@lid")) return "";
   let digits = String(raw || "").replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.length === 10) digits = `57${digits}`;
