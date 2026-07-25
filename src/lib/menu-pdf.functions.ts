@@ -61,6 +61,7 @@ Reglas:
       }
       const json = (await resp.json()) as { candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }> };
       content = json?.candidates?.[0]?.content?.parts?.[0]?.text ?? "{}";
+      void trackGeminiCall("menu_pdf");
     } else {
       const resp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
