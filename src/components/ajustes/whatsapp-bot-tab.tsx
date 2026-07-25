@@ -314,7 +314,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               <b> Reiniciar Bot</b> y <b>Actualizar Bot</b> funcionen desde este panel, primero instala la actualización descargable una sola vez.
             </p>
             <p className="mt-2 text-xs text-amber-900/80">
-              Después de quedar en v8.19.0, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
+              Después de quedar en v8.19.1, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
             </p>
           </div>
         )}
