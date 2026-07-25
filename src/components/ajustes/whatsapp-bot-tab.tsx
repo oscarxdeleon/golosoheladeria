@@ -223,24 +223,57 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
     onChanged();
   };
 
+  const { isAdmin } = useAuth();
   const [unlinkOpen, setUnlinkOpen] = useState(false);
-  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | null>(null);
+  const [restartOpen, setRestartOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | "update" | null>(null);
+  const [progressStep, setProgressStep] = useState<string | null>(null);
 
-  const sendCommand = async (command: "unlink" | "reconnect") => {
+  const sendCommand = async (command: "unlink" | "reconnect" | "restart" | "update") => {
     setBusyCmd(command);
+    if (command === "restart" || command === "update") {
+      setProgressStep("Conectando al servidor…");
+    }
+    const started = Date.now();
     const { error } = await supabase.rpc("whatsapp_bot_request_command", {
       _branch_id: cfg.branch_id,
       _command: command,
     });
+    if (error) {
+      setBusyCmd(null);
+      setProgressStep(null);
+      toast.error(command === "update" && /forbidden/i.test(error.message)
+        ? "Solo un Administrador puede actualizar el bot."
+        : error.message);
+      return;
+    }
+    if (command === "restart" || command === "update") {
+      const steps = command === "update"
+        ? ["Aplicando configuración…", "Descargando última versión…", "Reiniciando servicio…", "Verificando conexión…"]
+        : ["Aplicando configuración…", "Reiniciando servicio…", "Verificando conexión…"];
+      for (const s of steps) {
+        setProgressStep(s);
+        await new Promise(r => setTimeout(r, command === "update" ? 4000 : 2000));
+      }
+      setProgressStep("Finalizando…");
+      await new Promise(r => setTimeout(r, 1500));
+      const elapsed = Math.round((Date.now() - started) / 1000);
+      toast.success(command === "update"
+        ? `✅ Bot actualizado correctamente (${elapsed}s). PM2 lo reiniciará automáticamente al terminar la descarga.`
+        : `✅ Bot reiniciado (${elapsed}s). El servicio volverá a estar disponible en unos segundos.`);
+    } else {
+      toast.success(
+        command === "unlink"
+          ? "Solicitud enviada. En unos segundos el bot borrará la sesión y generará un nuevo QR."
+          : "Solicitud enviada. El bot está reconectándose."
+      );
+    }
     setBusyCmd(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success(
-      command === "unlink"
-        ? "Solicitud enviada. En unos segundos el bot borrará la sesión y generará un nuevo QR."
-        : "Solicitud enviada. El bot está reconectándose."
-    );
+    setProgressStep(null);
     onChanged();
   };
+
 
   return (
     <Card>
