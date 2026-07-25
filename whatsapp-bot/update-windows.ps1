@@ -270,7 +270,7 @@ Write-Host "Este proceso conserva config.json y auth_state para no volver a vinc
 
 $TargetDir = $null
 if (-not [string]::IsNullOrWhiteSpace($TargetPath)) {
-  $TargetPath = $TargetPath.Trim().Trim('"')
+  $TargetPath = $TargetPath.Trim().Trim([char]34).Trim([char]39)
   if (-not (Test-Path $TargetPath)) {
     Write-Host "La ruta indicada no existe: $TargetPath" -ForegroundColor Red
     exit 4
