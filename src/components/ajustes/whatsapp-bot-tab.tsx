@@ -223,24 +223,57 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
     onChanged();
   };
 
+  const { isAdmin } = useAuth();
   const [unlinkOpen, setUnlinkOpen] = useState(false);
-  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | null>(null);
+  const [restartOpen, setRestartOpen] = useState(false);
+  const [updateOpen, setUpdateOpen] = useState(false);
+  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | "update" | null>(null);
+  const [progressStep, setProgressStep] = useState<string | null>(null);
 
-  const sendCommand = async (command: "unlink" | "reconnect") => {
+  const sendCommand = async (command: "unlink" | "reconnect" | "restart" | "update") => {
     setBusyCmd(command);
+    if (command === "restart" || command === "update") {
+      setProgressStep("Conectando al servidor…");
+    }
+    const started = Date.now();
     const { error } = await supabase.rpc("whatsapp_bot_request_command", {
       _branch_id: cfg.branch_id,
       _command: command,
     });
+    if (error) {
+      setBusyCmd(null);
+      setProgressStep(null);
+      toast.error(command === "update" && /forbidden/i.test(error.message)
+        ? "Solo un Administrador puede actualizar el bot."
+        : error.message);
+      return;
+    }
+    if (command === "restart" || command === "update") {
+      const steps = command === "update"
+        ? ["Aplicando configuración…", "Descargando última versión…", "Reiniciando servicio…", "Verificando conexión…"]
+        : ["Aplicando configuración…", "Reiniciando servicio…", "Verificando conexión…"];
+      for (const s of steps) {
+        setProgressStep(s);
+        await new Promise(r => setTimeout(r, command === "update" ? 4000 : 2000));
+      }
+      setProgressStep("Finalizando…");
+      await new Promise(r => setTimeout(r, 1500));
+      const elapsed = Math.round((Date.now() - started) / 1000);
+      toast.success(command === "update"
+        ? `✅ Bot actualizado correctamente (${elapsed}s). PM2 lo reiniciará automáticamente al terminar la descarga.`
+        : `✅ Bot reiniciado (${elapsed}s). El servicio volverá a estar disponible en unos segundos.`);
+    } else {
+      toast.success(
+        command === "unlink"
+          ? "Solicitud enviada. En unos segundos el bot borrará la sesión y generará un nuevo QR."
+          : "Solicitud enviada. El bot está reconectándose."
+      );
+    }
     setBusyCmd(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success(
-      command === "unlink"
-        ? "Solicitud enviada. En unos segundos el bot borrará la sesión y generará un nuevo QR."
-        : "Solicitud enviada. El bot está reconectándose."
-    );
+    setProgressStep(null);
     onChanged();
   };
+
 
   return (
     <Card>
@@ -293,6 +326,27 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               <RotateCw className={`mr-2 h-4 w-4 ${busyCmd === "reconnect" ? "animate-spin" : ""}`} /> Reconectar
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setRestartOpen(true)}
+              disabled={busyCmd !== null}
+              title="Reinicia el servicio del bot en el servidor (PM2 lo respawnará)."
+            >
+              <RefreshCw className={`mr-2 h-4 w-4 ${busyCmd === "restart" ? "animate-spin" : ""}`} /> 🚀 Reiniciar Bot
+            </Button>
+            {isAdmin && (
+              <Button
+                variant="default"
+                size="sm"
+                onClick={() => setUpdateOpen(true)}
+                disabled={busyCmd !== null}
+                title="Descarga la última versión y reinicia el bot automáticamente."
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Download className={`mr-2 h-4 w-4 ${busyCmd === "update" ? "animate-spin" : ""}`} /> 🔄 Actualizar Bot
+              </Button>
+            )}
+            <Button
               variant="destructive"
               size="sm"
               onClick={() => setUnlinkOpen(true)}
@@ -300,6 +354,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             >
               <LogOut className="mr-2 h-4 w-4" /> Desvincular dispositivo
             </Button>
+
             <div className="flex items-center gap-2">
               <Switch id="bot-enabled" checked={cfg.enabled} onCheckedChange={toggleEnabled} />
               <Label htmlFor="bot-enabled" className="text-sm font-semibold">Bot activo</Label>
@@ -323,9 +378,58 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </AlertDialogContent>
         </AlertDialog>
 
+        <AlertDialog open={restartOpen} onOpenChange={setRestartOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Reiniciar el Bot de WhatsApp?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Durante unos segundos el servicio se reiniciará automáticamente. Se aplicarán las configuraciones actuales y la sesión de WhatsApp se conservará (no necesitas escanear el QR de nuevo).
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => sendCommand("restart")}>Sí, reiniciar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <AlertDialog open={updateOpen} onOpenChange={setUpdateOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>¿Actualizar el Bot a la última versión?</AlertDialogTitle>
+              <AlertDialogDescription>
+                Se descargará la última versión publicada, se aplicarán las nuevas configuraciones y el servicio se reiniciará automáticamente. La sesión de WhatsApp se conserva. Esta operación puede tardar entre 30 segundos y 2 minutos. Solo un Administrador puede ejecutarla.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+              <AlertDialogAction onClick={() => sendCommand("update")}>Sí, actualizar</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        {progressStep && (
+          <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm">
+            <div className="w-[90%] max-w-md rounded-2xl border bg-card p-6 shadow-2xl">
+              <div className="flex items-center gap-3">
+                <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
+                <div>
+                  <div className="text-base font-semibold">
+                    {busyCmd === "update" ? "Actualizando Bot de WhatsApp" : "Reiniciando Bot de WhatsApp"}
+                  </div>
+                  <div className="text-sm text-muted-foreground">{progressStep}</div>
+                </div>
+              </div>
+              <p className="mt-4 text-xs text-muted-foreground">
+                No cierres esta ventana. El servicio se restablecerá automáticamente.
+              </p>
+            </div>
+          </div>
+        )}
 
         <Dialog open={qrOpen} onOpenChange={setQrOpen}>
           <DialogContent className="max-w-md">
+
             <DialogHeader><DialogTitle>Vincular WhatsApp por QR</DialogTitle></DialogHeader>
             <div className="space-y-4">
               <ol className="list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
