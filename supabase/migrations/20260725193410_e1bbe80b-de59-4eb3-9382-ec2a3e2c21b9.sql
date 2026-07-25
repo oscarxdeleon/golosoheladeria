@@ -1,0 +1,1 @@
+UPDATE public.whatsapp_bot_config SET ai_sandbox_numbers = ARRAY['573133463787','573115762627'] WHERE branch_id = 'caac3046-d27e-4a5a-9bc4-254e78b77495';
