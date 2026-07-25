@@ -1199,8 +1199,9 @@ async function main() {
       console.error(`\n⚠️  Watchdog: sin conexión hace ${Math.round(stuckMs/1000)}s. Reiniciando…\n`);
       process.exit(1);
     }
-    if (state.status === "connected" && currentSock?.ws && currentSock.ws.readyState !== 1) {
-      logger.warn({ readyState: currentSock.ws.readyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
+    const wsReadyState = currentSock?.ws?.readyState;
+    if (state.status === "connected" && typeof wsReadyState === "number" && wsReadyState !== 1) {
+      logger.warn({ readyState: wsReadyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
       try { currentSock.ws?.close?.(); } catch { /* noop */ }
       currentSock = null;
       state.status = "connecting";
