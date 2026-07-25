@@ -784,6 +784,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               let finalReply = "";
               let lastErr: string | null = null;
               let lastFinishReason: string | null = null;
+              let orderConfirmed = false;
               for (let round = 0; round < 6; round++) {
                 const aiStarted = performance.now();
                 let aiResp: Response;
