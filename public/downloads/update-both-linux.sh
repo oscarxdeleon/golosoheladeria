@@ -129,6 +129,6 @@ done
 
 echo ""
 echo "✅ Listo. Verifica con:"
-echo "   curl -s http://localhost:8791/status.json | grep version"
-echo "   curl -s http://localhost:8792/status.json | grep version"
+echo "   curl -s http://localhost:8790/status.json | grep version   # Santa"
+echo "   curl -s http://localhost:8791/status.json | grep version   # Parque"
 echo "   pm2 list"
