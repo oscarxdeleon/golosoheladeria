@@ -575,7 +575,7 @@ async function repairSignalSessions(reason) {
   signalDecryptErrorTimes = [];
   suppressAutoReconnectUntil = now + 15_000;
   try {
-    state.status = "connecting";
+    markConnectionState("connecting");
     state.detail = "Reparando sesión cifrada de WhatsApp sin borrar el QR...";
     state.lastError = `WhatsApp reportó ${reason}. Se limpiaron claves temporales y se reconectará automáticamente.`;
     logger.warn({ reason }, "repairing stale WhatsApp signal sessions");
@@ -1048,7 +1048,7 @@ async function startSocket() {
   if (currentSock && state.status === "connected") return currentSock;
   socketStartInFlight = true;
   const generation = ++socketGeneration;
-  state.status = "connecting";
+  markConnectionState("connecting");
   state.detail = "Preparando sesión de WhatsApp...";
   console.log("\nConectando con WhatsApp. El QR puede tardar unos segundos...\n");
   try {
