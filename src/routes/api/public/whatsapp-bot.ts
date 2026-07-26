@@ -351,6 +351,71 @@ function looksLikeBareNeighborhood(input: string) {
   return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9'.\-\s]+$/.test(raw);
 }
 
+/**
+ * Extractor multi-entidad determinístico.
+ * Toma un mensaje completo (posiblemente con varios datos separados por
+ * coma / salto de línea / punto y coma) y devuelve TODOS los campos
+ * capturables en un solo pase. Elimina el bucle "para registrarlo me falta
+ * dirección, barrio" cuando el cliente ya envió todo junto.
+ */
+function extractAllEntitiesFromText(input: string): Record<string, string> {
+  const patch: Record<string, string> = {};
+  if (!input) return patch;
+
+  // 1) Detectores globales sobre el texto completo
+  const orderTypeAll = detectOrderType(input);
+  if (orderTypeAll) patch.order_type = orderTypeAll;
+  const paymentAll = detectPayment(input);
+  if (paymentAll) patch.payment_method = paymentAll;
+
+  // 2) Etiquetados explícitos (nombre:, dirección:, barrio:)
+  const nameLabeled = extractCustomerName(input);
+  if (nameLabeled && nameLabeled.length >= 2) patch.customer_name = nameLabeled.replace(/\s+/g, " ").trim();
+  const addrLabeled = extractAddress(input);
+  if (addrLabeled && addrLabeled.length >= 3) patch.delivery_address = addrLabeled.replace(/\s+/g, " ").trim();
+  const nbhLabeled = extractNeighborhood(input);
+  if (nbhLabeled && nbhLabeled.length >= 2) patch.delivery_neighborhood = nbhLabeled.replace(/\s+/g, " ").trim();
+
+  // 3) Segmentar por comas / saltos / punto y coma y aplicar heurísticas
+  //    "bare" a cada segmento por separado. Así "Oscar, Calle 9 #14-59,
+  //    Bello Horizonte, Nequi" captura nombre + dirección + barrio + pago
+  //    en un solo turno.
+  const segments = input
+    .split(/[\n;,]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  for (const seg of segments) {
+    // dirección
+    if (!patch.delivery_address && looksLikeBareAddress(seg)) {
+      patch.delivery_address = seg.replace(/\s+/g, " ").trim();
+      continue;
+    }
+    // pago (por si vino como palabra suelta en un segmento)
+    if (!patch.payment_method) {
+      const p = detectPayment(seg);
+      if (p) { patch.payment_method = p; continue; }
+    }
+    // tipo pedido
+    if (!patch.order_type) {
+      const ot = detectOrderType(seg);
+      if (ot) { patch.order_type = ot; continue; }
+    }
+    // barrio (después de descartar dirección/pago)
+    if (!patch.delivery_neighborhood && looksLikeBareNeighborhood(seg)) {
+      patch.delivery_neighborhood = seg.replace(/\s+/g, " ").trim();
+      continue;
+    }
+    // nombre (solo si aún no lo tenemos y parece un nombre)
+    if (!patch.customer_name && looksLikeBareCustomerName(seg)) {
+      patch.customer_name = seg.replace(/\s+/g, " ").trim();
+      continue;
+    }
+  }
+
+  return patch;
+}
+
 function isConfirmation(input: string) {
   return /\b(si|sí|confirmo|confirmar|dale|listo|correcto|esta bien|está bien|ok|perfecto|hagale|hágale)\b/i.test(input);
 }
