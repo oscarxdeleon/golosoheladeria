@@ -481,6 +481,16 @@ function hasCurrentTurnProductEvidence(input: string, productName: string) {
   return (hasSpecificProductWord || hasGenericOrderWord) && hasOrderVerb;
 }
 
+function hasRecentProductEvidence(input: string, productName: string) {
+  const normalized = normalizeText(input);
+  const productWords = textTokens(productName)
+    .filter((word) => word.length >= 4 && !["sabor", "sabores", "helado", "helados", "goloso"].includes(word));
+  const hasSpecificProductWord = productWords.some((word) => normalized.includes(word));
+  const hasGenericOrderWord = /\b(cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
+  const hasOrderVerb = /\b(quiero|dame|deme|pedir|pedido|comprar|agrega|agregar|añade|añadir|anota|llevar|domicilio|recoger)\b/.test(normalized);
+  return hasCurrentTurnProductEvidence(input, productName) || ((hasSpecificProductWord || hasGenericOrderWord) && hasOrderVerb);
+}
+
 function isGeneralHelpTurn(input: string) {
   const normalized = normalizeText(input);
   return /\b(hola|buenas|buenos dias|buenas tardes|buenas noches|menu|menú|carta|catalogo|catálogo|precio|precios|horario|abren|cierran|ubicacion|ubicación|direccion|dirección|domicilio|domicilios|foto|fotos|cremas|pagar|pago|transferencia|efectivo|nequi|bancolombia)\b/.test(normalized)
