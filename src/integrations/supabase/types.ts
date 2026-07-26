@@ -3862,6 +3862,10 @@ export type Database = {
         }
         Returns: Json
       }
+      whatsapp_bot_ai_bootstrap: {
+        Args: { _limit?: number; _phone: string; _token: string }
+        Returns: Json
+      }
       whatsapp_bot_ai_cart_cancel: {
         Args: { _phone: string; _token: string }
         Returns: boolean
