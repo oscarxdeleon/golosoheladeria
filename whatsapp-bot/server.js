@@ -45,9 +45,10 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.8";
-const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
-const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
+const BOT_VERSION = "8.20.9";
+const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
+const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
+const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 3;
@@ -67,6 +68,8 @@ let lastSignalRepairAt = 0;
 let suppressAutoReconnectUntil = 0;
 let instanceRetired = false;
 let lastBaileysEventAt = Date.now();
+let connectedSince = null;
+let notConnectedSince = Date.now();
 
 function safeStringify(value) {
   try {
@@ -87,6 +90,26 @@ function markBaileysEvent(label = "event") {
   lastBaileysEventAt = Date.now();
   state.lastBaileysEventAt = lastBaileysEventAt;
   state.lastBaileysEvent = label;
+}
+
+function markConnectionState(status) {
+  const now = Date.now();
+  state.status = status;
+  if (status === "connected") {
+    connectedSince = now;
+    notConnectedSince = null;
+    markBaileysEvent("connection.open");
+  } else {
+    connectedSince = null;
+    if (!notConnectedSince) notConnectedSince = now;
+  }
+}
+
+function forceProcessRestart(reason, extra = {}) {
+  logger.error({ reason, ...extra }, "watchdog: reinicio forzado del proceso");
+  state.lastError = reason;
+  try { currentSock?.ws?.close?.(); } catch { /* noop */ }
+  setTimeout(() => process.exit(1), 500);
 }
 
 function isSignalDecryptError(args) {
@@ -362,7 +385,7 @@ async function pushStatus() {
 async function retireDuplicateInstance(activeInstanceId) {
   if (instanceRetired) return;
   instanceRetired = true;
-  state.status = "disconnected";
+  markConnectionState("disconnected");
   state.detail = "Este proceso se pausó porque el POS ya detectó otra instancia activa del mismo bot. Esto evita que dos bots consuman los mismos mensajes.";
   state.lastError = `Instancia duplicada pausada. Instancia activa: ${activeInstanceId || "desconocida"}`;
   logger.warn({ activeInstanceId, instanceId: INSTANCE_ID }, "duplicate instance retired; closing WhatsApp socket");
@@ -522,7 +545,7 @@ async function startFreshPairingAfterLogout(reason) {
     try { currentSock.ws?.close?.(); } catch { /* noop */ }
     currentSock = null;
   }
-  state.status = "connecting";
+  markConnectionState("connecting");
   state.detail = "WhatsApp cerró la sesión anterior. Se limpió la sesión local, las copias antiguas y se está generando un QR nuevo.";
   await pushStatus();
       scheduleReconnect(2500, "fresh_pairing_after_logout");
@@ -552,7 +575,7 @@ async function repairSignalSessions(reason) {
   signalDecryptErrorTimes = [];
   suppressAutoReconnectUntil = now + 15_000;
   try {
-    state.status = "connecting";
+    markConnectionState("connecting");
     state.detail = "Reparando sesión cifrada de WhatsApp sin borrar el QR...";
     state.lastError = `WhatsApp reportó ${reason}. Se limpiaron claves temporales y se reconectará automáticamente.`;
     logger.warn({ reason }, "repairing stale WhatsApp signal sessions");
@@ -592,7 +615,7 @@ async function executeRemoteCommand(cmd) {
       }
       resetAuthStateForFreshQr("desvinculación solicitada desde POS");
       await ackCommand("unlink");
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.qr = null;
       state.qrDataUrl = null;
       state.phone = null;
@@ -608,7 +631,7 @@ async function executeRemoteCommand(cmd) {
         currentSock = null;
       }
       await ackCommand("reconnect");
-      state.status = "connecting";
+    markConnectionState("connecting");
       await pushStatus();
       scheduleReconnect(1500, "remote_reconnect");
       return;
@@ -1025,7 +1048,7 @@ async function startSocket() {
   if (currentSock && state.status === "connected") return currentSock;
   socketStartInFlight = true;
   const generation = ++socketGeneration;
-  state.status = "connecting";
+  markConnectionState("connecting");
   state.detail = "Preparando sesión de WhatsApp...";
   console.log("\nConectando con WhatsApp. El QR puede tardar unos segundos...\n");
   try {
@@ -1043,7 +1066,26 @@ async function startSocket() {
     };
     if (version) socketConfig.version = version;
     const sock = makeWASocket(socketConfig);
+    if (instanceRetired) {
+      try { sock.ws?.close?.(); } catch { /* noop */ }
+      return null;
+    }
     currentSock = sock;
+
+    sock.ws?.on?.("close", () => {
+      if (generation !== socketGeneration || instanceRetired) return;
+      markConnectionState("disconnected");
+      state.detail = "El WebSocket de WhatsApp se cerró. Reconectando automáticamente...";
+      if (currentSock === sock) currentSock = null;
+      pushStatus();
+      scheduleReconnect(2000, "websocket_close");
+    });
+
+    sock.ws?.on?.("error", (error) => {
+      if (generation !== socketGeneration || instanceRetired) return;
+      state.lastError = `WebSocket WhatsApp: ${error instanceof Error ? error.message : String(error)}`;
+      logger.warn({ err: state.lastError }, "whatsapp websocket error");
+    });
 
   sock.ev.on("creds.update", async (...args) => {
     if (generation !== socketGeneration) return;
@@ -1057,7 +1099,7 @@ async function startSocket() {
     markBaileysEvent("connection.update");
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
-      state.status = "qr";
+      markConnectionState("qr");
       state.qr = qr;
       state.qrDataUrl = await QRCode.toDataURL(qr, { width: 320, margin: 1 });
       state.detail = "QR generado. Escanéalo con WhatsApp Business.";
@@ -1071,7 +1113,7 @@ async function startSocket() {
       pushStatus();
     }
     if (connection === "open") {
-      state.status = "connected";
+      markConnectionState("connected");
       state.qr = null;
       state.qrDataUrl = null;
       state.phone = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
@@ -1089,7 +1131,7 @@ async function startSocket() {
       logger.warn({ code, shouldReconnect }, "connection closed");
       if (Date.now() < suppressAutoReconnectUntil) {
         const waitMs = Math.max(1_000, suppressAutoReconnectUntil - Date.now() + 750);
-        state.status = "connecting";
+        markConnectionState("connecting");
         state.detail = "Reconexión pausada brevemente mientras se repara la sesión cifrada. Se reintentará automáticamente.";
         pushStatus();
         scheduleReconnect(waitMs, "signal_repair_pause");
@@ -1099,7 +1141,7 @@ async function startSocket() {
         await startFreshPairingAfterLogout("WhatsApp reportó cierre de sesión y no hubo copia válida para restaurar");
         return;
       }
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.qr = null;
       state.qrDataUrl = null;
       state.detail = "WhatsApp cerró la conexión momentáneamente. Reconectando automáticamente...";
@@ -1288,20 +1330,22 @@ async function main() {
 
   // ---- Watchdog: auto-reinicio si el bot queda "pegado" ----
   // pm2 (o systemd/nssm) volverá a levantar el proceso al hacer exit(1).
-  let watchdogSince = Date.now();
-  let watchdogLastStatus = state.status;
   setInterval(() => {
     const now = Date.now();
-    if (state.status !== watchdogLastStatus) {
-      watchdogLastStatus = state.status;
-      watchdogSince = now;
+    if (state.status === "connected") {
+      notConnectedSince = null;
+      if (!connectedSince) connectedSince = now;
+    } else {
+      connectedSince = null;
+      if (!notConnectedSince) notConnectedSince = now;
     }
-    const stuckMs = now - watchdogSince;
-    if ((state.status === "disconnected" || state.status === "connecting" || state.status === "error")
+
+    const stuckMs = notConnectedSince ? now - notConnectedSince : 0;
+    if ((state.status === "disconnected" || state.status === "connecting" || state.status === "error" || state.status === "qr")
         && stuckMs > WATCHDOG_MAX_DISCONNECTED_MS) {
-      logger.error({ status: state.status, stuckMs }, "watchdog: sin conexión >5min, reiniciando proceso");
-      console.error(`\n⚠️  Watchdog: sin conexión hace ${Math.round(stuckMs/1000)}s. Reiniciando…\n`);
-      process.exit(1);
+      console.error(`\n⚠️  Watchdog: sin conexión estable hace ${Math.round(stuckMs / 1000)}s. Reiniciando…\n`);
+      forceProcessRestart("Sin conexión estable por más de 3 minutos", { status: state.status, stuckMs });
+      return;
     }
     const wsReadyState = currentSock?.ws?.readyState;
     if (outboundInFlight && outboundStartedAt && now - outboundStartedAt > 2 * 60_000) {
@@ -1316,11 +1360,22 @@ async function main() {
       commandStartedAt = 0;
       state.lastError = "Se liberó automáticamente un comando remoto que quedó pegado.";
     }
+    if (state.status === "connected" && connectedSince && now - connectedSince > WATCHDOG_MAX_OUTBOUND_STALE_MS) {
+      const lastPollAge = state.lastOutboundPollAt ? now - state.lastOutboundPollAt : Number.POSITIVE_INFINITY;
+      if (lastPollAge > WATCHDOG_MAX_OUTBOUND_STALE_MS) {
+        forceProcessRestart("Conectado a WhatsApp, pero la revisión de cola quedó detenida", {
+          lastOutboundPollAt: state.lastOutboundPollAt,
+          lastPollAge,
+          connectedSince,
+        });
+        return;
+      }
+    }
     if (state.status === "connected" && typeof wsReadyState === "number" && wsReadyState !== 1) {
       logger.warn({ readyState: wsReadyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
       try { currentSock.ws?.close?.(); } catch { /* noop */ }
       currentSock = null;
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.detail = "Se detectó la conexión interna cerrada. Reconectando automáticamente sin borrar el QR.";
       pushStatus();
       scheduleReconnect(1500, "watchdog_closed_ws");
@@ -1329,7 +1384,7 @@ async function main() {
       logger.warn({ lastBaileysEventAt }, "watchdog: WhatsApp conectado pero sin eventos recientes; reconectando preventivamente");
       try { currentSock?.ws?.close?.(); } catch { /* noop */ }
       currentSock = null;
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.detail = "Reconectando automáticamente para mantener la recepción de mensajes activa.";
       pushStatus();
       scheduleReconnect(1500, "watchdog_stale_baileys_events");
@@ -1348,7 +1403,7 @@ async function main() {
 
   await startSocket().catch((e) => {
     logger.error(e);
-    state.status = "error";
+    markConnectionState("error");
     state.lastError = String(e);
     pushStatus();
   });

@@ -224,6 +224,12 @@ export function WhatsAppBotTab() {
 /* --------------------------------------------------------- */
 
 function getDisplayConnectionStatus(cfg: BotConfigRow) {
+  const now = Date.now();
+  const seenAge = cfg.last_seen_at ? now - new Date(cfg.last_seen_at).getTime() : Number.POSITIVE_INFINITY;
+  const pollAge = cfg.last_outbound_poll_at ? now - new Date(cfg.last_outbound_poll_at).getTime() : Number.POSITIVE_INFINITY;
+  if (cfg.connection_status === "connected" && (seenAge > 90_000 || pollAge > 150_000)) {
+    return "disconnected";
+  }
   return cfg.connection_status;
 }
 

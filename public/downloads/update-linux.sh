@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.20.8"
+BOT_VERSION="8.20.9"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.8.zip"
-FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.8.zip"
+PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.9.zip"
+FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.9.zip"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-${PRIMARY_DOWNLOAD_URL}}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
@@ -136,10 +136,17 @@ cp -f "${TARGET_DIR}/config.json" "${backup_dir}/config.json"
 if [[ -d "${TARGET_DIR}/auth_state" ]]; then
   cp -a "${TARGET_DIR}/auth_state" "${backup_dir}/auth_state"
 fi
+for file in server.js package.json package-lock.json setup.js update-linux.sh; do
+  if [[ -f "${TARGET_DIR}/${file}" ]]; then
+    cp -f "${TARGET_DIR}/${file}" "${backup_dir}/${file}"
+  fi
+done
 
 tmp_dir="$(mktemp -d)"
 cleanup() { rm -rf "${tmp_dir}"; }
 trap cleanup EXIT
+old_processes_stopped=false
+update_completed=false
 
 echo ""
 echo "== Descargando paquete actualizado =="
@@ -195,6 +202,29 @@ kill_port_owner() {
     fi
   done
 }
+
+rollback_and_cleanup() {
+  local exit_code="$?"
+  if [[ "${exit_code}" -ne 0 && "${old_processes_stopped:-false}" == "true" && "${update_completed:-false}" != "true" ]]; then
+    echo ""
+    echo "⚠️ La actualización falló después de detener el bot. Restaurando versión anterior..." >&2
+    for file in server.js package.json package-lock.json setup.js update-linux.sh; do
+      if [[ -f "${backup_dir}/${file}" ]]; then
+        cp -f "${backup_dir}/${file}" "${TARGET_DIR}/${file}" || true
+      fi
+    done
+    cd "${TARGET_DIR}" || true
+    npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 || true
+    pm2 delete "${PM2_NAME}" >/dev/null 2>&1 || true
+    PORT="${expected_port}" pm2 start "${TARGET_DIR}/server.js" --name "${PM2_NAME}" --cwd "${TARGET_DIR}" --update-env >/dev/null 2>&1 || true
+    pm2 save >/dev/null 2>&1 || true
+    echo "Se intentó dejar corriendo la versión anterior. Revisa: pm2 logs ${PM2_NAME}" >&2
+  fi
+  cleanup
+  exit "${exit_code}"
+}
+
+trap rollback_and_cleanup EXIT
 
 echo ""
 echo "== Deteniendo procesos viejos de esta sede =="
@@ -286,6 +316,7 @@ for old_pid in "${duplicate_node_pids[@]:-}"; do
 done
 
 kill_port_owner "${expected_port}"
+old_processes_stopped=true
 
 echo ""
 echo "== Copiando archivos sin tocar config.json ni auth_state =="
@@ -383,3 +414,4 @@ echo "Cron instalado: se actualizará automáticamente cada día a las 4:00 AM"
 echo ""
 echo "✅ Actualización completa. Debe verse: Versión : ${BOT_VERSION}"
 echo "   Sede ${branch_key} verificada en puerto ${expected_port}."
+update_completed=true

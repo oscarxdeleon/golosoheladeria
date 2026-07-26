@@ -46,21 +46,27 @@ interface Snapshot {
   hasQr: boolean;
   qr: string | null;
   lastSeenAt: string | null;
+  lastOutboundPollAt: string | null;
 }
 
 async function readConfig(branchId: string): Promise<Snapshot> {
   const { data, error } = await supabase
     .from("whatsapp_bot_config")
-    .select("bot_version,connection_status,qr_code,qr_generated_at,last_seen_at")
+    .select("bot_version,connection_status,qr_code,qr_generated_at,last_seen_at,last_outbound_poll_at")
     .eq("branch_id", branchId)
     .maybeSingle();
   if (error) throw new Error(error.message);
   return {
     version: (data?.bot_version as string) ?? null,
-    connected: (data?.connection_status as string) === "connected",
+    connected: (data?.connection_status as string) === "connected"
+      && heartbeatAgeSec((data?.last_seen_at as string) ?? null) !== null
+      && Number(heartbeatAgeSec((data?.last_seen_at as string) ?? null)) < 90
+      && heartbeatAgeSec((data?.last_outbound_poll_at as string) ?? null) !== null
+      && Number(heartbeatAgeSec((data?.last_outbound_poll_at as string) ?? null)) < 150,
     hasQr: !!data?.qr_code,
     qr: (data?.qr_code as string) ?? null,
     lastSeenAt: (data?.last_seen_at as string) ?? null,
+    lastOutboundPollAt: (data?.last_outbound_poll_at as string) ?? null,
   };
 }
 
