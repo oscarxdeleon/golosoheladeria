@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.20.5";
+export const BOT_VERSION = "8.20.6";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -25,6 +25,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.20.6",
+    date: "2026-07-26",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Corrige bloqueos de conversación, timeouts del bot local, memoria de mensajes cortos y fallback operativo para evitar silencios.",
+  },
   {
     version: "8.20.5",
     date: "2026-07-25",

@@ -295,12 +295,16 @@ function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number)
   ].filter(Boolean).join("\n");
 }
 
-const AI_TOTAL_BUDGET_MS = 28_000;
-const AI_CALL_TIMEOUT_MS = 14_000;
+const AI_TOTAL_BUDGET_MS = 24_000;
+const AI_CALL_TIMEOUT_MS = 8_000;
 const AI_MAX_TOOL_ROUNDS = 3;
 
 function hasAiBudget(startedAt: number, reserveMs = 2_500) {
   return elapsedMs(startedAt) < AI_TOTAL_BUDGET_MS - reserveMs;
+}
+
+function remainingAiBudget(startedAt: number, reserveMs = 2_500) {
+  return Math.max(0, AI_TOTAL_BUDGET_MS - elapsedMs(startedAt) - reserveMs);
 }
 
 /**
@@ -353,6 +357,12 @@ function shortCircuitReply(input: string, menuLink: string): { reply: string; ev
   }
 
   return null;
+}
+
+function isCancelOrNegativeTurn(input: string) {
+  const normalized = normalizeText(input);
+  return /\b(cancelar|cancela|borra|borrar|elimina|eliminar|quitar|quita|no era|no quiero|ya no|mejor no|dejalo asi|déjalo así|empezar de nuevo|nuevo pedido)\b/.test(normalized)
+    || /^(no|nop|cancelar|cancela)$/i.test(normalized);
 }
 
 export const Route = createFileRoute("/api/public/whatsapp-bot")({
@@ -578,18 +588,41 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 activeCartHasItems = false;
               }
 
+              // Cargar historial antes de silenciar mensajes cortos. Si ya hay
+              // conversación, un "sí", "no" o "dale" puede ser una respuesta real.
+              let history: Array<{ role: string; content: string }> = [];
+              const historyStarted = performance.now();
+              const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
+              if (histRes.ok && histRes.data && typeof histRes.data === "object") {
+                const msgs = (histRes.data as { messages?: unknown }).messages;
+                if (Array.isArray(msgs)) {
+                  history = msgs.filter((m): m is { role: string; content: string } =>
+                    !!m && typeof m === "object" && typeof (m as { role?: unknown }).role === "string" && typeof (m as { content?: unknown }).content === "string"
+                  );
+                }
+              }
+              history = normalizeHistory(history);
+              await logBotEvent(token, conversationId, from, "history_loaded", {
+                durationMs: elapsedMs(historyStarted),
+                metadata: { messages: history.length, ok: histRes.ok, status: histRes.status },
+              });
+
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = activeCartHasItems ? null : shortCircuitReply(text, menuLink);
+              const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink);
               if (shortCircuit) {
                 await logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
                   metadata: { event: shortCircuit.event, replyLength: shortCircuit.reply.length },
                 });
                 if (!shortCircuit.reply) {
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
                   return json({ reply: null, source: "short_circuit_silent", conversation_id: conversationId }, 200);
                 }
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
+                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
                 const payload: Record<string, unknown> = {
                   reply: shortCircuit.reply,
                   source: "short_circuit",
@@ -706,24 +739,6 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const systemPrompt = customPrompt && customPrompt.length > 0
                 ? [customPrompt, "", customExtras].join("\n")
                 : defaultPrompt;
-
-              // 2) Cargar historial reciente (memoria conversacional Fase 2)
-              let history: Array<{ role: string; content: string }> = [];
-              const historyStarted = performance.now();
-              const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
-              if (histRes.ok && histRes.data && typeof histRes.data === "object") {
-                const msgs = (histRes.data as { messages?: unknown }).messages;
-                if (Array.isArray(msgs)) {
-                  history = msgs.filter((m): m is { role: string; content: string } =>
-                    !!m && typeof m === "object" && typeof (m as { role?: unknown }).role === "string" && typeof (m as { content?: unknown }).content === "string"
-                  );
-                }
-              }
-              history = normalizeHistory(history);
-              await logBotEvent(token, conversationId, from, "history_loaded", {
-                durationMs: elapsedMs(historyStarted),
-                metadata: { messages: history.length, ok: histRes.ok, status: histRes.status },
-              });
 
               // 3) Construir mensaje del turno actual (texto o audio)
               const userContent: Array<Record<string, unknown>> = [];
@@ -972,6 +987,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const currentCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                 const currentCart = (currentCartRes.ok ? currentCartRes.data : null) as Record<string, unknown> | null;
                 const currentItems = Array.isArray(currentCart?.items) ? currentCart.items as Array<Record<string, unknown>> : [];
+
+                if (currentItems.length > 0 && isCancelOrNegativeTurn(text)) {
+                  await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
+                  return `Entendido, cancelé ese pedido en preparación. 🍦\n\nSi quieres, empezamos de nuevo: dime qué producto deseas y lo armamos paso a paso.`;
+                }
+
                 const patch: Record<string, unknown> = {};
                 const orderType = detectOrderType(text);
                 const payment = detectPayment(text);
@@ -1023,6 +1044,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 // que aplica guardias completas (nombre, modificadores, etc.).
                 // Aquí solo mostramos avance/resumen si falta info.
                 if (missing.length > 0) {
+                  const hasNewInfo = hasPatch;
+                  const isLikelyQuestion = /[?¿]|\b(cuanto|cuánto|precio|vale|cambiar|cambio|agregar|añadir|poner|quitar|cancelar|confirmo|si|sí|dale|listo)\b/i.test(text);
+                  if (!hasNewInfo && isLikelyQuestion) return null;
                   const summary = summarizeCart(cart, fmtCOP);
                   return `Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
                 }
@@ -1096,7 +1120,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : { "Content-Type": "application/json" };
 
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-              const callAiOnce = async (model: string) => {
+              const callAiOnce = async (model: string, timeoutMs = AI_CALL_TIMEOUT_MS) => {
                 const bodyReq: Record<string, unknown> = {
                   model, messages, max_tokens: 800, temperature: 0.6,
                 };
@@ -1105,7 +1129,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   bodyReq.tool_choice = "auto";
                 }
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), AI_CALL_TIMEOUT_MS);
+                const timer = setTimeout(() => controller.abort(), timeoutMs);
                 try {
                   return await fetch(aiUrlBase, {
                     method: "POST",
@@ -1121,11 +1145,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const callAi = async (model: string) => {
                 let lastResponse: Response | null = null;
                 let lastError: unknown;
-                // Backoff exponencial: 500, 1500, 3000 ms. 3 intentos totales.
-                const backoffs = [500, 1500, 3000];
-                for (let attempt = 0; attempt < 3; attempt += 1) {
+                // Respetar el presupuesto global: el bot local espera 35s; este
+                // endpoint debe responder antes para no dejar conversaciones mudas.
+                const backoffs = [500, 1200];
+                for (let attempt = 0; attempt < 2; attempt += 1) {
+                  const remaining = remainingAiBudget(requestStarted, 3_000);
+                  if (remaining < 2_500) break;
                   try {
-                    const response = await callAiOnce(model);
+                    const response = await callAiOnce(model, Math.min(AI_CALL_TIMEOUT_MS, remaining));
                     lastResponse = response;
                     if (response.ok || (response.status !== 429 && response.status < 500)) return response;
                     await pause(backoffs[attempt] ?? 3000);
@@ -1353,6 +1380,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
+          const action = typeof body?.action === "string" ? body.action : "unknown";
+          if (action === "ai_reply" || action === "incoming") {
+            return json({
+              error: "server_error",
+              detail: message,
+              reply: fallbackOrderReply(String(body?.text ?? body?.message ?? ""), DEFAULT_MENU_LINK, true),
+              source: "operational_error_fallback",
+            }, 200);
+          }
           return json({ error: "server_error", detail: message }, 500);
         }
       },

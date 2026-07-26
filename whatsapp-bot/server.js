@@ -39,13 +39,16 @@ const OUTBOUND_DELAY_MAX = 3500;
 const VERSION_FETCH_TIMEOUT_MS = 7_000;
 const BACKEND_REQUEST_TIMEOUT_MS = 45_000;
 const BACKEND_RETRY_DELAY_MS = 900;
+const STATUS_PUSH_TIMEOUT_MS = 8_000;
+const OUTBOUND_REQUEST_TIMEOUT_MS = 18_000;
+const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.5";
+const BOT_VERSION = "8.20.6";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
-const SIGNAL_REPAIR_THRESHOLD = 1;
+const SIGNAL_REPAIR_THRESHOLD = 3;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
 const SESSION_BACKUP_DIR = path.join(__dirname, "auth_state_backups");
@@ -117,7 +120,6 @@ function createSafeLogger(prefix = "") {
 }
 
 const logger = createSafeLogger();
-installConsoleSignalRepairHook();
 let activeLocalPort = REQUESTED_LOCAL_PORT;
 
 function installConsoleSignalRepairHook() {
@@ -255,6 +257,16 @@ function wait(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+async function fetchWithTimeout(url, options = {}, timeoutMs = BACKEND_REQUEST_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function postBackendJson(payload, { label = "backend", timeoutMs = BACKEND_REQUEST_TIMEOUT_MS, retries = 2 } = {}) {
   let lastErr = null;
   for (let attempt = 0; attempt <= retries; attempt += 1) {
@@ -296,8 +308,11 @@ function escapeHtml(value) {
     .replaceAll("'", "&#039;");
 }
 
+let statusPushInFlight = false;
 async function pushStatus() {
   if (instanceRetired) return;
+  if (statusPushInFlight) return;
+  statusPushInFlight = true;
   try {
     const body = {
       action: "status",
@@ -312,11 +327,11 @@ async function pushStatus() {
       last_unresolved_jid: state.lastUnresolvedJid,
       last_baileys_event_at: state.lastBaileysEventAt ? new Date(state.lastBaileysEventAt).toISOString() : null,
     };
-    const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+    const res = await fetchWithTimeout(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
-    });
+    }, STATUS_PUSH_TIMEOUT_MS);
     if (!res.ok) {
       const txt = await res.text();
       state.lastPushError = `POS respondió ${res.status}: ${txt.slice(0, 250)}`;
@@ -346,6 +361,8 @@ async function pushStatus() {
   } catch (e) {
     state.lastPushError = String(e);
     logger.warn({ err: String(e) }, "status push error");
+  } finally {
+    statusPushInFlight = false;
   }
 }
 
@@ -515,7 +532,7 @@ async function startFreshPairingAfterLogout(reason) {
   state.status = "connecting";
   state.detail = "WhatsApp cerró la sesión anterior. Se limpió la sesión local, las copias antiguas y se está generando un QR nuevo.";
   await pushStatus();
-  setTimeout(() => startSocket().catch((e) => logger.error(e)), 2500);
+      scheduleReconnect(2500, "fresh_pairing_after_logout");
 }
 
 function removeSignalSessionFiles() {
@@ -567,14 +584,19 @@ async function repairSignalSessions(reason) {
 }
 
 let commandInFlight = false;
+let commandStartedAt = 0;
 async function executeRemoteCommand(cmd) {
-  if (commandInFlight) return;
+  if (commandInFlight) {
+    logger.warn({ cmd, commandStartedAt }, "remote command ignored because another command is still running");
+    return;
+  }
   commandInFlight = true;
+  commandStartedAt = Date.now();
   try {
     if (cmd === "unlink") {
       state.detail = "Desvinculando dispositivo por solicitud del POS...";
       if (currentSock) {
-        try { await currentSock.logout(); } catch (e) { logger.warn({ err: String(e) }, "logout error"); }
+        try { await withTimeout(currentSock.logout(), 12_000, "Cerrar sesión de WhatsApp"); } catch (e) { logger.warn({ err: String(e) }, "logout error"); }
         try { currentSock.ws?.close?.(); } catch { /* noop */ }
         currentSock = null;
       }
@@ -586,7 +608,7 @@ async function executeRemoteCommand(cmd) {
       state.phone = null;
       state.detail = "Sesión eliminada. Generando nuevo QR...";
       await pushStatus();
-      setTimeout(() => startSocket().catch((e) => logger.error(e)), 1500);
+      scheduleReconnect(1500, "remote_unlink");
       return;
     }
     if (cmd === "reconnect") {
@@ -598,7 +620,7 @@ async function executeRemoteCommand(cmd) {
       await ackCommand("reconnect");
       state.status = "connecting";
       await pushStatus();
-      setTimeout(() => startSocket().catch((e) => logger.error(e)), 1500);
+      scheduleReconnect(1500, "remote_reconnect");
       return;
     }
     if (cmd === "restart") {
@@ -635,6 +657,7 @@ async function executeRemoteCommand(cmd) {
     }
   } finally {
     commandInFlight = false;
+    commandStartedAt = 0;
   }
 }
 
@@ -771,13 +794,29 @@ async function getSafeBaileysVersion() {
 
 let currentSock = null;
 let outboundInFlight = false;
+let outboundStartedAt = 0;
+let socketGeneration = 0;
+let reconnectTimer = null;
+let socketStartInFlight = false;
 const incomingQueues = new Map();
+
+function scheduleReconnect(delayMs, reason = "reconnect") {
+  if (instanceRetired) return;
+  if (reconnectTimer) {
+    logger.info({ reason }, "reconnect already scheduled");
+    return;
+  }
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    startSocket().catch((e) => logger.error(e));
+  }, Math.max(250, delayMs));
+}
 
 function enqueueIncoming(from, task) {
   const previous = incomingQueues.get(from) || Promise.resolve();
   const next = previous
     .catch(() => {})
-    .then(task)
+    .then(() => withTimeout(Promise.resolve().then(task), INCOMING_TASK_TIMEOUT_MS, "Procesar mensaje entrante"))
     .catch((e) => {
       logger.warn({ err: String(e), from }, "incoming task failed");
     })
@@ -813,7 +852,11 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
     let audioMime = "";
     if (audioNode) {
       try {
-        const buf = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage });
+        const buf = await withTimeout(
+          downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage }),
+          18_000,
+          "Descargar nota de voz",
+        );
         if (buf && buf.length <= AI_MAX_AUDIO_BYTES) {
           audioB64 = buf.toString("base64");
           audioMime = audioNode.mimetype || "audio/ogg";
@@ -844,16 +887,28 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
 }
 
 function normalizeOutboundPhone(raw) {
-  if (String(raw || "").includes("@lid")) return "";
+  const value = String(raw || "").trim();
+  if (value.includes("@lid")) return "";
   let digits = String(raw || "").replace(/\D/g, "");
   if (digits.startsWith("00")) digits = digits.slice(2);
   if (digits.length === 10) digits = `57${digits}`;
+  // Heladería Goloso opera con números colombianos. Rechazar otros números
+  // evita convertir identificadores anónimos @lid en teléfonos falsos.
+  if (!/^57\d{10}$/.test(digits)) return "";
   return digits;
+}
+
+function normalizeOutboundTarget(raw) {
+  const value = String(raw || "").trim();
+  if (!value) return "";
+  if (/^[^\s@]+@(s\.whatsapp\.net|lid)$/i.test(value)) return value;
+  const phone = normalizeOutboundPhone(value);
+  return phone ? `${phone}@s.whatsapp.net` : "";
 }
 
 async function reportOutboundPoll(status, count = 0, error = null) {
   try {
-    await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+    await fetchWithTimeout(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -864,7 +919,7 @@ async function reportOutboundPoll(status, count = 0, error = null) {
         pollCount: count,
         error,
       }),
-    });
+    }, STATUS_PUSH_TIMEOUT_MS);
   } catch (e) {
     logger.warn({ err: String(e) }, "poll status report failed");
   }
@@ -875,12 +930,13 @@ async function pollOutbound() {
   if (!currentSock || state.status !== "connected") return;
   if (outboundInFlight) return;
   outboundInFlight = true;
+  outboundStartedAt = Date.now();
   try {
-    const res = await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+    const res = await fetchWithTimeout(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "pending", token: config.token, version: BOT_VERSION }),
-    });
+    }, OUTBOUND_REQUEST_TIMEOUT_MS);
     if (!res.ok) {
       const txt = await res.text();
       const message = `pending respondió ${res.status}: ${txt.slice(0, 250)}`;
@@ -905,30 +961,31 @@ async function pollOutbound() {
     const failed = [];
     let lastErr = null;
     for (const item of pending) {
-      const to = normalizeOutboundPhone(item.to);
-      if (!to || !item.body) { failed.push(item.id); continue; }
-      const jid = `${to}@s.whatsapp.net`;
+      const jid = normalizeOutboundTarget(item.to);
+      if (!jid || !item.body) { failed.push(item.id); continue; }
       try {
-        const exists = await withTimeout(currentSock.onWhatsApp(jid).catch(() => null), 10_000, "Validar número de WhatsApp");
-        if (Array.isArray(exists) && exists.length > 0 && exists[0]?.exists === false) {
-          throw new Error(`El número ${to} no aparece activo en WhatsApp`);
+        if (jid.endsWith("@s.whatsapp.net")) {
+          const exists = await withTimeout(currentSock.onWhatsApp(jid).catch(() => null), 10_000, "Validar número de WhatsApp");
+          if (Array.isArray(exists) && exists.length > 0 && exists[0]?.exists === false) {
+            throw new Error(`El número ${jid.replace("@s.whatsapp.net", "")} no aparece activo en WhatsApp`);
+          }
         }
         await withTimeout(currentSock.sendMessage(jid, { text: String(item.body) }), 20_000, "Enviar mensaje saliente");
         sent.push(item.id);
-        logger.info({ to }, "outbound sent");
+        logger.info({ jid }, "outbound sent");
         await new Promise((r) => setTimeout(r, OUTBOUND_DELAY_MIN + Math.random() * (OUTBOUND_DELAY_MAX - OUTBOUND_DELAY_MIN)));
       } catch (e) {
         failed.push(item.id);
         lastErr = String(e);
-        logger.warn({ err: lastErr, to }, "outbound send failed");
+        logger.warn({ err: lastErr, jid }, "outbound send failed");
       }
     }
     state.lastOutboundError = lastErr;
-    await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+    await fetchWithTimeout(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "ack", token: config.token, sent, failed, error: lastErr, version: BOT_VERSION }),
-    });
+    }, OUTBOUND_REQUEST_TIMEOUT_MS);
   } catch (e) {
     const message = String(e);
     state.lastOutboundError = message;
@@ -936,36 +993,45 @@ async function pollOutbound() {
     logger.warn({ err: message }, "poll outbound error");
   } finally {
     outboundInFlight = false;
+    outboundStartedAt = 0;
   }
 }
 
 async function startSocket() {
   if (instanceRetired) return null;
+  if (socketStartInFlight) return currentSock;
+  if (currentSock && state.status === "connected") return currentSock;
+  socketStartInFlight = true;
+  const generation = ++socketGeneration;
   state.status = "connecting";
   state.detail = "Preparando sesión de WhatsApp...";
   console.log("\nConectando con WhatsApp. El QR puede tardar unos segundos...\n");
-  ensureAuthStateBeforeConnect();
-  const { state: authState, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
-  const version = await getSafeBaileysVersion();
-  state.detail = "Esperando respuesta de WhatsApp para generar el QR...";
-  const socketConfig = {
-    auth: authState,
-    printQRInTerminal: false,
-    logger: createSafeLogger("baileys"),
-    browser: ["Goloso Bot", "Chrome", "1.0"],
-    connectTimeoutMs: 30_000,
-    defaultQueryTimeoutMs: 60_000,
-  };
-  if (version) socketConfig.version = version;
-  const sock = makeWASocket(socketConfig);
+  try {
+    ensureAuthStateBeforeConnect();
+    const { state: authState, saveCreds } = await useMultiFileAuthState(AUTH_DIR);
+    const version = await getSafeBaileysVersion();
+    state.detail = "Esperando respuesta de WhatsApp para generar el QR...";
+    const socketConfig = {
+      auth: authState,
+      printQRInTerminal: false,
+      logger: createSafeLogger("baileys"),
+      browser: ["Goloso Bot", "Chrome", "1.0"],
+      connectTimeoutMs: 30_000,
+      defaultQueryTimeoutMs: 60_000,
+    };
+    if (version) socketConfig.version = version;
+    const sock = makeWASocket(socketConfig);
+    currentSock = sock;
 
   sock.ev.on("creds.update", async (...args) => {
+    if (generation !== socketGeneration) return;
     markBaileysEvent("creds.update");
     await saveCreds(...args);
     backupAuthState("creds.update");
   });
 
   sock.ev.on("connection.update", async (update) => {
+    if (generation !== socketGeneration) return;
     markBaileysEvent("connection.update");
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
@@ -1004,7 +1070,7 @@ async function startSocket() {
         state.status = "connecting";
         state.detail = "Reconexión pausada brevemente mientras se repara la sesión cifrada. Se reintentará automáticamente.";
         pushStatus();
-        setTimeout(() => startSocket().catch((e) => logger.error(e)), waitMs);
+        scheduleReconnect(waitMs, "signal_repair_pause");
         return;
       }
       if (!shouldReconnect) {
@@ -1015,12 +1081,14 @@ async function startSocket() {
       state.qr = null;
       state.qrDataUrl = null;
       state.detail = "WhatsApp cerró la conexión momentáneamente. Reconectando automáticamente...";
+      if (currentSock === sock) currentSock = null;
       pushStatus();
-      setTimeout(() => startSocket().catch((e) => logger.error(e)), 5000);
+      scheduleReconnect(5000, "connection_close");
     }
   });
 
   sock.ev.on("messages.upsert", async ({ messages, type }) => {
+    if (generation !== socketGeneration) return;
     markBaileysEvent("messages.upsert");
     if (type !== "notify") return;
     for (const msg of messages) {
@@ -1044,8 +1112,10 @@ async function startSocket() {
       // senderPn (síntoma típico: "solo un número funciona, el otro no").
       const extractPhone = (val) => {
         if (!val || typeof val !== "string") return "";
+        if (val.includes("@lid")) return "";
         const raw = val.split("@")[0].split(":")[0];
-        return /^\d{6,}$/.test(raw) ? raw : "";
+        if (raw.length === 10) return `57${raw}`;
+        return /^57\d{10}$/.test(raw) ? raw : "";
       };
       let phoneSource = "";
       const candidates = [
@@ -1055,8 +1125,6 @@ async function startSocket() {
         msg.key.participantPn,
         msg.key.participantAlt,
         msg.key.participant,
-        // último recurso: pushName no sirve, pero el LID a veces ES el número
-        jid.endsWith("@lid") ? jid : "",
       ];
       for (const c of candidates) {
         phoneSource = extractPhone(c);
@@ -1086,8 +1154,10 @@ async function startSocket() {
     }
   });
 
-  currentSock = sock;
-  return sock;
+    return sock;
+  } finally {
+    socketStartInFlight = false;
+  }
 }
 
 function startLocalUI() {
@@ -1170,8 +1240,15 @@ function listenOnAvailablePort(server, port, remainingAttempts) {
 
 async function main() {
   if (!acquireInstanceLock()) {
-    setInterval(() => {}, 60_000);
-    return;
+    for (let attempt = 1; attempt <= 12; attempt += 1) {
+      await wait(5_000);
+      if (acquireInstanceLock()) break;
+      logger.warn({ attempt }, "duplicate lock still active; waiting before exit");
+    }
+    if (!readInstanceLock() || readInstanceLock()?.instanceId !== INSTANCE_ID) {
+      logger.error("No se pudo tomar el candado local; saliendo para que PM2 intente de nuevo después");
+      process.exit(1);
+    }
   }
   console.log(`\n🍨 Goloso WhatsApp Bot`);
   console.log(`   Versión : ${BOT_VERSION}`);
@@ -1201,6 +1278,18 @@ async function main() {
       process.exit(1);
     }
     const wsReadyState = currentSock?.ws?.readyState;
+    if (outboundInFlight && outboundStartedAt && now - outboundStartedAt > 2 * 60_000) {
+      logger.warn({ outboundStartedAt }, "watchdog: outbound poll pegado; liberando candado");
+      outboundInFlight = false;
+      outboundStartedAt = 0;
+      state.lastOutboundError = "Se liberó automáticamente una revisión de cola que quedó pegada.";
+    }
+    if (commandInFlight && commandStartedAt && now - commandStartedAt > 2 * 60_000) {
+      logger.warn({ commandStartedAt }, "watchdog: comando remoto pegado; liberando candado");
+      commandInFlight = false;
+      commandStartedAt = 0;
+      state.lastError = "Se liberó automáticamente un comando remoto que quedó pegado.";
+    }
     if (state.status === "connected" && typeof wsReadyState === "number" && wsReadyState !== 1) {
       logger.warn({ readyState: wsReadyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
       try { currentSock.ws?.close?.(); } catch { /* noop */ }
@@ -1208,7 +1297,16 @@ async function main() {
       state.status = "connecting";
       state.detail = "Se detectó la conexión interna cerrada. Reconectando automáticamente sin borrar el QR.";
       pushStatus();
-      setTimeout(() => startSocket().catch((e) => logger.error(e)), 1500);
+      scheduleReconnect(1500, "watchdog_closed_ws");
+    }
+    if (state.status === "connected" && now - lastBaileysEventAt > 15 * 60_000) {
+      logger.warn({ lastBaileysEventAt }, "watchdog: WhatsApp conectado pero sin eventos recientes; reconectando preventivamente");
+      try { currentSock?.ws?.close?.(); } catch { /* noop */ }
+      currentSock = null;
+      state.status = "connecting";
+      state.detail = "Reconectando automáticamente para mantener la recepción de mensajes activa.";
+      pushStatus();
+      scheduleReconnect(1500, "watchdog_stale_baileys_events");
     }
   }, WATCHDOG_INTERVAL_MS);
 
