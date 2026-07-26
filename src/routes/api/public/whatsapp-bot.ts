@@ -713,7 +713,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : [];
               const allProducts = Array.isArray(ctx.products) ? ctx.products as ProductLite[] : [];
               // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
-              const products = selectRelevantProducts(allProducts, text, 20);
+              const products = selectRelevantProducts(allProducts, text, 12);
 
               const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
 
