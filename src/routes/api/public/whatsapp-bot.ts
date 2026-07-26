@@ -167,12 +167,13 @@ function selectRelevantProducts<T extends { name?: string; category?: string | n
     .map((item) => item.product);
 }
 
-function operationalReply(menuLink: string, takingOrders = false, branchName?: string) {
-  const sede = branchName ? ` (${branchName})` : "";
+function operationalReply(menuLink: string, takingOrders = false, _branchName?: string) {
+  // Nunca exponemos el nombre interno de la sede al cliente en el saludo.
+  // El nombre se usa solo internamente para menú/horarios/config.
   if (takingOrders) {
-    return `¡Hola!${sede} 🍦 Cuéntame qué te provoca y lo pedimos.\n\nMenú 👉 ${menuLink}`;
+    return `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Cuéntame qué te provoca y lo pedimos.\n\nMenú 👉 ${menuLink}`;
   }
-  return `¡Hola!${sede} 🍦 Mira el menú y pide en un minuto 👉 ${menuLink}`;
+  return `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}`;
 }
 
 const PUBLIC_MENU_BASE = "https://golosoheladeria.vercel.app";
