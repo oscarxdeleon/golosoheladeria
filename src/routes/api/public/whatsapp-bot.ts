@@ -196,7 +196,8 @@ function fallbackOrderReply(input: string, menuLink: string, takingOrders: boole
 type CartRecord = Record<string, unknown> | null;
 
 function cartItems(cart: CartRecord): Array<Record<string, unknown>> {
-  return Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+  const items = cart?.items;
+  return Array.isArray(items) ? items as Array<Record<string, unknown>> : [];
 }
 
 function hasCartItems(cart: CartRecord) {
