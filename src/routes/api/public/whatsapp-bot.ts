@@ -188,7 +188,9 @@ function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
 function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
   if (!takingOrders) return operationalReply(menuLink, false, branchName);
   if (hasHistory) {
-    return `Sigo contigo 🍦 ¿Qué te provoca pedir?`;
+    // Durante conversación activa NUNCA reiniciamos con "¿Qué te provoca pedir?".
+    // Damos una respuesta neutra que invita al cliente a repetir su último punto.
+    return `Perdona, se me trabó un segundo. 🍦 ¿Me repites lo último para continuar tu pedido?`;
   }
   return operationalReply(menuLink, true, branchName);
 }
@@ -970,7 +972,61 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "",
               ].filter(Boolean).join("\n") : "";
 
-              const finalSystemPrompt = systemPrompt + orderingPromptBlock;
+              // 🧠 BLOQUE DE ESTADO CONVERSACIONAL: si hay carrito activo,
+              // inyectamos su estado exacto en el system prompt. Esto elimina
+              // la causa raíz de "no me figura ningún pedido" y del reinicio
+              // del flujo: la IA ve items, datos capturados y qué falta.
+              const cartStateBlock = (() => {
+                if (!preloadedCart) return "";
+                const items = cartItems(preloadedCart);
+                const name = fieldText(preloadedCart, "customer_name");
+                const addr = fieldText(preloadedCart, "delivery_address");
+                const nbh = fieldText(preloadedCart, "delivery_neighborhood");
+                const pay = fieldText(preloadedCart, "payment_method");
+                const notes = fieldText(preloadedCart, "delivery_notes");
+                const otype = effectiveOrderType(preloadedCart);
+                const missing = missingCartFields(preloadedCart);
+                const hasAny = items.length > 0 || name || addr || nbh || pay;
+                if (!hasAny) return "";
+                const lines: string[] = [
+                  "",
+                  "════════ ESTADO ACTUAL DEL PEDIDO EN CURSO (memoria del cliente) ════════",
+                  "USA ESTA INFORMACIÓN COMO VERDAD ABSOLUTA. NO vuelvas a saludar. NO envíes el link del menú. NO reinicies el flujo. NO preguntes datos ya listados abajo. NO digas 'no tengo pedido registrado'.",
+                  `- Tipo: ${otype === "pickup" ? "recoger en tienda" : "domicilio"}`,
+                ];
+                if (items.length > 0) {
+                  lines.push("- Productos en el carrito:");
+                  for (const it of items) {
+                    const qty = Number(it.qty ?? 1);
+                    const nm = String(it.product_name ?? it.name ?? "Producto");
+                    const up = Number(it.unit_price ?? 0);
+                    const mods = Array.isArray(it.modifiers)
+                      ? (it.modifiers as Array<Record<string, unknown>>).map((m) => String(m?.name ?? "")).filter(Boolean).join(", ")
+                      : "";
+                    const iNotes = String(it.notes ?? "").trim();
+                    lines.push(`  • ${qty} × ${nm} — ${fmtCOP(qty * up)}${mods ? ` [${mods}]` : ""}${iNotes ? ` (notas: ${iNotes})` : ""}`);
+                  }
+                  lines.push(`- Subtotal: ${fmtCOP(Number(preloadedCart.subtotal ?? 0))}`);
+                  if (Number(preloadedCart.delivery_fee ?? 0) > 0) lines.push(`- Domicilio: ${fmtCOP(Number(preloadedCart.delivery_fee))}`);
+                  lines.push(`- Total: ${fmtCOP(Number(preloadedCart.total ?? 0))}`);
+                } else {
+                  lines.push("- Productos: (aún sin items — el cliente ya nos dio datos y estamos armando el pedido)");
+                }
+                if (name) lines.push(`- Nombre: ${name}`);
+                if (addr) lines.push(`- Dirección: ${addr}`);
+                if (nbh)  lines.push(`- Barrio: ${nbh}`);
+                if (pay)  lines.push(`- Pago: ${pay}`);
+                if (notes) lines.push(`- Notas: ${notes}`);
+                if (missing.length > 0) {
+                  lines.push(`- FALTA por capturar: ${missing.join(", ")}. Pregunta SOLO lo que falta, UNA cosa a la vez. NO repitas lo que ya está arriba.`);
+                } else if (items.length > 0) {
+                  lines.push("- Datos completos. Muestra RESUMEN y pide confirmación explícita antes de llamar confirm_order.");
+                }
+                lines.push("════════════════════════════════════════════════════════════");
+                return lines.join("\n");
+              })();
+
+              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock;
 
               // Herramientas expuestas a la IA (function calling)
               const orderingTools = orderingEnabled ? [
@@ -1220,6 +1276,19 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
                 const hasPatch = Object.keys(patch).length > 0;
                 const hasCart = currentItems.length > 0;
+
+                // 🧠 MEMORIA CONVERSACIONAL: aunque no exista carrito, si el
+                // cliente ya nos dio datos de contacto/entrega, los persistimos
+                // en un carrito "vacío" (sin items) para que en el próximo turno
+                // la IA los vea y no vuelva a preguntarlos. Esto elimina el
+                // bucle "para registrarlo me falta dirección, barrio y pago".
+                if (hasPatch && !hasCart) {
+                  await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: patch });
+                  // No devolvemos respuesta: dejamos que la IA continúe con
+                  // el contexto enriquecido en el próximo turno o en este mismo.
+                  return null;
+                }
+
                 const looksLikeOrderTurn = hasPatch || hasCart;
                 if (!looksLikeOrderTurn) return null;
 
