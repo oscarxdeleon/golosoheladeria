@@ -1143,15 +1143,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               const operationalOrderReply = await buildOperationalOrderReply();
               if (operationalOrderReply) {
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: operationalOrderReply });
-                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-                await logBotEvent(token, conversationId, from, "operational_order_flow", {
+                // Fire-and-forget: la respuesta al cliente no espera por escrituras.
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: operationalOrderReply });
+                void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                void logBotEvent(token, conversationId, from, "operational_order_flow", {
                   durationMs: elapsedMs(requestStarted),
                   metadata: { replyLength: operationalOrderReply.length },
                 });
                 return json({ reply: operationalOrderReply, source: "operational_order_flow", conversation_id: conversationId }, 200);
               }
+
 
               // 5) Llamar a la IA. Ruta preferida: Lovable AI Gateway (créditos de
               // la cuenta, sin límite gratuito diario). Si Lovable no está
