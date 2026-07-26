@@ -193,6 +193,53 @@ function fallbackOrderReply(input: string, menuLink: string, takingOrders: boole
   return operationalReply(menuLink, true, branchName);
 }
 
+type CartRecord = Record<string, unknown> | null;
+
+function cartItems(cart: CartRecord): Array<Record<string, unknown>> {
+  return Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+}
+
+function hasCartItems(cart: CartRecord) {
+  return cartItems(cart).length > 0;
+}
+
+function fieldText(cart: CartRecord, field: string) {
+  return typeof cart?.[field] === "string" ? String(cart[field]).trim() : "";
+}
+
+function effectiveOrderType(cart: CartRecord) {
+  const value = fieldText(cart, "order_type").toLowerCase();
+  return value === "pickup" ? "pickup" : "delivery";
+}
+
+function missingCartFields(cart: CartRecord) {
+  const missing: string[] = [];
+  if (!fieldText(cart, "customer_name")) missing.push("nombre");
+  if (effectiveOrderType(cart) === "delivery") {
+    if (!fieldText(cart, "delivery_address")) missing.push("dirección");
+    if (!fieldText(cart, "delivery_neighborhood")) missing.push("barrio");
+  }
+  if (!fieldText(cart, "payment_method")) missing.push("método de pago");
+  return missing;
+}
+
+function lastAssistantContent(history: Array<{ role: string; content: string }>) {
+  for (let i = history.length - 1; i >= 0; i -= 1) {
+    const message = history[i];
+    if (message?.role === "assistant" && message.content.trim()) return message.content.trim();
+  }
+  return "";
+}
+
+function sameReply(a: string, b: string) {
+  return normalizeText(a).replace(/\s+/g, " ") === normalizeText(b).replace(/\s+/g, " ");
+}
+
+function isAlreadyOrderedTurn(input: string) {
+  const normalized = normalizeText(input);
+  return /\b(ya pedi|ya hice el pedido|ya realice el pedido|ya ordene|ya esta pedido|ya lo pedi|ya lo hice)\b/.test(normalized);
+}
+
 type ProductLite = {
   id?: string;
   name?: string;
@@ -272,12 +319,41 @@ function extractCustomerName(input: string) {
   return explicit.replace(/\b(direccion|dirección|barrio|pago|efectivo|transferencia).*$/i, "").trim();
 }
 
+function looksLikeBareCustomerName(input: string) {
+  const raw = input.trim().replace(/\s+/g, " ");
+  if (raw.length < 3 || raw.length > 60) return false;
+  const normalized = normalizeText(raw);
+  if (!normalized || isConfirmation(raw) || isCancelOrNegativeTurn(raw) || isAlreadyOrderedTurn(raw)) return false;
+  if (detectOrderType(raw) || detectPayment(raw) || extractAddress(raw) || extractNeighborhood(raw)) return false;
+  if (/[#@0-9]/.test(raw)) return false;
+  if (/\b(quiero|dame|deme|pedido|pedir|producto|helado|malteada|ensalada|vaso|cono|copa|sabor|topping|domicilio|direccion|dirección|barrio|pago|efectivo|transferencia|nequi|bancolombia|menu|menú|precio|cuanto|cuánto|ya|hice|pedi|pedí)\b/.test(normalized)) return false;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length < 1 || words.length > 5) return false;
+  return words.every((word) => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ'.-]{2,}$/.test(word));
+}
+
 function extractAddress(input: string) {
   return extractField(input, ["direccion", "dirección", "dir", "address"]);
 }
 
+function looksLikeBareAddress(input: string) {
+  const normalized = normalizeText(input);
+  return /\b(calle|callejon|carrera|cra|cl|kr|avenida|av|diagonal|transversal|mz|manzana|casa|apartamento|apto|edificio|torre|via|kilometro|km)\b/.test(normalized)
+    || /#|\b\d{1,3}\s*[a-z]?\s*(?:-|#)\s*\d{1,3}\b/i.test(input);
+}
+
 function extractNeighborhood(input: string) {
   return extractField(input, ["barrio", "sector"]);
+}
+
+function looksLikeBareNeighborhood(input: string) {
+  const raw = input.trim().replace(/\s+/g, " ");
+  if (raw.length < 3 || raw.length > 45) return false;
+  const normalized = normalizeText(raw);
+  if (!normalized || isConfirmation(raw) || isCancelOrNegativeTurn(raw) || isAlreadyOrderedTurn(raw)) return false;
+  if (detectPayment(raw) || detectOrderType(raw) || looksLikeBareAddress(raw)) return false;
+  if (/\b(quiero|dame|deme|pedido|pedir|producto|helado|malteada|ensalada|vaso|cono|copa|sabor|topping|menu|menú|precio|cuanto|cuánto|nombre|direccion|dirección|pago|efectivo|transferencia|nequi|bancolombia)\b/.test(normalized)) return false;
+  return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9'.\-\s]+$/.test(raw);
 }
 
 function isConfirmation(input: string) {
@@ -317,7 +393,7 @@ function isGeneralHelpTurn(input: string) {
 }
 
 function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number) => string) {
-  const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+  const items = cartItems(cart);
   const lines = items.map((item) => {
     const qty = Number(item.qty ?? 1);
     const name = String(item.product_name ?? item.name ?? "Producto");
@@ -333,6 +409,28 @@ function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number)
     fee > 0 ? `Domicilio: ${fmtCOP(fee)}` : null,
     `Total: ${fmtCOP(total)}`,
   ].filter(Boolean).join("\n");
+}
+
+function buildCartProgressReply(cart: CartRecord, fmtCOP: (n: number) => string, intro?: string) {
+  if (!hasCartItems(cart)) return null;
+  const name = fieldText(cart, "customer_name");
+  const missing = missingCartFields(cart);
+  const summary = summarizeCart(cart, fmtCOP);
+  const prefix = intro ? `${intro}\n\n` : "";
+
+  if (missing.includes("nombre")) {
+    return `${prefix}Ya tengo tu pedido en curso. 🍦\n\n${summary}\n\n¿A nombre de quién lo registro?`;
+  }
+  if (missing.includes("dirección")) {
+    return `${prefix}${name ? `Gracias, ${name}.` : "Perfecto."} ¿Cuál es la dirección completa para el domicilio?`;
+  }
+  if (missing.includes("barrio")) {
+    return `${prefix}${name ? `${name}, ` : ""}¿en qué barrio queda?`;
+  }
+  if (missing.includes("método de pago")) {
+    return `${prefix}${name ? `${name}, ` : ""}¿pagas en efectivo o transferencia?`;
+  }
+  return `${prefix}${summary}\n\n${name ? `${name}, ` : ""}¿confirmas el pedido?`;
 }
 
 const AI_TOTAL_BUDGET_MS = 20_000;
