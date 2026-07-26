@@ -543,7 +543,7 @@ function shortCircuitReply(input: string, menuLink: string, branchName?: string)
     return { reply: "", event: null };
   }
 
-  const sede = branchName ? ` (${branchName})` : "";
+  // El nombre de la sede es interno; nunca se muestra al cliente.
 
   // Pedido de menú → link directo.
   if (/\b(menu|menú|carta|catalogo|catálogo|precios|lista)\b/.test(normalized)) {
@@ -556,7 +556,7 @@ function shortCircuitReply(input: string, menuLink: string, branchName?: string)
   // Saludos cortos → bienvenida breve.
   if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
     return {
-      reply: `¡Hola!${sede} 🍦 Mira el menú y pide en un minuto 👉 ${menuLink}`,
+      reply: `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}`,
       event: "welcome",
     };
   }
