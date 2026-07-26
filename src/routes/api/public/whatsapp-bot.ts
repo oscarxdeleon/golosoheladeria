@@ -937,30 +937,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   patch.delivery_fee = Number(orderCfg?.delivery_fee ?? currentCart?.delivery_fee ?? 0);
                 }
 
-                const product = findRequestedProduct(allProducts, text);
-                if (product?.name && typeof product.price === "number") {
-                  const qty = parseQuantity(text);
-                  const productId = typeof product.id === "string" ? product.id : null;
-                  const itemKey = productId ?? product.name.toUpperCase();
-                  const keyOf = (item: Record<string, unknown>) => String(item.product_id ?? item.product_name ?? "").toUpperCase();
-                  const nextItems = [...currentItems];
-                  const nextItem = {
-                    product_id: productId,
-                    product_name: product.name,
-                    unit_price: Number(product.price),
-                    qty,
-                    modifiers: [],
-                    notes: null,
-                  };
-                  const idx = nextItems.findIndex((item) => keyOf(item) === itemKey.toUpperCase());
-                  if (idx >= 0) nextItems[idx] = nextItem;
-                  else nextItems.push(nextItem);
-                  patch.items = nextItems;
-                }
+                // IMPORTANTE: NO agregamos productos al carrito desde esta
+                // ruta operativa. Un match por texto no basta: los productos
+                // pueden tener sabores/modificadores obligatorios y el cliente
+                // debe elegirlos. Los productos SOLO entran al carrito vía
+                // add_to_cart llamado por la IA tras validar modificadores.
 
                 const hasPatch = Object.keys(patch).length > 0;
                 const hasCart = currentItems.length > 0;
-                const looksLikeOrderTurn = hasPatch || hasCart || /\b(quiero|dame|deme|pedido|pedir|domicilio|recoger|confirmo|confirmar|si|sí|banana|helado|malteada|jugo|waffle|brownie|ensalada|cholado|fresas|copa|cono|vaso)\b/.test(normalized);
+                const looksLikeOrderTurn = hasPatch || hasCart;
                 if (!looksLikeOrderTurn) return null;
 
                 let cart = currentCart;
@@ -970,9 +955,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
 
                 const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+                // Sin items no hay pedido para resumir/confirmar: dejamos que la
+                // IA guíe al cliente (search_products → get_modifiers → add_to_cart).
+                if (items.length === 0) return null;
+
                 const effectiveOrderType = String(cart?.order_type ?? patch.order_type ?? "delivery");
                 const missing: string[] = [];
-                if (items.length === 0) missing.push("producto y cantidad");
                 if (!String(cart?.customer_name ?? "").trim()) missing.push("nombre");
                 if (effectiveOrderType === "delivery") {
                   if (!String(cart?.delivery_address ?? "").trim()) missing.push("dirección");
@@ -980,30 +968,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
                 if (!String(cart?.payment_method ?? "").trim()) missing.push("método de pago");
 
-                if (isConfirmation(text) && missing.length === 0) {
-                  const confirm = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
-                  if (confirm.ok && confirm.data && typeof confirm.data === "object") {
-                    const confirmed = confirm.data as Record<string, unknown>;
-                    const number = String(confirmed.order_number ?? confirmed.ticket_number ?? "").trim();
-                    return number
-                      ? `Tu pedido quedó registrado con el nº ${number}. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.`
-                      : "Tu pedido quedó registrado. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.";
-                  }
-                }
-
-                if (items.length > 0) {
+                // La confirmación SIEMPRE pasa por la IA (tool confirm_order),
+                // que aplica guardias completas (nombre, modificadores, etc.).
+                // Aquí solo mostramos avance/resumen si falta info.
+                if (missing.length > 0) {
                   const summary = summarizeCart(cart, fmtCOP);
-                  if (missing.length > 0) {
-                    return `¡Perfecto! Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
-                  }
-                  return `Tengo listo este resumen:\n\n${summary}\n\n¿Confirmas el pedido?`;
+                  return `Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
                 }
-
-                if (product === null && /\b(quiero|dame|deme|pedido|pedir|domicilio|recoger)\b/.test(normalized)) {
-                  return fallbackOrderReply(text, menuLink, true, history.length > 0);
-                }
-
-                return null;
+                return null; // datos completos: la IA cierra con el cliente
               };
 
               const operationalOrderReply = await buildOperationalOrderReply();
