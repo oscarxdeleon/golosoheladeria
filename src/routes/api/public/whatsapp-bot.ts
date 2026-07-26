@@ -61,6 +61,10 @@ function elapsedMs(start: number) {
   return Math.max(0, Math.round(performance.now() - start));
 }
 
+function formatCOP(n: number) {
+  return "$" + Math.round(n).toLocaleString("es-CO");
+}
+
 function trimForLog(value: unknown, max = 800) {
   if (value == null) return "";
   if (typeof value === "string") return value.slice(0, max);
@@ -851,11 +855,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
                 if (error === "rate_limited") {
                   const rateLimitTakesOrders = Boolean(preloadedOrdering?.ordering_enabled);
-                  const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
+                  const reply = buildActiveSessionFallback(preloadedCart, formatCOP)
                     ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders, hasSessionData(preloadedCart));
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
-                const fallbackReply = buildActiveSessionFallback(preloadedCart, fmtCOP)
+                const fallbackReply = buildActiveSessionFallback(preloadedCart, formatCOP)
                   ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, true, hasSessionData(preloadedCart));
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
@@ -953,7 +957,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
               const products = selectRelevantProducts(allProducts, text, 12);
 
-              const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
+              const fmtCOP = formatCOP;
 
               const flavorsBlock = flavorGroups.length > 0
                 ? "SABORES DISPONIBLES HOY EN ESTA SEDE, AGRUPADOS POR TIPO DE PRODUCTO (usa SOLO los sabores del grupo correcto — NO mezcles sabores de helado con sabores de jugo, malteada u otros):\n" +
