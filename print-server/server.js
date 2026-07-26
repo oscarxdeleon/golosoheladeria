@@ -998,14 +998,8 @@ async function buildRaw(p) {
 async function buildPaymentReceiptRaw(p) {
   let out = INIT + CODEPAGE + INTL_CHARSET;
 
-  // Logo pequeño (opcional). Reutiliza el renderer estándar del ticket.
-  let logoBuf = logoRasterFromBase64(p.logo_raster_base64);
-  if (!logoBuf && p.logo_url) {
-    logoBuf = await fetchLogoRaster(p.logo_url, WIDTH >= 42 ? 288 : 216);
-    if (!logoBuf && p.logo_fallback_url && p.logo_fallback_url !== p.logo_url) {
-      logoBuf = await fetchLogoRaster(p.logo_fallback_url, WIDTH >= 42 ? 288 : 216);
-    }
-  }
+  // Sin logo: el comprobante de pago electrónico debe ser lo más compacto
+  // posible. Arranca directo con el encabezado de texto de la sede.
 
   // Encabezado (nombre de la sede)
   out += ALIGN_C + BOLD_ON;
@@ -1013,6 +1007,7 @@ async function buildPaymentReceiptRaw(p) {
   for (const line of wrapText(business, WIDTH)) out += line.trim() + "\n";
   out += BOLD_OFF;
   if (p.nit) out += "NIT: " + String(p.nit).trim() + "\n";
+
 
   out += ALIGN_L + DASH_LINE;
 
@@ -1063,9 +1058,9 @@ async function buildPaymentReceiptRaw(p) {
   out += ALIGN_L + FEED(3) + CUT;
 
   const textBuf = encodeEscPos(out);
-  if (!logoBuf) return textBuf;
-  return Buffer.concat([logoBuf, textBuf]);
+  return textBuf;
 }
+
 
 // Formato de moneda estable para el comprobante (evita depender de Intl en
 // impresoras cuyo entorno Node no incluye datos de locale es-CO).
