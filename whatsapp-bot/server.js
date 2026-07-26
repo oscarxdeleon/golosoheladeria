@@ -1311,20 +1311,22 @@ async function main() {
 
   // ---- Watchdog: auto-reinicio si el bot queda "pegado" ----
   // pm2 (o systemd/nssm) volverá a levantar el proceso al hacer exit(1).
-  let watchdogSince = Date.now();
-  let watchdogLastStatus = state.status;
   setInterval(() => {
     const now = Date.now();
-    if (state.status !== watchdogLastStatus) {
-      watchdogLastStatus = state.status;
-      watchdogSince = now;
+    if (state.status === "connected") {
+      notConnectedSince = null;
+      if (!connectedSince) connectedSince = now;
+    } else {
+      connectedSince = null;
+      if (!notConnectedSince) notConnectedSince = now;
     }
-    const stuckMs = now - watchdogSince;
-    if ((state.status === "disconnected" || state.status === "connecting" || state.status === "error")
+
+    const stuckMs = notConnectedSince ? now - notConnectedSince : 0;
+    if ((state.status === "disconnected" || state.status === "connecting" || state.status === "error" || state.status === "qr")
         && stuckMs > WATCHDOG_MAX_DISCONNECTED_MS) {
-      logger.error({ status: state.status, stuckMs }, "watchdog: sin conexión >5min, reiniciando proceso");
-      console.error(`\n⚠️  Watchdog: sin conexión hace ${Math.round(stuckMs/1000)}s. Reiniciando…\n`);
-      process.exit(1);
+      console.error(`\n⚠️  Watchdog: sin conexión estable hace ${Math.round(stuckMs / 1000)}s. Reiniciando…\n`);
+      forceProcessRestart("Sin conexión estable por más de 3 minutos", { status: state.status, stuckMs });
+      return;
     }
     const wsReadyState = currentSock?.ws?.readyState;
     if (outboundInFlight && outboundStartedAt && now - outboundStartedAt > 2 * 60_000) {
@@ -1338,6 +1340,17 @@ async function main() {
       commandInFlight = false;
       commandStartedAt = 0;
       state.lastError = "Se liberó automáticamente un comando remoto que quedó pegado.";
+    }
+    if (state.status === "connected" && connectedSince && now - connectedSince > WATCHDOG_MAX_OUTBOUND_STALE_MS) {
+      const lastPollAge = state.lastOutboundPollAt ? now - state.lastOutboundPollAt : Number.POSITIVE_INFINITY;
+      if (lastPollAge > WATCHDOG_MAX_OUTBOUND_STALE_MS) {
+        forceProcessRestart("Conectado a WhatsApp, pero la revisión de cola quedó detenida", {
+          lastOutboundPollAt: state.lastOutboundPollAt,
+          lastPollAge,
+          connectedSince,
+        });
+        return;
+      }
     }
     if (state.status === "connected" && typeof wsReadyState === "number" && wsReadyState !== 1) {
       logger.warn({ readyState: wsReadyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
@@ -1371,7 +1384,7 @@ async function main() {
 
   await startSocket().catch((e) => {
     logger.error(e);
-    state.status = "error";
+    markConnectionState("error");
     state.lastError = String(e);
     pushStatus();
   });
