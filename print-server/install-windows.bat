@@ -16,13 +16,26 @@ echo === Goloso Print Server: instalacion ===
 echo.
 
 echo Cerrando cualquier Print Server anterior...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3001 " ^| findstr LISTENING') do (
-  taskkill /F /PID %%P /T >nul 2>nul
+REM Repetir varias veces por si el proceso se auto-reinicia (wscript relanzador)
+for /L %%K in (1,1,3) do (
+  for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3001 " ^| findstr LISTENING') do (
+    taskkill /F /PID %%P /T >nul 2>nul
+  )
+  taskkill /F /IM node.exe >nul 2>nul
+  taskkill /F /IM wscript.exe >nul 2>nul
+  timeout /t 2 /nobreak >nul
 )
-REM Cerrar tambien cualquier wscript/node que apunte a esta carpeta
-taskkill /F /IM node.exe >nul 2>nul
-taskkill /F /IM wscript.exe >nul 2>nul
-timeout /t 2 /nobreak >nul
+
+REM Verificar que el puerto 3001 quedo libre antes de continuar
+set "PORT_BUSY="
+for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":3001 " ^| findstr LISTENING') do set "PORT_BUSY=%%P"
+if defined PORT_BUSY (
+  echo [ERROR] El puerto 3001 sigue ocupado por PID %PORT_BUSY%.
+  echo   Abre el Administrador de Tareas, finaliza ese proceso y vuelve a ejecutar este instalador.
+  echo   Sugerencia: ejecuta este instalador como Administrador ^(clic derecho ^> Ejecutar como administrador^).
+  pause
+  exit /b 1
+)
 
 where node >nul 2>nul
 if errorlevel 1 (
