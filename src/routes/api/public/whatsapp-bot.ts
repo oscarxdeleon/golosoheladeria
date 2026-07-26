@@ -1568,7 +1568,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   error: lastErr,
                   metadata: { finishReason: lastFinishReason },
                 });
-              } else if (activeCartHasItems && sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName))) {
+              } else if (sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName))) {
                 const progressReply = await buildOperationalOrderReply();
                 if (progressReply) {
                   finalReply = progressReply;
