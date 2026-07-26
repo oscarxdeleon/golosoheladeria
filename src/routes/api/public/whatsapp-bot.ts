@@ -754,6 +754,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "",
                 `Estado ahora: domicilio ${onlineOpen ? "ABIERTO ✅" : "CERRADO ❌"} · tienda física ${physicalOpen ? "ABIERTA ✅" : "CERRADA ❌"}.`,
                 "",
+                locationBlock,
+                "",
                 faqsBlock,
                 "",
                 flavorsBlock,
@@ -766,6 +768,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const customExtras = [
                 `Menú en línea de esta sede (compártelo como primera opción): ${menuLink}`,
                 "IMPORTANTE: los sabores vienen agrupados por tipo de producto — NO mezcles sabores de helado con sabores de jugo o malteada. Respeta también la categoría del producto al recomendar.",
+                "",
+                locationBlock,
                 "",
                 faqsBlock,
                 "",
