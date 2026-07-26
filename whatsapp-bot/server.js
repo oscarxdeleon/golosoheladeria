@@ -545,7 +545,7 @@ async function startFreshPairingAfterLogout(reason) {
     try { currentSock.ws?.close?.(); } catch { /* noop */ }
     currentSock = null;
   }
-  state.status = "connecting";
+  markConnectionState("connecting");
   state.detail = "WhatsApp cerró la sesión anterior. Se limpió la sesión local, las copias antiguas y se está generando un QR nuevo.";
   await pushStatus();
       scheduleReconnect(2500, "fresh_pairing_after_logout");
@@ -1080,7 +1080,7 @@ async function startSocket() {
     markBaileysEvent("connection.update");
     const { connection, lastDisconnect, qr } = update;
     if (qr) {
-      state.status = "qr";
+      markConnectionState("qr");
       state.qr = qr;
       state.qrDataUrl = await QRCode.toDataURL(qr, { width: 320, margin: 1 });
       state.detail = "QR generado. Escanéalo con WhatsApp Business.";
@@ -1094,7 +1094,7 @@ async function startSocket() {
       pushStatus();
     }
     if (connection === "open") {
-      state.status = "connected";
+      markConnectionState("connected");
       state.qr = null;
       state.qrDataUrl = null;
       state.phone = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
@@ -1112,7 +1112,7 @@ async function startSocket() {
       logger.warn({ code, shouldReconnect }, "connection closed");
       if (Date.now() < suppressAutoReconnectUntil) {
         const waitMs = Math.max(1_000, suppressAutoReconnectUntil - Date.now() + 750);
-        state.status = "connecting";
+        markConnectionState("connecting");
         state.detail = "Reconexión pausada brevemente mientras se repara la sesión cifrada. Se reintentará automáticamente.";
         pushStatus();
         scheduleReconnect(waitMs, "signal_repair_pause");
@@ -1352,7 +1352,7 @@ async function main() {
       logger.warn({ lastBaileysEventAt }, "watchdog: WhatsApp conectado pero sin eventos recientes; reconectando preventivamente");
       try { currentSock?.ws?.close?.(); } catch { /* noop */ }
       currentSock = null;
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.detail = "Reconectando automáticamente para mantener la recepción de mensajes activa.";
       pushStatus();
       scheduleReconnect(1500, "watchdog_stale_baileys_events");
