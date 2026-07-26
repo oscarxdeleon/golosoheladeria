@@ -1185,9 +1185,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     metadata: qData ?? null,
                   });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
-                  await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                  void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                  void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+                  void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
                   return json({
                     reply,
                     source: "quota_exhausted_operational_no_lovable_credits",
