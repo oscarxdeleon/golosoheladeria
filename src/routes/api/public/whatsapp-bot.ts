@@ -1281,56 +1281,18 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
                 const aiStarted = performance.now();
                 let aiResp: Response;
+                let usedProvider: AiProvider;
                 try {
-                  aiResp = await callAi(primaryModel);
+                  const attempt = await callAi();
+                  aiResp = attempt.response;
+                  usedProvider = attempt.provider;
                 } catch (error) {
+                  lastErr = trimForLog(error, 500);
                   await logBotEvent(token, conversationId, from, "ai_request_exception", {
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error,
-                    metadata: { round, model: primaryModel },
-                  });
-                  try {
-                    aiResp = await callAi(fallbackModel);
-                  } catch (fallbackError) {
-                    lastErr = trimForLog(fallbackError, 500);
-                    await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
-                      ok: false,
-                      durationMs: elapsedMs(aiStarted),
-                      error: fallbackError,
-                      metadata: { round, model: fallbackModel },
-                    });
-                    break;
-                  }
-                }
-                if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404 || aiResp.status === 429)) {
-                  await logBotEvent(token, conversationId, from, "ai_primary_failed", {
-                    ok: false,
-                    durationMs: elapsedMs(aiStarted),
-                    error: `HTTP ${aiResp.status}`,
-                    metadata: { round, model: primaryModel },
-                  });
-                  try {
-                    aiResp = await callAi(fallbackModel);
-                  } catch (fallbackError) {
-                    lastErr = trimForLog(fallbackError, 500);
-                    await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
-                      ok: false,
-                      durationMs: elapsedMs(aiStarted),
-                      error: fallbackError,
-                      metadata: { round, model: fallbackModel },
-                    });
-                    break;
-                  }
-                }
-                if (!aiResp.ok && aiResp.status === 404 && useGeminiDirect) {
-                  const detail = await aiResp.text().catch(() => "");
-                  lastErr = detail.slice(0, 500) || "gemini_model_not_available";
-                  await logBotEvent(token, conversationId, from, "ai_model_not_available_operational", {
-                    ok: false,
-                    durationMs: elapsedMs(aiStarted),
-                    error: lastErr,
-                    metadata: { round, model: fallbackModel },
+                    metadata: { round, providers: providers.map((p) => p.name) },
                   });
                   break;
                 }
@@ -1340,7 +1302,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: lastErr,
-                    metadata: { round },
+                    metadata: { round, provider: usedProvider.name },
                   });
                   break;
                 }
@@ -1350,25 +1312,26 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: lastErr,
-                    metadata: { round },
+                    metadata: { round, provider: usedProvider.name },
                   });
                   break;
                 }
                 if (!aiResp.ok) {
                   const detail = await aiResp.text().catch(() => "");
-                  lastErr = detail.slice(0, 500);
+                  lastErr = detail.slice(0, 500) || `HTTP ${aiResp.status}`;
                   await logBotEvent(token, conversationId, from, "ai_http_failed", {
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: lastErr,
-                    metadata: { round, status: aiResp.status },
+                    metadata: { round, status: aiResp.status, provider: usedProvider.name },
                   });
                   break;
                 }
                 const aiData = await aiResp.json().catch(() => null) as {
                   choices?: Array<{ finish_reason?: string; message?: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>;
                 } | null;
-                if (useGeminiDirect) void trackGeminiCall("whatsapp_bot");
+                if (usedProvider.name === "gemini_direct") void trackGeminiCall("whatsapp_bot");
+
                 const choice = aiData?.choices?.[0];
                 const msg = choice?.message;
                 lastFinishReason = choice?.finish_reason ?? null;
