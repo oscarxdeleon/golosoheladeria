@@ -71,7 +71,9 @@ interface BotConfigRow {
   ai_sandbox_numbers: string[];
   ai_system_prompt: string | null;
   ai_last_reply_at: string | null;
+  chatbot_mode?: "full" | "welcome_only" | "disabled";
 }
+
 
 
 interface BranchRow { id: string; name: string; slug: string | null; }
