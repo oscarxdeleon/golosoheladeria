@@ -1262,6 +1262,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                         items.push(newItem);
                       }
                       const r = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: { items } });
+                      // Producto agregado con éxito → limpiamos el "producto en
+                      // configuración" para no bloquear la siguiente elección
+                      // del cliente.
+                      if (r.ok) {
+                        void callRpc("whatsapp_bot_ai_cart_upsert", {
+                          _token: token, _phone: from,
+                          _patch: { pending_product: null },
+                        });
+                      }
                       return r.ok
                         ? { ok: true, deduped: existingIdx >= 0, cart: r.data }
                         : { error: "add_failed", detail: r.data };
