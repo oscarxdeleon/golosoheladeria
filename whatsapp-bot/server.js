@@ -899,7 +899,7 @@ function normalizeOutboundTarget(raw) {
 
 async function reportOutboundPoll(status, count = 0, error = null) {
   try {
-    await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+    await fetchWithTimeout(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -910,7 +910,7 @@ async function reportOutboundPoll(status, count = 0, error = null) {
         pollCount: count,
         error,
       }),
-    });
+    }, STATUS_PUSH_TIMEOUT_MS);
   } catch (e) {
     logger.warn({ err: String(e) }, "poll status report failed");
   }
@@ -953,7 +953,7 @@ async function pollOutbound() {
     let lastErr = null;
     for (const item of pending) {
       const jid = normalizeOutboundTarget(item.to);
-      if (!to || !item.body) { failed.push(item.id); continue; }
+      if (!jid || !item.body) { failed.push(item.id); continue; }
       try {
         if (jid.endsWith("@s.whatsapp.net")) {
           const exists = await withTimeout(currentSock.onWhatsApp(jid).catch(() => null), 10_000, "Validar número de WhatsApp");
