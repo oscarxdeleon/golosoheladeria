@@ -1301,37 +1301,42 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   return `Entendido, cancelé ese pedido en preparación. 🍦\n\nSi quieres, empezamos de nuevo: dime qué producto deseas y lo armamos paso a paso.`;
                 }
 
-                const patch: Record<string, unknown> = {};
-                const orderType = detectOrderType(text);
-                const payment = detectPayment(text);
-                const customerName = extractCustomerName(text);
-                const address = extractAddress(text);
-                const neighborhood = extractNeighborhood(text);
+                // 🔥 EXTRACTOR MULTI-ENTIDAD: en un solo pase captura TODO lo
+                // que el cliente envió junto ("Oscar, Calle 9 #14-59, Bello
+                // Horizonte, Nequi" → nombre + dirección + barrio + pago).
+                // Antes se procesaba una entidad por turno con else if y por
+                // eso el bot volvía a pedir dirección/barrio/pago aunque ya
+                // los tuviera. Ahora los detectores corren en paralelo sobre
+                // el texto completo Y sobre cada segmento separado por
+                // comas/saltos.
+                const extracted = extractAllEntitiesFromText(text);
+                const patch: Record<string, unknown> = { ...extracted };
                 const currentMissing = missingCartFields(currentCart);
 
-                if (orderType) patch.order_type = orderType;
-                if (payment) patch.payment_method = payment;
-                if (customerName && customerName.length >= 2) patch.customer_name = customerName;
-                if (address && address.length >= 3) patch.delivery_address = address;
-                if (neighborhood && neighborhood.length >= 2) patch.delivery_neighborhood = neighborhood;
-
-                // Si hay un carrito en curso y el bot acaba de preguntar por un
-                // dato específico, el cliente muchas veces contesta solo el dato:
-                // "Oscar Deleon", "Cra 10 # 5-20" o "San Fernando". Antes esas
-                // respuestas caían a la IA/fallback y el flujo volvía a "¿Qué te
-                // provoca pedir?". Aquí avanzamos el estado de forma determinística.
-                if (currentItems.length > 0) {
-                  if (!patch.customer_name && currentMissing.includes("nombre") && looksLikeBareCustomerName(text)) {
-                    patch.customer_name = text.trim().replace(/\s+/g, " ");
-                  } else if (!patch.delivery_address && currentMissing.includes("dirección") && looksLikeBareAddress(text)) {
-                    patch.delivery_address = text.trim().replace(/\s+/g, " ");
-                  } else if (!patch.delivery_neighborhood && currentMissing.includes("barrio") && looksLikeBareNeighborhood(text)) {
-                    patch.delivery_neighborhood = text.trim().replace(/\s+/g, " ");
+                // Si hay carrito activo y el cliente responde con UN dato
+                // pelado que responde a lo que estábamos preguntando (nombre,
+                // dirección o barrio), el extractor multi-entidad ya lo captó.
+                // Solo faltaría el caso extremo en que la respuesta corta no
+                // pasó ninguna heurística pero sí lo estábamos preguntando:
+                // aquí caemos a asumir que es respuesta directa al último
+                // hueco pendiente.
+                if (currentItems.length > 0 && !patch.customer_name && !patch.delivery_address && !patch.delivery_neighborhood) {
+                  const t = text.trim().replace(/\s+/g, " ");
+                  if (currentMissing[0] === "nombre" && looksLikeBareCustomerName(t)) {
+                    patch.customer_name = t;
+                  } else if (currentMissing[0] === "dirección" && looksLikeBareAddress(t)) {
+                    patch.delivery_address = t;
+                  } else if (currentMissing[0] === "barrio" && looksLikeBareNeighborhood(t)) {
+                    patch.delivery_neighborhood = t;
                   }
                 }
-                if (orderType === "delivery" || (!orderType && (currentCart?.order_type ?? "delivery") === "delivery")) {
+
+                const finalOrderType = String(patch.order_type ?? currentCart?.order_type ?? "delivery");
+                if (finalOrderType === "delivery") {
                   patch.delivery_fee = Number(orderCfg?.delivery_fee ?? currentCart?.delivery_fee ?? 0);
                 }
+
+
 
                 // IMPORTANTE: NO agregamos productos al carrito desde esta
                 // ruta operativa. Un match por texto no basta: los productos
