@@ -276,6 +276,22 @@ function findRequestedProduct(products: ProductLite[], input: string) {
     .sort((a, b) => b.score - a.score || String(a.product.name ?? "").localeCompare(String(b.product.name ?? "")))[0]?.product ?? null;
 }
 
+function hasCurrentTurnProductEvidence(input: string, productName: string) {
+  const normalized = normalizeText(input);
+  const productWords = textTokens(productName)
+    .filter((word) => word.length >= 4 && !["sabor", "sabores", "helado", "helados", "goloso"].includes(word));
+  const hasSpecificProductWord = productWords.some((word) => normalized.includes(word));
+  const hasGenericOrderWord = /\b(cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
+  const hasOrderVerb = /\b(quiero|dame|deme|pedir|pedido|comprar|agrega|agregar|añade|añadir|anota|llevar|domicilio|recoger)\b/.test(normalized);
+  return (hasSpecificProductWord || hasGenericOrderWord) && hasOrderVerb;
+}
+
+function isGeneralHelpTurn(input: string) {
+  const normalized = normalizeText(input);
+  return /\b(hola|buenas|buenos dias|buenas tardes|buenas noches|menu|menú|carta|catalogo|catálogo|precio|precios|horario|abren|cierran|ubicacion|ubicación|direccion|dirección|domicilio|domicilios|foto|fotos|cremas|pagar|pago|transferencia|efectivo|nequi|bancolombia)\b/.test(normalized)
+    && !/\b(confirmo|confirmar|si|sí|dale|listo|agrega|agregar|añade|añadir|quita|quitar|cancela|cancelar|nombre|barrio)\b/.test(normalized);
+}
+
 function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number) => string) {
   const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
   const lines = items.map((item) => {
@@ -844,6 +860,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdRaw);
                       const modifiersArr = Array.isArray(args.modifiers) ? (args.modifiers as Array<Record<string, unknown>>) : [];
 
+                      if (!productName || !hasCurrentTurnProductEvidence(text, productName)) {
+                        return {
+                          error: "product_not_requested_in_current_turn",
+                          message: "No agregues productos si el cliente no los pidió claramente en ESTE mensaje. Responde la pregunta o pide que indique el producto exacto.",
+                          product_name: productName,
+                        };
+                      }
+
                       // 🛡️ GUARDIA DURA DE MODIFICADORES OBLIGATORIOS.
                       // Si el producto tiene grupos de modificadores REQUERIDOS
                       // (sabores, tamaños, toppings obligatorios) y la IA no
@@ -1019,6 +1043,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const hasCart = currentItems.length > 0;
                 const looksLikeOrderTurn = hasPatch || hasCart;
                 if (!looksLikeOrderTurn) return null;
+
+                if (hasCart && !hasPatch && isGeneralHelpTurn(text)) {
+                  return null;
+                }
 
                 let cart = currentCart;
                 if (hasPatch) {
