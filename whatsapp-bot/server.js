@@ -1240,8 +1240,15 @@ function listenOnAvailablePort(server, port, remainingAttempts) {
 
 async function main() {
   if (!acquireInstanceLock()) {
-    setInterval(() => {}, 60_000);
-    return;
+    for (let attempt = 1; attempt <= 12; attempt += 1) {
+      await wait(5_000);
+      if (acquireInstanceLock()) break;
+      logger.warn({ attempt }, "duplicate lock still active; waiting before exit");
+    }
+    if (!readInstanceLock() || readInstanceLock()?.instanceId !== INSTANCE_ID) {
+      logger.error("No se pudo tomar el candado local; saliendo para que PM2 intente de nuevo después");
+      process.exit(1);
+    }
   }
   console.log(`\n🍨 Goloso WhatsApp Bot`);
   console.log(`   Versión : ${BOT_VERSION}`);
@@ -1291,6 +1298,15 @@ async function main() {
       state.detail = "Se detectó la conexión interna cerrada. Reconectando automáticamente sin borrar el QR.";
       pushStatus();
       scheduleReconnect(1500, "watchdog_closed_ws");
+    }
+    if (state.status === "connected" && now - lastBaileysEventAt > 15 * 60_000) {
+      logger.warn({ lastBaileysEventAt }, "watchdog: WhatsApp conectado pero sin eventos recientes; reconectando preventivamente");
+      try { currentSock?.ws?.close?.(); } catch { /* noop */ }
+      currentSock = null;
+      state.status = "connecting";
+      state.detail = "Reconectando automáticamente para mantener la recepción de mensajes activa.";
+      pushStatus();
+      scheduleReconnect(1500, "watchdog_stale_baileys_events");
     }
   }, WATCHDOG_INTERVAL_MS);
 
