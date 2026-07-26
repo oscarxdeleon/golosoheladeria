@@ -141,11 +141,12 @@ function selectRelevantProducts<T extends { name?: string; category?: string | n
     .map((item) => item.product);
 }
 
-function operationalReply(menuLink: string, takingOrders = false) {
+function operationalReply(menuLink: string, takingOrders = false, branchName?: string) {
+  const sede = branchName ? ` (${branchName})` : "";
   if (takingOrders) {
-    return `¡Perfecto! Soy Golosito y te tomo el pedido por aquí. 🍦\n\nPara avanzarlo, dime en un solo mensaje:\n• Producto y sabor\n• Cantidad\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nSi quieres mirar fotos y precios, también está el menú aquí 👉 ${menuLink}`;
+    return `¡Hola!${sede} 🍦 Cuéntame qué te provoca y lo pedimos.\n\nMenú 👉 ${menuLink}`;
   }
-  return `¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
+  return `¡Hola!${sede} 🍦 Mira el menú y pide en un minuto 👉 ${menuLink}`;
 }
 
 const PUBLIC_MENU_BASE = "https://golosoheladeria.vercel.app";
