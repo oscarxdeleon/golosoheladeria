@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.20.7"
+BOT_VERSION="8.20.8"
 BASE_URL="https://golosoheladeria.lovable.app"
 FALLBACK_BASE_URL="https://golosoheladeria.vercel.app"
 UPDATE_URL="${BASE_URL}/downloads/update-linux.sh?v=${BOT_VERSION}"
-ZIP_URL="${BASE_URL}/downloads/golosito-v8.20.7.zip"
+ZIP_URL="${BASE_URL}/downloads/golosito-v8.20.8.zip"
 FALLBACK_UPDATE_URL="${FALLBACK_BASE_URL}/downloads/update-linux.sh?v=${BOT_VERSION}"
-FALLBACK_ZIP_URL="${FALLBACK_BASE_URL}/downloads/golosito-v8.20.7.zip"
+FALLBACK_ZIP_URL="${FALLBACK_BASE_URL}/downloads/golosito-v8.20.8.zip"
 
 need_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -129,6 +129,6 @@ done
 
 echo ""
 echo "✅ Listo. Verifica con:"
-echo "   curl -s http://localhost:8791/status.json | grep version"
-echo "   curl -s http://localhost:8792/status.json | grep version"
+echo "   curl -s http://localhost:8790/status.json | grep version   # Santa"
+echo "   curl -s http://localhost:8791/status.json | grep version   # Parque"
 echo "   pm2 list"
