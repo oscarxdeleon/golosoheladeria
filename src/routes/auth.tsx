@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import logoUrl from "@/assets/logo-goloso.webp";
 
 import { useEffect, useState } from "react";
@@ -30,6 +30,7 @@ const schema = z.object({
 });
 
 function AuthPage() {
+  const navigate = useNavigate();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -37,10 +38,12 @@ function AuthPage() {
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
     supabase.auth.getSession().then(({ data }) => {
-      if (data.session) window.location.replace("/");
+      if (!cancelled && data.session) navigate({ to: "/", replace: true });
     });
-  }, []);
+    return () => { cancelled = true; };
+  }, [navigate]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -66,9 +69,10 @@ function AuthPage() {
         const { error } = await supabase.auth.signInWithPassword({ email, password });
         if (error) throw error;
       }
-      window.location.replace("/");
+      navigate({ to: "/", replace: true });
     } catch (err) {
       const message = err instanceof Error ? err.message : "Error de autenticación";
+
       // Registrar intento fallido (best-effort; nunca bloquea el flujo)
       try {
         await supabase.rpc("log_failed_login", {

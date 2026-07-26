@@ -15,11 +15,17 @@ import mascotTriggerAsset from "@/assets/goloso-mascot-trigger.webp";
 export const Route = createFileRoute("/_authenticated")({
   ssr: false,
   beforeLoad: async () => {
-    const { data, error } = await supabase.auth.getUser();
-    if (error || !data.user) {
+    // Usamos getSession() (lectura local de localStorage) en vez de getUser()
+    // (round-trip de red). getUser() falla transientemente cuando el token
+    // necesita refresh o la red parpadea, lo que producía un bucle de
+    // redirección /auth → / → /dashboard → /auth con parpadeo visible.
+    // La ruta ya es ssr:false, así que localStorage es fuente de verdad.
+    // Los RPC y RLS siguen validando el JWT del lado del servidor.
+    const { data } = await supabase.auth.getSession();
+    if (!data.session?.user) {
       throw redirect({ to: "/auth" });
     }
-    return { user: data.user };
+    return { user: data.session.user };
   },
   component: AuthedLayout,
 });
