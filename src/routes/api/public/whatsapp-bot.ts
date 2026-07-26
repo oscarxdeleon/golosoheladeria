@@ -160,14 +160,11 @@ function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
 
 function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false) {
   if (!takingOrders) return operationalReply(menuLink, false);
-  const normalized = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const productHints = ["banana split", "ensalada de frutas", "brownie", "helado", "malteada", "jugo", "waffle", "cholado", "fresas", "copa", "cono", "vaso"];
-  const detected = productHints.find((hint) => normalized.includes(hint));
-  if (detected) {
-    return `¡Perfecto! Soy Golosito y te ayudo con tu pedido. 🍦\n\nTengo anotado que quieres ${detected}.\n\nPara completarlo, por favor envíame:\n• Cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nTambién puedes ver el menú con fotos y precios aquí 👉 ${menuLink}`;
-  }
+  // IMPORTANTE: NO afirmamos que un producto "quedó anotado" solo por detectar
+  // una palabra clave. El pedido solo existe cuando la IA lo agrega vía tools
+  // con modificadores y el cliente confirma explícitamente.
   if (hasHistory) {
-    return `Te sigo ayudando con tu pedido. 🍦\n\nPara poder registrarlo bien, envíame lo que falte:\n• Producto y cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio, o si es para recoger\n• Pago: efectivo o transferencia\n\nMenú con fotos y precios 👉 ${menuLink}`;
+    return `Sigo contigo. 🍦\n\nPara armar tu pedido, cuéntame:\n• Qué producto quieres y cuántos\n• Sabor o presentación (si aplica)\n• Nombre\n• Dirección y barrio, o si prefieres recoger\n• Pago: efectivo o transferencia\n\nMenú con fotos y precios 👉 ${menuLink}`;
   }
   return operationalReply(menuLink, true);
 }
@@ -764,10 +761,18 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 orderCfg?.zones ? `- Zonas de cobertura: ${orderCfg.zones}` : "",
                 orderCfg?.transfer_info ? `- Datos de transferencia (compártelos SOLO si el cliente elige transferir): ${orderCfg.transfer_info}` : "",
                 "",
+                "🛑 REGLAS DURAS ANTIRRIESGO (violarlas rechaza la venta):",
+                "- NO registres, agregues ni asumas NINGÚN producto por iniciativa propia. Solo agregas al carrito lo que el cliente pidió con palabras claras.",
+                "- NO uses add_to_cart hasta que el cliente diga QUÉ producto quiere Y hayas confirmado con él TODOS los modificadores obligatorios (sabor, tamaño, toppings requeridos). Si el producto tiene grupos requeridos y no tienes las opciones elegidas por el cliente, get_modifiers primero y pregúntale con lista clara: 'Para el/la X, ¿qué [sabor/tamaño] eliges? Tenemos: A, B, C'.",
+                "- NUNCA elijas un modificador por el cliente. Si duda, ofrece las opciones y espera su respuesta.",
+                "- Si el cliente solo saluda, pregunta precios o pide el menú, NO llames add_to_cart. Responde y espera a que él pida.",
+                "- Un mensaje ambiguo (\"quiero algo rico\", \"lo de siempre\", \"un helado\") NO es un pedido: pide especificación antes de tocar el carrito.",
+                "- Solo llama confirm_order cuando el cliente diga explícitamente SÍ/CONFIRMO/DALE tras ver el resumen completo. Un simple \"ok\" o \"listo\" a media conversación NO confirma.",
+                "",
                 "PROTOCOLO OBLIGATORIO PARA TOMAR PEDIDOS:",
                 "1) Usa search_products para encontrar el producto exacto que pide el cliente (no inventes precios).",
-                "2) Si el producto tiene grupos de modificadores (sabores, toppings, etc.), llama get_modifiers y ofrece SOLO las opciones que devuelve.",
-                "3) Cuando tengas producto+modificadores+cantidad, llama add_to_cart. Repite hasta armar el pedido completo.",
+                "2) Si el producto tiene grupos de modificadores, llama get_modifiers, muéstrale al cliente SOLO esas opciones y espera su elección. NO asumas ni pongas por defecto.",
+                "3) Cuando tengas producto+modificadores CONFIRMADOS por el cliente+cantidad, llama add_to_cart. Si el servidor responde 'missing_required_modifiers', significa que faltó preguntar: hazlo y vuelve a intentar.",
                 "4) Pregunta y guarda con set_delivery_info los datos EN ESTE ORDEN, SIN OMITIR NINGUNO:",
                 "   a) NOMBRE del cliente (OBLIGATORIO — SIEMPRE pregunta primero '¿A nombre de quién registro el pedido?' y NO continues con dirección/barrio/pago hasta tenerlo).",
                 "   b) Dirección completa.",
@@ -823,6 +828,49 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       const productIdRaw = args.product_id != null ? String(args.product_id).trim() : "";
                       const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdRaw);
                       const modifiersArr = Array.isArray(args.modifiers) ? (args.modifiers as Array<Record<string, unknown>>) : [];
+
+                      // 🛡️ GUARDIA DURA DE MODIFICADORES OBLIGATORIOS.
+                      // Si el producto tiene grupos de modificadores REQUERIDOS
+                      // (sabores, tamaños, toppings obligatorios) y la IA no
+                      // envió al menos min_select opciones por grupo, rechazamos
+                      // el add_to_cart y forzamos a la IA a preguntar al cliente.
+                      // Esto evita que se registren productos "asumidos" sin
+                      // sabor/tamaño confirmado por el cliente.
+                      if (isValidUuid) {
+                        const modsRes = await callRpc("whatsapp_bot_ai_get_modifiers", { _token: token, _product_id: productIdRaw });
+                        const modGroups = Array.isArray(modsRes.data) ? (modsRes.data as Array<Record<string, unknown>>) : [];
+                        const requiredGroups = modGroups.filter((g) => g && (g.required === true || Number(g.min_select ?? 0) > 0));
+                        if (requiredGroups.length > 0) {
+                          const providedNames = new Set(
+                            modifiersArr
+                              .map((m) => String(m?.name ?? "").trim().toLowerCase())
+                              .filter(Boolean)
+                          );
+                          const missingGroups: Array<{ group_name: string; min_select: number; options: string[] }> = [];
+                          for (const g of requiredGroups) {
+                            const opts = Array.isArray(g.options) ? (g.options as Array<Record<string, unknown>>) : [];
+                            const optNames = opts.map((o) => String(o?.name ?? "").trim()).filter(Boolean);
+                            const minSel = Math.max(1, Number(g.min_select ?? 1) || 1);
+                            const matched = optNames.filter((n) => providedNames.has(n.toLowerCase())).length;
+                            if (matched < minSel) {
+                              missingGroups.push({
+                                group_name: String(g.group_name ?? "Modificador"),
+                                min_select: minSel,
+                                options: optNames,
+                              });
+                            }
+                          }
+                          if (missingGroups.length > 0) {
+                            return {
+                              error: "missing_required_modifiers",
+                              message: "No agregues este producto todavía. Primero pregúntale al cliente qué elige en cada grupo obligatorio y llama add_to_cart con esas opciones en 'modifiers'. NO inventes ni asumas opciones.",
+                              product_name: productName,
+                              required_groups: missingGroups,
+                            };
+                          }
+                        }
+                      }
+
                       const modKey = modifiersArr
                         .map((m) => String(m?.id ?? m?.name ?? "").trim().toUpperCase())
                         .filter(Boolean)
@@ -940,30 +988,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   patch.delivery_fee = Number(orderCfg?.delivery_fee ?? currentCart?.delivery_fee ?? 0);
                 }
 
-                const product = findRequestedProduct(allProducts, text);
-                if (product?.name && typeof product.price === "number") {
-                  const qty = parseQuantity(text);
-                  const productId = typeof product.id === "string" ? product.id : null;
-                  const itemKey = productId ?? product.name.toUpperCase();
-                  const keyOf = (item: Record<string, unknown>) => String(item.product_id ?? item.product_name ?? "").toUpperCase();
-                  const nextItems = [...currentItems];
-                  const nextItem = {
-                    product_id: productId,
-                    product_name: product.name,
-                    unit_price: Number(product.price),
-                    qty,
-                    modifiers: [],
-                    notes: null,
-                  };
-                  const idx = nextItems.findIndex((item) => keyOf(item) === itemKey.toUpperCase());
-                  if (idx >= 0) nextItems[idx] = nextItem;
-                  else nextItems.push(nextItem);
-                  patch.items = nextItems;
-                }
+                // IMPORTANTE: NO agregamos productos al carrito desde esta
+                // ruta operativa. Un match por texto no basta: los productos
+                // pueden tener sabores/modificadores obligatorios y el cliente
+                // debe elegirlos. Los productos SOLO entran al carrito vía
+                // add_to_cart llamado por la IA tras validar modificadores.
 
                 const hasPatch = Object.keys(patch).length > 0;
                 const hasCart = currentItems.length > 0;
-                const looksLikeOrderTurn = hasPatch || hasCart || /\b(quiero|dame|deme|pedido|pedir|domicilio|recoger|confirmo|confirmar|si|sí|banana|helado|malteada|jugo|waffle|brownie|ensalada|cholado|fresas|copa|cono|vaso)\b/.test(normalized);
+                const looksLikeOrderTurn = hasPatch || hasCart;
                 if (!looksLikeOrderTurn) return null;
 
                 let cart = currentCart;
@@ -973,9 +1006,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
 
                 const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+                // Sin items no hay pedido para resumir/confirmar: dejamos que la
+                // IA guíe al cliente (search_products → get_modifiers → add_to_cart).
+                if (items.length === 0) return null;
+
                 const effectiveOrderType = String(cart?.order_type ?? patch.order_type ?? "delivery");
                 const missing: string[] = [];
-                if (items.length === 0) missing.push("producto y cantidad");
                 if (!String(cart?.customer_name ?? "").trim()) missing.push("nombre");
                 if (effectiveOrderType === "delivery") {
                   if (!String(cart?.delivery_address ?? "").trim()) missing.push("dirección");
@@ -983,30 +1019,14 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
                 if (!String(cart?.payment_method ?? "").trim()) missing.push("método de pago");
 
-                if (isConfirmation(text) && missing.length === 0) {
-                  const confirm = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
-                  if (confirm.ok && confirm.data && typeof confirm.data === "object") {
-                    const confirmed = confirm.data as Record<string, unknown>;
-                    const number = String(confirmed.order_number ?? confirmed.ticket_number ?? "").trim();
-                    return number
-                      ? `Tu pedido quedó registrado con el nº ${number}. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.`
-                      : "Tu pedido quedó registrado. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.";
-                  }
-                }
-
-                if (items.length > 0) {
+                // La confirmación SIEMPRE pasa por la IA (tool confirm_order),
+                // que aplica guardias completas (nombre, modificadores, etc.).
+                // Aquí solo mostramos avance/resumen si falta info.
+                if (missing.length > 0) {
                   const summary = summarizeCart(cart, fmtCOP);
-                  if (missing.length > 0) {
-                    return `¡Perfecto! Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
-                  }
-                  return `Tengo listo este resumen:\n\n${summary}\n\n¿Confirmas el pedido?`;
+                  return `Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
                 }
-
-                if (product === null && /\b(quiero|dame|deme|pedido|pedir|domicilio|recoger)\b/.test(normalized)) {
-                  return fallbackOrderReply(text, menuLink, true, history.length > 0);
-                }
-
-                return null;
+                return null; // datos completos: la IA cierra con el cliente
               };
 
               const operationalOrderReply = await buildOperationalOrderReply();
