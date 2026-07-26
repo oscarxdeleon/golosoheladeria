@@ -3247,7 +3247,7 @@ export type Database = {
           branch_id: string
           greeted_date: string
           last_after_hours_at: string | null
-          last_greeted_at: string
+          last_greeted_at: string | null
           last_menu_at: string | null
           last_msg_idx: number | null
           phone: string
@@ -3256,7 +3256,7 @@ export type Database = {
           branch_id: string
           greeted_date?: string
           last_after_hours_at?: string | null
-          last_greeted_at?: string
+          last_greeted_at?: string | null
           last_menu_at?: string | null
           last_msg_idx?: number | null
           phone: string
@@ -3265,7 +3265,7 @@ export type Database = {
           branch_id?: string
           greeted_date?: string
           last_after_hours_at?: string | null
-          last_greeted_at?: string
+          last_greeted_at?: string | null
           last_menu_at?: string | null
           last_msg_idx?: number | null
           phone?: string
