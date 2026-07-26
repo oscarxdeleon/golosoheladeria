@@ -1222,6 +1222,19 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
                 const hasPatch = Object.keys(patch).length > 0;
                 const hasCart = currentItems.length > 0;
+
+                // 🧠 MEMORIA CONVERSACIONAL: aunque no exista carrito, si el
+                // cliente ya nos dio datos de contacto/entrega, los persistimos
+                // en un carrito "vacío" (sin items) para que en el próximo turno
+                // la IA los vea y no vuelva a preguntarlos. Esto elimina el
+                // bucle "para registrarlo me falta dirección, barrio y pago".
+                if (hasPatch && !hasCart) {
+                  await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: patch });
+                  // No devolvemos respuesta: dejamos que la IA continúe con
+                  // el contexto enriquecido en el próximo turno o en este mismo.
+                  return null;
+                }
+
                 const looksLikeOrderTurn = hasPatch || hasCart;
                 if (!looksLikeOrderTurn) return null;
 
