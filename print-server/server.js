@@ -1058,9 +1058,9 @@ async function buildPaymentReceiptRaw(p) {
   out += ALIGN_L + FEED(3) + CUT;
 
   const textBuf = encodeEscPos(out);
-  if (!logoBuf) return textBuf;
-  return Buffer.concat([logoBuf, textBuf]);
+  return textBuf;
 }
+
 
 // Formato de moneda estable para el comprobante (evita depender de Intl en
 // impresoras cuyo entorno Node no incluye datos de locale es-CO).
