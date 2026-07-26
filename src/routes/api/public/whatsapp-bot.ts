@@ -167,12 +167,13 @@ function selectRelevantProducts<T extends { name?: string; category?: string | n
     .map((item) => item.product);
 }
 
-function operationalReply(menuLink: string, takingOrders = false, branchName?: string) {
-  const sede = branchName ? ` (${branchName})` : "";
+function operationalReply(menuLink: string, takingOrders = false, _branchName?: string) {
+  // Nunca exponemos el nombre interno de la sede al cliente en el saludo.
+  // El nombre se usa solo internamente para menú/horarios/config.
   if (takingOrders) {
-    return `¡Hola!${sede} 🍦 Cuéntame qué te provoca y lo pedimos.\n\nMenú 👉 ${menuLink}`;
+    return `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Cuéntame qué te provoca y lo pedimos.\n\nMenú 👉 ${menuLink}`;
   }
-  return `¡Hola!${sede} 🍦 Mira el menú y pide en un minuto 👉 ${menuLink}`;
+  return `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}`;
 }
 
 const PUBLIC_MENU_BASE = "https://golosoheladeria.vercel.app";
@@ -542,7 +543,7 @@ function shortCircuitReply(input: string, menuLink: string, branchName?: string)
     return { reply: "", event: null };
   }
 
-  const sede = branchName ? ` (${branchName})` : "";
+  // El nombre de la sede es interno; nunca se muestra al cliente.
 
   // Pedido de menú → link directo.
   if (/\b(menu|menú|carta|catalogo|catálogo|precios|lista)\b/.test(normalized)) {
@@ -555,7 +556,7 @@ function shortCircuitReply(input: string, menuLink: string, branchName?: string)
   // Saludos cortos → bienvenida breve.
   if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
     return {
-      reply: `¡Hola!${sede} 🍦 Mira el menú y pide en un minuto 👉 ${menuLink}`,
+      reply: `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}`,
       event: "welcome",
     };
   }
@@ -943,7 +944,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "- Confirma antes de asumir ('¿te confirmo con dos vasos?').",
                 "",
                 "PRIORIDAD #1 — MENÚ EN LÍNEA:",
-                `- Primera respuesta a un saludo/pregunta general: invita al menú en una línea. Ejemplo: 'Mira el menú y pide en un minuto 👉 ${menuLink}'`,
+                `- Primera respuesta a un saludo/pregunta general: da la bienvenida de forma cálida SIN mencionar el nombre interno de la sede e invita al menú en una línea. Ejemplo: '¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}'. NUNCA escribas el nombre técnico de la sede (por ejemplo 'GOLOSO SANTA', 'goloso-parque') al cliente.`,
                 "- No repitas el enlace en mensajes siguientes.",
                 "- Toma pedido por chat solo si el cliente lo pide explícitamente.",
                 "",
@@ -1099,7 +1100,32 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 return lines.join("\n");
               })();
 
-              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock;
+              // 🔒 BLOQUE DE PRODUCTO ACTIVO EN CONFIGURACIÓN
+              // Si el cliente ya eligió un producto y estamos preguntando sus
+              // modificadores (sabores/toppings/tamaño), el modelo DEBE
+              // continuar con ESE producto y NO ofrecer alternativas ni
+              // cambiar a otra línea (ej.: "Copa Queso" → NO ofrecer "Cono/Vaso").
+              const pendingProductBlock = (() => {
+                const pp = (preloadedCart && typeof preloadedCart === "object")
+                  ? (preloadedCart as Record<string, unknown>).pending_product as { id?: string; name?: string; price?: number } | null | undefined
+                  : null;
+                if (!pp || !pp.name) return "";
+                return [
+                  "",
+                  "════════ PRODUCTO ACTIVO EN CONFIGURACIÓN ════════",
+                  `El cliente YA eligió: "${pp.name}". Estás preguntando/confirmando sus modificadores (sabores, toppings, tamaño, cantidad).`,
+                  "REGLAS DURAS:",
+                  `- NO cambies el producto. Sigue siempre con "${pp.name}" hasta que se agregue al carrito o el cliente lo cancele explícitamente.`,
+                  "- NO ofrezcas presentaciones ni productos alternativos (por ejemplo NO preguntes '¿Cono o Vaso?' si el producto activo es una Copa/Ensalada/Banana Split/Malteada específica).",
+                  "- Interpreta las respuestas del cliente (sabores, toppings, cantidades, notas) SIEMPRE como parte de la configuración de ESTE producto.",
+                  "- Pregunta ÚNICAMENTE los modificadores obligatorios pendientes de ESTE producto, uno a la vez.",
+                  "- Cuando tengas todos los modificadores obligatorios elegidos por el cliente, llama add_to_cart con este product_id exacto.",
+                  `- product_id activo: ${pp.id ?? "(desconocido)"} · precio base: $${Math.round(Number(pp.price ?? 0)).toLocaleString("es-CO")}`,
+                  "════════════════════════════════════════════════════════════",
+                ].join("\n");
+              })();
+
+              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock + pendingProductBlock;
 
               // Herramientas expuestas a la IA (function calling)
               const orderingTools = orderingEnabled ? [
@@ -1121,7 +1147,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       return r.ok ? r.data : { error: "search_failed" };
                     }
                     case "get_modifiers": {
-                      const r = await callRpc("whatsapp_bot_ai_get_modifiers", { _token: token, _product_id: String(args.product_id ?? "") });
+                      const pid = String(args.product_id ?? "");
+                      const r = await callRpc("whatsapp_bot_ai_get_modifiers", { _token: token, _product_id: pid });
+                      // 🔒 Persistimos el "producto en configuración" para que
+                      // el próximo turno del modelo sepa que el cliente ya
+                      // eligió ESE producto y NO ofrezca alternativas
+                      // (por ejemplo, no cambiar "Copa Queso" por "Cono/Vaso"
+                      // al preguntar sabores).
+                      if (r.ok && pid) {
+                        const prod = allProducts.find((p) => String(p.id ?? "") === pid);
+                        if (prod?.name) {
+                          void callRpc("whatsapp_bot_ai_cart_upsert", {
+                            _token: token,
+                            _phone: from,
+                            _patch: { pending_product: { id: pid, name: String(prod.name), price: Number(prod.price ?? 0) } },
+                          });
+                        }
+                      }
                       return r.ok ? r.data : { error: "get_modifiers_failed" };
                     }
                     case "add_to_cart": {
@@ -1245,6 +1287,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                         items.push(newItem);
                       }
                       const r = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: { items } });
+                      // Producto agregado con éxito → limpiamos el "producto en
+                      // configuración" para no bloquear la siguiente elección
+                      // del cliente.
+                      if (r.ok) {
+                        void callRpc("whatsapp_bot_ai_cart_upsert", {
+                          _token: token, _phone: from,
+                          _patch: { pending_product: null },
+                        });
+                      }
                       return r.ok
                         ? { ok: true, deduped: existingIdx >= 0, cart: r.data }
                         : { error: "add_failed", detail: r.data };
