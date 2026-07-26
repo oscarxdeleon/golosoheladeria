@@ -417,7 +417,15 @@ function extractAllEntitiesFromText(input: string): Record<string, string> {
 }
 
 function isConfirmation(input: string) {
-  return /\b(si|sí|confirmo|confirmar|dale|listo|correcto|esta bien|está bien|ok|perfecto|hagale|hágale)\b/i.test(input);
+  // FSM Fase 1: confirmación estricta. Solo turnos CORTOS de puro asentimiento
+  // cuentan como confirmación. Frases largas ("necesito saber si abren")
+  // ya no disparan el cierre por accidente.
+  const normalized = normalizeText(input).trim();
+  if (!normalized) return false;
+  if (normalized.length > 40) return false;
+  if (/[?¿]/.test(input)) return false;
+  const pure = /^(si|sí|si por favor|si porfa|si porfis|sip|sipi|claro|claro que si|confirmo|confirmar|dale|listo|listo confirmo|correcto|esta bien|está bien|todo bien|ok|okay|okey|perfecto|hagale|hágale|de una|va|vale|listo dale|confirmado|confirmalo|confírmalo)$/i;
+  return pure.test(normalized);
 }
 
 function productScore(product: ProductLite, input: string) {
@@ -1299,6 +1307,42 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 if (currentItems.length > 0 && isCancelOrNegativeTurn(text)) {
                   await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
                   return `Entendido, cancelé ese pedido en preparación. 🍦\n\nSi quieres, empezamos de nuevo: dime qué producto deseas y lo armamos paso a paso.`;
+                }
+
+                // 🎯 FSM Fase 1 — Confirmación DETERMINISTA (sin LLM).
+                // Causa raíz del fallo histórico: el modelo, al recibir "sí" o
+                // "confirmo" con carrito completo, a veces respondía en texto en
+                // lugar de disparar la tool `confirm_order`. Resultado: bucle
+                // infinito de "confírmame para registrar". Aquí cerramos el
+                // pedido directamente contra el RPC cuando:
+                //   - hay items en el carrito,
+                //   - no faltan datos (nombre + dirección/barrio si delivery + pago),
+                //   - y el turno del cliente ES una confirmación pura.
+                if (
+                  currentItems.length > 0 &&
+                  missingCartFields(currentCart).length === 0 &&
+                  isConfirmation(text)
+                ) {
+                  const confirmRes = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
+                  if (confirmRes.ok) {
+                    const orderData = (confirmRes.data ?? {}) as Record<string, unknown>;
+                    const orderNumber =
+                      (orderData.order_number as string | number | undefined) ??
+                      (orderData.ticket_number as string | number | undefined) ??
+                      null;
+                    void logBotEvent(token, conversationId, from, "fsm_deterministic_confirm", {
+                      metadata: { orderNumber: orderNumber ?? null },
+                    });
+                    return orderNumber
+                      ? `Tu pedido quedó registrado con el nº ${orderNumber}. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.`
+                      : "Tu pedido quedó registrado. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.";
+                  }
+                  // Si falló el RPC, dejamos caer al flujo normal para que la IA
+                  // maneje el error con contexto (p.ej. minimum_amount).
+                  void logBotEvent(token, conversationId, from, "fsm_deterministic_confirm_failed", {
+                    ok: false,
+                    metadata: { detail: confirmRes.data },
+                  });
                 }
 
                 // 🔥 EXTRACTOR MULTI-ENTIDAD: en un solo pase captura TODO lo
