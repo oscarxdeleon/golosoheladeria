@@ -43,7 +43,7 @@ const STATUS_PUSH_TIMEOUT_MS = 8_000;
 const OUTBOUND_REQUEST_TIMEOUT_MS = 18_000;
 const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.6";
+const BOT_VERSION = "8.20.7";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
@@ -962,7 +962,14 @@ async function pollOutbound() {
     let lastErr = null;
     for (const item of pending) {
       const jid = normalizeOutboundTarget(item.to);
-      if (!jid || !item.body) { failed.push(item.id); continue; }
+      if (!jid || !item.body) {
+        failed.push(item.id);
+        lastErr = !jid
+          ? `Destino inválido para WhatsApp: ${String(item.to || "vacío").slice(0, 80)}`
+          : "Mensaje saliente vacío";
+        logger.warn({ err: lastErr, to: item.to }, "outbound item invalid");
+        continue;
+      }
       try {
         if (jid.endsWith("@s.whatsapp.net")) {
           const exists = await withTimeout(currentSock.onWhatsApp(jid).catch(() => null), 10_000, "Validar número de WhatsApp");
