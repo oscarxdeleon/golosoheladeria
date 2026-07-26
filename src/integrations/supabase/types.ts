@@ -2853,10 +2853,13 @@ export type Database = {
           delivery_neighborhood: string | null
           delivery_notes: string | null
           expires_at: string
+          fsm_state: string
           id: string
           items: Json
+          metadata: Json
           order_type: string
           payment_method: string | null
+          pending_product: Json | null
           phone: string
           posted_sale_id: string | null
           status: string
@@ -2874,10 +2877,13 @@ export type Database = {
           delivery_neighborhood?: string | null
           delivery_notes?: string | null
           expires_at?: string
+          fsm_state?: string
           id?: string
           items?: Json
+          metadata?: Json
           order_type?: string
           payment_method?: string | null
+          pending_product?: Json | null
           phone: string
           posted_sale_id?: string | null
           status?: string
@@ -2895,10 +2901,13 @@ export type Database = {
           delivery_neighborhood?: string | null
           delivery_notes?: string | null
           expires_at?: string
+          fsm_state?: string
           id?: string
           items?: Json
+          metadata?: Json
           order_type?: string
           payment_method?: string | null
+          pending_product?: Json | null
           phone?: string
           posted_sale_id?: string | null
           status?: string

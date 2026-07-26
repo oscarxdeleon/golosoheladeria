@@ -351,6 +351,71 @@ function looksLikeBareNeighborhood(input: string) {
   return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9'.\-\s]+$/.test(raw);
 }
 
+/**
+ * Extractor multi-entidad determinístico.
+ * Toma un mensaje completo (posiblemente con varios datos separados por
+ * coma / salto de línea / punto y coma) y devuelve TODOS los campos
+ * capturables en un solo pase. Elimina el bucle "para registrarlo me falta
+ * dirección, barrio" cuando el cliente ya envió todo junto.
+ */
+function extractAllEntitiesFromText(input: string): Record<string, string> {
+  const patch: Record<string, string> = {};
+  if (!input) return patch;
+
+  // 1) Detectores globales sobre el texto completo
+  const orderTypeAll = detectOrderType(input);
+  if (orderTypeAll) patch.order_type = orderTypeAll;
+  const paymentAll = detectPayment(input);
+  if (paymentAll) patch.payment_method = paymentAll;
+
+  // 2) Etiquetados explícitos (nombre:, dirección:, barrio:)
+  const nameLabeled = extractCustomerName(input);
+  if (nameLabeled && nameLabeled.length >= 2) patch.customer_name = nameLabeled.replace(/\s+/g, " ").trim();
+  const addrLabeled = extractAddress(input);
+  if (addrLabeled && addrLabeled.length >= 3) patch.delivery_address = addrLabeled.replace(/\s+/g, " ").trim();
+  const nbhLabeled = extractNeighborhood(input);
+  if (nbhLabeled && nbhLabeled.length >= 2) patch.delivery_neighborhood = nbhLabeled.replace(/\s+/g, " ").trim();
+
+  // 3) Segmentar por comas / saltos / punto y coma y aplicar heurísticas
+  //    "bare" a cada segmento por separado. Así "Oscar, Calle 9 #14-59,
+  //    Bello Horizonte, Nequi" captura nombre + dirección + barrio + pago
+  //    en un solo turno.
+  const segments = input
+    .split(/[\n;,]+/)
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+
+  for (const seg of segments) {
+    // dirección
+    if (!patch.delivery_address && looksLikeBareAddress(seg)) {
+      patch.delivery_address = seg.replace(/\s+/g, " ").trim();
+      continue;
+    }
+    // pago (por si vino como palabra suelta en un segmento)
+    if (!patch.payment_method) {
+      const p = detectPayment(seg);
+      if (p) { patch.payment_method = p; continue; }
+    }
+    // tipo pedido
+    if (!patch.order_type) {
+      const ot = detectOrderType(seg);
+      if (ot) { patch.order_type = ot; continue; }
+    }
+    // barrio (después de descartar dirección/pago)
+    if (!patch.delivery_neighborhood && looksLikeBareNeighborhood(seg)) {
+      patch.delivery_neighborhood = seg.replace(/\s+/g, " ").trim();
+      continue;
+    }
+    // nombre (solo si aún no lo tenemos y parece un nombre)
+    if (!patch.customer_name && looksLikeBareCustomerName(seg)) {
+      patch.customer_name = seg.replace(/\s+/g, " ").trim();
+      continue;
+    }
+  }
+
+  return patch;
+}
+
 function isConfirmation(input: string) {
   return /\b(si|sí|confirmo|confirmar|dale|listo|correcto|esta bien|está bien|ok|perfecto|hagale|hágale)\b/i.test(input);
 }
@@ -1236,37 +1301,42 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   return `Entendido, cancelé ese pedido en preparación. 🍦\n\nSi quieres, empezamos de nuevo: dime qué producto deseas y lo armamos paso a paso.`;
                 }
 
-                const patch: Record<string, unknown> = {};
-                const orderType = detectOrderType(text);
-                const payment = detectPayment(text);
-                const customerName = extractCustomerName(text);
-                const address = extractAddress(text);
-                const neighborhood = extractNeighborhood(text);
+                // 🔥 EXTRACTOR MULTI-ENTIDAD: en un solo pase captura TODO lo
+                // que el cliente envió junto ("Oscar, Calle 9 #14-59, Bello
+                // Horizonte, Nequi" → nombre + dirección + barrio + pago).
+                // Antes se procesaba una entidad por turno con else if y por
+                // eso el bot volvía a pedir dirección/barrio/pago aunque ya
+                // los tuviera. Ahora los detectores corren en paralelo sobre
+                // el texto completo Y sobre cada segmento separado por
+                // comas/saltos.
+                const extracted = extractAllEntitiesFromText(text);
+                const patch: Record<string, unknown> = { ...extracted };
                 const currentMissing = missingCartFields(currentCart);
 
-                if (orderType) patch.order_type = orderType;
-                if (payment) patch.payment_method = payment;
-                if (customerName && customerName.length >= 2) patch.customer_name = customerName;
-                if (address && address.length >= 3) patch.delivery_address = address;
-                if (neighborhood && neighborhood.length >= 2) patch.delivery_neighborhood = neighborhood;
-
-                // Si hay un carrito en curso y el bot acaba de preguntar por un
-                // dato específico, el cliente muchas veces contesta solo el dato:
-                // "Oscar Deleon", "Cra 10 # 5-20" o "San Fernando". Antes esas
-                // respuestas caían a la IA/fallback y el flujo volvía a "¿Qué te
-                // provoca pedir?". Aquí avanzamos el estado de forma determinística.
-                if (currentItems.length > 0) {
-                  if (!patch.customer_name && currentMissing.includes("nombre") && looksLikeBareCustomerName(text)) {
-                    patch.customer_name = text.trim().replace(/\s+/g, " ");
-                  } else if (!patch.delivery_address && currentMissing.includes("dirección") && looksLikeBareAddress(text)) {
-                    patch.delivery_address = text.trim().replace(/\s+/g, " ");
-                  } else if (!patch.delivery_neighborhood && currentMissing.includes("barrio") && looksLikeBareNeighborhood(text)) {
-                    patch.delivery_neighborhood = text.trim().replace(/\s+/g, " ");
+                // Si hay carrito activo y el cliente responde con UN dato
+                // pelado que responde a lo que estábamos preguntando (nombre,
+                // dirección o barrio), el extractor multi-entidad ya lo captó.
+                // Solo faltaría el caso extremo en que la respuesta corta no
+                // pasó ninguna heurística pero sí lo estábamos preguntando:
+                // aquí caemos a asumir que es respuesta directa al último
+                // hueco pendiente.
+                if (currentItems.length > 0 && !patch.customer_name && !patch.delivery_address && !patch.delivery_neighborhood) {
+                  const t = text.trim().replace(/\s+/g, " ");
+                  if (currentMissing[0] === "nombre" && looksLikeBareCustomerName(t)) {
+                    patch.customer_name = t;
+                  } else if (currentMissing[0] === "dirección" && looksLikeBareAddress(t)) {
+                    patch.delivery_address = t;
+                  } else if (currentMissing[0] === "barrio" && looksLikeBareNeighborhood(t)) {
+                    patch.delivery_neighborhood = t;
                   }
                 }
-                if (orderType === "delivery" || (!orderType && (currentCart?.order_type ?? "delivery") === "delivery")) {
+
+                const finalOrderType = String(patch.order_type ?? currentCart?.order_type ?? "delivery");
+                if (finalOrderType === "delivery") {
                   patch.delivery_fee = Number(orderCfg?.delivery_fee ?? currentCart?.delivery_fee ?? 0);
                 }
+
+
 
                 // IMPORTANTE: NO agregamos productos al carrito desde esta
                 // ruta operativa. Un match por texto no basta: los productos
