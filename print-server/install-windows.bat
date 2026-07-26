@@ -100,9 +100,13 @@ set "EXPECTED_VERSION=%EXPECTED_VERSION:"=%"
 
 timeout /t 3 /nobreak >nul
 echo Verificando version activa (esperada: %EXPECTED_VERSION%)...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$expected='%EXPECTED_VERSION%'; $ok=$false; for($i=0;$i -lt 10;$i++){ try { $h=Invoke-RestMethod http://localhost:3001/health -TimeoutSec 3; if($h.version -eq $expected){ Write-Host 'Print Server activo version' $h.version; $ok=$true; break } else { Write-Host ('Version actual ' + $h.version + ', esperando ' + $expected + '...'); Start-Sleep -Seconds 2 } } catch { Start-Sleep -Seconds 2 } }; if(-not $ok){ Write-Host '[ERROR] No se activo la version' $expected; exit 1 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$expected='%EXPECTED_VERSION%'; $ok=$false; $lastVer=''; for($i=0;$i -lt 15;$i++){ try { $h=Invoke-RestMethod http://localhost:3001/health -TimeoutSec 3; $lastVer=$h.version; if($h.version -eq $expected){ Write-Host 'Print Server activo version' $h.version; $ok=$true; break } else { Write-Host ('Version actual ' + $h.version + ', esperando ' + $expected + '...'); Start-Sleep -Seconds 2 } } catch { Start-Sleep -Seconds 2 } }; if(-not $ok){ Write-Host ('[ERROR] Version activa inesperada: ' + $lastVer); exit 1 }"
 if errorlevel 1 (
-  echo [ERROR] La version nueva no quedo activa. Reinicia el equipo y vuelve a ejecutar este instalador.
+  echo.
+  echo [ERROR] La version nueva no quedo activa. Otro proceso Print Server esta bloqueando el puerto 3001.
+  echo Soluciones:
+  echo   1^) Cierra sesion de Windows y vuelve a iniciarla, luego ejecuta este instalador otra vez.
+  echo   2^) O reinicia el equipo y ejecuta este instalador como Administrador ^(clic derecho ^> Ejecutar como administrador^).
   pause
   exit /b 1
 )
