@@ -1066,7 +1066,26 @@ async function startSocket() {
     };
     if (version) socketConfig.version = version;
     const sock = makeWASocket(socketConfig);
+    if (instanceRetired) {
+      try { sock.ws?.close?.(); } catch { /* noop */ }
+      return null;
+    }
     currentSock = sock;
+
+    sock.ws?.on?.("close", () => {
+      if (generation !== socketGeneration || instanceRetired) return;
+      markConnectionState("disconnected");
+      state.detail = "El WebSocket de WhatsApp se cerró. Reconectando automáticamente...";
+      if (currentSock === sock) currentSock = null;
+      pushStatus();
+      scheduleReconnect(2000, "websocket_close");
+    });
+
+    sock.ws?.on?.("error", (error) => {
+      if (generation !== socketGeneration || instanceRetired) return;
+      state.lastError = `WebSocket WhatsApp: ${error instanceof Error ? error.message : String(error)}`;
+      logger.warn({ err: state.lastError }, "whatsapp websocket error");
+    });
 
   sock.ev.on("creds.update", async (...args) => {
     if (generation !== socketGeneration) return;
