@@ -252,7 +252,8 @@ async function imageToEscPosRasterBase64(url: string, maxWidthPx = 384): Promise
 }
 
 async function withClientRasterLogo(payload: PrintPayload): Promise<PrintPayload> {
-  if (payload.logo_raster_base64 || payload.type === "comanda" || payload.type === "drawer") return payload;
+  // El comprobante de pagos electrónicos NUNCA lleva logo (por diseño).
+  if (payload.logo_raster_base64 || payload.type === "comanda" || payload.type === "drawer" || payload.type === "payment_receipt") return payload;
   const primary = payload.logo_url ? await imageToEscPosRasterBase64(payload.logo_url) : null;
   const fallback = !primary && payload.logo_fallback_url ? await imageToEscPosRasterBase64(payload.logo_fallback_url) : null;
   const logo_raster_base64 = primary ?? fallback ?? undefined;
