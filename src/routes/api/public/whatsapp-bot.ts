@@ -1577,7 +1577,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const lovableKey = process.env.LOVABLE_API_KEY;
               const geminiKey = process.env.GEMINI_API_KEY;
               if (!lovableKey && !geminiKey) {
-                const reply = fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
+                const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
@@ -1593,7 +1594,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const qData = Array.isArray(q.data) ? q.data[0] : q.data;
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
-                  const reply = fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
+                  const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
+                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
                   await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
                     ok: false,
                     metadata: qData ?? null,
@@ -1864,7 +1866,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
                 const progressReply = await buildOperationalOrderReply();
-                finalReply = progressReply ?? fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
+                finalReply = progressReply
+                  ?? buildActiveSessionFallback(preloadedCart, fmtCOP)
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
