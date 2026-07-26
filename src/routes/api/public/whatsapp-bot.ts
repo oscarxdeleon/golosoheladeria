@@ -1100,7 +1100,32 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 return lines.join("\n");
               })();
 
-              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock;
+              // 🔒 BLOQUE DE PRODUCTO ACTIVO EN CONFIGURACIÓN
+              // Si el cliente ya eligió un producto y estamos preguntando sus
+              // modificadores (sabores/toppings/tamaño), el modelo DEBE
+              // continuar con ESE producto y NO ofrecer alternativas ni
+              // cambiar a otra línea (ej.: "Copa Queso" → NO ofrecer "Cono/Vaso").
+              const pendingProductBlock = (() => {
+                const pp = (preloadedCart && typeof preloadedCart === "object")
+                  ? (preloadedCart as Record<string, unknown>).pending_product as { id?: string; name?: string; price?: number } | null | undefined
+                  : null;
+                if (!pp || !pp.name) return "";
+                return [
+                  "",
+                  "════════ PRODUCTO ACTIVO EN CONFIGURACIÓN ════════",
+                  `El cliente YA eligió: "${pp.name}". Estás preguntando/confirmando sus modificadores (sabores, toppings, tamaño, cantidad).`,
+                  "REGLAS DURAS:",
+                  `- NO cambies el producto. Sigue siempre con "${pp.name}" hasta que se agregue al carrito o el cliente lo cancele explícitamente.`,
+                  "- NO ofrezcas presentaciones ni productos alternativos (por ejemplo NO preguntes '¿Cono o Vaso?' si el producto activo es una Copa/Ensalada/Banana Split/Malteada específica).",
+                  "- Interpreta las respuestas del cliente (sabores, toppings, cantidades, notas) SIEMPRE como parte de la configuración de ESTE producto.",
+                  "- Pregunta ÚNICAMENTE los modificadores obligatorios pendientes de ESTE producto, uno a la vez.",
+                  "- Cuando tengas todos los modificadores obligatorios elegidos por el cliente, llama add_to_cart con este product_id exacto.",
+                  `- product_id activo: ${pp.id ?? "(desconocido)"} · precio base: $${Math.round(Number(pp.price ?? 0)).toLocaleString("es-CO")}`,
+                  "════════════════════════════════════════════════════════════",
+                ].join("\n");
+              })();
+
+              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock + pendingProductBlock;
 
               // Herramientas expuestas a la IA (function calling)
               const orderingTools = orderingEnabled ? [
