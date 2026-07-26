@@ -528,6 +528,24 @@ function buildCartProgressReply(cart: CartRecord, fmtCOP: (n: number) => string,
   return `${prefix}${summary}\n\n${name ? `${name}, ` : ""}¿confirmas el pedido?`;
 }
 
+function buildActiveSessionFallback(cart: CartRecord, fmtCOP: (n: number) => string) {
+  if (hasCartItems(cart)) {
+    return buildCartProgressReply(cart, fmtCOP, "Sigo con tu pedido en curso.")
+      ?? "Sigo con tu pedido en curso. 🍦 ¿Confirmas para registrarlo?";
+  }
+  if (hasPendingProduct(cart)) {
+    const pending = cart?.pending_product as Record<string, unknown>;
+    const productName = String(pending?.name ?? "ese producto").trim() || "ese producto";
+    return `Sigo con ${productName}. 🍦 ¿Qué sabor, topping o detalle quieres agregarle?`;
+  }
+  if (hasSessionData(cart)) {
+    const missing = missingCartFields(cart);
+    if (missing.length > 0) return `Sigo con tu pedido. 🍦 Me falta ${missing[0]}.`;
+    return "Sigo con tu pedido. 🍦 Dime qué producto deseas agregar.";
+  }
+  return null;
+}
+
 async function persistCartPatch(token: string, phone: string, patch: Record<string, unknown>) {
   const first = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: phone, _patch: patch });
   if (!first.ok || !first.data || typeof first.data !== "object") return first;
