@@ -998,63 +998,61 @@ async function buildRaw(p) {
 async function buildPaymentReceiptRaw(p) {
   let out = INIT + CODEPAGE + INTL_CHARSET;
 
-  // Sin logo: el comprobante de pago electrónico debe ser lo más compacto
-  // posible. Arranca directo con el encabezado de texto de la sede.
-
-  // Encabezado (nombre de la sede)
-  out += ALIGN_C + BOLD_ON;
-  const business = String(p.business_name || "HELADERIA GOLOSO").toUpperCase();
-  for (const line of wrapText(business, WIDTH)) out += line.trim() + "\n";
-  out += BOLD_OFF;
-  if (p.nit) out += "NIT: " + String(p.nit).trim() + "\n";
-
-
-  out += ALIGN_L + DASH_LINE;
-
-  // Título grande "COMPROBANTE DE PAGO"
+  // Sin logo. Encabezado: SOLO el nombre de la sede (sin NIT/dirección/teléfono).
+  // Documento de control interno para conciliación de pagos electrónicos —
+  // no es factura ni ticket de venta, así que se omite todo dato tributario.
   out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H;
-  out += "COMPROBANTE DE PAGO\n";
+  const business = String(p.business_name || "HELADERIA GOLOSO").toUpperCase();
+  for (const line of wrapText(business, Math.floor(WIDTH / 2))) out += line.trim() + "\n";
   out += SIZE_NORMAL + BOLD_OFF;
 
-  // Ticket + fecha
+  out += ALIGN_L + DASH_LINE;
+
+  // Título: "COMPROBANTE PAGO #NNNN" (tamaño moderado, más pequeño que el
+  // nombre de la sede — coincide con el diseño de referencia).
   const num = p.ticket ?? p.ticket_number ?? "";
-  if (num !== "" && num != null) {
-    out += ALIGN_C + BOLD_ON + `Ticket # ${String(num).replace(/^#+\s*/, "").trim()}` + BOLD_OFF + "\n";
-  }
-  const created = new Date(p.created_at || Date.now()).toLocaleString("es-CO");
-  out += ALIGN_C + created + "\n";
+  const numStr = num !== "" && num != null ? ` #${String(num).replace(/^#+\s*/, "").trim()}` : "";
+  out += ALIGN_C + BOLD_ON + `COMPROBANTE PAGO${numStr}\n` + BOLD_OFF;
 
   out += ALIGN_L + DASH_LINE;
 
-  // TOTAL destacado (doble alto + ancho)
-  out += ALIGN_C + "TOTAL PAGADO\n";
-  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE;
-  const totalStr = formatCurrencyForTicket(Number(p.total || 0));
-  out += totalStr + "\n";
-  out += SIZE_NORMAL + BOLD_OFF;
-
-  out += ALIGN_L + DASH_LINE;
-
-  // MEDIO DE PAGO y CONFIRMACION — cada uno en su propio renglón, con
-  // etiqueta y valor juntos (sin salto extra) para máxima legibilidad.
-  const method = String(p.payment_method || "").toUpperCase().trim() || "ELECTRONICO";
-  out += ALIGN_L + BOLD_ON + "MEDIO DE PAGO:  " + BOLD_OFF + method + "\n";
-  const last4 = String(p.payment_transaction_last4 || "").replace(/\D/g, "").slice(0, 4).padStart(4, "0");
-  out += BOLD_ON + "CONFIRMACION:   " + BOLD_OFF + "**** " + last4 + "\n";
+  // Info: Fecha / Hora / Cliente (formato estable, sin depender de Intl).
+  const d = new Date(p.created_at || Date.now());
+  const pad = (n) => String(n).padStart(2, "0");
+  const fecha = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let hh = d.getHours();
+  const ampm = hh >= 12 ? "PM" : "AM";
+  hh = hh % 12 || 12;
+  const hora = `${pad(hh)}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${ampm}`;
+  const cliente = (p.customer && String(p.customer).trim()) || "Mostrador";
+  out += `Fecha:   ${fecha}\n`;
+  out += `Hora:    ${hora}\n`;
+  out += `Cliente: ${cliente}\n`;
 
   out += DASH_LINE;
 
-  // Meta breve (cliente + cajero) solo si existen.
-  if (p.customer && String(p.customer).trim()) {
-    out += "Cliente: " + String(p.customer).trim() + "\n";
-  }
-  if (p.user_name && String(p.user_name).trim()) {
-    out += "Cajero:  " + String(p.user_name).trim() + "\n";
+  // FORMA DE PAGO destacada (elemento principal del comprobante).
+  const method = String(p.payment_method || "ELECTRONICO").toUpperCase().trim();
+  out += ALIGN_C + BOLD_ON + "FORMA DE PAGO:\n" + BOLD_OFF;
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE + method + "\n" + SIZE_NORMAL + BOLD_OFF;
+
+  // Confirmación (últimos 4 dígitos) — pequeño, imprescindible para conciliar.
+  const last4Raw = String(p.payment_transaction_last4 || "").replace(/\D/g, "").slice(0, 4);
+  if (last4Raw) {
+    out += ALIGN_C + `Confirmación: **** ${last4Raw.padStart(4, "0")}\n`;
   }
 
-  out += ALIGN_C + "\n" + (p.footer_text ? String(p.footer_text).trim() + "\n" : "Conservar para conciliacion de caja\n");
+  out += ALIGN_L + DASH_LINE;
 
-  // Cortar papel
+  // TOTAL: etiqueta y valor en la misma línea (tamaño moderado, negrilla).
+  const totalStr = formatCurrencyForTicket(Number(p.total || 0));
+  const label = "TOTAL:";
+  const spacing = Math.max(1, WIDTH - label.length - totalStr.length);
+  out += ALIGN_L + BOLD_ON + label + " ".repeat(spacing) + totalStr + BOLD_OFF + "\n";
+
+  out += DASH_LINE;
+
+  // Cortar papel — sin frase de agradecimiento, solo la línea decorativa.
   out += ALIGN_L + FEED(3) + CUT;
 
   const textBuf = encodeEscPos(out);
