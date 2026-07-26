@@ -335,8 +335,8 @@ function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number)
   ].filter(Boolean).join("\n");
 }
 
-const AI_TOTAL_BUDGET_MS = 24_000;
-const AI_CALL_TIMEOUT_MS = 8_000;
+const AI_TOTAL_BUDGET_MS = 20_000;
+const AI_CALL_TIMEOUT_MS = 6_000;
 const AI_MAX_TOOL_ROUNDS = 3;
 
 function hasAiBudget(startedAt: number, reserveMs = 2_500) {
