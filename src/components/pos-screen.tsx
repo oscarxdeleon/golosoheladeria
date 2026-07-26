@@ -630,8 +630,10 @@ export async function printPaymentReceipt(o: {
 }): Promise<void> {
   const cajaCfg = await fetchCajaPrinter();
   const b = o.branding ?? DEFAULT_BRANDING;
-  const logoUrl = toAbsolutePrintUrl(b.logo_url) ?? toAbsolutePrintUrl(golosoLogo);
-  const logoFallbackUrl = toAbsolutePrintUrl(golosoLogo);
+  // Comprobante de pagos electrónicos: SIN logotipo por diseño.
+  // Se omiten deliberadamente logo_url / logo_fallback_url para que ni
+  // siquiera print servers antiguos (< v2.21) puedan rasterizarlo si el
+  // payload cae por fallback en la plantilla personalizada.
   const payload: PrintPayload = {
     type: "payment_receipt",
     ticket: o.ticket,
@@ -648,9 +650,8 @@ export async function printPaymentReceipt(o: {
     nit: b.nit ?? undefined,
     address_biz: b.address ?? undefined,
     phone_biz: b.phone ?? undefined,
-    logo_url: logoUrl,
-    logo_fallback_url: logoFallbackUrl,
     footer_text: "Conservar para conciliación de caja",
+    ticket_config: { ...(b.ticket_config ?? {}), show_logo: false },
     printer_ip: cajaCfg.ip,
     printer_port: cajaCfg.port,
     open_drawer: false,
