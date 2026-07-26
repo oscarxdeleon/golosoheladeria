@@ -1011,10 +1011,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdRaw);
                       const modifiersArr = Array.isArray(args.modifiers) ? (args.modifiers as Array<Record<string, unknown>>) : [];
 
-                      if (!productName || !hasCurrentTurnProductEvidence(text, productName)) {
+                      // Evidencia acumulada de los últimos turnos del cliente:
+                      // el flujo real de pedidos es multi-turno (el cliente pide
+                      // "un cono de vainilla", el bot pregunta sabores, el cliente
+                      // responde "vainilla" y luego "sí"). Si solo miramos el
+                      // texto del turno actual, add_to_cart se bloquea en la
+                      // confirmación y la conversación se congela. Consolidamos
+                      // hasta 6 últimos mensajes del usuario + el texto actual.
+                      const recentUserTurns = history
+                        .filter((m) => m.role === "user")
+                        .slice(-6)
+                        .map((m) => m.content)
+                        .join(" \n ");
+                      const evidenceText = `${recentUserTurns}\n${text}`;
+                      if (!productName || !hasCurrentTurnProductEvidence(evidenceText, productName)) {
                         return {
-                          error: "product_not_requested_in_current_turn",
-                          message: "No agregues productos si el cliente no los pidió claramente en ESTE mensaje. Responde la pregunta o pide que indique el producto exacto.",
+                          error: "product_not_requested_recently",
+                          message: "El cliente no ha pedido este producto en la conversación reciente. Pregúntale antes de agregarlo.",
                           product_name: productName,
                         };
                       }
