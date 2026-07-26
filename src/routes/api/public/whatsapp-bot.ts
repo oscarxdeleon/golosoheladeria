@@ -590,6 +590,28 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const onlineOpen = Boolean(ctx.online_open);
               const physicalOpen = Boolean(ctx.physical_open);
               const customPrompt = typeof ctx.system_prompt === "string" ? ctx.system_prompt : "";
+              const branchAddress = typeof ctx.branch_address === "string" ? ctx.branch_address.trim() : "";
+              const branchNeighborhood = typeof ctx.branch_neighborhood === "string" ? ctx.branch_neighborhood.trim() : "";
+              const branchCity = typeof ctx.branch_city === "string" ? ctx.branch_city.trim() : "";
+              const branchPhone = typeof ctx.branch_phone === "string" ? ctx.branch_phone.trim() : "";
+              const branchFullAddress = typeof ctx.branch_full_address === "string" ? ctx.branch_full_address.trim() : "";
+              const branchMapsLink = typeof ctx.branch_maps_link === "string" ? ctx.branch_maps_link.trim() : "";
+              const locationBlock = branchFullAddress
+                ? [
+                    `UBICACIÓN OFICIAL DE ESTA SEDE (${branchName}) — usa SIEMPRE esta información cuando el cliente pregunte por dirección, ubicación, cómo llegar, dónde quedan, dónde están, envíame la ubicación, etc. NUNCA inventes ni mezcles con otra sede:`,
+                    `- Dirección: ${branchAddress || "(no configurada)"}`,
+                    branchNeighborhood ? `- Barrio: ${branchNeighborhood}` : "",
+                    branchCity ? `- Ciudad: ${branchCity}` : "",
+                    branchPhone ? `- Teléfono de contacto: ${branchPhone}` : "",
+                    branchMapsLink ? `- Google Maps: ${branchMapsLink}` : "",
+                    "Cuando respondas la ubicación, entrega la dirección completa en líneas separadas y, si hay enlace de Google Maps, inclúyelo al final. Ejemplo:",
+                    `📍 Nuestra sede ${branchName} está ubicada en:`,
+                    branchAddress || "(dirección)",
+                    [branchNeighborhood, branchCity].filter(Boolean).join(", "),
+                    branchMapsLink ? `🗺️ ${branchMapsLink}` : "",
+                    "¡Te esperamos! 🍦",
+                  ].filter(Boolean).join("\n")
+                : "";
 
               // Antes de silenciar mensajes cortos como "sí", "ok" o emojis,
               // verificamos si el cliente tiene un carrito activo. En una toma de
