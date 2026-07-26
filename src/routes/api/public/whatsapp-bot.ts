@@ -78,21 +78,47 @@ async function logBotEvent(
   stage: string,
   data: { ok?: boolean; durationMs?: number; error?: unknown; metadata?: Record<string, unknown> } = {},
 ) {
-  try {
-    await callRpc("whatsapp_bot_ai_log_event", {
-      _token: token,
-      _conversation_id: conversationId,
-      _phone: phone,
-      _stage: stage,
-      _ok: data.ok !== false,
-      _duration_ms: typeof data.durationMs === "number" ? data.durationMs : null,
-      _error: data.error == null ? null : trimForLog(data.error, 1000),
-      _metadata: data.metadata ?? {},
-    });
-  } catch {
-    // Logging must never break a customer conversation.
+  // Fire-and-forget: nunca esperamos por el log. Un log lento no debe
+  // demorar la respuesta al cliente. Los errores del RPC se ignoran.
+  void callRpc("whatsapp_bot_ai_log_event", {
+    _token: token,
+    _conversation_id: conversationId,
+    _phone: phone,
+    _stage: stage,
+    _ok: data.ok !== false,
+    _duration_ms: typeof data.durationMs === "number" ? data.durationMs : null,
+    _error: data.error == null ? null : trimForLog(data.error, 1000),
+    _metadata: data.metadata ?? {},
+  }).catch(() => {});
+}
+
+// Cache in-memory de la porción "sede" del contexto (menú, sabores, FAQs,
+// dirección, config). Cambia rara vez y se comparte entre clientes de la
+// misma sede. TTL corto para reflejar cambios operativos rápido.
+// Clave = token; scope = instancia del worker (best-effort).
+type CachedContext = { data: Record<string, unknown>; expiresAt: number };
+const CONTEXT_CACHE_TTL_MS = 60_000;
+const contextCache = new Map<string, CachedContext>();
+
+function getCachedContext(token: string): Record<string, unknown> | null {
+  const hit = contextCache.get(token);
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    contextCache.delete(token);
+    return null;
+  }
+  return hit.data;
+}
+
+function setCachedContext(token: string, data: Record<string, unknown>) {
+  contextCache.set(token, { data, expiresAt: Date.now() + CONTEXT_CACHE_TTL_MS });
+  // Cap para no crecer sin límite
+  if (contextCache.size > 32) {
+    const oldestKey = contextCache.keys().next().value;
+    if (oldestKey) contextCache.delete(oldestKey);
   }
 }
+
 
 
 function normalizeHistory(messages: Array<{ role: string; content: string }>) {
@@ -309,8 +335,8 @@ function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number)
   ].filter(Boolean).join("\n");
 }
 
-const AI_TOTAL_BUDGET_MS = 24_000;
-const AI_CALL_TIMEOUT_MS = 8_000;
+const AI_TOTAL_BUDGET_MS = 20_000;
+const AI_CALL_TIMEOUT_MS = 6_000;
 const AI_MAX_TOOL_ROUNDS = 3;
 
 function hasAiBudget(startedAt: number, reserveMs = 2_500) {
@@ -541,37 +567,62 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 metadata: { hasText: Boolean(text), hasAudio: Boolean(audioB64), textLength: text.length },
               });
 
-              // 1) Contexto de sede + validación sandbox + rate limit
+              // 1) Bootstrap: contexto + carrito + historial + ordering en UNA sola RPC.
+              // Reemplaza 4 round-trips seriales a Supabase (~800-1200 ms) por 1.
+              // Además, cacheamos in-memory la porción "sede" (menú/FAQs/sabores)
+              // por 60 s, reutilizando datos que cambian rara vez entre clientes.
               const contextStarted = performance.now();
-              const ctxRes = await callRpc("whatsapp_bot_ai_context", { _token: token, _phone: from });
-              if (!ctxRes.ok) {
-                await logBotEvent(token, conversationId, from, "context_rpc_failed", {
-                  ok: false,
-                  durationMs: elapsedMs(contextStarted),
-                  error: ctxRes.data,
-                  metadata: { status: ctxRes.status },
+              const bootstrapRes = await callRpc("whatsapp_bot_ai_bootstrap", {
+                _token: token, _phone: from, _limit: 12,
+              });
+              if (!bootstrapRes.ok) {
+                void logBotEvent(token, conversationId, from, "context_rpc_failed", {
+                  ok: false, durationMs: elapsedMs(contextStarted),
+                  error: bootstrapRes.data, metadata: { status: bootstrapRes.status },
                 });
-                return json({ error: "rpc_failed", detail: ctxRes.data, conversation_id: conversationId }, ctxRes.status);
+                return json({ error: "rpc_failed", detail: bootstrapRes.data, conversation_id: conversationId }, bootstrapRes.status);
               }
-              const ctx = ctxRes.data as Record<string, unknown> | null;
+              const bootstrap = (bootstrapRes.data as Record<string, unknown> | null) ?? {};
+              const ctxRaw = (bootstrap.context as Record<string, unknown> | null) ?? null;
+              const preloadedCart = (bootstrap.cart as Record<string, unknown> | null) ?? null;
+              const preloadedHistoryPayload = (bootstrap.history as { messages?: unknown } | null) ?? null;
+              const preloadedOrdering = (bootstrap.ordering as {
+                ordering_enabled?: boolean; min_amount?: number; delivery_fee?: number;
+                zones?: string | null; transfer_info?: string | null; dry_run?: boolean;
+              } | null) ?? null;
+
+              // Fusionar con cache de sede para evitar recargar partes pesadas
+              // (menú/FAQs/sabores) en cada mensaje. usage_today/rate_limit vienen
+              // siempre frescos del RPC.
+              let ctx = ctxRaw;
+              if (ctx && !(ctx as { error?: string }).error) {
+                const cached = getCachedContext(token);
+                if (cached) {
+                  // Preservamos campos por-cliente y de estado en vivo desde ctxRaw
+                  const liveKeys = ["usage_today", "daily_limit", "online_open", "physical_open"];
+                  const merged: Record<string, unknown> = { ...cached, ...ctx };
+                  for (const k of liveKeys) if (k in ctx) merged[k] = (ctx as Record<string, unknown>)[k];
+                  ctx = merged;
+                } else {
+                  setCachedContext(token, ctx as Record<string, unknown>);
+                }
+              }
+
               if (!ctx || (ctx as { error?: string }).error) {
                 const error = (ctx as { error?: string })?.error ?? "context_error";
-                await logBotEvent(token, conversationId, from, "context_blocked", {
-                  ok: false,
-                  durationMs: elapsedMs(contextStarted),
-                  error,
+                void logBotEvent(token, conversationId, from, "context_blocked", {
+                  ok: false, durationMs: elapsedMs(contextStarted), error,
                   metadata: { context: ctx ?? null },
                 });
                 if (error === "rate_limited") {
-                  const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
-                  const rateLimitTakesOrders = orderCfgRes.ok && Boolean((orderCfgRes.data as { ordering_enabled?: boolean } | null)?.ordering_enabled);
+                  const rateLimitTakesOrders = Boolean(preloadedOrdering?.ordering_enabled);
                   const reply = fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders);
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
                 const fallbackReply = fallbackOrderReply(text, DEFAULT_MENU_LINK, true);
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
-              await logBotEvent(token, conversationId, from, "context_loaded", {
+              void logBotEvent(token, conversationId, from, "context_loaded", {
                 durationMs: elapsedMs(contextStarted),
                 metadata: {
                   usageToday: ctx.usage_today ?? null,
@@ -579,6 +630,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   products: Array.isArray(ctx.products) ? ctx.products.length : 0,
                   faqs: Array.isArray(ctx.faqs) ? ctx.faqs.length : 0,
                   flavorGroups: Array.isArray(ctx.flavor_groups) ? ctx.flavor_groups.length : 0,
+                  cachedContext: getCachedContext(token) === ctx,
                 },
               });
               const branchName = String(ctx.branch_name ?? "Heladería Goloso");
@@ -609,36 +661,24 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   ].filter(Boolean).join("\n")
                 : "";
 
-              // Antes de silenciar mensajes cortos como "sí", "ok" o emojis,
-              // verificamos si el cliente tiene un carrito activo. En una toma de
-              // pedido, esos mensajes pueden ser confirmaciones reales y deben
-              // pasar al flujo operativo/IA, no al ahorro de créditos.
-              let activeCartHasItems = false;
-              try {
-                const cartProbe = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
-                const cartProbeData = (cartProbe.ok ? cartProbe.data : null) as Record<string, unknown> | null;
-                activeCartHasItems = Array.isArray(cartProbeData?.items) && cartProbeData.items.length > 0;
-              } catch {
-                activeCartHasItems = false;
-              }
+              // Carrito activo viene del bootstrap: cero round-trips extra.
+              const activeCartHasItems = Array.isArray(preloadedCart?.items) && (preloadedCart.items as unknown[]).length > 0;
 
-              // Cargar historial antes de silenciar mensajes cortos. Si ya hay
-              // conversación, un "sí", "no" o "dale" puede ser una respuesta real.
+
+
+              // Historial ya viene del bootstrap. Cero round-trips extra.
               let history: Array<{ role: string; content: string }> = [];
-              const historyStarted = performance.now();
-              const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
-              if (histRes.ok && histRes.data && typeof histRes.data === "object") {
-                const msgs = (histRes.data as { messages?: unknown }).messages;
-                if (Array.isArray(msgs)) {
-                  history = msgs.filter((m): m is { role: string; content: string } =>
-                    !!m && typeof m === "object" && typeof (m as { role?: unknown }).role === "string" && typeof (m as { content?: unknown }).content === "string"
-                  );
-                }
+              if (preloadedHistoryPayload && Array.isArray(preloadedHistoryPayload.messages)) {
+                history = (preloadedHistoryPayload.messages as unknown[]).filter(
+                  (m): m is { role: string; content: string } =>
+                    !!m && typeof m === "object"
+                    && typeof (m as { role?: unknown }).role === "string"
+                    && typeof (m as { content?: unknown }).content === "string"
+                );
               }
               history = normalizeHistory(history);
-              await logBotEvent(token, conversationId, from, "history_loaded", {
-                durationMs: elapsedMs(historyStarted),
-                metadata: { messages: history.length, ok: histRes.ok, status: histRes.status },
+              void logBotEvent(token, conversationId, from, "history_loaded", {
+                metadata: { messages: history.length, source: "bootstrap" },
               });
 
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
@@ -646,24 +686,25 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // detectamos mensajes triviales y respondemos deterministamente.
               const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
               if (shortCircuit) {
-                await logBotEvent(token, conversationId, from, "short_circuit_hit", {
+                void logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
                   metadata: { event: shortCircuit.event, replyLength: shortCircuit.reply.length },
                 });
+                // Fire-and-forget: no bloqueamos la respuesta esperando por las
+                // escrituras de mensajes (~200-400 ms cada una).
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
                 if (!shortCircuit.reply) {
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
                   return json({ reply: null, source: "short_circuit_silent", conversation_id: conversationId }, 200);
                 }
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
-                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-                const payload: Record<string, unknown> = {
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
+                void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                return json({
                   reply: shortCircuit.reply,
                   source: "short_circuit",
                   conversation_id: conversationId,
-                };
-                return json(payload, 200);
+                }, 200);
               }
+
 
               // Sabores AGRUPADOS por grupo de modificador (para no mezclar
               // sabores de helado con sabores de jugo, malteadas, etc.)
@@ -672,7 +713,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : [];
               const allProducts = Array.isArray(ctx.products) ? ctx.products as ProductLite[] : [];
               // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
-              const products = selectRelevantProducts(allProducts, text, 20);
+              const products = selectRelevantProducts(allProducts, text, 12);
 
               const fmtCOP = (n: number) => "$" + Math.round(n).toLocaleString("es-CO");
 
@@ -709,7 +750,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // FAQs curadas por la sede — Opción 3 (few-shot).
               const allFaqs = Array.isArray(ctx.faqs) ? ctx.faqs as Array<{ q?: string; a?: string }> : [];
               // Reducido de 35 → 8: las FAQ menos relevantes rara vez aplican y consumen ~3k tokens.
-              const faqs = selectRelevantFaqs(allFaqs, text, 8);
+              const faqs = selectRelevantFaqs(allFaqs, text, 5);
               const faqsBlock = faqs.length > 0
                 ? "PREGUNTAS FRECUENTES DE ESTA SEDE (respuestas oficiales — cuando el cliente pregunte algo parecido, usa esta respuesta tal cual, adaptando solo el saludo):\n" +
                   faqs
@@ -794,14 +835,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 userContent.push({ type: "input_audio", input_audio: { data: audioB64, format } });
               }
 
-              // 4) Cargar config de ordering (bot toma pedidos)
-              const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
-              const orderCfg = (orderCfgRes.ok ? orderCfgRes.data : null) as {
-                ordering_enabled?: boolean; min_amount?: number; delivery_fee?: number;
-                zones?: string | null; transfer_info?: string | null; dry_run?: boolean;
-              } | null;
+              // 4) Config de ordering ya viene del bootstrap. Cero round-trips.
+              const orderCfg = preloadedOrdering;
               const orderingEnabled = !!(orderCfg?.ordering_enabled);
               const dryRun = !!(orderCfg?.dry_run);
+
 
               // Prompt adicional cuando el bot toma pedidos
               const orderingPromptBlock = orderingEnabled ? [
@@ -1105,15 +1143,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               const operationalOrderReply = await buildOperationalOrderReply();
               if (operationalOrderReply) {
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: operationalOrderReply });
-                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-                await logBotEvent(token, conversationId, from, "operational_order_flow", {
+                // Fire-and-forget: la respuesta al cliente no espera por escrituras.
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: operationalOrderReply });
+                void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                void logBotEvent(token, conversationId, from, "operational_order_flow", {
                   durationMs: elapsedMs(requestStarted),
                   metadata: { replyLength: operationalOrderReply.length },
                 });
                 return json({ reply: operationalOrderReply, source: "operational_order_flow", conversation_id: conversationId }, 200);
               }
+
 
               // 5) Llamar a la IA. Ruta preferida: Lovable AI Gateway (créditos de
               // la cuenta, sin límite gratuito diario). Si Lovable no está
@@ -1145,9 +1185,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     metadata: qData ?? null,
                   });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
-                  await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                  void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                  void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+                  void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
                   return json({
                     reply,
                     source: "quota_exhausted_operational_no_lovable_credits",
@@ -1218,7 +1258,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // o la última Response si todos los intentos fallan.
               const callAiWithProvider = async (provider: AiProvider) => {
                 const models = [provider.primaryModel, provider.fallbackModel];
-                const backoffs = [400, 900];
+                const backoffs = [200, 500];
                 let lastResponse: Response | null = null;
                 let lastError: unknown;
                 for (let m = 0; m < models.length; m += 1) {
@@ -1419,34 +1459,20 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
               }
 
-              // 6) Persistir turno del usuario + respuesta del bot en memoria
+              // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
+              // de estas escrituras afecta el texto que ve el cliente.
               const userLog = text && text.length > 0 ? text : "[nota de voz]";
-              const persistStarted = performance.now();
-              const userSave = await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
-              const assistantSave = await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
-              await logBotEvent(token, conversationId, from, "memory_persisted", {
-                ok: userSave.ok && assistantSave.ok,
-                durationMs: elapsedMs(persistStarted),
-                error: !userSave.ok ? userSave.data : !assistantSave.ok ? assistantSave.data : null,
-                metadata: { userStatus: userSave.status, assistantStatus: assistantSave.status },
-              });
+              void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
+              void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
+              void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
 
-              // 7) Registrar uso para rate limit diario
-              const usageStarted = performance.now();
-              const usageResult = await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-              await logBotEvent(token, conversationId, from, "usage_recorded", {
-                ok: usageResult.ok,
-                durationMs: elapsedMs(usageStarted),
-                error: usageResult.ok ? null : usageResult.data,
-                metadata: { status: usageResult.status },
-              });
-
-              await logBotEvent(token, conversationId, from, "request_completed", {
+              void logBotEvent(token, conversationId, from, "request_completed", {
                 ok: !lastErr,
                 durationMs: elapsedMs(requestStarted),
                 error: lastErr,
                 metadata: { finishReason: lastFinishReason, replyLength: finalReply.length },
               });
+
 
               return json({
                 reply: finalReply || null,
