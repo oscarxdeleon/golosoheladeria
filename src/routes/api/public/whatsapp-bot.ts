@@ -800,11 +800,26 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const audioB64 = typeof body.audio_b64 === "string" ? body.audio_b64.trim() : "";
               if (!text && !audioB64) return json({ error: "missing_input" }, 400);
 
+              // Defensa: respetar el "Modo del Chatbot" configurado por sede.
+              // Si no está en modo Completo, ai_reply no debe ejecutar IA aunque
+              // el bot local lo invoque directamente.
+              const modeRes = await callRpc("whatsapp_bot_get_mode", { _token: token });
+              const chatbotMode = (modeRes.ok && typeof modeRes.data === "string") ? modeRes.data : "full";
+              if (chatbotMode !== "full") {
+                return json({
+                  reply: null,
+                  skipped: chatbotMode === "disabled" ? "chatbot_disabled" : "welcome_only_mode",
+                  skip_reason: chatbotMode === "disabled" ? "chatbot_disabled" : "welcome_only_mode",
+                  source: "chatbot_mode_gate",
+                });
+              }
+
               const conversationId = makeConversationId(from);
               const requestStarted = performance.now();
               await logBotEvent(token, conversationId, from, "request_received", {
                 metadata: { hasText: Boolean(text), hasAudio: Boolean(audioB64), textLength: text.length },
               });
+
 
               // 1) Bootstrap: contexto + carrito + historial + ordering en UNA sola RPC.
               // Reemplaza 4 round-trips seriales a Supabase (~800-1200 ms) por 1.
