@@ -1560,13 +1560,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
-                finalReply = fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
+                const progressReply = await buildOperationalOrderReply();
+                finalReply = progressReply ?? fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
                   error: lastErr,
                   metadata: { finishReason: lastFinishReason },
                 });
+              } else if (activeCartHasItems && sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName))) {
+                const progressReply = await buildOperationalOrderReply();
+                if (progressReply) {
+                  finalReply = progressReply;
+                  lastErr = lastErr ?? "generic_reply_replaced_with_cart_progress";
+                  await logBotEvent(token, conversationId, from, "generic_reply_replaced_with_cart_progress", {
+                    metadata: { finishReason: lastFinishReason },
+                  });
+                }
               }
 
               // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
