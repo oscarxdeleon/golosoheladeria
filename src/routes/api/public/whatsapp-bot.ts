@@ -851,11 +851,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
                 if (error === "rate_limited") {
                   const rateLimitTakesOrders = Boolean(preloadedOrdering?.ordering_enabled);
-                  const reply = buildActiveSessionFallback(preloadedCart, formatCOP)
+                  const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
                     ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders, hasSessionData(preloadedCart));
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
-                const fallbackReply = buildActiveSessionFallback(preloadedCart, formatCOP)
+                const fallbackReply = buildActiveSessionFallback(preloadedCart, fmtCOP)
                   ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, true, hasSessionData(preloadedCart));
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
