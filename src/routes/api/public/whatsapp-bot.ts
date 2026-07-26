@@ -160,14 +160,11 @@ function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
 
 function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false) {
   if (!takingOrders) return operationalReply(menuLink, false);
-  const normalized = input.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-  const productHints = ["banana split", "ensalada de frutas", "brownie", "helado", "malteada", "jugo", "waffle", "cholado", "fresas", "copa", "cono", "vaso"];
-  const detected = productHints.find((hint) => normalized.includes(hint));
-  if (detected) {
-    return `¡Perfecto! Soy Golosito y te ayudo con tu pedido. 🍦\n\nTengo anotado que quieres ${detected}.\n\nPara completarlo, por favor envíame:\n• Cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nTambién puedes ver el menú con fotos y precios aquí 👉 ${menuLink}`;
-  }
+  // IMPORTANTE: NO afirmamos que un producto "quedó anotado" solo por detectar
+  // una palabra clave. El pedido solo existe cuando la IA lo agrega vía tools
+  // con modificadores y el cliente confirma explícitamente.
   if (hasHistory) {
-    return `Te sigo ayudando con tu pedido. 🍦\n\nPara poder registrarlo bien, envíame lo que falte:\n• Producto y cantidad\n• Sabor o presentación\n• Nombre\n• Dirección y barrio, o si es para recoger\n• Pago: efectivo o transferencia\n\nMenú con fotos y precios 👉 ${menuLink}`;
+    return `Sigo contigo. 🍦\n\nPara armar tu pedido, cuéntame:\n• Qué producto quieres y cuántos\n• Sabor o presentación (si aplica)\n• Nombre\n• Dirección y barrio, o si prefieres recoger\n• Pago: efectivo o transferencia\n\nMenú con fotos y precios 👉 ${menuLink}`;
   }
   return operationalReply(menuLink, true);
 }
