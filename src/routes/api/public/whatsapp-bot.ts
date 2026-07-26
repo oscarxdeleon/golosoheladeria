@@ -227,6 +227,32 @@ function missingCartFields(cart: CartRecord) {
   return missing;
 }
 
+function hasPendingProduct(cart: CartRecord) {
+  const pending = cart?.pending_product;
+  return Boolean(pending && typeof pending === "object" && String((pending as Record<string, unknown>).name ?? "").trim());
+}
+
+function hasSessionData(cart: CartRecord) {
+  return hasCartItems(cart)
+    || hasPendingProduct(cart)
+    || Boolean(fieldText(cart, "customer_name"))
+    || Boolean(fieldText(cart, "delivery_address"))
+    || Boolean(fieldText(cart, "delivery_neighborhood"))
+    || Boolean(fieldText(cart, "payment_method"));
+}
+
+function nextFsmState(cart: CartRecord) {
+  if (!cart || !hasSessionData(cart)) return "GREETING";
+  if (hasPendingProduct(cart) && !hasCartItems(cart)) return "CONFIGURING_PRODUCT";
+  if (!hasCartItems(cart)) return "SELECTING_PRODUCT";
+  const missing = missingCartFields(cart);
+  if (missing.includes("nombre")) return "COLLECTING_NAME";
+  if (missing.includes("dirección")) return "COLLECTING_ADDRESS";
+  if (missing.includes("barrio")) return "COLLECTING_NEIGHBORHOOD";
+  if (missing.includes("método de pago")) return "COLLECTING_PAYMENT";
+  return "AWAITING_CONFIRMATION";
+}
+
 function sameReply(a: string, b: string) {
   return normalizeText(a).replace(/\s+/g, " ") === normalizeText(b).replace(/\s+/g, " ");
 }
@@ -500,6 +526,20 @@ function buildCartProgressReply(cart: CartRecord, fmtCOP: (n: number) => string,
     return `${prefix}${name ? `${name}, ` : ""}¿pagas en efectivo o transferencia?`;
   }
   return `${prefix}${summary}\n\n${name ? `${name}, ` : ""}¿confirmas el pedido?`;
+}
+
+async function persistCartPatch(token: string, phone: string, patch: Record<string, unknown>) {
+  const first = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: phone, _patch: patch });
+  if (!first.ok || !first.data || typeof first.data !== "object") return first;
+  const cart = first.data as Record<string, unknown>;
+  const inferredState = nextFsmState(cart);
+  if (String(cart.fsm_state ?? "") === inferredState) return first;
+  const second = await callRpc("whatsapp_bot_ai_cart_upsert", {
+    _token: token,
+    _phone: phone,
+    _patch: { fsm_state: inferredState },
+  });
+  return second.ok ? second : first;
 }
 
 const AI_TOTAL_BUDGET_MS = 20_000;
