@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.20.6"
+BOT_VERSION="8.20.7"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.6.zip"
-FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.6.zip"
+PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.7.zip"
+FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.7.zip"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-${PRIMARY_DOWNLOAD_URL}}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
@@ -155,28 +155,34 @@ if [[ "${downloaded_version}" != "${BOT_VERSION}" ]]; then
 fi
 
 echo ""
-echo "== Deteniendo proceso anterior y duplicados de la misma sede =="
+echo "== Deteniendo procesos PM2 de esta misma carpeta/sede =="
 pm2_json="${tmp_dir}/pm2.json"
 pm2 jlist > "${pm2_json}" 2>/dev/null || echo "[]" > "${pm2_json}"
 mapfile -t duplicate_pm2_names < <(GOLOSO_TARGET_DIR="${TARGET_DIR}" GOLOSO_PM2_NAME="${PM2_NAME}" GOLOSO_PM2_JSON="${pm2_json}" node <<'NODE'
 const fs = require('fs');
 const path = require('path');
 const targetDir = process.env.GOLOSO_TARGET_DIR;
-const pm2Name = process.env.GOLOSO_PM2_NAME;
 const pm2Json = process.env.GOLOSO_PM2_JSON;
 let targetToken = '';
 try { targetToken = JSON.parse(fs.readFileSync(path.join(targetDir, 'config.json'), 'utf8')).token || ''; } catch {}
+if (!targetToken) {
+  console.error('[ERROR] No se pudo leer token del config.json objetivo; no es seguro detener procesos PM2.');
+  process.exit(12);
+}
 let list = [];
 try { list = JSON.parse(fs.readFileSync(pm2Json, 'utf8') || '[]'); } catch {}
 const names = new Set();
+const resolvedTarget = fs.realpathSync(targetDir);
 for (const p of list) {
   const name = String(p.name || '');
   const cwd = p.pm2_env?.pm_cwd || p.pm2_env?.PWD || '';
   const script = p.pm2_env?.pm_exec_path || '';
   const dir = cwd || (script ? path.dirname(script) : '');
+  let resolvedDir = '';
+  try { resolvedDir = dir ? fs.realpathSync(dir) : ''; } catch {}
   let token = '';
   try { token = dir ? JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).token || '' : ''; } catch {}
-  if (name === pm2Name || (targetToken && token && token === targetToken)) names.add(name || String(p.pm_id));
+  if ((resolvedDir && resolvedDir === resolvedTarget) || (token && token === targetToken)) names.add(name || String(p.pm_id));
 }
 for (const name of names) console.log(name);
 NODE
@@ -184,7 +190,6 @@ NODE
 for old_name in "${duplicate_pm2_names[@]:-}"; do
   [[ -n "${old_name}" ]] && pm2 delete "${old_name}" >/dev/null 2>&1 || true
 done
-pm2 stop "${PM2_NAME}" >/dev/null 2>&1 || true
 
 echo ""
 echo "== Copiando archivos sin tocar config.json ni auth_state =="
@@ -240,7 +245,6 @@ fi
 
 echo ""
 echo "== Reiniciando PM2 desde la carpeta correcta =="
-pm2 delete "${PM2_NAME}" >/dev/null 2>&1 || true
 pm2 start "${TARGET_DIR}/server.js" --name "${PM2_NAME}" --cwd "${TARGET_DIR}" --update-env
 pm2 save >/dev/null 2>&1 || true
 

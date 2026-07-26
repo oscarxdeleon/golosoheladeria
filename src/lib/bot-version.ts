@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.20.6";
+export const BOT_VERSION = "8.20.7";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -25,6 +25,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.20.7",
+    date: "2026-07-26",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Corrige memoria conversacional por contacto, expira carritos incompletos y preserva JIDs anónimos de WhatsApp para que Santa y Parque respondan sin reutilizar pedidos.",
+  },
   {
     version: "8.20.6",
     date: "2026-07-26",
