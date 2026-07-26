@@ -1,13 +1,13 @@
 @echo off
 setlocal EnableExtensions
-title Goloso - Actualizar bot PARQUE (automatico)
+title Goloso - Actualizar bot SANTA (automatico)
 
 REM ============================================================
-REM  Actualizador 100%% automatico - Sede PARQUE
+REM  Actualizador 100%% automatico - Sede SANTA
 REM  IP y contrasena ya incluidas. Solo doble clic.
 REM ============================================================
 
-set "SEDE=PARQUE"
+set "SEDE=SANTA"
 set "SERVER_IP=165.227.124.249"
 set "SERVER_USER=root"
 set "SERVER_PASS=GolosO2027p"
