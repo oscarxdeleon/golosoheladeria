@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.20.8"
+BOT_VERSION="8.20.9"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.8.zip"
-FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.8.zip"
+PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.9.zip"
+FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.9.zip"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-${PRIMARY_DOWNLOAD_URL}}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
