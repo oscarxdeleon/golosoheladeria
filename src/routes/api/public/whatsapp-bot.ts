@@ -972,7 +972,61 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "",
               ].filter(Boolean).join("\n") : "";
 
-              const finalSystemPrompt = systemPrompt + orderingPromptBlock;
+              // 🧠 BLOQUE DE ESTADO CONVERSACIONAL: si hay carrito activo,
+              // inyectamos su estado exacto en el system prompt. Esto elimina
+              // la causa raíz de "no me figura ningún pedido" y del reinicio
+              // del flujo: la IA ve items, datos capturados y qué falta.
+              const cartStateBlock = (() => {
+                if (!preloadedCart) return "";
+                const items = cartItems(preloadedCart);
+                const name = fieldText(preloadedCart, "customer_name");
+                const addr = fieldText(preloadedCart, "delivery_address");
+                const nbh = fieldText(preloadedCart, "delivery_neighborhood");
+                const pay = fieldText(preloadedCart, "payment_method");
+                const notes = fieldText(preloadedCart, "delivery_notes");
+                const otype = effectiveOrderType(preloadedCart);
+                const missing = missingCartFields(preloadedCart);
+                const hasAny = items.length > 0 || name || addr || nbh || pay;
+                if (!hasAny) return "";
+                const lines: string[] = [
+                  "",
+                  "════════ ESTADO ACTUAL DEL PEDIDO EN CURSO (memoria del cliente) ════════",
+                  "USA ESTA INFORMACIÓN COMO VERDAD ABSOLUTA. NO vuelvas a saludar. NO envíes el link del menú. NO reinicies el flujo. NO preguntes datos ya listados abajo. NO digas 'no tengo pedido registrado'.",
+                  `- Tipo: ${otype === "pickup" ? "recoger en tienda" : "domicilio"}`,
+                ];
+                if (items.length > 0) {
+                  lines.push("- Productos en el carrito:");
+                  for (const it of items) {
+                    const qty = Number(it.qty ?? 1);
+                    const nm = String(it.product_name ?? it.name ?? "Producto");
+                    const up = Number(it.unit_price ?? 0);
+                    const mods = Array.isArray(it.modifiers)
+                      ? (it.modifiers as Array<Record<string, unknown>>).map((m) => String(m?.name ?? "")).filter(Boolean).join(", ")
+                      : "";
+                    const iNotes = String(it.notes ?? "").trim();
+                    lines.push(`  • ${qty} × ${nm} — ${fmtCOP(qty * up)}${mods ? ` [${mods}]` : ""}${iNotes ? ` (notas: ${iNotes})` : ""}`);
+                  }
+                  lines.push(`- Subtotal: ${fmtCOP(Number(preloadedCart.subtotal ?? 0))}`);
+                  if (Number(preloadedCart.delivery_fee ?? 0) > 0) lines.push(`- Domicilio: ${fmtCOP(Number(preloadedCart.delivery_fee))}`);
+                  lines.push(`- Total: ${fmtCOP(Number(preloadedCart.total ?? 0))}`);
+                } else {
+                  lines.push("- Productos: (aún sin items — el cliente ya nos dio datos y estamos armando el pedido)");
+                }
+                if (name) lines.push(`- Nombre: ${name}`);
+                if (addr) lines.push(`- Dirección: ${addr}`);
+                if (nbh)  lines.push(`- Barrio: ${nbh}`);
+                if (pay)  lines.push(`- Pago: ${pay}`);
+                if (notes) lines.push(`- Notas: ${notes}`);
+                if (missing.length > 0) {
+                  lines.push(`- FALTA por capturar: ${missing.join(", ")}. Pregunta SOLO lo que falta, UNA cosa a la vez. NO repitas lo que ya está arriba.`);
+                } else if (items.length > 0) {
+                  lines.push("- Datos completos. Muestra RESUMEN y pide confirmación explícita antes de llamar confirm_order.");
+                }
+                lines.push("════════════════════════════════════════════════════════════");
+                return lines.join("\n");
+              })();
+
+              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock;
 
               // Herramientas expuestas a la IA (function calling)
               const orderingTools = orderingEnabled ? [
