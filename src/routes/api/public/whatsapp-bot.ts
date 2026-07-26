@@ -820,6 +820,49 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       const productIdRaw = args.product_id != null ? String(args.product_id).trim() : "";
                       const isValidUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(productIdRaw);
                       const modifiersArr = Array.isArray(args.modifiers) ? (args.modifiers as Array<Record<string, unknown>>) : [];
+
+                      // 🛡️ GUARDIA DURA DE MODIFICADORES OBLIGATORIOS.
+                      // Si el producto tiene grupos de modificadores REQUERIDOS
+                      // (sabores, tamaños, toppings obligatorios) y la IA no
+                      // envió al menos min_select opciones por grupo, rechazamos
+                      // el add_to_cart y forzamos a la IA a preguntar al cliente.
+                      // Esto evita que se registren productos "asumidos" sin
+                      // sabor/tamaño confirmado por el cliente.
+                      if (isValidUuid) {
+                        const modsRes = await callRpc("whatsapp_bot_ai_get_modifiers", { _token: token, _product_id: productIdRaw });
+                        const modGroups = Array.isArray(modsRes.data) ? (modsRes.data as Array<Record<string, unknown>>) : [];
+                        const requiredGroups = modGroups.filter((g) => g && (g.required === true || Number(g.min_select ?? 0) > 0));
+                        if (requiredGroups.length > 0) {
+                          const providedNames = new Set(
+                            modifiersArr
+                              .map((m) => String(m?.name ?? "").trim().toLowerCase())
+                              .filter(Boolean)
+                          );
+                          const missingGroups: Array<{ group_name: string; min_select: number; options: string[] }> = [];
+                          for (const g of requiredGroups) {
+                            const opts = Array.isArray(g.options) ? (g.options as Array<Record<string, unknown>>) : [];
+                            const optNames = opts.map((o) => String(o?.name ?? "").trim()).filter(Boolean);
+                            const minSel = Math.max(1, Number(g.min_select ?? 1) || 1);
+                            const matched = optNames.filter((n) => providedNames.has(n.toLowerCase())).length;
+                            if (matched < minSel) {
+                              missingGroups.push({
+                                group_name: String(g.group_name ?? "Modificador"),
+                                min_select: minSel,
+                                options: optNames,
+                              });
+                            }
+                          }
+                          if (missingGroups.length > 0) {
+                            return {
+                              error: "missing_required_modifiers",
+                              message: "No agregues este producto todavía. Primero pregúntale al cliente qué elige en cada grupo obligatorio y llama add_to_cart con esas opciones en 'modifiers'. NO inventes ni asumas opciones.",
+                              product_name: productName,
+                              required_groups: missingGroups,
+                            };
+                          }
+                        }
+                      }
+
                       const modKey = modifiersArr
                         .map((m) => String(m?.id ?? m?.name ?? "").trim().toUpperCase())
                         .filter(Boolean)
