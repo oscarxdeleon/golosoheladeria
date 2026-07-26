@@ -78,21 +78,47 @@ async function logBotEvent(
   stage: string,
   data: { ok?: boolean; durationMs?: number; error?: unknown; metadata?: Record<string, unknown> } = {},
 ) {
-  try {
-    await callRpc("whatsapp_bot_ai_log_event", {
-      _token: token,
-      _conversation_id: conversationId,
-      _phone: phone,
-      _stage: stage,
-      _ok: data.ok !== false,
-      _duration_ms: typeof data.durationMs === "number" ? data.durationMs : null,
-      _error: data.error == null ? null : trimForLog(data.error, 1000),
-      _metadata: data.metadata ?? {},
-    });
-  } catch {
-    // Logging must never break a customer conversation.
+  // Fire-and-forget: nunca esperamos por el log. Un log lento no debe
+  // demorar la respuesta al cliente. Los errores del RPC se ignoran.
+  void callRpc("whatsapp_bot_ai_log_event", {
+    _token: token,
+    _conversation_id: conversationId,
+    _phone: phone,
+    _stage: stage,
+    _ok: data.ok !== false,
+    _duration_ms: typeof data.durationMs === "number" ? data.durationMs : null,
+    _error: data.error == null ? null : trimForLog(data.error, 1000),
+    _metadata: data.metadata ?? {},
+  }).catch(() => {});
+}
+
+// Cache in-memory de la porción "sede" del contexto (menú, sabores, FAQs,
+// dirección, config). Cambia rara vez y se comparte entre clientes de la
+// misma sede. TTL corto para reflejar cambios operativos rápido.
+// Clave = token; scope = instancia del worker (best-effort).
+type CachedContext = { data: Record<string, unknown>; expiresAt: number };
+const CONTEXT_CACHE_TTL_MS = 60_000;
+const contextCache = new Map<string, CachedContext>();
+
+function getCachedContext(token: string): Record<string, unknown> | null {
+  const hit = contextCache.get(token);
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    contextCache.delete(token);
+    return null;
+  }
+  return hit.data;
+}
+
+function setCachedContext(token: string, data: Record<string, unknown>) {
+  contextCache.set(token, { data, expiresAt: Date.now() + CONTEXT_CACHE_TTL_MS });
+  // Cap para no crecer sin límite
+  if (contextCache.size > 32) {
+    const oldestKey = contextCache.keys().next().value;
+    if (oldestKey) contextCache.delete(oldestKey);
   }
 }
+
 
 
 function normalizeHistory(messages: Array<{ role: string; content: string }>) {
