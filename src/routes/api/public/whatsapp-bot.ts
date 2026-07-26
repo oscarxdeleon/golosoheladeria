@@ -1459,34 +1459,20 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
               }
 
-              // 6) Persistir turno del usuario + respuesta del bot en memoria
+              // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
+              // de estas escrituras afecta el texto que ve el cliente.
               const userLog = text && text.length > 0 ? text : "[nota de voz]";
-              const persistStarted = performance.now();
-              const userSave = await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
-              const assistantSave = await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
-              await logBotEvent(token, conversationId, from, "memory_persisted", {
-                ok: userSave.ok && assistantSave.ok,
-                durationMs: elapsedMs(persistStarted),
-                error: !userSave.ok ? userSave.data : !assistantSave.ok ? assistantSave.data : null,
-                metadata: { userStatus: userSave.status, assistantStatus: assistantSave.status },
-              });
+              void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
+              void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
+              void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
 
-              // 7) Registrar uso para rate limit diario
-              const usageStarted = performance.now();
-              const usageResult = await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-              await logBotEvent(token, conversationId, from, "usage_recorded", {
-                ok: usageResult.ok,
-                durationMs: elapsedMs(usageStarted),
-                error: usageResult.ok ? null : usageResult.data,
-                metadata: { status: usageResult.status },
-              });
-
-              await logBotEvent(token, conversationId, from, "request_completed", {
+              void logBotEvent(token, conversationId, from, "request_completed", {
                 ok: !lastErr,
                 durationMs: elapsedMs(requestStarted),
                 error: lastErr,
                 metadata: { finishReason: lastFinishReason, replyLength: finalReply.length },
               });
+
 
               return json({
                 reply: finalReply || null,
