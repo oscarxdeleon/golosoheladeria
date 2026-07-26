@@ -835,14 +835,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 userContent.push({ type: "input_audio", input_audio: { data: audioB64, format } });
               }
 
-              // 4) Cargar config de ordering (bot toma pedidos)
-              const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
-              const orderCfg = (orderCfgRes.ok ? orderCfgRes.data : null) as {
-                ordering_enabled?: boolean; min_amount?: number; delivery_fee?: number;
-                zones?: string | null; transfer_info?: string | null; dry_run?: boolean;
-              } | null;
+              // 4) Config de ordering ya viene del bootstrap. Cero round-trips.
+              const orderCfg = preloadedOrdering;
               const orderingEnabled = !!(orderCfg?.ordering_enabled);
               const dryRun = !!(orderCfg?.dry_run);
+
 
               // Prompt adicional cuando el bot toma pedidos
               const orderingPromptBlock = orderingEnabled ? [
