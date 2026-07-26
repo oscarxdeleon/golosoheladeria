@@ -1512,7 +1512,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 // la IA los vea y no vuelva a preguntarlos. Esto elimina el
                 // bucle "para registrarlo me falta dirección, barrio y pago".
                 if (hasPatch && !hasCart) {
-                  await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: patch });
+                  await persistCartPatch(token, from, patch);
                   // No devolvemos respuesta: dejamos que la IA continúe con
                   // el contexto enriquecido en el próximo turno o en este mismo.
                   return null;
@@ -1531,7 +1531,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
                 let cart = currentCart;
                 if (hasPatch) {
-                  const upsert = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: patch });
+                  const upsert = await persistCartPatch(token, from, patch);
                   if (upsert.ok && upsert.data && typeof upsert.data === "object") cart = upsert.data as Record<string, unknown>;
                 }
 
