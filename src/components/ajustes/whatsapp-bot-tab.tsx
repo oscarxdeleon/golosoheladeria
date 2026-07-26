@@ -660,6 +660,133 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
 
 /* --------------------------------------------------------- */
 
+type ChatbotMode = "full" | "welcome_only" | "disabled";
+
+const CHATBOT_MODE_OPTIONS: { value: ChatbotMode; title: string; description: string }[] = [
+  {
+    value: "full",
+    title: "Chatbot Completo (Modo Normal)",
+    description:
+      "Responde automáticamente, atiende preguntas, toma pedidos, consulta el menú y registra órdenes en el POS.",
+  },
+  {
+    value: "welcome_only",
+    title: "Solo Bienvenida + Menú (Modo Pruebas)",
+    description:
+      "Solo envía el mensaje de bienvenida con el enlace del menú. No interpreta mensajes, no toma pedidos, no llama a la IA.",
+  },
+  {
+    value: "disabled",
+    title: "Chatbot Desactivado",
+    description:
+      "El sistema no responde ningún mensaje. WhatsApp queda 100% manual para los cajeros.",
+  },
+];
+
+function ChatbotModeCard({ cfg, onChanged }: { cfg: BotConfigRow; onChanged: () => void }) {
+  const current: ChatbotMode = (cfg.chatbot_mode as ChatbotMode) ?? "full";
+  const [saving, setSaving] = useState<ChatbotMode | null>(null);
+  const [applyingAll, setApplyingAll] = useState<ChatbotMode | null>(null);
+
+  const applyMode = async (mode: ChatbotMode) => {
+    if (mode === current) return;
+    setSaving(mode);
+    const { error } = await supabase
+      .from("whatsapp_bot_config")
+      .update({ chatbot_mode: mode })
+      .eq("branch_id", cfg.branch_id);
+    setSaving(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Modo actualizado. Se aplica inmediatamente al próximo mensaje.");
+    onChanged();
+  };
+
+  const applyToAllBranches = async (mode: ChatbotMode) => {
+    setApplyingAll(mode);
+    const { error } = await supabase
+      .from("whatsapp_bot_config")
+      .update({ chatbot_mode: mode })
+      .not("branch_id", "is", null);
+    setApplyingAll(null);
+    if (error) { toast.error(error.message); return; }
+    toast.success("Modo aplicado a todas las sedes.");
+    onChanged();
+  };
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <CardTitle className="flex items-center gap-2">
+          <MessageCircle className="h-5 w-5 text-primary" /> Estado del Chatbot
+        </CardTitle>
+        <CardDescription>
+          Elige cómo debe comportarse el bot en esta sede. Los cambios se aplican inmediatamente,
+          sin reiniciar el bot ni escanear QR nuevamente.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {CHATBOT_MODE_OPTIONS.map((opt) => {
+          const active = current === opt.value;
+          const isSaving = saving === opt.value;
+          const isApplyingAll = applyingAll === opt.value;
+          return (
+            <div
+              key={opt.value}
+              className={`rounded-xl border p-4 transition ${
+                active ? "border-primary bg-primary/5 shadow-sm" : "border-border hover:border-primary/40"
+              }`}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`grid h-4 w-4 place-items-center rounded-full border-2 ${
+                        active ? "border-primary" : "border-muted-foreground/40"
+                      }`}
+                    >
+                      {active && <span className="h-2 w-2 rounded-full bg-primary" />}
+                    </span>
+                    <p className="font-semibold text-sm">{opt.title}</p>
+                    {active && <Badge variant="secondary" className="text-[10px]">Activo</Badge>}
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted-foreground pl-6">{opt.description}</p>
+                </div>
+                <div className="flex shrink-0 flex-col gap-1.5">
+                  <Button
+                    size="sm"
+                    variant={active ? "secondary" : "default"}
+                    disabled={active || saving !== null || applyingAll !== null}
+                    onClick={() => applyMode(opt.value)}
+                  >
+                    {isSaving ? "Aplicando…" : active ? "En uso" : "Usar en esta sede"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={saving !== null || applyingAll !== null}
+                    onClick={() => applyToAllBranches(opt.value)}
+                  >
+                    {isApplyingAll ? "Aplicando…" : "Aplicar a todas las sedes"}
+                  </Button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+        <p className="text-[11px] text-muted-foreground">
+          Modo actual: <b>{CHATBOT_MODE_OPTIONS.find((o) => o.value === current)?.title}</b>. Si necesitas
+          silenciar completamente WhatsApp, usa <b>Chatbot Desactivado</b>. Para el periodo de pruebas usa
+          <b> Solo Bienvenida + Menú</b>.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+/* --------------------------------------------------------- */
+
+
+
 function InstallCard({ cfg }: { cfg: BotConfigRow }) {
   const [showToken, setShowToken] = useState(false);
   const copyToken = async () => {
