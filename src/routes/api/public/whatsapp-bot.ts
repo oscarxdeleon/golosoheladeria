@@ -1258,7 +1258,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // o la última Response si todos los intentos fallan.
               const callAiWithProvider = async (provider: AiProvider) => {
                 const models = [provider.primaryModel, provider.fallbackModel];
-                const backoffs = [400, 900];
+                const backoffs = [200, 500];
                 let lastResponse: Response | null = null;
                 let lastError: unknown;
                 for (let m = 0; m < models.length; m += 1) {
