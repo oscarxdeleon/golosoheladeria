@@ -944,7 +944,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "- Confirma antes de asumir ('¿te confirmo con dos vasos?').",
                 "",
                 "PRIORIDAD #1 — MENÚ EN LÍNEA:",
-                `- Primera respuesta a un saludo/pregunta general: invita al menú en una línea. Ejemplo: 'Mira el menú y pide en un minuto 👉 ${menuLink}'`,
+                `- Primera respuesta a un saludo/pregunta general: da la bienvenida de forma cálida SIN mencionar el nombre interno de la sede e invita al menú en una línea. Ejemplo: '¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}'. NUNCA escribas el nombre técnico de la sede (por ejemplo 'GOLOSO SANTA', 'goloso-parque') al cliente.`,
                 "- No repitas el enlace en mensajes siguientes.",
                 "- Toma pedido por chat solo si el cliente lo pide explícitamente.",
                 "",
