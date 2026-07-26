@@ -588,6 +588,25 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 activeCartHasItems = false;
               }
 
+              // Cargar historial antes de silenciar mensajes cortos. Si ya hay
+              // conversación, un "sí", "no" o "dale" puede ser una respuesta real.
+              let history: Array<{ role: string; content: string }> = [];
+              const historyStarted = performance.now();
+              const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
+              if (histRes.ok && histRes.data && typeof histRes.data === "object") {
+                const msgs = (histRes.data as { messages?: unknown }).messages;
+                if (Array.isArray(msgs)) {
+                  history = msgs.filter((m): m is { role: string; content: string } =>
+                    !!m && typeof m === "object" && typeof (m as { role?: unknown }).role === "string" && typeof (m as { content?: unknown }).content === "string"
+                  );
+                }
+              }
+              history = normalizeHistory(history);
+              await logBotEvent(token, conversationId, from, "history_loaded", {
+                durationMs: elapsedMs(historyStarted),
+                metadata: { messages: history.length, ok: histRes.ok, status: histRes.status },
+              });
+
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
@@ -720,24 +739,6 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const systemPrompt = customPrompt && customPrompt.length > 0
                 ? [customPrompt, "", customExtras].join("\n")
                 : defaultPrompt;
-
-              // 2) Cargar historial reciente (memoria conversacional Fase 2)
-              let history: Array<{ role: string; content: string }> = [];
-              const historyStarted = performance.now();
-              const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
-              if (histRes.ok && histRes.data && typeof histRes.data === "object") {
-                const msgs = (histRes.data as { messages?: unknown }).messages;
-                if (Array.isArray(msgs)) {
-                  history = msgs.filter((m): m is { role: string; content: string } =>
-                    !!m && typeof m === "object" && typeof (m as { role?: unknown }).role === "string" && typeof (m as { content?: unknown }).content === "string"
-                  );
-                }
-              }
-              history = normalizeHistory(history);
-              await logBotEvent(token, conversationId, from, "history_loaded", {
-                durationMs: elapsedMs(historyStarted),
-                metadata: { messages: history.length, ok: histRes.ok, status: histRes.status },
-              });
 
               // 3) Construir mensaje del turno actual (texto o audio)
               const userContent: Array<Record<string, unknown>> = [];
