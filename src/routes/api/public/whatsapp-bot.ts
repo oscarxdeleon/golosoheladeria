@@ -1309,6 +1309,42 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   return `Entendido, cancelé ese pedido en preparación. 🍦\n\nSi quieres, empezamos de nuevo: dime qué producto deseas y lo armamos paso a paso.`;
                 }
 
+                // 🎯 FSM Fase 1 — Confirmación DETERMINISTA (sin LLM).
+                // Causa raíz del fallo histórico: el modelo, al recibir "sí" o
+                // "confirmo" con carrito completo, a veces respondía en texto en
+                // lugar de disparar la tool `confirm_order`. Resultado: bucle
+                // infinito de "confírmame para registrar". Aquí cerramos el
+                // pedido directamente contra el RPC cuando:
+                //   - hay items en el carrito,
+                //   - no faltan datos (nombre + dirección/barrio si delivery + pago),
+                //   - y el turno del cliente ES una confirmación pura.
+                if (
+                  currentItems.length > 0 &&
+                  missingCartFields(currentCart).length === 0 &&
+                  isConfirmation(text)
+                ) {
+                  const confirmRes = await callRpc("whatsapp_bot_ai_cart_confirm", { _token: token, _phone: from });
+                  if (confirmRes.ok) {
+                    const orderData = (confirmRes.data ?? {}) as Record<string, unknown>;
+                    const orderNumber =
+                      (orderData.order_number as string | number | undefined) ??
+                      (orderData.ticket_number as string | number | undefined) ??
+                      null;
+                    void logBotEvent(token, conversationId, from, "fsm_deterministic_confirm", {
+                      metadata: { orderNumber: orderNumber ?? null },
+                    });
+                    return orderNumber
+                      ? `Tu pedido quedó registrado con el nº ${orderNumber}. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.`
+                      : "Tu pedido quedó registrado. 🍦\n\nNuestro equipo lo revisará y te confirmará en unos minutos.";
+                  }
+                  // Si falló el RPC, dejamos caer al flujo normal para que la IA
+                  // maneje el error con contexto (p.ej. minimum_amount).
+                  void logBotEvent(token, conversationId, from, "fsm_deterministic_confirm_failed", {
+                    ok: false,
+                    metadata: { detail: confirmRes.data },
+                  });
+                }
+
                 // 🔥 EXTRACTOR MULTI-ENTIDAD: en un solo pase captura TODO lo
                 // que el cliente envió junto ("Oscar, Calle 9 #14-59, Bello
                 // Horizonte, Nequi" → nombre + dirección + barrio + pago).
