@@ -591,15 +591,19 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = activeCartHasItems ? null : shortCircuitReply(text, menuLink);
+              const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink);
               if (shortCircuit) {
                 await logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
                   metadata: { event: shortCircuit.event, replyLength: shortCircuit.reply.length },
                 });
                 if (!shortCircuit.reply) {
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
                   return json({ reply: null, source: "short_circuit_silent", conversation_id: conversationId }, 200);
                 }
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
+                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
                 const payload: Record<string, unknown> = {
                   reply: shortCircuit.reply,
                   source: "short_circuit",
@@ -1039,6 +1043,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 // que aplica guardias completas (nombre, modificadores, etc.).
                 // Aquí solo mostramos avance/resumen si falta info.
                 if (missing.length > 0) {
+                  const hasNewInfo = hasPatch;
+                  const isLikelyQuestion = /[?¿]|\b(cuanto|cuánto|precio|vale|cambiar|cambio|agregar|añadir|poner|quitar|cancelar|confirmo|si|sí|dale|listo)\b/i.test(text);
+                  if (!hasNewInfo && isLikelyQuestion) return null;
                   const summary = summarizeCart(cart, fmtCOP);
                   return `Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
                 }
@@ -1372,6 +1379,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           }
         } catch (err) {
           const message = err instanceof Error ? err.message : String(err);
+          const action = typeof body?.action === "string" ? body.action : "unknown";
+          if (action === "ai_reply" || action === "incoming") {
+            return json({
+              error: "server_error",
+              detail: message,
+              reply: fallbackOrderReply(String(body?.text ?? body?.message ?? ""), DEFAULT_MENU_LINK, true),
+              source: "operational_error_fallback",
+            }, 200);
+          }
           return json({ error: "server_error", detail: message }, 500);
         }
       },
