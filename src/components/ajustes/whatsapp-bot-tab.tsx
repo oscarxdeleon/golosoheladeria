@@ -86,6 +86,8 @@ interface MessageRow {
 }
 
 const WHATSAPP_BOT_DOWNLOAD_URL = BOT_LATEST_DOWNLOAD_URL;
+const AUTO_UPDATE_WINDOWS_URL = "/downloads/actualizar-bot-automatico-windows.bat";
+const AUTO_UPDATE_MAC_LINUX_URL = "/downloads/actualizar-bot-automatico-mac-linux.sh";
 const REMOTE_MANAGEMENT_MIN_VERSION = "8.17.1";
 
 function compareVersions(a?: string | null, b = REMOTE_MANAGEMENT_MIN_VERSION): number {
@@ -400,7 +402,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             <p className="mt-2 text-xs text-amber-900/80">
               Después de quedar en v{REMOTE_MANAGEMENT_MIN_VERSION} o superior, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
             </p>
-            <div className="mt-3">
+            <div className="mt-3 flex flex-wrap gap-2">
               <Button
                 size="sm"
                 variant="outline"
@@ -423,7 +425,20 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               >
                 <RefreshCw className="mr-2 h-4 w-4" /> Verificar versión ahora
               </Button>
+              <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+                <a href={AUTO_UPDATE_WINDOWS_URL} download>
+                  <Download className="mr-2 h-4 w-4" /> Actualizador automático Windows
+                </a>
+              </Button>
+              <Button asChild size="sm" variant="outline">
+                <a href={AUTO_UPDATE_MAC_LINUX_URL} download>
+                  <Download className="mr-2 h-4 w-4" /> Mac / Linux
+                </a>
+              </Button>
             </div>
+            <p className="mt-2 text-xs text-amber-900/80">
+              Descarga el actualizador, ábrelo, escribe la IP del servidor y la contraseña. Él ejecuta todo solo y actualiza las sedes detectadas sin copiar comandos.
+            </p>
           </div>
         )}
         <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
@@ -689,6 +704,11 @@ function InstallCard({ cfg }: { cfg: BotConfigRow }) {
             <Button asChild variant="outline" size="sm">
               <a href={WHATSAPP_BOT_DOWNLOAD_URL} download={BOT_DOWNLOAD_FILENAME}>
                 <Download className="mr-2 h-4 w-4" /> Descargar {BOT_DOWNLOAD_FILENAME}
+              </a>
+            </Button>
+            <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
+              <a href={AUTO_UPDATE_WINDOWS_URL} download>
+                <Download className="mr-2 h-4 w-4" /> Actualizador automático Windows
               </a>
             </Button>
             <Button variant="ghost" size="sm" onClick={rotateToken}>
