@@ -103,12 +103,25 @@ if [[ -z "${PM2_NAME}" ]]; then
   fi
 fi
 
+branch_probe="$(printf '%s %s' "${PM2_NAME}" "${TARGET_DIR}" | tr '[:upper:]' '[:lower:]')"
+branch_key="generic"
+expected_port="8790"
+if [[ "${branch_probe}" == *"parque"* || "${branch_probe}" == *"sede2"* ]]; then
+  branch_key="parque"
+  expected_port="8791"
+elif [[ "${branch_probe}" == *"santa"* || "${branch_probe}" == *"sede1"* ]]; then
+  branch_key="santa"
+  expected_port="8790"
+fi
+
 TARGET_DIR="$(mkdir -p "${TARGET_DIR}" && cd "${TARGET_DIR}" && pwd)"
 echo ""
 echo "🍨 Goloso WhatsApp Bot — actualización Ubuntu/PM2"
 echo "   Versión objetivo : ${BOT_VERSION}"
 echo "   Carpeta objetivo : ${TARGET_DIR}"
 echo "   Proceso PM2      : ${PM2_NAME}"
+echo "   Sede detectada   : ${branch_key}"
+echo "   Puerto esperado  : ${expected_port}"
 echo "   ZIP              : ${DOWNLOAD_URL}"
 
 if [[ ! -f "${TARGET_DIR}/config.json" ]]; then
@@ -154,14 +167,45 @@ if [[ "${downloaded_version}" != "${BOT_VERSION}" ]]; then
   exit 4
 fi
 
+kill_pid_tree() {
+  local pid="$1"
+  if [[ "${pid}" =~ ^[0-9]+$ && "${pid}" != "$$" ]]; then
+    kill -TERM "${pid}" >/dev/null 2>&1 || true
+    sleep 1
+    kill -KILL "${pid}" >/dev/null 2>&1 || true
+  fi
+}
+
+kill_port_owner() {
+  local port="$1"
+  local pids=()
+  if command -v fuser >/dev/null 2>&1; then
+    mapfile -t pids < <(fuser -n tcp "${port}" 2>/dev/null | tr ' ' '\n' | grep -E '^[0-9]+$' || true)
+  elif command -v lsof >/dev/null 2>&1; then
+    mapfile -t pids < <(lsof -ti tcp:"${port}" 2>/dev/null | grep -E '^[0-9]+$' || true)
+  elif command -v ss >/dev/null 2>&1; then
+    mapfile -t pids < <(ss -ltnp "sport = :${port}" 2>/dev/null | sed -nE 's/.*pid=([0-9]+).*/\1/p' | sort -u || true)
+  else
+    pids=()
+  fi
+  for pid in "${pids[@]:-}"; do
+    if [[ -n "${pid}" ]]; then
+      echo "Deteniendo proceso que ocupaba el puerto ${port}: PID ${pid}"
+      kill_pid_tree "${pid}"
+    fi
+  done
+}
+
 echo ""
-echo "== Deteniendo procesos PM2 de esta misma carpeta/sede =="
+echo "== Deteniendo procesos viejos de esta sede =="
 pm2_json="${tmp_dir}/pm2.json"
 pm2 jlist > "${pm2_json}" 2>/dev/null || echo "[]" > "${pm2_json}"
-mapfile -t duplicate_pm2_names < <(GOLOSO_TARGET_DIR="${TARGET_DIR}" GOLOSO_PM2_NAME="${PM2_NAME}" GOLOSO_PM2_JSON="${pm2_json}" node <<'NODE'
+mapfile -t duplicate_pm2_names < <(GOLOSO_TARGET_DIR="${TARGET_DIR}" GOLOSO_PM2_NAME="${PM2_NAME}" GOLOSO_BRANCH_KEY="${branch_key}" GOLOSO_PM2_JSON="${pm2_json}" node <<'NODE'
 const fs = require('fs');
 const path = require('path');
 const targetDir = process.env.GOLOSO_TARGET_DIR;
+const targetName = String(process.env.GOLOSO_PM2_NAME || '').toLowerCase();
+const targetBranch = String(process.env.GOLOSO_BRANCH_KEY || 'generic').toLowerCase();
 const pm2Json = process.env.GOLOSO_PM2_JSON;
 let targetToken = '';
 try { targetToken = JSON.parse(fs.readFileSync(path.join(targetDir, 'config.json'), 'utf8')).token || ''; } catch {}
@@ -173,6 +217,12 @@ let list = [];
 try { list = JSON.parse(fs.readFileSync(pm2Json, 'utf8') || '[]'); } catch {}
 const names = new Set();
 const resolvedTarget = fs.realpathSync(targetDir);
+function classify(value) {
+  const s = String(value || '').toLowerCase();
+  if (/parque|sede\s*2|sede2/.test(s)) return 'parque';
+  if (/santa|sede\s*1|sede1/.test(s)) return 'santa';
+  return '';
+}
 for (const p of list) {
   const name = String(p.name || '');
   const cwd = p.pm2_env?.pm_cwd || p.pm2_env?.PWD || '';
@@ -182,14 +232,60 @@ for (const p of list) {
   try { resolvedDir = dir ? fs.realpathSync(dir) : ''; } catch {}
   let token = '';
   try { token = dir ? JSON.parse(fs.readFileSync(path.join(dir, 'config.json'), 'utf8')).token || '' : ''; } catch {}
-  if ((resolvedDir && resolvedDir === resolvedTarget) || (token && token === targetToken)) names.add(name || String(p.pm_id));
+  const sameDir = resolvedDir && resolvedDir === resolvedTarget;
+  const sameToken = token && token === targetToken;
+  const sameName = targetName && name.toLowerCase() === targetName;
+  const branchMatch = targetBranch !== 'generic' && (classify(name) === targetBranch || classify(dir) === targetBranch);
+  if (sameDir || sameToken || sameName || branchMatch) names.add(name || String(p.pm_id));
 }
 for (const name of names) console.log(name);
 NODE
 )
 for old_name in "${duplicate_pm2_names[@]:-}"; do
-  [[ -n "${old_name}" ]] && pm2 delete "${old_name}" >/dev/null 2>&1 || true
+  [[ -n "${old_name}" ]] && echo "Eliminando PM2 viejo: ${old_name}" && pm2 delete "${old_name}" >/dev/null 2>&1 || true
 done
+
+mapfile -t duplicate_node_pids < <(GOLOSO_TARGET_DIR="${TARGET_DIR}" GOLOSO_BRANCH_KEY="${branch_key}" node <<'NODE'
+const fs = require('fs');
+const path = require('path');
+const { execSync } = require('child_process');
+const targetDir = process.env.GOLOSO_TARGET_DIR;
+const targetBranch = String(process.env.GOLOSO_BRANCH_KEY || 'generic').toLowerCase();
+let targetToken = '';
+try { targetToken = JSON.parse(fs.readFileSync(path.join(targetDir, 'config.json'), 'utf8')).token || ''; } catch {}
+let resolvedTarget = '';
+try { resolvedTarget = fs.realpathSync(targetDir); } catch {}
+function classify(value) {
+  const s = String(value || '').toLowerCase();
+  if (/parque|sede\s*2|sede2/.test(s)) return 'parque';
+  if (/santa|sede\s*1|sede1/.test(s)) return 'santa';
+  return '';
+}
+let rows = '';
+try { rows = execSync('ps -eo pid=,args=', { encoding: 'utf8' }); } catch {}
+for (const row of rows.split('\n')) {
+  if (!/node(\.js)?\b.*server\.js/i.test(row)) continue;
+  const match = row.trim().match(/^(\d+)\s+(.*)$/);
+  if (!match) continue;
+  const pid = Number(match[1]);
+  if (!pid || pid === process.pid) continue;
+  const args = match[2] || '';
+  let cwd = '';
+  try { cwd = fs.realpathSync(`/proc/${pid}/cwd`); } catch {}
+  let token = '';
+  try { token = cwd ? JSON.parse(fs.readFileSync(path.join(cwd, 'config.json'), 'utf8')).token || '' : ''; } catch {}
+  const sameDir = cwd && resolvedTarget && cwd === resolvedTarget;
+  const sameToken = token && targetToken && token === targetToken;
+  const branchMatch = targetBranch !== 'generic' && (classify(cwd) === targetBranch || classify(args) === targetBranch);
+  if (sameDir || sameToken || branchMatch) console.log(String(pid));
+}
+NODE
+)
+for old_pid in "${duplicate_node_pids[@]:-}"; do
+  [[ -n "${old_pid}" ]] && echo "Eliminando node viejo de la sede: PID ${old_pid}" && kill_pid_tree "${old_pid}"
+done
+
+kill_port_owner "${expected_port}"
 
 echo ""
 echo "== Copiando archivos sin tocar config.json ni auth_state =="
@@ -245,23 +341,37 @@ fi
 
 echo ""
 echo "== Reiniciando PM2 desde la carpeta correcta =="
-pm2 start "${TARGET_DIR}/server.js" --name "${PM2_NAME}" --cwd "${TARGET_DIR}" --update-env
+PORT="${expected_port}" pm2 start "${TARGET_DIR}/server.js" --name "${PM2_NAME}" --cwd "${TARGET_DIR}" --update-env
 pm2 save >/dev/null 2>&1 || true
 
 echo ""
 echo "== Verificación =="
-sleep 2
-pm2 logs "${PM2_NAME}" --lines 25 --nostream || true
-
-status_json=""
-for port in 8791 8790 8792 8793; do
-  if status_json="$(curl -fsS "http://localhost:${port}/status.json" 2>/dev/null)"; then
-    echo ""
-    echo "Panel local: http://localhost:${port}/status.json"
-    echo "${status_json}"
-    break
+active_version=""
+active_json=""
+for attempt in $(seq 1 20); do
+  sleep 2
+  if active_json="$(curl -fsS "http://localhost:${expected_port}/status.json" 2>/dev/null)"; then
+    active_version="$(printf '%s' "${active_json}" | sed -nE 's/.*"version":"([^"]+)".*/\1/p')"
+    if [[ "${active_version}" == "${BOT_VERSION}" ]]; then
+      echo "Panel local: http://localhost:${expected_port}/status.json"
+      echo "${active_json}"
+      break
+    fi
+    echo "⚠️ El puerto ${expected_port} respondió v${active_version:-desconocida}; eliminando instancia vieja y reintentando (${attempt}/20)."
+    kill_port_owner "${expected_port}"
+    PORT="${expected_port}" pm2 restart "${PM2_NAME}" --update-env >/dev/null 2>&1 || PORT="${expected_port}" pm2 start "${TARGET_DIR}/server.js" --name "${PM2_NAME}" --cwd "${TARGET_DIR}" --update-env >/dev/null 2>&1 || true
+  else
+    PORT="${expected_port}" pm2 restart "${PM2_NAME}" --update-env >/dev/null 2>&1 || true
   fi
 done
+
+pm2 logs "${PM2_NAME}" --lines 25 --nostream || true
+
+if [[ "${active_version}" != "${BOT_VERSION}" ]]; then
+  echo "[ERROR] La sede sigue reportando v${active_version:-desconocida}; no quedó activa la versión ${BOT_VERSION}." >&2
+  echo "        Revisa procesos viejos: pm2 list && ps -ef | grep server.js" >&2
+  exit 6
+fi
 
 echo ""
 echo "== Instalando auto-actualización diaria (cron 4:00 AM) =="
@@ -272,4 +382,4 @@ echo "Cron instalado: se actualizará automáticamente cada día a las 4:00 AM"
 
 echo ""
 echo "✅ Actualización completa. Debe verse: Versión : ${BOT_VERSION}"
-echo "   Si PM2 vuelve a mostrar una versión vieja, ejecuta: pm2 describe ${PM2_NAME}"
+echo "   Sede ${branch_key} verificada en puerto ${expected_port}."
