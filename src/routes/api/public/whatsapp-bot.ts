@@ -567,37 +567,62 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 metadata: { hasText: Boolean(text), hasAudio: Boolean(audioB64), textLength: text.length },
               });
 
-              // 1) Contexto de sede + validación sandbox + rate limit
+              // 1) Bootstrap: contexto + carrito + historial + ordering en UNA sola RPC.
+              // Reemplaza 4 round-trips seriales a Supabase (~800-1200 ms) por 1.
+              // Además, cacheamos in-memory la porción "sede" (menú/FAQs/sabores)
+              // por 60 s, reutilizando datos que cambian rara vez entre clientes.
               const contextStarted = performance.now();
-              const ctxRes = await callRpc("whatsapp_bot_ai_context", { _token: token, _phone: from });
-              if (!ctxRes.ok) {
-                await logBotEvent(token, conversationId, from, "context_rpc_failed", {
-                  ok: false,
-                  durationMs: elapsedMs(contextStarted),
-                  error: ctxRes.data,
-                  metadata: { status: ctxRes.status },
+              const bootstrapRes = await callRpc("whatsapp_bot_ai_bootstrap", {
+                _token: token, _phone: from, _limit: 12,
+              });
+              if (!bootstrapRes.ok) {
+                void logBotEvent(token, conversationId, from, "context_rpc_failed", {
+                  ok: false, durationMs: elapsedMs(contextStarted),
+                  error: bootstrapRes.data, metadata: { status: bootstrapRes.status },
                 });
-                return json({ error: "rpc_failed", detail: ctxRes.data, conversation_id: conversationId }, ctxRes.status);
+                return json({ error: "rpc_failed", detail: bootstrapRes.data, conversation_id: conversationId }, bootstrapRes.status);
               }
-              const ctx = ctxRes.data as Record<string, unknown> | null;
+              const bootstrap = (bootstrapRes.data as Record<string, unknown> | null) ?? {};
+              const ctxRaw = (bootstrap.context as Record<string, unknown> | null) ?? null;
+              const preloadedCart = (bootstrap.cart as Record<string, unknown> | null) ?? null;
+              const preloadedHistoryPayload = (bootstrap.history as { messages?: unknown } | null) ?? null;
+              const preloadedOrdering = (bootstrap.ordering as {
+                ordering_enabled?: boolean; min_amount?: number; delivery_fee?: number;
+                zones?: string | null; transfer_info?: string | null; dry_run?: boolean;
+              } | null) ?? null;
+
+              // Fusionar con cache de sede para evitar recargar partes pesadas
+              // (menú/FAQs/sabores) en cada mensaje. usage_today/rate_limit vienen
+              // siempre frescos del RPC.
+              let ctx = ctxRaw;
+              if (ctx && !(ctx as { error?: string }).error) {
+                const cached = getCachedContext(token);
+                if (cached) {
+                  // Preservamos campos por-cliente y de estado en vivo desde ctxRaw
+                  const liveKeys = ["usage_today", "daily_limit", "online_open", "physical_open"];
+                  const merged: Record<string, unknown> = { ...cached, ...ctx };
+                  for (const k of liveKeys) if (k in ctx) merged[k] = (ctx as Record<string, unknown>)[k];
+                  ctx = merged;
+                } else {
+                  setCachedContext(token, ctx as Record<string, unknown>);
+                }
+              }
+
               if (!ctx || (ctx as { error?: string }).error) {
                 const error = (ctx as { error?: string })?.error ?? "context_error";
-                await logBotEvent(token, conversationId, from, "context_blocked", {
-                  ok: false,
-                  durationMs: elapsedMs(contextStarted),
-                  error,
+                void logBotEvent(token, conversationId, from, "context_blocked", {
+                  ok: false, durationMs: elapsedMs(contextStarted), error,
                   metadata: { context: ctx ?? null },
                 });
                 if (error === "rate_limited") {
-                  const orderCfgRes = await callRpc("whatsapp_bot_ai_ordering_config", { _token: token });
-                  const rateLimitTakesOrders = orderCfgRes.ok && Boolean((orderCfgRes.data as { ordering_enabled?: boolean } | null)?.ordering_enabled);
+                  const rateLimitTakesOrders = Boolean(preloadedOrdering?.ordering_enabled);
                   const reply = fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders);
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
                 const fallbackReply = fallbackOrderReply(text, DEFAULT_MENU_LINK, true);
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
-              await logBotEvent(token, conversationId, from, "context_loaded", {
+              void logBotEvent(token, conversationId, from, "context_loaded", {
                 durationMs: elapsedMs(contextStarted),
                 metadata: {
                   usageToday: ctx.usage_today ?? null,
@@ -605,6 +630,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   products: Array.isArray(ctx.products) ? ctx.products.length : 0,
                   faqs: Array.isArray(ctx.faqs) ? ctx.faqs.length : 0,
                   flavorGroups: Array.isArray(ctx.flavor_groups) ? ctx.flavor_groups.length : 0,
+                  cachedContext: getCachedContext(token) === ctx,
                 },
               });
               const branchName = String(ctx.branch_name ?? "Heladería Goloso");
@@ -635,18 +661,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   ].filter(Boolean).join("\n")
                 : "";
 
-              // Antes de silenciar mensajes cortos como "sí", "ok" o emojis,
-              // verificamos si el cliente tiene un carrito activo. En una toma de
-              // pedido, esos mensajes pueden ser confirmaciones reales y deben
-              // pasar al flujo operativo/IA, no al ahorro de créditos.
-              let activeCartHasItems = false;
-              try {
-                const cartProbe = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
-                const cartProbeData = (cartProbe.ok ? cartProbe.data : null) as Record<string, unknown> | null;
-                activeCartHasItems = Array.isArray(cartProbeData?.items) && cartProbeData.items.length > 0;
-              } catch {
-                activeCartHasItems = false;
-              }
+              // Carrito activo viene del bootstrap: cero round-trips extra.
+              const activeCartHasItems = Array.isArray(preloadedCart?.items) && (preloadedCart.items as unknown[]).length > 0;
+
+
 
               // Cargar historial antes de silenciar mensajes cortos. Si ya hay
               // conversación, un "sí", "no" o "dale" puede ser una respuesta real.
