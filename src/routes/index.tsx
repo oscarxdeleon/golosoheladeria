@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -26,30 +26,42 @@ const ROLE_HOME: Record<string, string> = {
 };
 
 function IndexRedirect() {
+  const navigate = useNavigate();
   useEffect(() => {
+    let cancelled = false;
     (async () => {
       const { data: sess } = await supabase.auth.getSession();
+      if (cancelled) return;
       if (!sess.session) {
-        window.location.replace("/auth");
+        navigate({ to: "/auth", replace: true });
         return;
       }
-      const { data: roles } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", sess.session.user.id);
-      const list = (roles ?? []).map((r: { role: string }) => r.role);
-      const primary =
-        list.find((r) => r === "admin") ??
-        list.find((r) => r === "supervisor") ??
-        list.find((r) => r === "cajero") ??
-        list.find((r) => r === "mesero") ??
-        list.find((r) => r === "domiciliario") ??
-        "cajero";
-      window.location.replace(ROLE_HOME[primary] ?? "/pos");
+      // Consulta tolerante a fallos transitorios: si falla, mandamos a /pos
+      // (ruta segura autenticada) en vez de rebotar al login y crear un loop.
+      let primary = "cajero";
+      try {
+        const { data: roles } = await supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", sess.session.user.id);
+        const list = (roles ?? []).map((r: { role: string }) => r.role);
+        primary =
+          list.find((r) => r === "admin") ??
+          list.find((r) => r === "supervisor") ??
+          list.find((r) => r === "cajero") ??
+          list.find((r) => r === "mesero") ??
+          list.find((r) => r === "domiciliario") ??
+          "cajero";
+      } catch {
+        // ignorar y usar fallback
+      }
+      if (cancelled) return;
+      navigate({ to: ROLE_HOME[primary] ?? "/pos", replace: true });
     })().catch(() => {
-      window.location.replace("/auth");
+      if (!cancelled) navigate({ to: "/auth", replace: true });
     });
-  }, []);
+    return () => { cancelled = true; };
+  }, [navigate]);
   return (
     <div className="flex min-h-screen items-center justify-center text-muted-foreground">
       Cargando…
