@@ -224,14 +224,6 @@ function missingCartFields(cart: CartRecord) {
   return missing;
 }
 
-function lastAssistantContent(history: Array<{ role: string; content: string }>) {
-  for (let i = history.length - 1; i >= 0; i -= 1) {
-    const message = history[i];
-    if (message?.role === "assistant" && message.content.trim()) return message.content.trim();
-  }
-  return "";
-}
-
 function sameReply(a: string, b: string) {
   return normalizeText(a).replace(/\s+/g, " ") === normalizeText(b).replace(/\s+/g, " ");
 }
@@ -1166,7 +1158,6 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const buildOperationalOrderReply = async () => {
                 if (!orderingEnabled || !text) return null;
 
-                const normalized = normalizeText(text);
                 const currentCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                 const currentCart = (currentCartRes.ok ? currentCartRes.data : null) as Record<string, unknown> | null;
                 const currentItems = cartItems(currentCart);
