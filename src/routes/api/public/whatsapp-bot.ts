@@ -417,7 +417,15 @@ function extractAllEntitiesFromText(input: string): Record<string, string> {
 }
 
 function isConfirmation(input: string) {
-  return /\b(si|sí|confirmo|confirmar|dale|listo|correcto|esta bien|está bien|ok|perfecto|hagale|hágale)\b/i.test(input);
+  // FSM Fase 1: confirmación estricta. Solo turnos CORTOS de puro asentimiento
+  // cuentan como confirmación. Frases largas ("necesito saber si abren")
+  // ya no disparan el cierre por accidente.
+  const normalized = normalizeText(input).trim();
+  if (!normalized) return false;
+  if (normalized.length > 40) return false;
+  if (/[?¿]/.test(input)) return false;
+  const pure = /^(si|sí|si por favor|si porfa|si porfis|sip|sipi|claro|claro que si|confirmo|confirmar|dale|listo|listo confirmo|correcto|esta bien|está bien|todo bien|ok|okay|okey|perfecto|hagale|hágale|de una|va|vale|listo dale|confirmado|confirmalo|confírmalo)$/i;
+  return pure.test(normalized);
 }
 
 function productScore(product: ProductLite, input: string) {
