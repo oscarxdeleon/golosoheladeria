@@ -644,7 +644,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink);
+              const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
               if (shortCircuit) {
                 await logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
