@@ -42,6 +42,8 @@ const BACKEND_RETRY_DELAY_MS = 900;
 const STATUS_PUSH_TIMEOUT_MS = 8_000;
 const OUTBOUND_REQUEST_TIMEOUT_MS = 18_000;
 const INCOMING_TASK_TIMEOUT_MS = 70_000;
+const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
+const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
 const BOT_VERSION = "8.20.7";
 const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
@@ -316,31 +318,22 @@ async function pushStatus() {
   try {
     const body = {
       action: "status",
-      token: config.token,
       status: state.status,
       qr: state.qr,
       phone: state.phone,
-      version: BOT_VERSION,
       instance_id: INSTANCE_ID,
       started_at: INSTANCE_STARTED_AT,
       unresolved_phone_count: state.unresolvedPhoneCount,
       last_unresolved_jid: state.lastUnresolvedJid,
       last_baileys_event_at: state.lastBaileysEventAt ? new Date(state.lastBaileysEventAt).toISOString() : null,
     };
-    const res = await fetchWithTimeout(`${config.apiUrl}/api/public/whatsapp-bot`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(body),
-    }, STATUS_PUSH_TIMEOUT_MS);
-    if (!res.ok) {
-      const txt = await res.text();
-      state.lastPushError = `POS respondió ${res.status}: ${txt.slice(0, 250)}`;
-      logger.warn({ status: res.status, body: txt }, "status push failed");
+    const response = await postBackendJson(body, { label: "status", timeoutMs: STATUS_PUSH_TIMEOUT_MS, retries: 1 });
+    if (!response.ok) {
+      state.lastPushError = `POS respondió ${response.status}: ${String(response.text ?? response.error ?? "sin respuesta").slice(0, 250)}`;
+      logger.warn({ status: response.status, body: response.data ?? response.text }, "status push failed");
       return;
     }
-    const txt = await res.text();
-    let data = null;
-    try { data = txt ? JSON.parse(txt) : null; } catch { data = { raw: txt.slice(0, 250) }; }
+    const data = response.data;
     if (data?.error) {
       state.lastPushError = `POS rechazó estado: ${data.error}`;
       logger.warn({ body: data }, "status push rejected");
@@ -381,11 +374,11 @@ async function retireDuplicateInstance(activeInstanceId) {
 
 async function ackCommand(cmd) {
   try {
-    await fetch(`${config.apiUrl}/api/public/whatsapp-bot`, {
+    await fetchWithTimeout(`${config.apiUrl}/api/public/whatsapp-bot`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "command_ack", token: config.token, command: cmd }),
-    });
+    }, STATUS_PUSH_TIMEOUT_MS);
   } catch (e) {
     logger.warn({ err: String(e) }, "ack command failed");
   }
@@ -572,10 +565,7 @@ async function repairSignalSessions(reason) {
     await pushStatus();
     setTimeout(() => {
       signalRepairInFlight = false;
-      startSocket().catch((e) => {
-        signalRepairInFlight = false;
-        logger.error(e);
-      });
+      scheduleReconnect(250, "signal_session_repair");
     }, 2500);
   } catch (e) {
     signalRepairInFlight = false;
@@ -799,6 +789,31 @@ let socketGeneration = 0;
 let reconnectTimer = null;
 let socketStartInFlight = false;
 const incomingQueues = new Map();
+const processedMessageIds = new Map();
+
+function pruneProcessedMessageIds(now = Date.now()) {
+  for (const [key, seenAt] of processedMessageIds) {
+    if (now - seenAt > PROCESSED_MESSAGE_TTL_MS) processedMessageIds.delete(key);
+  }
+  while (processedMessageIds.size > PROCESSED_MESSAGE_MAX) {
+    const oldest = processedMessageIds.keys().next().value;
+    if (!oldest) break;
+    processedMessageIds.delete(oldest);
+  }
+}
+
+function shouldProcessMessage(messageKey) {
+  const id = String(messageKey?.id || "").trim();
+  if (!id) return true;
+  const remote = String(messageKey?.remoteJid || "").trim();
+  const participant = String(messageKey?.participant || "").trim();
+  const key = `${remote}|${participant}|${id}`;
+  const now = Date.now();
+  pruneProcessedMessageIds(now);
+  if (processedMessageIds.has(key)) return false;
+  processedMessageIds.set(key, now);
+  return true;
+}
 
 function scheduleReconnect(delayMs, reason = "reconnect") {
   if (instanceRetired) return;
@@ -1100,6 +1115,10 @@ async function startSocket() {
     if (type !== "notify") return;
     for (const msg of messages) {
       if (!msg.message || msg.key.fromMe) continue;
+      if (!shouldProcessMessage(msg.key)) {
+        logger.info({ messageId: msg.key.id, jid: msg.key.remoteJid }, "duplicate incoming message ignored");
+        continue;
+      }
       const jid = msg.key.remoteJid || "";
       // Ignorar grupos, estados/historias, broadcasts y newsletters de WhatsApp.
       if (jid.endsWith("@g.us")) continue;
