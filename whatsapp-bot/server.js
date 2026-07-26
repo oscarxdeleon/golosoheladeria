@@ -45,9 +45,10 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.8";
-const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
-const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
+const BOT_VERSION = "8.20.9";
+const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
+const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
+const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 3;
@@ -67,6 +68,8 @@ let lastSignalRepairAt = 0;
 let suppressAutoReconnectUntil = 0;
 let instanceRetired = false;
 let lastBaileysEventAt = Date.now();
+let connectedSince = null;
+let notConnectedSince = Date.now();
 
 function safeStringify(value) {
   try {
@@ -87,6 +90,26 @@ function markBaileysEvent(label = "event") {
   lastBaileysEventAt = Date.now();
   state.lastBaileysEventAt = lastBaileysEventAt;
   state.lastBaileysEvent = label;
+}
+
+function markConnectionState(status) {
+  const now = Date.now();
+  state.status = status;
+  if (status === "connected") {
+    connectedSince = now;
+    notConnectedSince = null;
+    markBaileysEvent("connection.open");
+  } else {
+    connectedSince = null;
+    if (!notConnectedSince) notConnectedSince = now;
+  }
+}
+
+function forceProcessRestart(reason, extra = {}) {
+  logger.error({ reason, ...extra }, "watchdog: reinicio forzado del proceso");
+  state.lastError = reason;
+  try { currentSock?.ws?.close?.(); } catch { /* noop */ }
+  setTimeout(() => process.exit(1), 500);
 }
 
 function isSignalDecryptError(args) {
