@@ -1093,45 +1093,74 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 return json({ reply: operationalOrderReply, source: "operational_order_flow", conversation_id: conversationId }, 200);
               }
 
-              // 5) Llamar a la IA. En producción priorizamos Google AI Studio directo
-              // para no consumir créditos de Lovable. Si un modelo deja de estar
-              // disponible para la clave actual, pasamos a un modelo estable distinto.
+              // 5) Llamar a la IA. Ruta preferida: Lovable AI Gateway (créditos de
+              // la cuenta, sin límite gratuito diario). Si Lovable no está
+              // configurado o falla, caemos a Gemini directo con la GEMINI_API_KEY
+              // personal (cuota gratuita) como respaldo. Esto elimina el bloqueo
+              // por HTTP 429 que dejaba al bot respondiendo siempre el fallback
+              // genérico "Sigo contigo".
+              const lovableKey = process.env.LOVABLE_API_KEY;
               const geminiKey = process.env.GEMINI_API_KEY;
-              if (!geminiKey) {
+              if (!lovableKey && !geminiKey) {
                 const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
                 });
-                return json({ error: "gemini_not_configured", reply, source: "operational_no_lovable_credits", conversation_id: conversationId }, 200);
+                return json({ error: "ai_not_configured", reply, source: "operational_no_ai_key", conversation_id: conversationId }, 200);
               }
 
-              // Preflight cuota Gemini: si la cuota gratuita diaria ya se agotó,
-              // evitamos llamar Lovable AI para no consumir créditos de la cuenta.
-              // y contestamos directamente con una respuesta operativa sin IA.
-              const q = await callRpc("gemini_quota_status", {});
-              const qData = Array.isArray(q.data) ? q.data[0] : q.data;
-              const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
-              if (exhausted) {
-                const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
-                await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
-                  ok: false,
-                  metadata: qData ?? null,
-                });
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
-                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-                return json({
-                  reply,
-                  source: "quota_exhausted_operational_no_lovable_credits",
-                  warning: "gemini_quota_exhausted",
-                  conversation_id: conversationId,
-                });
+              // Preflight de cuota Gemini SOLO cuando no hay Lovable: si vamos a
+              // depender exclusivamente de la key personal de Gemini y su cuota
+              // gratuita ya se agotó, evitamos la llamada y contestamos operativo.
+              if (!lovableKey && geminiKey) {
+                const q = await callRpc("gemini_quota_status", {});
+                const qData = Array.isArray(q.data) ? q.data[0] : q.data;
+                const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
+                if (exhausted) {
+                  const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
+                  await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
+                    ok: false,
+                    metadata: qData ?? null,
+                  });
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+                  await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                  return json({
+                    reply,
+                    source: "quota_exhausted_operational_no_lovable_credits",
+                    warning: "gemini_quota_exhausted",
+                    conversation_id: conversationId,
+                  });
+                }
               }
 
-              const useGeminiDirect = true;
-              const primaryModel = "gemini-2.0-flash";
-              const fallbackModel = "gemini-2.0-flash-lite";
+              type AiProvider = {
+                name: "lovable" | "gemini_direct";
+                url: string;
+                headers: Record<string, string>;
+                primaryModel: string;
+                fallbackModel: string;
+              };
+              const providers: AiProvider[] = [];
+              if (lovableKey) {
+                providers.push({
+                  name: "lovable",
+                  url: "https://ai.gateway.lovable.dev/v1/chat/completions",
+                  headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+                  primaryModel: "google/gemini-3.6-flash",
+                  fallbackModel: "google/gemini-3.1-flash-lite",
+                });
+              }
+              if (geminiKey) {
+                providers.push({
+                  name: "gemini_direct",
+                  url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+                  headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
+                  primaryModel: "gemini-2.0-flash",
+                  fallbackModel: "gemini-2.0-flash-lite",
+                });
+              }
 
               type ChatMsg = { role: string; content?: unknown; tool_call_id?: string; name?: string; tool_calls?: unknown[] };
               const messages: ChatMsg[] = [
@@ -1140,15 +1169,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 { role: "user", content: userContent },
               ];
 
-              const aiUrlBase = useGeminiDirect
-                ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
-                : "https://ai.gateway.lovable.dev/v1/chat/completions";
-              const aiHeaders: Record<string, string> = useGeminiDirect
-                ? { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" }
-                : { "Content-Type": "application/json" };
-
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-              const callAiOnce = async (model: string, timeoutMs = AI_CALL_TIMEOUT_MS) => {
+              const callAiOnce = async (provider: AiProvider, model: string, timeoutMs = AI_CALL_TIMEOUT_MS) => {
                 const bodyReq: Record<string, unknown> = {
                   model, messages, max_tokens: 800, temperature: 0.6,
                 };
@@ -1159,9 +1181,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const controller = new AbortController();
                 const timer = setTimeout(() => controller.abort(), timeoutMs);
                 try {
-                  return await fetch(aiUrlBase, {
+                  return await fetch(provider.url, {
                     method: "POST",
-                    headers: aiHeaders,
+                    headers: provider.headers,
                     body: JSON.stringify(bodyReq),
                     signal: controller.signal,
                   });
@@ -1170,28 +1192,74 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               };
 
-              const callAi = async (model: string) => {
+              // Intenta primario+fallback dentro del mismo provider. Devuelve OK inmediato,
+              // o la última Response si todos los intentos fallan.
+              const callAiWithProvider = async (provider: AiProvider) => {
+                const models = [provider.primaryModel, provider.fallbackModel];
+                const backoffs = [400, 900];
                 let lastResponse: Response | null = null;
                 let lastError: unknown;
-                // Respetar el presupuesto global: el bot local espera 35s; este
-                // endpoint debe responder antes para no dejar conversaciones mudas.
-                const backoffs = [500, 1200];
-                for (let attempt = 0; attempt < 2; attempt += 1) {
-                  const remaining = remainingAiBudget(requestStarted, 3_000);
-                  if (remaining < 2_500) break;
-                  try {
-                    const response = await callAiOnce(model, Math.min(AI_CALL_TIMEOUT_MS, remaining));
-                    lastResponse = response;
-                    if (response.ok || (response.status !== 429 && response.status < 500)) return response;
-                    await pause(backoffs[attempt] ?? 3000);
-                  } catch (error) {
-                    lastError = error;
-                    await pause(backoffs[attempt] ?? 3000);
+                for (let m = 0; m < models.length; m += 1) {
+                  const model = models[m];
+                  for (let attempt = 0; attempt < 2; attempt += 1) {
+                    const remaining = remainingAiBudget(requestStarted, 3_000);
+                    if (remaining < 2_500) {
+                      if (lastResponse) return lastResponse;
+                      throw lastError instanceof Error ? lastError : new Error("ai_budget_exhausted");
+                    }
+                    try {
+                      const response = await callAiOnce(provider, model, Math.min(AI_CALL_TIMEOUT_MS, remaining));
+                      lastResponse = response;
+                      if (response.ok) return response;
+                      if (response.status === 404) break; // modelo no disponible → siguiente
+                      if (response.status !== 429 && response.status < 500) return response;
+                      await pause(backoffs[attempt] ?? 1500);
+                    } catch (error) {
+                      lastError = error;
+                      await pause(backoffs[attempt] ?? 1500);
+                    }
                   }
                 }
                 if (lastResponse) return lastResponse;
-                throw lastError instanceof Error ? lastError : new Error(String(lastError ?? "ai_fetch_failed"));
+                throw lastError instanceof Error ? lastError : new Error("ai_fetch_failed");
               };
+
+              // Failover cruzado entre providers: si Lovable Gateway se satura o
+              // devuelve 429/402/5xx, intenta Gemini directo (y viceversa).
+              const callAi = async () => {
+                let lastResponse: Response | null = null;
+                let lastError: unknown;
+                let lastProvider: AiProvider | null = null;
+                for (const provider of providers) {
+                  try {
+                    const response = await callAiWithProvider(provider);
+                    lastProvider = provider;
+                    if (response.ok) return { response, provider };
+                    if (response.status === 429 || response.status === 402 || response.status >= 500) {
+                      lastResponse = response;
+                      await logBotEvent(token, conversationId, from, "ai_provider_failover", {
+                        ok: false,
+                        error: `HTTP ${response.status}`,
+                        metadata: { provider: provider.name },
+                      });
+                      continue;
+                    }
+                    return { response, provider };
+                  } catch (error) {
+                    lastError = error;
+                    await logBotEvent(token, conversationId, from, "ai_provider_exception", {
+                      ok: false,
+                      error,
+                      metadata: { provider: provider.name },
+                    });
+                  }
+                }
+                if (lastResponse) {
+                  return { response: lastResponse, provider: lastProvider ?? providers[providers.length - 1] };
+                }
+                throw lastError instanceof Error ? lastError : new Error("ai_all_providers_failed");
+              };
+
 
               // Loop de tool-calling con presupuesto global: evita que una conversación
               // bloquee al bot local hasta agotar su timeout de WhatsApp.
@@ -1213,56 +1281,18 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
                 const aiStarted = performance.now();
                 let aiResp: Response;
+                let usedProvider: AiProvider;
                 try {
-                  aiResp = await callAi(primaryModel);
+                  const attempt = await callAi();
+                  aiResp = attempt.response;
+                  usedProvider = attempt.provider;
                 } catch (error) {
+                  lastErr = trimForLog(error, 500);
                   await logBotEvent(token, conversationId, from, "ai_request_exception", {
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error,
-                    metadata: { round, model: primaryModel },
-                  });
-                  try {
-                    aiResp = await callAi(fallbackModel);
-                  } catch (fallbackError) {
-                    lastErr = trimForLog(fallbackError, 500);
-                    await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
-                      ok: false,
-                      durationMs: elapsedMs(aiStarted),
-                      error: fallbackError,
-                      metadata: { round, model: fallbackModel },
-                    });
-                    break;
-                  }
-                }
-                if (!aiResp.ok && (aiResp.status >= 500 || aiResp.status === 404 || aiResp.status === 429)) {
-                  await logBotEvent(token, conversationId, from, "ai_primary_failed", {
-                    ok: false,
-                    durationMs: elapsedMs(aiStarted),
-                    error: `HTTP ${aiResp.status}`,
-                    metadata: { round, model: primaryModel },
-                  });
-                  try {
-                    aiResp = await callAi(fallbackModel);
-                  } catch (fallbackError) {
-                    lastErr = trimForLog(fallbackError, 500);
-                    await logBotEvent(token, conversationId, from, "ai_fallback_exception", {
-                      ok: false,
-                      durationMs: elapsedMs(aiStarted),
-                      error: fallbackError,
-                      metadata: { round, model: fallbackModel },
-                    });
-                    break;
-                  }
-                }
-                if (!aiResp.ok && aiResp.status === 404 && useGeminiDirect) {
-                  const detail = await aiResp.text().catch(() => "");
-                  lastErr = detail.slice(0, 500) || "gemini_model_not_available";
-                  await logBotEvent(token, conversationId, from, "ai_model_not_available_operational", {
-                    ok: false,
-                    durationMs: elapsedMs(aiStarted),
-                    error: lastErr,
-                    metadata: { round, model: fallbackModel },
+                    metadata: { round, providers: providers.map((p) => p.name) },
                   });
                   break;
                 }
@@ -1272,7 +1302,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: lastErr,
-                    metadata: { round },
+                    metadata: { round, provider: usedProvider.name },
                   });
                   break;
                 }
@@ -1282,25 +1312,26 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: lastErr,
-                    metadata: { round },
+                    metadata: { round, provider: usedProvider.name },
                   });
                   break;
                 }
                 if (!aiResp.ok) {
                   const detail = await aiResp.text().catch(() => "");
-                  lastErr = detail.slice(0, 500);
+                  lastErr = detail.slice(0, 500) || `HTTP ${aiResp.status}`;
                   await logBotEvent(token, conversationId, from, "ai_http_failed", {
                     ok: false,
                     durationMs: elapsedMs(aiStarted),
                     error: lastErr,
-                    metadata: { round, status: aiResp.status },
+                    metadata: { round, status: aiResp.status, provider: usedProvider.name },
                   });
                   break;
                 }
                 const aiData = await aiResp.json().catch(() => null) as {
                   choices?: Array<{ finish_reason?: string; message?: { content?: string; tool_calls?: Array<{ id: string; function: { name: string; arguments: string } }> } }>;
                 } | null;
-                if (useGeminiDirect) void trackGeminiCall("whatsapp_bot");
+                if (usedProvider.name === "gemini_direct") void trackGeminiCall("whatsapp_bot");
+
                 const choice = aiData?.choices?.[0];
                 const msg = choice?.message;
                 lastFinishReason = choice?.finish_reason ?? null;
