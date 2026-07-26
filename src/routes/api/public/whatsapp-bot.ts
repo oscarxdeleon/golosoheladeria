@@ -666,23 +666,19 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
 
 
-              // Cargar historial antes de silenciar mensajes cortos. Si ya hay
-              // conversación, un "sí", "no" o "dale" puede ser una respuesta real.
+              // Historial ya viene del bootstrap. Cero round-trips extra.
               let history: Array<{ role: string; content: string }> = [];
-              const historyStarted = performance.now();
-              const histRes = await callRpc("whatsapp_bot_ai_history", { _token: token, _phone: from, _limit: 12 });
-              if (histRes.ok && histRes.data && typeof histRes.data === "object") {
-                const msgs = (histRes.data as { messages?: unknown }).messages;
-                if (Array.isArray(msgs)) {
-                  history = msgs.filter((m): m is { role: string; content: string } =>
-                    !!m && typeof m === "object" && typeof (m as { role?: unknown }).role === "string" && typeof (m as { content?: unknown }).content === "string"
-                  );
-                }
+              if (preloadedHistoryPayload && Array.isArray(preloadedHistoryPayload.messages)) {
+                history = (preloadedHistoryPayload.messages as unknown[]).filter(
+                  (m): m is { role: string; content: string } =>
+                    !!m && typeof m === "object"
+                    && typeof (m as { role?: unknown }).role === "string"
+                    && typeof (m as { content?: unknown }).content === "string"
+                );
               }
               history = normalizeHistory(history);
-              await logBotEvent(token, conversationId, from, "history_loaded", {
-                durationMs: elapsedMs(historyStarted),
-                metadata: { messages: history.length, ok: histRes.ok, status: histRes.status },
+              void logBotEvent(token, conversationId, from, "history_loaded", {
+                metadata: { messages: history.length, source: "bootstrap" },
               });
 
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
@@ -690,24 +686,25 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // detectamos mensajes triviales y respondemos deterministamente.
               const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
               if (shortCircuit) {
-                await logBotEvent(token, conversationId, from, "short_circuit_hit", {
+                void logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
                   metadata: { event: shortCircuit.event, replyLength: shortCircuit.reply.length },
                 });
+                // Fire-and-forget: no bloqueamos la respuesta esperando por las
+                // escrituras de mensajes (~200-400 ms cada una).
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
                 if (!shortCircuit.reply) {
-                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
                   return json({ reply: null, source: "short_circuit_silent", conversation_id: conversationId }, 200);
                 }
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
-                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
-                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
-                const payload: Record<string, unknown> = {
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
+                void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                return json({
                   reply: shortCircuit.reply,
                   source: "short_circuit",
                   conversation_id: conversationId,
-                };
-                return json(payload, 200);
+                }, 200);
               }
+
 
               // Sabores AGRUPADOS por grupo de modificador (para no mezclar
               // sabores de helado con sabores de jugo, malteadas, etc.)
