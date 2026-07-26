@@ -3068,6 +3068,7 @@ export type Database = {
           ai_system_prompt: string | null
           bot_version: string | null
           branch_id: string
+          chatbot_mode: string
           command_ack_at: string | null
           command_requested_at: string | null
           connected_phone: string | null
@@ -3114,6 +3115,7 @@ export type Database = {
           ai_system_prompt?: string | null
           bot_version?: string | null
           branch_id: string
+          chatbot_mode?: string
           command_ack_at?: string | null
           command_requested_at?: string | null
           connected_phone?: string | null
@@ -3160,6 +3162,7 @@ export type Database = {
           ai_system_prompt?: string | null
           bot_version?: string | null
           branch_id?: string
+          chatbot_mode?: string
           command_ack_at?: string | null
           command_requested_at?: string | null
           connected_phone?: string | null
@@ -3944,6 +3947,7 @@ export type Database = {
         Returns: Json
       }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
+      whatsapp_bot_get_mode: { Args: { _token: string }; Returns: string }
       whatsapp_bot_get_pending: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_handle_incoming: {
         Args: { _body: string; _from: string; _token: string }
