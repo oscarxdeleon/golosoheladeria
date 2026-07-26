@@ -1228,11 +1228,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       if (r.ok && pid) {
                         const prod = allProducts.find((p) => String(p.id ?? "") === pid);
                         if (prod?.name) {
-                          void persistCartPatch(token, from, {
-                            _token: token,
-                            _phone: from,
-                            _patch: { pending_product: { id: pid, name: String(prod.name), price: Number(prod.price ?? 0) } },
-                          });
+                          void persistCartPatch(token, from, { pending_product: { id: pid, name: String(prod.name), price: Number(prod.price ?? 0) } });
                         }
                       }
                       return r.ok ? r.data : { error: "get_modifiers_failed" };
@@ -1266,7 +1262,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                         .map((m) => m.content)
                         .join(" \n ");
                       const evidenceText = `${recentUserTurns}\n${text}`;
-                      if (!productName || !hasCurrentTurnProductEvidence(evidenceText, productName)) {
+                      if (!productName || !hasRecentProductEvidence(evidenceText, productName)) {
                         return {
                           error: "product_not_requested_recently",
                           message: "El cliente no ha pedido este producto en la conversación reciente. Pregúntale antes de agregarlo.",
@@ -1357,15 +1353,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       } else {
                         items.push(newItem);
                       }
-                      const r = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: { items } });
+                      const r = await persistCartPatch(token, from, { items });
                       // Producto agregado con éxito → limpiamos el "producto en
                       // configuración" para no bloquear la siguiente elección
                       // del cliente.
                       if (r.ok) {
-                        void callRpc("whatsapp_bot_ai_cart_upsert", {
-                          _token: token, _phone: from,
-                          _patch: { pending_product: null },
-                        });
+                        void persistCartPatch(token, from, { pending_product: null });
                       }
                       return r.ok
                         ? { ok: true, deduped: existingIdx >= 0, cart: r.data }
@@ -1378,7 +1371,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       }
                       if (typeof args.delivery_fee === "number") patch.delivery_fee = args.delivery_fee;
                       else if (orderCfg?.delivery_fee) patch.delivery_fee = Number(orderCfg.delivery_fee);
-                      const r = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: from, _patch: patch });
+                      const r = await persistCartPatch(token, from, patch);
                       return r.ok ? { ok: true, cart: r.data } : { error: "delivery_info_failed", detail: r.data };
                     }
                     case "show_cart": {
