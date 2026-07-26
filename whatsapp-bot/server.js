@@ -385,7 +385,7 @@ async function pushStatus() {
 async function retireDuplicateInstance(activeInstanceId) {
   if (instanceRetired) return;
   instanceRetired = true;
-  state.status = "disconnected";
+  markConnectionState("disconnected");
   state.detail = "Este proceso se pausó porque el POS ya detectó otra instancia activa del mismo bot. Esto evita que dos bots consuman los mismos mensajes.";
   state.lastError = `Instancia duplicada pausada. Instancia activa: ${activeInstanceId || "desconocida"}`;
   logger.warn({ activeInstanceId, instanceId: INSTANCE_ID }, "duplicate instance retired; closing WhatsApp socket");
@@ -615,7 +615,7 @@ async function executeRemoteCommand(cmd) {
       }
       resetAuthStateForFreshQr("desvinculación solicitada desde POS");
       await ackCommand("unlink");
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.qr = null;
       state.qrDataUrl = null;
       state.phone = null;
@@ -631,7 +631,7 @@ async function executeRemoteCommand(cmd) {
         currentSock = null;
       }
       await ackCommand("reconnect");
-      state.status = "connecting";
+    markConnectionState("connecting");
       await pushStatus();
       scheduleReconnect(1500, "remote_reconnect");
       return;
@@ -1122,7 +1122,7 @@ async function startSocket() {
         await startFreshPairingAfterLogout("WhatsApp reportó cierre de sesión y no hubo copia válida para restaurar");
         return;
       }
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.qr = null;
       state.qrDataUrl = null;
       state.detail = "WhatsApp cerró la conexión momentáneamente. Reconectando automáticamente...";
@@ -1343,7 +1343,7 @@ async function main() {
       logger.warn({ readyState: wsReadyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
       try { currentSock.ws?.close?.(); } catch { /* noop */ }
       currentSock = null;
-      state.status = "connecting";
+      markConnectionState("connecting");
       state.detail = "Se detectó la conexión interna cerrada. Reconectando automáticamente sin borrar el QR.";
       pushStatus();
       scheduleReconnect(1500, "watchdog_closed_ws");
