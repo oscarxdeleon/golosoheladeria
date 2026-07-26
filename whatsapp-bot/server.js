@@ -48,7 +48,7 @@ const WATCHDOG_INTERVAL_MS = 60_000;          // revisa cada minuto
 const WATCHDOG_MAX_DISCONNECTED_MS = 5 * 60_000; // 5 min sin conexión → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
-const SIGNAL_REPAIR_THRESHOLD = 1;
+const SIGNAL_REPAIR_THRESHOLD = 3;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
 const SESSION_BACKUP_DIR = path.join(__dirname, "auth_state_backups");
@@ -120,7 +120,6 @@ function createSafeLogger(prefix = "") {
 }
 
 const logger = createSafeLogger();
-installConsoleSignalRepairHook();
 let activeLocalPort = REQUESTED_LOCAL_PORT;
 
 function installConsoleSignalRepairHook() {
@@ -585,14 +584,19 @@ async function repairSignalSessions(reason) {
 }
 
 let commandInFlight = false;
+let commandStartedAt = 0;
 async function executeRemoteCommand(cmd) {
-  if (commandInFlight) return;
+  if (commandInFlight) {
+    logger.warn({ cmd, commandStartedAt }, "remote command ignored because another command is still running");
+    return;
+  }
   commandInFlight = true;
+  commandStartedAt = Date.now();
   try {
     if (cmd === "unlink") {
       state.detail = "Desvinculando dispositivo por solicitud del POS...";
       if (currentSock) {
-        try { await currentSock.logout(); } catch (e) { logger.warn({ err: String(e) }, "logout error"); }
+        try { await withTimeout(currentSock.logout(), 12_000, "Cerrar sesión de WhatsApp"); } catch (e) { logger.warn({ err: String(e) }, "logout error"); }
         try { currentSock.ws?.close?.(); } catch { /* noop */ }
         currentSock = null;
       }
@@ -653,6 +657,7 @@ async function executeRemoteCommand(cmd) {
     }
   } finally {
     commandInFlight = false;
+    commandStartedAt = 0;
   }
 }
 
@@ -847,7 +852,11 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
     let audioMime = "";
     if (audioNode) {
       try {
-        const buf = await downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage });
+        const buf = await withTimeout(
+          downloadMediaMessage(msg, "buffer", {}, { logger, reuploadRequest: sock.updateMediaMessage }),
+          18_000,
+          "Descargar nota de voz",
+        );
         if (buf && buf.length <= AI_MAX_AUDIO_BYTES) {
           audioB64 = buf.toString("base64");
           audioMime = audioNode.mimetype || "audio/ogg";
@@ -1267,6 +1276,12 @@ async function main() {
       outboundInFlight = false;
       outboundStartedAt = 0;
       state.lastOutboundError = "Se liberó automáticamente una revisión de cola que quedó pegada.";
+    }
+    if (commandInFlight && commandStartedAt && now - commandStartedAt > 2 * 60_000) {
+      logger.warn({ commandStartedAt }, "watchdog: comando remoto pegado; liberando candado");
+      commandInFlight = false;
+      commandStartedAt = 0;
+      state.lastError = "Se liberó automáticamente un comando remoto que quedó pegado.";
     }
     if (state.status === "connected" && typeof wsReadyState === "number" && wsReadyState !== 1) {
       logger.warn({ readyState: wsReadyState, lastBaileysEventAt }, "watchdog: websocket cerrado pese a estado connected; reconectando");
