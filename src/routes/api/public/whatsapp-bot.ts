@@ -1122,7 +1122,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       return r.ok ? r.data : { error: "search_failed" };
                     }
                     case "get_modifiers": {
-                      const r = await callRpc("whatsapp_bot_ai_get_modifiers", { _token: token, _product_id: String(args.product_id ?? "") });
+                      const pid = String(args.product_id ?? "");
+                      const r = await callRpc("whatsapp_bot_ai_get_modifiers", { _token: token, _product_id: pid });
+                      // 🔒 Persistimos el "producto en configuración" para que
+                      // el próximo turno del modelo sepa que el cliente ya
+                      // eligió ESE producto y NO ofrezca alternativas
+                      // (por ejemplo, no cambiar "Copa Queso" por "Cono/Vaso"
+                      // al preguntar sabores).
+                      if (r.ok && pid) {
+                        const prod = allProducts.find((p) => String(p.id ?? "") === pid);
+                        if (prod?.name) {
+                          void callRpc("whatsapp_bot_ai_cart_upsert", {
+                            _token: token,
+                            _phone: from,
+                            _patch: { pending_product: { id: pid, name: String(prod.name), price: Number(prod.price ?? 0) } },
+                          });
+                        }
+                      }
                       return r.ok ? r.data : { error: "get_modifiers_failed" };
                     }
                     case "add_to_cart": {
