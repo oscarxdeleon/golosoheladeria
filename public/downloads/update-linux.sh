@@ -404,14 +404,32 @@ if [[ "${active_version}" != "${BOT_VERSION}" ]]; then
   exit 6
 fi
 
+# Marcar como completa ANTES del cron: el bot ya está actualizado y verificado.
+# El cron es opcional; su fallo no debe disparar rollback.
+update_completed=true
+
 echo ""
 echo "== Instalando auto-actualización diaria (cron 4:00 AM) =="
-cron_marker="# goloso-auto-update ${PM2_NAME}"
-cron_line="0 4 * * * curl -fsSL https://golosoheladeria.lovable.app/downloads/update-linux.sh | bash -s ${TARGET_DIR} ${PM2_NAME} >> /var/log/goloso-${PM2_NAME}-update.log 2>&1 ${cron_marker}"
-( crontab -l 2>/dev/null | grep -v "${cron_marker}" ; echo "${cron_line}" ) | crontab -
-echo "Cron instalado: se actualizará automáticamente cada día a las 4:00 AM"
+install_cron() {
+  local cron_marker="# goloso-auto-update ${PM2_NAME}"
+  local cron_line="0 4 * * * curl -fsSL https://golosoheladeria.lovable.app/downloads/update-linux.sh | bash -s ${TARGET_DIR} ${PM2_NAME} >> /var/log/goloso-${PM2_NAME}-update.log 2>&1 ${cron_marker}"
+  local current=""
+  current="$(crontab -l 2>/dev/null || true)"
+  local filtered=""
+  filtered="$(printf '%s\n' "${current}" | grep -v "${cron_marker}" || true)"
+  {
+    if [[ -n "${filtered}" ]]; then printf '%s\n' "${filtered}"; fi
+    printf '%s\n' "${cron_line}"
+  } | crontab - 2>/dev/null || return 1
+  return 0
+}
+if install_cron; then
+  echo "Cron instalado: se actualizará automáticamente cada día a las 4:00 AM"
+else
+  echo "⚠️ No se pudo instalar el cron automático (permiso o crontab no disponible). El bot quedó actualizado correctamente."
+fi
 
 echo ""
 echo "✅ Actualización completa. Debe verse: Versión : ${BOT_VERSION}"
 echo "   Sede ${branch_key} verificada en puerto ${expected_port}."
-update_completed=true
+
