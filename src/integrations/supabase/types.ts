@@ -3874,6 +3874,7 @@ export type Database = {
         Args: { _phone: string; _token: string }
         Returns: Json
       }
+      whatsapp_bot_ai_cart_expire_stale: { Args: never; Returns: number }
       whatsapp_bot_ai_cart_get: {
         Args: { _phone: string; _token: string }
         Returns: Json
