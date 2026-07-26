@@ -188,7 +188,9 @@ function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
 function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
   if (!takingOrders) return operationalReply(menuLink, false, branchName);
   if (hasHistory) {
-    return `Sigo contigo 🍦 ¿Qué te provoca pedir?`;
+    // Durante conversación activa NUNCA reiniciamos con "¿Qué te provoca pedir?".
+    // Damos una respuesta neutra que invita al cliente a repetir su último punto.
+    return `Perdona, se me trabó un segundo. 🍦 ¿Me repites lo último para continuar tu pedido?`;
   }
   return operationalReply(menuLink, true, branchName);
 }
