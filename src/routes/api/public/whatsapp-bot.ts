@@ -870,6 +870,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Carrito activo viene del bootstrap: cero round-trips extra.
               const activeCartHasItems = Array.isArray(preloadedCart?.items) && (preloadedCart.items as unknown[]).length > 0;
+              const activeSessionHasState = hasSessionData(preloadedCart);
 
 
 
@@ -891,7 +892,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
+              const shortCircuit = activeSessionHasState || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
               if (shortCircuit) {
                 void logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
@@ -1093,6 +1094,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const cartStateBlock = (() => {
                 if (!preloadedCart) return "";
                 const items = cartItems(preloadedCart);
+                const fsmState = String(preloadedCart.fsm_state ?? nextFsmState(preloadedCart));
                 const name = fieldText(preloadedCart, "customer_name");
                 const addr = fieldText(preloadedCart, "delivery_address");
                 const nbh = fieldText(preloadedCart, "delivery_neighborhood");
@@ -1106,6 +1108,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   "",
                   "════════ ESTADO ACTUAL DEL PEDIDO EN CURSO (memoria del cliente) ════════",
                   "USA ESTA INFORMACIÓN COMO VERDAD ABSOLUTA. NO vuelvas a saludar. NO envíes el link del menú. NO reinicies el flujo. NO preguntes datos ya listados abajo. NO digas 'no tengo pedido registrado'.",
+                  `- Estado FSM actual: ${fsmState}`,
                   `- Tipo: ${otype === "pickup" ? "recoger en tienda" : "domicilio"}`,
                 ];
                 if (items.length > 0) {
@@ -1134,7 +1137,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 if (missing.length > 0) {
                   lines.push(`- FALTA por capturar: ${missing.join(", ")}. Pregunta SOLO lo que falta, UNA cosa a la vez. NO repitas lo que ya está arriba.`);
                 } else if (items.length > 0) {
-                  lines.push("- Datos completos. Muestra RESUMEN y pide confirmación explícita antes de llamar confirm_order.");
+                    lines.push("- Datos completos. Muestra RESUMEN y pide confirmación explícita antes de llamar confirm_order. Si el cliente acaba de decir sí/confirmo, el servidor confirmará de forma determinística.");
                 }
                 lines.push("════════════════════════════════════════════════════════════");
                 return lines.join("\n");
@@ -1197,7 +1200,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                       if (r.ok && pid) {
                         const prod = allProducts.find((p) => String(p.id ?? "") === pid);
                         if (prod?.name) {
-                          void callRpc("whatsapp_bot_ai_cart_upsert", {
+                          void persistCartPatch(token, from, {
                             _token: token,
                             _phone: from,
                             _patch: { pending_product: { id: pid, name: String(prod.name), price: Number(prod.price ?? 0) } },
