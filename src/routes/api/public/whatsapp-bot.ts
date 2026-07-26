@@ -141,11 +141,12 @@ function selectRelevantProducts<T extends { name?: string; category?: string | n
     .map((item) => item.product);
 }
 
-function operationalReply(menuLink: string, takingOrders = false) {
+function operationalReply(menuLink: string, takingOrders = false, branchName?: string) {
+  const sede = branchName ? ` (${branchName})` : "";
   if (takingOrders) {
-    return `¡Perfecto! Soy Golosito y te tomo el pedido por aquí. 🍦\n\nPara avanzarlo, dime en un solo mensaje:\n• Producto y sabor\n• Cantidad\n• Nombre\n• Dirección y barrio\n• Pago: efectivo o transferencia\n\nSi quieres mirar fotos y precios, también está el menú aquí 👉 ${menuLink}`;
+    return `¡Hola!${sede} 🍦 Cuéntame qué te provoca y lo pedimos.\n\nMenú 👉 ${menuLink}`;
   }
-  return `¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 ${menuLink}\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.`;
+  return `¡Hola!${sede} 🍦 Mira el menú y pide en un minuto 👉 ${menuLink}`;
 }
 
 const PUBLIC_MENU_BASE = "https://golosoheladeria.vercel.app";
@@ -158,15 +159,12 @@ function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
     .replace(/https:\/\/id-preview--[a-z0-9-]+\.lovable\.app/gi, PUBLIC_MENU_BASE);
 }
 
-function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false) {
-  if (!takingOrders) return operationalReply(menuLink, false);
-  // IMPORTANTE: NO afirmamos que un producto "quedó anotado" solo por detectar
-  // una palabra clave. El pedido solo existe cuando la IA lo agrega vía tools
-  // con modificadores y el cliente confirma explícitamente.
+function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
+  if (!takingOrders) return operationalReply(menuLink, false, branchName);
   if (hasHistory) {
-    return `Sigo contigo. 🍦\n\nPara armar tu pedido, cuéntame:\n• Qué producto quieres y cuántos\n• Sabor o presentación (si aplica)\n• Nombre\n• Dirección y barrio, o si prefieres recoger\n• Pago: efectivo o transferencia\n\nMenú con fotos y precios 👉 ${menuLink}`;
+    return `Sigo contigo 🍦 ¿Qué te provoca pedir?`;
   }
-  return operationalReply(menuLink, true);
+  return operationalReply(menuLink, true, branchName);
 }
 
 type ProductLite = {
@@ -329,7 +327,7 @@ function remainingAiBudget(startedAt: number, reserveMs = 2_500) {
  * y devuelve una respuesta determinista SIN llamar al modelo de IA.
  * Cada llamada evitada ahorra ~13.000 tokens de entrada.
  */
-function shortCircuitReply(input: string, menuLink: string): { reply: string; event: string | null } | null {
+function shortCircuitReply(input: string, menuLink: string, branchName?: string): { reply: string; event: string | null } | null {
   const raw = input.trim();
   if (!raw) return null;
   const normalized = raw
@@ -339,35 +337,33 @@ function shortCircuitReply(input: string, menuLink: string): { reply: string; ev
     .replace(/[¿?¡!.,;:()"']/g, "")
     .trim();
   const words = normalized.split(/\s+/).filter(Boolean);
-  // Solo evaluamos mensajes cortos para no atrapar preguntas reales.
   if (words.length > 4) return null;
 
-  // Solo emojis / stickers / signos → no responder (0 créditos, evita ruido).
   const onlyEmojis = /^[\p{Emoji}\p{Extended_Pictographic}\s❤️👍👌🙏✨🍦🍨🥤]+$/u.test(raw);
   if (onlyEmojis) return { reply: "", event: null };
 
-  // Agradecimientos → respuesta breve + sticker de gracias.
   if (/\b(gracias|thanks|thank|agradezco|muy amable|mil gracias|dios te pague)\b/.test(normalized)) {
-    return { reply: "¡Con mucho gusto! 🍦 Estamos para servirte cuando quieras.", event: "thanks" };
+    return { reply: "¡Con gusto! 🍦", event: "thanks" };
   }
 
-  // Confirmaciones triviales → no ameritan respuesta (o breve).
   if (/^(ok|okay|listo|dale|vale|bueno|si|sii|siii|no|nop|va|bien|perfecto|entendido|👍|👌|🙏)$/.test(normalized)) {
     return { reply: "", event: null };
   }
 
-  // Pedido de menú → link directo, sin IA.
+  const sede = branchName ? ` (${branchName})` : "";
+
+  // Pedido de menú → link directo.
   if (/\b(menu|menú|carta|catalogo|catálogo|precios|lista)\b/.test(normalized)) {
     return {
-      reply: `Aquí está nuestro menú con fotos y precios actualizados 👉 ${menuLink}\n\nSi quieres pedir por aquí, dime qué te provoca. 🍦`,
+      reply: `Aquí lo tienes 👉 ${menuLink}`,
       event: "menu",
     };
   }
 
-  // Saludos cortos sin más contexto → bienvenida breve + link.
+  // Saludos cortos → bienvenida breve.
   if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
     return {
-      reply: `¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nTe comparto el menú con fotos y precios 👉 ${menuLink}\n\nDime en qué te ayudo.`,
+      reply: `¡Hola!${sede} 🍦 Mira el menú y pide en un minuto 👉 ${menuLink}`,
       event: "welcome",
     };
   }
@@ -648,7 +644,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink);
+              const shortCircuit = activeCartHasItems || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
               if (shortCircuit) {
                 await logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
@@ -724,25 +720,25 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               const defaultPrompt = [
                 `Eres Golosito, el asistente oficial de Heladería Goloso (sede ${branchName}).`,
-                "IDENTIDAD: tu nombre es Golosito. Cuando te presentes, di únicamente 'soy Golosito, tu asistente'. NUNCA uses la expresión 'asistente virtual', 'bot', 'IA', 'inteligencia artificial', 'chatbot' ni 'asesor virtual'. Preséntate SOLO al inicio de la conversación (primer mensaje) y no repitas tu nombre en cada respuesta: mantén una conversación fluida y natural.",
-                "TONO: amable, cercano, cálido, alegre, respetuoso y profesional. Español neutro y universal ('con gusto', '¡perfecto!', '¡excelente!', '¡claro que sí!', 'por supuesto'). PROHIBIDO usar regionalismos o modismos como 'parcero', 'parce', 'parcera', 'pues', 'de una', 'bacano', 'chévere', 'bro', 'amigo', 'mi amor', 'mi rey', 'mi reina', 'mijo', 'mija', 'hágale', 'listo pues'. Nunca suenes robótico ni corporativo; transmite calidez y calidad, acorde a la imagen de Heladería Goloso.",
-                "Usa 🍦🍨✨🥤 con mesura, solo cuando aporten (no en cada frase, no en cada mensaje). Nunca uses inglés innecesario ni tecnicismos.",
+                "IDENTIDAD: te llamas Golosito. Preséntate SOLO en el primer mensaje ('soy Golosito, tu asistente'). No repitas tu nombre ni el de la heladería en cada respuesta. NUNCA digas 'asistente virtual', 'bot', 'IA', 'chatbot'.",
+                "TONO: amable, cercano, cálido y profesional. Español neutro ('con gusto', 'perfecto', 'claro'). PROHIBIDO regionalismos: 'parcero', 'parce', 'pues', 'de una', 'bacano', 'chévere', 'bro', 'mi amor', 'mi rey', 'mijo', 'hágale'.",
+                "Usa emojis 🍦🍨✨ con mesura (1 por mensaje máximo, no en cada frase).",
                 "",
-                "ESTILO DE RESPUESTA:",
-                "- Frases cortas, WhatsApp-friendly. Usa saltos de línea para separar ideas.",
-                "- Cuando pidas varios datos al cliente (dirección, teléfono, etc.), NUNCA los pidas en un párrafo largo. Preséntalos como lista con emojis, por ejemplo:",
-                "  📍 Dirección completa",
-                "  🏘️ Barrio",
-                "  📞 Teléfono de contacto",
-                "  💵 ¿Efectivo o transferencia?",
-                "- Si el cliente ya te dio parte de la info, no la vuelvas a pedir. Solo lo que falte.",
-                "- Al listar productos o precios usa viñetas claras (•) y separa por línea. Nada de párrafos densos.",
-                "- Confirma siempre antes de dar por hecho algo (\"¿te confirmo con dos vasos entonces?\").",
+                "ESTILO — BREVEDAD OBLIGATORIA:",
+                "- Respuestas MUY cortas: idealmente 1-3 líneas. Máximo 4 líneas salvo que el cliente pida detalle o sea un resumen de pedido.",
+                "- Frases cortas y directas. Nada de párrafos largos ni explicaciones que el cliente no pidió.",
+                "- UNA sola pregunta a la vez cuando necesites datos.",
+                "- No repitas información ya dada en mensajes previos.",
+                "- No saludes ni te presentes en cada mensaje: solo la primera vez.",
+                "- No incluyas el link del menú si ya lo enviaste antes en esta conversación.",
+                "- Al pedir varios datos (dirección, pago, etc.), usa lista breve con emojis, una línea cada uno.",
+                "- Si el cliente ya te dio parte de la info, pide SOLO lo que falte.",
+                "- Confirma antes de asumir ('¿te confirmo con dos vasos?').",
                 "",
                 "PRIORIDAD #1 — MENÚ EN LÍNEA:",
-                `- Cuando el cliente salude o pida información general, tu PRIMERA respuesta invita al menú en línea: ${menuLink}`,
-                "- Explícalo natural: allí ve todo con fotos, precios reales y pide en un minuto.",
-                "- Solo toma el pedido por chat si el cliente dice explícitamente que prefiere por acá.",
+                `- Primera respuesta a un saludo/pregunta general: invita al menú en una línea. Ejemplo: 'Mira el menú y pide en un minuto 👉 ${menuLink}'`,
+                "- No repitas el enlace en mensajes siguientes.",
+                "- Toma pedido por chat solo si el cliente lo pide explícitamente.",
                 "",
                 "REGLAS DE INFORMACIÓN:",
                 "- Si la pregunta se parece a una PREGUNTA FRECUENTE listada abajo, usa esa respuesta como base y adáptala al tono de la conversación (no la copies textual como robot).",
@@ -1128,7 +1124,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const lovableKey = process.env.LOVABLE_API_KEY;
               const geminiKey = process.env.GEMINI_API_KEY;
               if (!lovableKey && !geminiKey) {
-                const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
+                const reply = fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
@@ -1144,7 +1140,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const qData = Array.isArray(q.data) ? q.data[0] : q.data;
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
-                  const reply = fallbackOrderReply(text, menuLink, orderingEnabled);
+                  const reply = fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
                   await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
                     ok: false,
                     metadata: qData ?? null,
@@ -1414,7 +1410,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
-                finalReply = fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0);
+                finalReply = fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
