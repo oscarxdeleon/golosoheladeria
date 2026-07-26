@@ -193,6 +193,46 @@ function fallbackOrderReply(input: string, menuLink: string, takingOrders: boole
   return operationalReply(menuLink, true, branchName);
 }
 
+type CartRecord = Record<string, unknown> | null;
+
+function cartItems(cart: CartRecord): Array<Record<string, unknown>> {
+  const items = cart?.items;
+  return Array.isArray(items) ? items as Array<Record<string, unknown>> : [];
+}
+
+function hasCartItems(cart: CartRecord) {
+  return cartItems(cart).length > 0;
+}
+
+function fieldText(cart: CartRecord, field: string) {
+  return typeof cart?.[field] === "string" ? String(cart[field]).trim() : "";
+}
+
+function effectiveOrderType(cart: CartRecord) {
+  const value = fieldText(cart, "order_type").toLowerCase();
+  return value === "pickup" ? "pickup" : "delivery";
+}
+
+function missingCartFields(cart: CartRecord) {
+  const missing: string[] = [];
+  if (!fieldText(cart, "customer_name")) missing.push("nombre");
+  if (effectiveOrderType(cart) === "delivery") {
+    if (!fieldText(cart, "delivery_address")) missing.push("dirección");
+    if (!fieldText(cart, "delivery_neighborhood")) missing.push("barrio");
+  }
+  if (!fieldText(cart, "payment_method")) missing.push("método de pago");
+  return missing;
+}
+
+function sameReply(a: string, b: string) {
+  return normalizeText(a).replace(/\s+/g, " ") === normalizeText(b).replace(/\s+/g, " ");
+}
+
+function isAlreadyOrderedTurn(input: string) {
+  const normalized = normalizeText(input);
+  return /\b(ya pedi|ya hice el pedido|ya realice el pedido|ya ordene|ya esta pedido|ya lo pedi|ya lo hice)\b/.test(normalized);
+}
+
 type ProductLite = {
   id?: string;
   name?: string;
@@ -272,12 +312,41 @@ function extractCustomerName(input: string) {
   return explicit.replace(/\b(direccion|dirección|barrio|pago|efectivo|transferencia).*$/i, "").trim();
 }
 
+function looksLikeBareCustomerName(input: string) {
+  const raw = input.trim().replace(/\s+/g, " ");
+  if (raw.length < 3 || raw.length > 60) return false;
+  const normalized = normalizeText(raw);
+  if (!normalized || isConfirmation(raw) || isCancelOrNegativeTurn(raw) || isAlreadyOrderedTurn(raw)) return false;
+  if (detectOrderType(raw) || detectPayment(raw) || extractAddress(raw) || extractNeighborhood(raw)) return false;
+  if (/[#@0-9]/.test(raw)) return false;
+  if (/\b(quiero|dame|deme|pedido|pedir|producto|helado|malteada|ensalada|vaso|cono|copa|sabor|topping|domicilio|direccion|dirección|barrio|pago|efectivo|transferencia|nequi|bancolombia|menu|menú|precio|cuanto|cuánto|ya|hice|pedi|pedí)\b/.test(normalized)) return false;
+  const words = raw.split(/\s+/).filter(Boolean);
+  if (words.length < 1 || words.length > 5) return false;
+  return words.every((word) => /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ'.-]{2,}$/.test(word));
+}
+
 function extractAddress(input: string) {
   return extractField(input, ["direccion", "dirección", "dir", "address"]);
 }
 
+function looksLikeBareAddress(input: string) {
+  const normalized = normalizeText(input);
+  return /\b(calle|callejon|carrera|cra|cl|kr|avenida|av|diagonal|transversal|mz|manzana|casa|apartamento|apto|edificio|torre|via|kilometro|km)\b/.test(normalized)
+    || /#|\b\d{1,3}\s*[a-z]?\s*(?:-|#)\s*\d{1,3}\b/i.test(input);
+}
+
 function extractNeighborhood(input: string) {
   return extractField(input, ["barrio", "sector"]);
+}
+
+function looksLikeBareNeighborhood(input: string) {
+  const raw = input.trim().replace(/\s+/g, " ");
+  if (raw.length < 3 || raw.length > 45) return false;
+  const normalized = normalizeText(raw);
+  if (!normalized || isConfirmation(raw) || isCancelOrNegativeTurn(raw) || isAlreadyOrderedTurn(raw)) return false;
+  if (detectPayment(raw) || detectOrderType(raw) || looksLikeBareAddress(raw)) return false;
+  if (/\b(quiero|dame|deme|pedido|pedir|producto|helado|malteada|ensalada|vaso|cono|copa|sabor|topping|menu|menú|precio|cuanto|cuánto|nombre|direccion|dirección|pago|efectivo|transferencia|nequi|bancolombia)\b/.test(normalized)) return false;
+  return /^[A-Za-zÁÉÍÓÚÜÑáéíóúüñ0-9'.\-\s]+$/.test(raw);
 }
 
 function isConfirmation(input: string) {
@@ -317,7 +386,7 @@ function isGeneralHelpTurn(input: string) {
 }
 
 function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number) => string) {
-  const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+  const items = cartItems(cart);
   const lines = items.map((item) => {
     const qty = Number(item.qty ?? 1);
     const name = String(item.product_name ?? item.name ?? "Producto");
@@ -333,6 +402,28 @@ function summarizeCart(cart: Record<string, unknown> | null, fmtCOP: (n: number)
     fee > 0 ? `Domicilio: ${fmtCOP(fee)}` : null,
     `Total: ${fmtCOP(total)}`,
   ].filter(Boolean).join("\n");
+}
+
+function buildCartProgressReply(cart: CartRecord, fmtCOP: (n: number) => string, intro?: string) {
+  if (!hasCartItems(cart)) return null;
+  const name = fieldText(cart, "customer_name");
+  const missing = missingCartFields(cart);
+  const summary = summarizeCart(cart, fmtCOP);
+  const prefix = intro ? `${intro}\n\n` : "";
+
+  if (missing.includes("nombre")) {
+    return `${prefix}Ya tengo tu pedido en curso. 🍦\n\n${summary}\n\n¿A nombre de quién lo registro?`;
+  }
+  if (missing.includes("dirección")) {
+    return `${prefix}${name ? `Gracias, ${name}.` : "Perfecto."} ¿Cuál es la dirección completa para el domicilio?`;
+  }
+  if (missing.includes("barrio")) {
+    return `${prefix}${name ? `${name}, ` : ""}¿en qué barrio queda?`;
+  }
+  if (missing.includes("método de pago")) {
+    return `${prefix}${name ? `${name}, ` : ""}¿pagas en efectivo o transferencia?`;
+  }
+  return `${prefix}${summary}\n\n${name ? `${name}, ` : ""}¿confirmas el pedido?`;
 }
 
 const AI_TOTAL_BUDGET_MS = 20_000;
@@ -1067,10 +1158,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const buildOperationalOrderReply = async () => {
                 if (!orderingEnabled || !text) return null;
 
-                const normalized = normalizeText(text);
                 const currentCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                 const currentCart = (currentCartRes.ok ? currentCartRes.data : null) as Record<string, unknown> | null;
-                const currentItems = Array.isArray(currentCart?.items) ? currentCart.items as Array<Record<string, unknown>> : [];
+                const currentItems = cartItems(currentCart);
 
                 if (currentItems.length > 0 && isCancelOrNegativeTurn(text)) {
                   await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
@@ -1083,12 +1173,28 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const customerName = extractCustomerName(text);
                 const address = extractAddress(text);
                 const neighborhood = extractNeighborhood(text);
+                const currentMissing = missingCartFields(currentCart);
 
                 if (orderType) patch.order_type = orderType;
                 if (payment) patch.payment_method = payment;
                 if (customerName && customerName.length >= 2) patch.customer_name = customerName;
                 if (address && address.length >= 3) patch.delivery_address = address;
                 if (neighborhood && neighborhood.length >= 2) patch.delivery_neighborhood = neighborhood;
+
+                // Si hay un carrito en curso y el bot acaba de preguntar por un
+                // dato específico, el cliente muchas veces contesta solo el dato:
+                // "Oscar Deleon", "Cra 10 # 5-20" o "San Fernando". Antes esas
+                // respuestas caían a la IA/fallback y el flujo volvía a "¿Qué te
+                // provoca pedir?". Aquí avanzamos el estado de forma determinística.
+                if (currentItems.length > 0) {
+                  if (!patch.customer_name && currentMissing.includes("nombre") && looksLikeBareCustomerName(text)) {
+                    patch.customer_name = text.trim().replace(/\s+/g, " ");
+                  } else if (!patch.delivery_address && currentMissing.includes("dirección") && looksLikeBareAddress(text)) {
+                    patch.delivery_address = text.trim().replace(/\s+/g, " ");
+                  } else if (!patch.delivery_neighborhood && currentMissing.includes("barrio") && looksLikeBareNeighborhood(text)) {
+                    patch.delivery_neighborhood = text.trim().replace(/\s+/g, " ");
+                  }
+                }
                 if (orderType === "delivery" || (!orderType && (currentCart?.order_type ?? "delivery") === "delivery")) {
                   patch.delivery_fee = Number(orderCfg?.delivery_fee ?? currentCart?.delivery_fee ?? 0);
                 }
@@ -1104,6 +1210,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const looksLikeOrderTurn = hasPatch || hasCart;
                 if (!looksLikeOrderTurn) return null;
 
+                if (hasCart && isAlreadyOrderedTurn(text)) {
+                  return buildCartProgressReply(currentCart, fmtCOP, "Todavía no lo veo confirmado. Sigamos con los datos pendientes:");
+                }
+
                 if (hasCart && !hasPatch && isGeneralHelpTurn(text)) {
                   return null;
                 }
@@ -1114,29 +1224,21 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   if (upsert.ok && upsert.data && typeof upsert.data === "object") cart = upsert.data as Record<string, unknown>;
                 }
 
-                const items = Array.isArray(cart?.items) ? cart.items as Array<Record<string, unknown>> : [];
+                const items = cartItems(cart);
                 // Sin items no hay pedido para resumir/confirmar: dejamos que la
                 // IA guíe al cliente (search_products → get_modifiers → add_to_cart).
                 if (items.length === 0) return null;
 
-                const effectiveOrderType = String(cart?.order_type ?? patch.order_type ?? "delivery");
-                const missing: string[] = [];
-                if (!String(cart?.customer_name ?? "").trim()) missing.push("nombre");
-                if (effectiveOrderType === "delivery") {
-                  if (!String(cart?.delivery_address ?? "").trim()) missing.push("dirección");
-                  if (!String(cart?.delivery_neighborhood ?? "").trim()) missing.push("barrio");
-                }
-                if (!String(cart?.payment_method ?? "").trim()) missing.push("método de pago");
+                const missing = missingCartFields(cart);
 
                 // La confirmación SIEMPRE pasa por la IA (tool confirm_order),
                 // que aplica guardias completas (nombre, modificadores, etc.).
                 // Aquí solo mostramos avance/resumen si falta info.
                 if (missing.length > 0) {
                   const hasNewInfo = hasPatch;
-                  const isLikelyQuestion = /[?¿]|\b(cuanto|cuánto|precio|vale|cambiar|cambio|agregar|añadir|poner|quitar|cancelar|confirmo|si|sí|dale|listo)\b/i.test(text);
-                  if (!hasNewInfo && isLikelyQuestion) return null;
-                  const summary = summarizeCart(cart, fmtCOP);
-                  return `Voy armando tu pedido. 🍦\n\n${summary}\n\nPara registrarlo me falta: ${missing.join(", ")}.`;
+                  const shouldLetAiHandle = !hasNewInfo && /[?¿]|\b(cuanto|cuánto|precio|vale|cambiar|cambio|agregar|añadir|poner|quitar)\b/i.test(text);
+                  if (shouldLetAiHandle) return null;
+                  return buildCartProgressReply(cart, fmtCOP, hasNewInfo ? "Voy actualizando tu pedido." : undefined);
                 }
                 return null; // datos completos: la IA cierra con el cliente
               };
@@ -1450,13 +1552,23 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
 
               // Fallback operativo: nunca enviar al cliente el mensaje de error técnico.
               if (!finalReply) {
-                finalReply = fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
+                const progressReply = await buildOperationalOrderReply();
+                finalReply = progressReply ?? fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
                   error: lastErr,
                   metadata: { finishReason: lastFinishReason },
                 });
+              } else if (sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName))) {
+                const progressReply = await buildOperationalOrderReply();
+                if (progressReply) {
+                  finalReply = progressReply;
+                  lastErr = lastErr ?? "generic_reply_replaced_with_cart_progress";
+                  await logBotEvent(token, conversationId, from, "generic_reply_replaced_with_cart_progress", {
+                    metadata: { finishReason: lastFinishReason },
+                  });
+                }
               }
 
               // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
