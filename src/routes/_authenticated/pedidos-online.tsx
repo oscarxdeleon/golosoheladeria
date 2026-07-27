@@ -411,7 +411,7 @@ function OnlineOrdersPage() {
   }
 
   /** Cobra el pedido con el método indicado. El ticket físico se imprime solo después de confirmar el pago. */
-  async function payWithMethod(method: string, cashReceivedRaw?: string) {
+  async function payWithMethod(method: string, cashReceivedRaw?: string, transactionLast4?: string) {
     if (!payOrder) return;
     if (!activeBranchId || payOrder.branch_id !== activeBranchId) {
       toast.error("Este pedido pertenece a otra sede. Cambia a la sede correcta para cobrarlo.");
@@ -427,12 +427,25 @@ function OnlineOrdersPage() {
       return;
     }
 
+    const isElectronic = method === "Nequi" || method === "Bancolombia";
+    const last4 = (transactionLast4 ?? "").replace(/\D/g, "").slice(0, 4);
+    if (isElectronic && last4.length !== 4) {
+      toast.error("Ingresa los últimos 4 dígitos de la transacción");
+      return;
+    }
+
     setPaying(true);
     const its = items.filter((i) => i.sale_id === payOrder.id);
     const noteSuffix = method === "Efectivo"
       ? `Recibido: ${cashReceived}`
-      : paymentRef ? `Ref: ${paymentRef}` : "";
+      : isElectronic ? `Trans: ****${last4}` : paymentRef ? `Ref: ${paymentRef}` : "";
     const newNotes = [payOrder.notes, noteSuffix].filter(Boolean).join(" · ");
+
+    const paymentDetails: Record<string, unknown> | null = isElectronic
+      ? { transaction_last4: last4 }
+      : method === "Efectivo"
+        ? { cash_received: cashReceived, change: Math.max(0, cashReceived - Number(payOrder.total)) }
+        : null;
 
     const { data: paidRow, error } = await supabase
       .from("sales")
@@ -441,6 +454,8 @@ function OnlineOrdersPage() {
         payment_method: method,
         cash_session_id: cashSession.id,
         notes: newNotes || null,
+        payment_details: paymentDetails,
+        payment_transaction_last4: isElectronic ? last4 : null,
       })
       .eq("id", payOrder.id)
       .eq("branch_id", activeBranchId)
