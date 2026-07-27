@@ -124,7 +124,7 @@ function LlevarPendientesPage() {
       let q = supabase
         .from("sales")
         .select(
-          "id,ticket_number,created_at,customer_name,customer_phone,notes,total,subtotal,status,payment_method,order_type,source,branch_id,cancelled_at,cancellation_reason,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)"
+          "id,ticket_number,created_at,customer_name,customer_phone,notes,total,subtotal,status,payment_method,payment_details,order_type,source,branch_id,cancelled_at,cancellation_reason,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)"
         )
         .eq("branch_id", activeBranchId!)
         .eq("order_type", "llevar")
