@@ -59,6 +59,7 @@ interface Sale {
   subtotal: number;
   status: string;
   payment_method: string | null;
+  payment_details: Record<string, unknown> | null;
   order_type: string | null;
   source: string | null;
   branch_id: string | null;
