@@ -695,11 +695,10 @@ function buildPaymentReceiptEscPosBase64(o: {
 
   out += ALIGN_L + DASH;
 
-  // TOTAL — etiqueta y valor en una sola línea, en negrilla.
+  // TOTAL — etiqueta normal, valor en tamaño grande y negrilla, centrado.
   const totalStr = money(o.total);
-  const label = "TOTAL:";
-  const spacing = Math.max(1, WIDTH - label.length - totalStr.length);
-  out += ALIGN_L + BOLD_ON + label + " ".repeat(spacing) + totalStr + BOLD_OFF + "\n";
+  out += ALIGN_C + BOLD_ON + "TOTAL\n" + BOLD_OFF;
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE + totalStr + "\n" + SIZE_NORMAL + BOLD_OFF;
 
   out += DASH;
   out += "\n\n\n" + CUT;
