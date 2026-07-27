@@ -14,6 +14,13 @@ export interface SplitPart {
   method: SplitMethod;
   amount: number;
   items?: { name: string; qty: number; unit_price: number }[];
+  /** Últimos 4 dígitos de la transacción (solo Nequi/Bancolombia). */
+  transaction_last4?: string;
+}
+
+function isElectronic(m: string): boolean {
+  const s = m.toLowerCase();
+  return s.includes("nequi") || s.includes("bancolombia");
 }
 
 export interface SplitLineForPicker {
