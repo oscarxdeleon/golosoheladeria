@@ -19,6 +19,7 @@ import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { ticketHTML, printTicketFinal, type Branding, type TicketConfig } from "@/components/pos-screen";
+import { ElectronicPaymentDialog } from "@/components/electronic-payment-dialog";
 import nequiLogo from "@/assets/nequi-logo-transparent.webp";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 
