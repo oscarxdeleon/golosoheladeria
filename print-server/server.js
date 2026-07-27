@@ -982,6 +982,17 @@ function stripEscPosForDebug(buf) {
 
 // ---------- Router de plantillas ----------
 async function buildRaw(p) {
+  // Passthrough: si el cliente ya generó los bytes ESC/POS (rediseños de
+  // plantilla que no dependen del template del servidor), se envían tal cual.
+  // Introducido en v2.24.0 para permitir cambios de diseño exclusivamente
+  // desde el POS sin obligar a reinstalar el Print Server.
+  if (p && p.raw_escpos_base64) {
+    try {
+      return Buffer.from(String(p.raw_escpos_base64), "base64");
+    } catch (e) {
+      console.warn("[print] raw_escpos_base64 inválido, cayendo a plantilla:", e?.message || e);
+    }
+  }
   if (p.type === "drawer") return encodeEscPos(INIT + DRAWER);
   if (p.type === "comanda") return buildComandaRaw(p);
   if (p.type === "payment_receipt") return await buildPaymentReceiptRaw(p);
