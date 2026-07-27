@@ -566,6 +566,71 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
           </Tabs>
         </div>
 
+        {/* Overlay: captura obligatoria de últimos 4 dígitos de la transacción
+            para cada parte pagada con Nequi/Bancolombia. */}
+        {pendingSplits && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl" style={{ background: "#1e1e5a", border: "1.5px solid rgba(129,140,248,0.35)" }}>
+              <div className="text-center space-y-0.5">
+                <div className="sunset-display text-lg tracking-wider text-white">CÓDIGOS DE TRANSACCIÓN</div>
+                <div className="sunset-body text-[11px]" style={{ color: "#94a3b8" }}>
+                  Ingresa los 4 últimos dígitos por cada pago electrónico
+                </div>
+              </div>
+              <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
+                {pendingSplits.map((p, i) => {
+                  if (!isElectronic(p.method)) return null;
+                  const s = METHOD_STYLE[p.method];
+                  const value = last4Draft[i] ?? "";
+                  return (
+                    <div key={i} className="rounded-xl p-2.5 space-y-2" style={{ background: s.soft, border: `1.5px solid ${s.ring}55` }}>
+                      <div className="flex items-center justify-between">
+                        <div className="sunset-display text-[13px] tracking-wider" style={{ color: s.ring }}>{p.method}</div>
+                        <div className="sunset-display tabular-nums text-base" style={{ color: s.ring }}>{formatMoney(p.amount)}</div>
+                      </div>
+                      <input
+                        inputMode="numeric"
+                        pattern="[0-9]{4}"
+                        maxLength={4}
+                        autoFocus={i === pendingSplits.findIndex((x) => isElectronic(x.method))}
+                        value={value}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          setLast4Draft((prev) => ({ ...prev, [i]: digits }));
+                        }}
+                        placeholder="0000"
+                        aria-label={`Últimos 4 dígitos ${p.method}`}
+                        className="w-full text-center text-3xl font-black tracking-[0.5em] py-3 rounded-lg bg-[#0a0a1a] text-white focus:outline-none"
+                        style={{ border: `1.5px solid ${s.ring}55` }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  disabled={paying}
+                  onClick={() => setPendingSplits(null)}
+                  className="sunset-display h-10 rounded-full tracking-wider flex-1"
+                >
+                  ATRÁS
+                </Button>
+                <button
+                  onClick={confirmWithLast4}
+                  disabled={paying}
+                  className="sunset-display h-10 rounded-full tracking-wider text-white text-[14px] flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ background: "var(--sunset-gradient)", boxShadow: "0 6px 14px -5px rgba(129,140,248,0.55)" }}
+                >
+                  <Check className="h-4 w-4" />
+                  {paying ? "COBRANDO…" : "CONFIRMAR"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+
         <DialogFooter className="shrink-0 border-t px-4 py-2.5 gap-2 sm:gap-2" style={{ background: "rgba(20,20,50,0.85)", borderColor: "rgba(79,70,229,0.18)" }}>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={paying} className="sunset-display h-10 rounded-full tracking-wider">
             CANCELAR
