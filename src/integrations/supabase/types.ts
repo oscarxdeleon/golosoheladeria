@@ -3419,6 +3419,10 @@ export type Database = {
         }
         Returns: Json
       }
+      admin_change_sale_payment_method: {
+        Args: { _new_method: string; _reason: string; _sale_id: string }
+        Returns: Json
+      }
       admin_create_app_user: {
         Args: {
           _active?: boolean
