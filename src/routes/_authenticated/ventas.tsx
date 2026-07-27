@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,8 +7,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatMoney, formatDate } from "@/lib/format";
-import { Receipt } from "lucide-react";
+import { Receipt, Wallet } from "lucide-react";
 import { TicketPreview } from "@/components/ticket-preview";
+import { ChangePaymentMethodDialog } from "@/components/change-payment-method-dialog";
+import { useAuth } from "@/hooks/use-auth";
 
 export const Route = createFileRoute("/_authenticated/ventas")({
   head: () => ({ meta: [{ title: "Ventas · Goloso POS" }] }),
@@ -17,6 +19,9 @@ export const Route = createFileRoute("/_authenticated/ventas")({
 
 function VentasPage() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [changePay, setChangePay] = useState<{ id: string; ticket_number: number; total: number; payment_method: string } | null>(null);
+  const qc = useQueryClient();
+  const { isAdmin } = useAuth();
 
   const { data: sales = [] } = useQuery({
     queryKey: ["sales"],
@@ -114,12 +119,35 @@ function VentasPage() {
               tip: Number((detail.sale as { tip_amount?: number | null }).tip_amount ?? 0),
             }} />
           )}
-          <DialogFooter className="no-print">
+          <DialogFooter className="no-print flex-wrap gap-2">
+            {isAdmin && detail?.sale && (
+              <Button
+                variant="secondary"
+                onClick={() => setChangePay({
+                  id: detail.sale!.id,
+                  ticket_number: detail.sale!.ticket_number,
+                  total: Number(detail.sale!.total),
+                  payment_method: detail.sale!.payment_method,
+                })}
+              >
+                <Wallet className="h-4 w-4 mr-1" /> Cambiar medio de pago
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setSelected(null)}>Cerrar</Button>
             <Button onClick={() => window.print()}>Imprimir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ChangePaymentMethodDialog
+        open={!!changePay}
+        onOpenChange={(o) => !o && setChangePay(null)}
+        sale={changePay}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ["sales"] });
+          qc.invalidateQueries({ queryKey: ["sale-detail"] });
+        }}
+      />
     </div>
   );
 }
