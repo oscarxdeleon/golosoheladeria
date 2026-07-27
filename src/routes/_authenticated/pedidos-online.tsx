@@ -441,7 +441,7 @@ function OnlineOrdersPage() {
       : isElectronic ? `Trans: ****${last4}` : paymentRef ? `Ref: ${paymentRef}` : "";
     const newNotes = [payOrder.notes, noteSuffix].filter(Boolean).join(" · ");
 
-    const paymentDetails: Record<string, unknown> | null = isElectronic
+    const paymentDetails = isElectronic
       ? { transaction_last4: last4 }
       : method === "Efectivo"
         ? { cash_received: cashReceived, change: Math.max(0, cashReceived - Number(payOrder.total)) }
