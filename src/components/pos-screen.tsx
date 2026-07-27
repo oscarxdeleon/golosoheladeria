@@ -1745,8 +1745,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // volvemos al Panel de Mesas, que es la pantalla principal del cajero.
       const redirectTo: "/mesas" = "/mesas";
 
-      // Mostrar diálogo de confirmación para imprimir el ticket.
-      // La impresión SOLO se ejecuta si el cajero pulsa "Sí, imprimir".
+      // Desglose de pago para el ticket final (visible tanto en la
+      // reimpresión en pantalla como en la impresión térmica). Cuando el
+      // Print Server local todavía no soporta `payment_splits`, se anexa el
+      // desglose al inicio de las notas para no perder la información.
+      const splitsBreakdown = paymentSplits && paymentSplits.length > 0
+        ? paymentSplits
+            .map((p) => {
+              const tail = p.transaction_last4 ? ` (Trx ${p.transaction_last4})` : "";
+              return `- ${p.method}: ${formatMoney(p.amount)}${tail}`;
+            })
+            .join("\n")
+        : "";
+      const notesForTicket = splitsBreakdown
+        ? [`FORMA DE PAGO:\n${splitsBreakdown}`, snapshotNotes].filter(Boolean).join("\n\n")
+        : snapshotNotes;
+
       const ticketPayload: Parameters<typeof printTicketFinal>[0] = {
         ticket: sale.ticket_number,
         header: snapshotHeader,
@@ -1757,12 +1771,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         tip: effectiveTip,
         total: Number(sale.total),
         payment_method: sale.payment_method,
+        payment_splits: paymentSplits ?? undefined,
         customer: snapshotCustomer,
         user_name: snapshotUserName,
         created_at: sale.created_at,
         address: snapshotAddress,
         phone: snapshotPhone,
-        notes: snapshotNotes,
+        notes: notesForTicket,
         cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
         branding,
       };
@@ -1777,7 +1792,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // Impresión automática del comprobante compacto para pagos electrónicos.
       // No requiere confirmación del cajero: es el soporte físico del pago
       // para conciliar el cierre de caja y debe salir SIEMPRE.
-      if (transactionLast4) {
+      if (paymentSplits && paymentSplits.length > 0) {
+        // Pago dividido: emitir un comprobante independiente por cada parte
+        // electrónica (Nequi/Bancolombia) con SU monto y SU código de trx.
+        for (const part of paymentSplits) {
+          if (!/nequi|bancolombia/i.test(part.method)) continue;
+          if (!part.transaction_last4) continue;
+          setTimeout(() => {
+            void printPaymentReceipt({
+              ticket: sale!.ticket_number,
+              total: part.amount,
+              payment_method: part.method,
+              transaction_last4: part.transaction_last4!,
+              customer: snapshotCustomer,
+              user_name: snapshotUserName,
+              created_at: sale!.created_at,
+              branding,
+            });
+          }, 0);
+        }
+      } else if (transactionLast4) {
         setTimeout(() => {
           void printPaymentReceipt({
             ticket: sale!.ticket_number,
@@ -1791,6 +1825,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           });
         }, 0);
       }
+
 
 
 
