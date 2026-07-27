@@ -291,6 +291,7 @@ function OnlineOrdersPage() {
     setPaymentRef("");
     setAmountReceived("");
     setCashDialogOpen(false);
+    setElectronicDialog(null);
   }
 
   /** Construye el ticket (args + mensaje WA) para diferir la impresión. */
