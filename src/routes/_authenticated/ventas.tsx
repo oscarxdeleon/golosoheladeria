@@ -19,6 +19,9 @@ export const Route = createFileRoute("/_authenticated/ventas")({
 
 function VentasPage() {
   const [selected, setSelected] = useState<string | null>(null);
+  const [changePay, setChangePay] = useState<{ id: string; ticket_number: number; total: number; payment_method: string } | null>(null);
+  const qc = useQueryClient();
+  const { isAdmin } = useAuth();
 
   const { data: sales = [] } = useQuery({
     queryKey: ["sales"],
