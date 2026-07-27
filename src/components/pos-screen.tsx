@@ -259,6 +259,7 @@ export function ticketHTML(o: {
   payment_method: string; customer: string; user_name: string; created_at: string;
   address?: string; phone?: string; cash_received?: number;
   notes?: string;
+  payment_splits?: { method: string; amount: number; transaction_last4?: string }[];
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
@@ -571,6 +572,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
     tip: isCourtesy ? 0 : o.tip,
     total: isCourtesy ? 0 : o.total,
     payment_method: o.payment_method,
+    payment_splits: o.payment_splits,
     customer: o.customer,
     notes: o.notes,
     address: o.address,
@@ -1488,7 +1490,34 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     const rawLast4 = paymentDetails && typeof paymentDetails.transaction_last4 === "string"
       ? String(paymentDetails.transaction_last4).replace(/\D/g, "").slice(0, 4)
       : "";
-    const transactionLast4 = /^[0-9]{4}$/.test(rawLast4) ? rawLast4 : null;
+    let transactionLast4 = /^[0-9]{4}$/.test(rawLast4) ? rawLast4 : null;
+
+    // Splits (pago dividido): normaliza últimos 4 dígitos por parte y, si sólo
+    // hay una parte electrónica, propaga su código a la columna row-level.
+    type SplitLine = { method: string; amount: number; transaction_last4?: string; items?: unknown };
+    const rawSplits = paymentDetails && Array.isArray((paymentDetails as { splits?: unknown }).splits)
+      ? ((paymentDetails as { splits: unknown[] }).splits as SplitLine[])
+      : null;
+    const paymentSplits = rawSplits
+      ? rawSplits.map((p) => {
+          const digits = String(p.transaction_last4 ?? "").replace(/\D/g, "").slice(0, 4);
+          const isEle = /nequi|bancolombia/i.test(String(p.method));
+          return {
+            method: String(p.method),
+            amount: Number(p.amount) || 0,
+            transaction_last4: isEle && /^\d{4}$/.test(digits) ? digits : undefined,
+          };
+        })
+      : null;
+    if (!transactionLast4 && paymentSplits) {
+      const ele = paymentSplits.filter((p) => /nequi|bancolombia/i.test(p.method) && p.transaction_last4);
+      if (ele.length === 1) transactionLast4 = ele[0].transaction_last4 ?? null;
+    }
+    // Reemplazamos splits del payload con la versión enriquecida para persistir last4 por parte.
+    if (paymentSplits && paymentDetails) {
+      (paymentDetails as Record<string, unknown>).splits = paymentSplits;
+    }
+
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
 
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
@@ -1718,8 +1747,22 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // volvemos al Panel de Mesas, que es la pantalla principal del cajero.
       const redirectTo: "/mesas" = "/mesas";
 
-      // Mostrar diálogo de confirmación para imprimir el ticket.
-      // La impresión SOLO se ejecuta si el cajero pulsa "Sí, imprimir".
+      // Desglose de pago para el ticket final (visible tanto en la
+      // reimpresión en pantalla como en la impresión térmica). Cuando el
+      // Print Server local todavía no soporta `payment_splits`, se anexa el
+      // desglose al inicio de las notas para no perder la información.
+      const splitsBreakdown = paymentSplits && paymentSplits.length > 0
+        ? paymentSplits
+            .map((p) => {
+              const tail = p.transaction_last4 ? ` (Trx ${p.transaction_last4})` : "";
+              return `- ${p.method}: ${formatMoney(p.amount)}${tail}`;
+            })
+            .join("\n")
+        : "";
+      const notesForTicket = splitsBreakdown
+        ? [`FORMA DE PAGO:\n${splitsBreakdown}`, snapshotNotes].filter(Boolean).join("\n\n")
+        : snapshotNotes;
+
       const ticketPayload: Parameters<typeof printTicketFinal>[0] = {
         ticket: sale.ticket_number,
         header: snapshotHeader,
@@ -1730,12 +1773,13 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
         tip: effectiveTip,
         total: Number(sale.total),
         payment_method: sale.payment_method,
+        payment_splits: paymentSplits ?? undefined,
         customer: snapshotCustomer,
         user_name: snapshotUserName,
         created_at: sale.created_at,
         address: snapshotAddress,
         phone: snapshotPhone,
-        notes: snapshotNotes,
+        notes: notesForTicket,
         cash_received: method === "Efectivo" && cashReceived !== "" ? Number(cashReceived) : Number(sale.total),
         branding,
       };
@@ -1750,7 +1794,26 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
       // Impresión automática del comprobante compacto para pagos electrónicos.
       // No requiere confirmación del cajero: es el soporte físico del pago
       // para conciliar el cierre de caja y debe salir SIEMPRE.
-      if (transactionLast4) {
+      if (paymentSplits && paymentSplits.length > 0) {
+        // Pago dividido: emitir un comprobante independiente por cada parte
+        // electrónica (Nequi/Bancolombia) con SU monto y SU código de trx.
+        for (const part of paymentSplits) {
+          if (!/nequi|bancolombia/i.test(part.method)) continue;
+          if (!part.transaction_last4) continue;
+          setTimeout(() => {
+            void printPaymentReceipt({
+              ticket: sale!.ticket_number,
+              total: part.amount,
+              payment_method: part.method,
+              transaction_last4: part.transaction_last4!,
+              customer: snapshotCustomer,
+              user_name: snapshotUserName,
+              created_at: sale!.created_at,
+              branding,
+            });
+          }, 0);
+        }
+      } else if (transactionLast4) {
         setTimeout(() => {
           void printPaymentReceipt({
             ticket: sale!.ticket_number,
@@ -1764,6 +1827,7 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
           });
         }, 0);
       }
+
 
 
 

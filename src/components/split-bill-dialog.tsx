@@ -14,6 +14,13 @@ export interface SplitPart {
   method: SplitMethod;
   amount: number;
   items?: { name: string; qty: number; unit_price: number }[];
+  /** Últimos 4 dígitos de la transacción (solo Nequi/Bancolombia). */
+  transaction_last4?: string;
+}
+
+function isElectronic(m: string): boolean {
+  const s = m.toLowerCase();
+  return s.includes("nequi") || s.includes("bancolombia");
 }
 
 export interface SplitLineForPicker {
@@ -150,11 +157,49 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
     setMethodSheetOpen(false);
   }
 
+  // Captura obligatoria de últimos 4 dígitos para partes Nequi/Bancolombia.
+  const [pendingSplits, setPendingSplits] = useState<SplitPart[] | null>(null);
+  const [last4Draft, setLast4Draft] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (!open) {
+      setPendingSplits(null);
+      setLast4Draft({});
+    }
+  }, [open]);
+
+  async function proceedWithSplits(splits: SplitPart[]) {
+    const electronicIdx = splits
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => isElectronic(p.method));
+    if (electronicIdx.length > 0) {
+      const initial: Record<number, string> = {};
+      for (const { i } of electronicIdx) initial[i] = "";
+      setLast4Draft(initial);
+      setPendingSplits(splits);
+      return;
+    }
+    await onConfirm(splits);
+  }
+
+  async function confirmWithLast4() {
+    if (!pendingSplits) return;
+    const enriched = pendingSplits.map((p, i) => {
+      if (!isElectronic(p.method)) return p;
+      const digits = (last4Draft[i] ?? "").replace(/\D/g, "").slice(0, 4);
+      if (!/^\d{4}$/.test(digits)) return { ...p, transaction_last4: "" };
+      return { ...p, transaction_last4: digits };
+    });
+    const missing = enriched.find((p) => isElectronic(p.method) && !/^\d{4}$/.test(p.transaction_last4 ?? ""));
+    if (missing) return toast.error(`Ingresa los 4 dígitos de la transacción para ${missing.method}`);
+    await onConfirm(enriched);
+    setPendingSplits(null);
+  }
+
   async function handleConfirm() {
     if (tab === "cantidad") {
       // Auto-aplicar el borrador si el usuario dejó un monto escrito que
       // completa exactamente el saldo pendiente y no presionó "Aplicar".
-      // Es la fuente #1 de "presiono Cobrar y dice que falta dinero".
       let effective = cashPayments;
       const draft = round0(draftAmount);
       if (showDraft && draft > 0 && draft === cantidadPending) {
@@ -164,14 +209,14 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
       const pending = total - applied;
       if (pending !== 0) return toast.error(`Aún faltan ${formatMoney(Math.max(0, pending))} por asignar`);
       if (effective.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
-      await onConfirm(effective.map((p) => ({ method: p.method, amount: p.amount })));
+      await proceedWithSplits(effective.map((p) => ({ method: p.method, amount: p.amount })));
     } else {
       if (staged.length > 0) return toast.error("Aún tienes productos sin cobrar. Presiona COBRAR para asignarles un método de pago.");
       const all = committedBuckets;
       const sum = all.reduce((s, b) => s + b.amount, 0);
       if (sum !== total) return toast.error(`Aún faltan ${formatMoney(total - sum)} por cobrar`);
       if (all.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
-      await onConfirm(all.map((b) => ({ method: b.method, amount: b.amount, items: b.items })));
+      await proceedWithSplits(all.map((b) => ({ method: b.method, amount: b.amount, items: b.items })));
     }
   }
 
@@ -520,6 +565,71 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
             </TabsContent>
           </Tabs>
         </div>
+
+        {/* Overlay: captura obligatoria de últimos 4 dígitos de la transacción
+            para cada parte pagada con Nequi/Bancolombia. */}
+        {pendingSplits && (
+          <div className="absolute inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+            <div className="w-full max-w-sm rounded-2xl p-4 space-y-3 shadow-2xl" style={{ background: "#1e1e5a", border: "1.5px solid rgba(129,140,248,0.35)" }}>
+              <div className="text-center space-y-0.5">
+                <div className="sunset-display text-lg tracking-wider text-white">CÓDIGOS DE TRANSACCIÓN</div>
+                <div className="sunset-body text-[11px]" style={{ color: "#94a3b8" }}>
+                  Ingresa los 4 últimos dígitos por cada pago electrónico
+                </div>
+              </div>
+              <div className="space-y-2.5 max-h-[50vh] overflow-y-auto pr-1">
+                {pendingSplits.map((p, i) => {
+                  if (!isElectronic(p.method)) return null;
+                  const s = METHOD_STYLE[p.method];
+                  const value = last4Draft[i] ?? "";
+                  return (
+                    <div key={i} className="rounded-xl p-2.5 space-y-2" style={{ background: s.soft, border: `1.5px solid ${s.ring}55` }}>
+                      <div className="flex items-center justify-between">
+                        <div className="sunset-display text-[13px] tracking-wider" style={{ color: s.ring }}>{p.method}</div>
+                        <div className="sunset-display tabular-nums text-base" style={{ color: s.ring }}>{formatMoney(p.amount)}</div>
+                      </div>
+                      <input
+                        inputMode="numeric"
+                        pattern="[0-9]{4}"
+                        maxLength={4}
+                        autoFocus={i === pendingSplits.findIndex((x) => isElectronic(x.method))}
+                        value={value}
+                        onChange={(e) => {
+                          const digits = e.target.value.replace(/\D/g, "").slice(0, 4);
+                          setLast4Draft((prev) => ({ ...prev, [i]: digits }));
+                        }}
+                        placeholder="0000"
+                        aria-label={`Últimos 4 dígitos ${p.method}`}
+                        className="w-full text-center text-3xl font-black tracking-[0.5em] py-3 rounded-lg bg-[#0a0a1a] text-white focus:outline-none"
+                        style={{ border: `1.5px solid ${s.ring}55` }}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  disabled={paying}
+                  onClick={() => setPendingSplits(null)}
+                  className="sunset-display h-10 rounded-full tracking-wider flex-1"
+                >
+                  ATRÁS
+                </Button>
+                <button
+                  onClick={confirmWithLast4}
+                  disabled={paying}
+                  className="sunset-display h-10 rounded-full tracking-wider text-white text-[14px] flex-1 flex items-center justify-center gap-2 disabled:opacity-50"
+                  style={{ background: "var(--sunset-gradient)", boxShadow: "0 6px 14px -5px rgba(129,140,248,0.55)" }}
+                >
+                  <Check className="h-4 w-4" />
+                  {paying ? "COBRANDO…" : "CONFIRMAR"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
 
         <DialogFooter className="shrink-0 border-t px-4 py-2.5 gap-2 sm:gap-2" style={{ background: "rgba(20,20,50,0.85)", borderColor: "rgba(79,70,229,0.18)" }}>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={paying} className="sunset-display h-10 rounded-full tracking-wider">
