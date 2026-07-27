@@ -127,6 +127,7 @@ function OnlineOrdersPage() {
   const [paymentRef, setPaymentRef] = useState("");
   const [amountReceived, setAmountReceived] = useState("");
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
+  const [electronicDialog, setElectronicDialog] = useState<{ method: "Nequi" | "Bancolombia" } | null>(null);
   const [successDialog, setSuccessDialog] = useState<{
     ticket: number;
     method: string;
