@@ -259,6 +259,7 @@ export function ticketHTML(o: {
   payment_method: string; customer: string; user_name: string; created_at: string;
   address?: string; phone?: string; cash_received?: number;
   notes?: string;
+  payment_splits?: { method: string; amount: number; transaction_last4?: string }[];
   branding?: Branding;
 }) {
   const b = o.branding ?? DEFAULT_BRANDING;
