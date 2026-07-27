@@ -734,7 +734,7 @@ function OnlineOrdersPage() {
                       setCashDialogOpen(true);
                     } else {
                       setSelectedMethod(methodName);
-                      void payWithMethod(methodName);
+                      setElectronicDialog({ method: methodName as "Nequi" | "Bancolombia" });
                     }
                   }}
                 >
