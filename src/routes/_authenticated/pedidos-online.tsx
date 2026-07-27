@@ -903,6 +903,20 @@ function OnlineOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ElectronicPaymentDialog
+        open={!!electronicDialog}
+        method={electronicDialog?.method ?? null}
+        total={Number(payOrder?.total ?? 0)}
+        loading={paying}
+        onCancel={() => { if (!paying) setElectronicDialog(null); }}
+        onConfirm={(last4) => {
+          const m = electronicDialog?.method;
+          if (!m) return;
+          setElectronicDialog(null);
+          void payWithMethod(m, undefined, last4);
+        }}
+      />
     </div>
   );
 }
