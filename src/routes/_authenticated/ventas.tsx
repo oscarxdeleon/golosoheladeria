@@ -123,19 +123,24 @@ function VentasPage() {
       <Dialog open={!!selected} onOpenChange={(o) => !o && setSelected(null)}>
         <DialogContent className="max-w-sm">
           <DialogHeader><DialogTitle>Ticket</DialogTitle></DialogHeader>
-          {detail?.sale && (
-            <TicketPreview sale={{
-              id: detail.sale.id,
-              ticket_number: detail.sale.ticket_number,
-              total: Number(detail.sale.total),
-              payment_method: detail.sale.payment_method,
-              customer: detail.sale.customer_name ?? "",
-              user_name: detail.sale.user_name ?? "",
-              created_at: detail.sale.created_at,
-              lines: detail.items.map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) })),
-              tip: Number((detail.sale as { tip_amount?: number | null }).tip_amount ?? 0),
-            }} />
-          )}
+          {detail?.sale && (() => {
+            const pd = (detail.sale as { payment_details?: { splits?: Array<{ method: string; amount: number; transaction_last4?: string }> } | null }).payment_details;
+            const splits = pd && Array.isArray(pd.splits) ? pd.splits : null;
+            return (
+              <TicketPreview sale={{
+                id: detail.sale.id,
+                ticket_number: detail.sale.ticket_number,
+                total: Number(detail.sale.total),
+                payment_method: detail.sale.payment_method,
+                customer: detail.sale.customer_name ?? "",
+                user_name: detail.sale.user_name ?? "",
+                created_at: detail.sale.created_at,
+                lines: detail.items.map((i) => ({ name: i.product_name, qty: Number(i.qty), unit_price: Number(i.unit_price) })),
+                tip: Number((detail.sale as { tip_amount?: number | null }).tip_amount ?? 0),
+                payment_splits: splits,
+              }} />
+            );
+          })()}
           <DialogFooter className="no-print flex-wrap gap-2">
             {isAdmin && detail?.sale && (
               <Button

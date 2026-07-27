@@ -47,6 +47,7 @@ export function TicketPreview({
     delivery_address?: string | null;
     delivery_phone?: string | null;
     tip?: number | null;
+    payment_splits?: { method: string; amount: number; transaction_last4?: string }[] | null;
   };
 }) {
   const [settings, setSettings] = useState<BusinessSettings | null>(null);
@@ -145,7 +146,20 @@ export function TicketPreview({
         <div className="flex items-center gap-1.5 font-bold whitespace-nowrap">
           <CreditCard className="h-4 w-4" strokeWidth={2.5} /> Forma de Pago:
         </div>
-        <div>{sale.payment_method}</div>
+        <div>
+          {sale.payment_splits && sale.payment_splits.length > 0 ? (
+            <div className="flex flex-col gap-0.5">
+              {sale.payment_splits.map((p, i) => (
+                <div key={i}>
+                  {p.method}: {formatMoney(p.amount)}
+                  {p.transaction_last4 ? ` (Trx ${p.transaction_last4})` : ""}
+                </div>
+              ))}
+            </div>
+          ) : (
+            sale.payment_method
+          )}
+        </div>
       </div>
 
       <Dashed />
