@@ -481,6 +481,13 @@ function LlevarPendientesPage() {
                   <span>TOTAL</span>
                   <span className="text-primary">{formatMoney(detail.total)}</span>
                 </div>
+                {detail.payment_method && (
+                  <PaymentInfoBlock
+                    method={detail.payment_method}
+                    details={detail.payment_details}
+                    total={detail.total}
+                  />
+                )}
                 {detail.status === "cancelled" && detail.cancellation_reason && (
                   <div className="border border-red-300 rounded-md p-2 text-xs bg-red-50 dark:bg-red-950/20">
                     <span className="font-semibold text-red-700">Motivo cancelación:</span> {detail.cancellation_reason}
