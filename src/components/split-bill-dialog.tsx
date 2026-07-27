@@ -157,11 +157,49 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
     setMethodSheetOpen(false);
   }
 
+  // Captura obligatoria de últimos 4 dígitos para partes Nequi/Bancolombia.
+  const [pendingSplits, setPendingSplits] = useState<SplitPart[] | null>(null);
+  const [last4Draft, setLast4Draft] = useState<Record<number, string>>({});
+
+  useEffect(() => {
+    if (!open) {
+      setPendingSplits(null);
+      setLast4Draft({});
+    }
+  }, [open]);
+
+  async function proceedWithSplits(splits: SplitPart[]) {
+    const electronicIdx = splits
+      .map((p, i) => ({ p, i }))
+      .filter(({ p }) => isElectronic(p.method));
+    if (electronicIdx.length > 0) {
+      const initial: Record<number, string> = {};
+      for (const { i } of electronicIdx) initial[i] = "";
+      setLast4Draft(initial);
+      setPendingSplits(splits);
+      return;
+    }
+    await onConfirm(splits);
+  }
+
+  async function confirmWithLast4() {
+    if (!pendingSplits) return;
+    const enriched = pendingSplits.map((p, i) => {
+      if (!isElectronic(p.method)) return p;
+      const digits = (last4Draft[i] ?? "").replace(/\D/g, "").slice(0, 4);
+      if (!/^\d{4}$/.test(digits)) return { ...p, transaction_last4: "" };
+      return { ...p, transaction_last4: digits };
+    });
+    const missing = enriched.find((p) => isElectronic(p.method) && !/^\d{4}$/.test(p.transaction_last4 ?? ""));
+    if (missing) return toast.error(`Ingresa los 4 dígitos de la transacción para ${missing.method}`);
+    await onConfirm(enriched);
+    setPendingSplits(null);
+  }
+
   async function handleConfirm() {
     if (tab === "cantidad") {
       // Auto-aplicar el borrador si el usuario dejó un monto escrito que
       // completa exactamente el saldo pendiente y no presionó "Aplicar".
-      // Es la fuente #1 de "presiono Cobrar y dice que falta dinero".
       let effective = cashPayments;
       const draft = round0(draftAmount);
       if (showDraft && draft > 0 && draft === cantidadPending) {
@@ -171,14 +209,14 @@ export function SplitBillDialog({ open, onOpenChange, total, lines, paying, onCo
       const pending = total - applied;
       if (pending !== 0) return toast.error(`Aún faltan ${formatMoney(Math.max(0, pending))} por asignar`);
       if (effective.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
-      await onConfirm(effective.map((p) => ({ method: p.method, amount: p.amount })));
+      await proceedWithSplits(effective.map((p) => ({ method: p.method, amount: p.amount })));
     } else {
       if (staged.length > 0) return toast.error("Aún tienes productos sin cobrar. Presiona COBRAR para asignarles un método de pago.");
       const all = committedBuckets;
       const sum = all.reduce((s, b) => s + b.amount, 0);
       if (sum !== total) return toast.error(`Aún faltan ${formatMoney(total - sum)} por cobrar`);
       if (all.length < 2) return toast.error("Debes dividir en al menos 2 pagos");
-      await onConfirm(all.map((b) => ({ method: b.method, amount: b.amount, items: b.items })));
+      await proceedWithSplits(all.map((b) => ({ method: b.method, amount: b.amount, items: b.items })));
     }
   }
 
