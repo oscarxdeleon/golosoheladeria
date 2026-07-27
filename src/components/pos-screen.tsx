@@ -572,6 +572,7 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
     tip: isCourtesy ? 0 : o.tip,
     total: isCourtesy ? 0 : o.total,
     payment_method: o.payment_method,
+    payment_splits: o.payment_splits,
     customer: o.customer,
     notes: o.notes,
     address: o.address,
