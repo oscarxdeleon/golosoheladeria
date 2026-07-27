@@ -32,6 +32,11 @@ export type PrintPayload = {
   /** Desglose de pago dividido (Nequi/Bancolombia/Efectivo). Cada parte
    *  incluye monto y, si aplica, los últimos 4 dígitos de la transacción. */
   payment_splits?: { method: string; amount: number; transaction_last4?: string }[];
+  /** Bytes ESC/POS generados por el cliente y codificados en base64. Cuando
+   *  está presente, el Print Server (>= v2.24.0) los envía tal cual a la
+   *  impresora, ignorando cualquier plantilla del servidor. Se usa para
+   *  rediseños que no deben depender de la versión instalada localmente. */
+  raw_escpos_base64?: string;
   customer?: string;
   notes?: string;
   address?: string;
@@ -64,7 +69,7 @@ export type PrintPayload = {
 
 const LS_KEY = "LOCAL_PRINT_URL";
 const DEFAULT_LOCAL_PRINT_URL = "http://localhost:3001/print";
-const MIN_PRINT_SERVER_VERSION = "2.20.0";
+const MIN_PRINT_SERVER_VERSION = "2.24.0";
 
 /**
  * Normaliza texto para el servidor ESC/POS sin quitar tildes ni ñ. El servidor
