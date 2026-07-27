@@ -19,6 +19,7 @@ import { useBranch } from "@/contexts/branch-context";
 import { useBranchCashSession } from "@/hooks/use-branch-cash-session";
 import { CashPayPad } from "@/components/cash-pay-pad";
 import { ticketHTML, printTicketFinal, type Branding, type TicketConfig } from "@/components/pos-screen";
+import { ElectronicPaymentDialog } from "@/components/electronic-payment-dialog";
 import nequiLogo from "@/assets/nequi-logo-transparent.webp";
 import bancolombiaLogo from "@/assets/bancolombia-logo-original.png";
 
@@ -126,6 +127,7 @@ function OnlineOrdersPage() {
   const [paymentRef, setPaymentRef] = useState("");
   const [amountReceived, setAmountReceived] = useState("");
   const [cashDialogOpen, setCashDialogOpen] = useState(false);
+  const [electronicDialog, setElectronicDialog] = useState<{ method: "Nequi" | "Bancolombia" } | null>(null);
   const [successDialog, setSuccessDialog] = useState<{
     ticket: number;
     method: string;
@@ -289,6 +291,7 @@ function OnlineOrdersPage() {
     setPaymentRef("");
     setAmountReceived("");
     setCashDialogOpen(false);
+    setElectronicDialog(null);
   }
 
   /** Construye el ticket (args + mensaje WA) para diferir la impresión. */
@@ -408,7 +411,7 @@ function OnlineOrdersPage() {
   }
 
   /** Cobra el pedido con el método indicado. El ticket físico se imprime solo después de confirmar el pago. */
-  async function payWithMethod(method: string, cashReceivedRaw?: string) {
+  async function payWithMethod(method: string, cashReceivedRaw?: string, transactionLast4?: string) {
     if (!payOrder) return;
     if (!activeBranchId || payOrder.branch_id !== activeBranchId) {
       toast.error("Este pedido pertenece a otra sede. Cambia a la sede correcta para cobrarlo.");
@@ -424,12 +427,25 @@ function OnlineOrdersPage() {
       return;
     }
 
+    const isElectronic = method === "Nequi" || method === "Bancolombia";
+    const last4 = (transactionLast4 ?? "").replace(/\D/g, "").slice(0, 4);
+    if (isElectronic && last4.length !== 4) {
+      toast.error("Ingresa los últimos 4 dígitos de la transacción");
+      return;
+    }
+
     setPaying(true);
     const its = items.filter((i) => i.sale_id === payOrder.id);
     const noteSuffix = method === "Efectivo"
       ? `Recibido: ${cashReceived}`
-      : paymentRef ? `Ref: ${paymentRef}` : "";
+      : isElectronic ? `Trans: ****${last4}` : paymentRef ? `Ref: ${paymentRef}` : "";
     const newNotes = [payOrder.notes, noteSuffix].filter(Boolean).join(" · ");
+
+    const paymentDetails = isElectronic
+      ? { transaction_last4: last4 }
+      : method === "Efectivo"
+        ? { cash_received: cashReceived, change: Math.max(0, cashReceived - Number(payOrder.total)) }
+        : null;
 
     const { data: paidRow, error } = await supabase
       .from("sales")
@@ -438,6 +454,8 @@ function OnlineOrdersPage() {
         payment_method: method,
         cash_session_id: cashSession.id,
         notes: newNotes || null,
+        payment_details: paymentDetails,
+        payment_transaction_last4: isElectronic ? last4 : null,
       })
       .eq("id", payOrder.id)
       .eq("branch_id", activeBranchId)
@@ -716,7 +734,7 @@ function OnlineOrdersPage() {
                       setCashDialogOpen(true);
                     } else {
                       setSelectedMethod(methodName);
-                      void payWithMethod(methodName);
+                      setElectronicDialog({ method: methodName as "Nequi" | "Bancolombia" });
                     }
                   }}
                 >
@@ -885,6 +903,20 @@ function OnlineOrdersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ElectronicPaymentDialog
+        open={!!electronicDialog}
+        method={electronicDialog?.method ?? null}
+        total={Number(payOrder?.total ?? 0)}
+        loading={paying}
+        onCancel={() => { if (!paying) setElectronicDialog(null); }}
+        onConfirm={(last4) => {
+          const m = electronicDialog?.method;
+          if (!m) return;
+          setElectronicDialog(null);
+          void payWithMethod(m, undefined, last4);
+        }}
+      />
     </div>
   );
 }
