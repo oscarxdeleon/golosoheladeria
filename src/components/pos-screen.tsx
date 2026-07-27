@@ -1488,7 +1488,34 @@ export function PosScreen({ orderType, tableId, kioskSaleId, title, meseroMode: 
     const rawLast4 = paymentDetails && typeof paymentDetails.transaction_last4 === "string"
       ? String(paymentDetails.transaction_last4).replace(/\D/g, "").slice(0, 4)
       : "";
-    const transactionLast4 = /^[0-9]{4}$/.test(rawLast4) ? rawLast4 : null;
+    let transactionLast4 = /^[0-9]{4}$/.test(rawLast4) ? rawLast4 : null;
+
+    // Splits (pago dividido): normaliza últimos 4 dígitos por parte y, si sólo
+    // hay una parte electrónica, propaga su código a la columna row-level.
+    type SplitLine = { method: string; amount: number; transaction_last4?: string; items?: unknown };
+    const rawSplits = paymentDetails && Array.isArray((paymentDetails as { splits?: unknown }).splits)
+      ? ((paymentDetails as { splits: unknown[] }).splits as SplitLine[])
+      : null;
+    const paymentSplits = rawSplits
+      ? rawSplits.map((p) => {
+          const digits = String(p.transaction_last4 ?? "").replace(/\D/g, "").slice(0, 4);
+          const isEle = /nequi|bancolombia/i.test(String(p.method));
+          return {
+            method: String(p.method),
+            amount: Number(p.amount) || 0,
+            transaction_last4: isEle && /^\d{4}$/.test(digits) ? digits : undefined,
+          };
+        })
+      : null;
+    if (!transactionLast4 && paymentSplits) {
+      const ele = paymentSplits.filter((p) => /nequi|bancolombia/i.test(p.method) && p.transaction_last4);
+      if (ele.length === 1) transactionLast4 = ele[0].transaction_last4 ?? null;
+    }
+    // Reemplazamos splits del payload con la versión enriquecida para persistir last4 por parte.
+    if (paymentSplits && paymentDetails) {
+      (paymentDetails as Record<string, unknown>).splits = paymentSplits;
+    }
+
     const payDetailsJson = (paymentDetails ?? null) as unknown as import("@/integrations/supabase/types").Json;
 
     // Validaciones previas — si fallan, NO se imprime ni se libera nada
