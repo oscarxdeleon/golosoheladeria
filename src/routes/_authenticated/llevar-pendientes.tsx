@@ -366,6 +366,17 @@ function LlevarPendientesPage() {
                       )}
                     </div>
 
+                    {isPending && o.payment_method && (
+                      <div className="mt-2">
+                        <PaymentInfoBlock
+                          method={o.payment_method}
+                          details={o.payment_details}
+                          total={o.total}
+                          compact
+                        />
+                      </div>
+                    )}
+
                     <div className="mt-3 flex flex-wrap items-stretch gap-2">
                       <Button
                         size="sm"
