@@ -12,6 +12,7 @@ import { Bike, Phone, MapPin, Home, CheckCircle2, Truck, MessageCircle, Search, 
 import { toast } from "sonner";
 import { formatMoney, formatDate } from "@/lib/format";
 import { buildCourierMessage, openWhatsAppTo } from "@/lib/courier-whatsapp";
+import { PaymentInfoBlock } from "@/components/payment-info-block";
 
 export const Route = createFileRoute("/_authenticated/domicilios")({
   head: () => ({ meta: [{ title: "Despacho domicilios · Goloso POS" }] }),
