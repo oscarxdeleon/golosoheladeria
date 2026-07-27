@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import golosoLogo from "@/assets/goloso-logo-official.webp";
 import takeawayImg from "@/assets/takeaway-goloso-3d.webp";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
+import { PaymentInfoBlock } from "@/components/payment-info-block";
 
 
 export const Route = createFileRoute("/_authenticated/llevar-pendientes")({
