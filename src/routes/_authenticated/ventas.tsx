@@ -119,12 +119,35 @@ function VentasPage() {
               tip: Number((detail.sale as { tip_amount?: number | null }).tip_amount ?? 0),
             }} />
           )}
-          <DialogFooter className="no-print">
+          <DialogFooter className="no-print flex-wrap gap-2">
+            {isAdmin && detail?.sale && (
+              <Button
+                variant="secondary"
+                onClick={() => setChangePay({
+                  id: detail.sale!.id,
+                  ticket_number: detail.sale!.ticket_number,
+                  total: Number(detail.sale!.total),
+                  payment_method: detail.sale!.payment_method,
+                })}
+              >
+                <Wallet className="h-4 w-4 mr-1" /> Cambiar medio de pago
+              </Button>
+            )}
             <Button variant="outline" onClick={() => setSelected(null)}>Cerrar</Button>
             <Button onClick={() => window.print()}>Imprimir</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <ChangePaymentMethodDialog
+        open={!!changePay}
+        onOpenChange={(o) => !o && setChangePay(null)}
+        sale={changePay}
+        onSuccess={() => {
+          qc.invalidateQueries({ queryKey: ["sales"] });
+          qc.invalidateQueries({ queryKey: ["sale-detail"] });
+        }}
+      />
     </div>
   );
 }
