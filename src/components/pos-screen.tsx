@@ -610,15 +610,119 @@ export async function printTicketFinal(o: Parameters<typeof ticketHTML>[0] & { s
 
 
 /**
+ * Genera los bytes ESC/POS del comprobante de pago electrónico
+ * (Nequi/Bancolombia) directamente en el cliente. El diseño es 100%
+ * controlado desde aquí: nombre de sede, título "COMPROBANTE PAGO #NNNN",
+ * fecha/hora/cliente, "FORMA DE PAGO:" con el medio en gigante y el TOTAL
+ * abajo. No depende de plantillas del Print Server — sólo requiere v2.24.0+
+ * que sabe reenviar `raw_escpos_base64` sin modificarlo.
+ *
+ * Todo el texto se limita a ASCII (se remueven acentos) para eliminar
+ * cualquier dependencia de página de códigos y garantizar impresión
+ * consistente en todas las térmicas soportadas.
+ */
+function buildPaymentReceiptEscPosBase64(o: {
+  business_name: string;
+  ticket_number: number | null;
+  created_at: string;
+  customer?: string;
+  payment_method: string;
+  transaction_last4: string;
+  total: number;
+}): string {
+  const WIDTH = 42;
+  const ESC = "\x1B";
+  const GS = "\x1D";
+  const INIT = ESC + "@";
+  const CODEPAGE = ESC + "t\x10"; // Windows-1252
+  const INTL = ESC + "R\x00";     // USA charset (# = 0x23)
+  const ALIGN_L = ESC + "a\x00";
+  const ALIGN_C = ESC + "a\x01";
+  const BOLD_ON = ESC + "E\x01";
+  const BOLD_OFF = ESC + "E\x00";
+  const SIZE_NORMAL = GS + "!\x00";
+  const SIZE_DOUBLE_H = GS + "!\x01";
+  const SIZE_DOUBLE = GS + "!\x11";
+  const CUT = GS + "V\x00";
+  const DASH = "-".repeat(WIDTH) + "\n";
+
+  const stripAscii = (s: string) =>
+    s.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^\x20-\x7e\n]/g, "");
+  const money = (n: number) => {
+    const abs = Math.round(Math.abs(Number(n) || 0));
+    const parts: string[] = [];
+    const str = abs.toString();
+    for (let i = str.length; i > 0; i -= 3) parts.unshift(str.slice(Math.max(0, i - 3), i));
+    return "$ " + parts.join(".");
+  };
+
+  let out = INIT + CODEPAGE + INTL;
+
+  // Encabezado: nombre de la sede en grande.
+  const biz = stripAscii(String(o.business_name || "HELADERIA GOLOSO").toUpperCase());
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE_H + biz + "\n" + SIZE_NORMAL + BOLD_OFF;
+
+  out += ALIGN_L + DASH;
+
+  // Título del comprobante.
+  const numRaw = o.ticket_number == null ? "" : String(o.ticket_number).replace(/^#+\s*/, "").trim();
+  const numStr = numRaw ? ` #${numRaw}` : "";
+  out += ALIGN_C + BOLD_ON + `COMPROBANTE PAGO${numStr}\n` + BOLD_OFF;
+
+  out += ALIGN_L + DASH;
+
+  // Metadatos: fecha, hora, cliente.
+  const d = new Date(o.created_at || Date.now());
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const fecha = `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  let hh = d.getHours();
+  const ampm = hh >= 12 ? "PM" : "AM";
+  hh = hh % 12 || 12;
+  const hora = `${pad(hh)}:${pad(d.getMinutes())}:${pad(d.getSeconds())} ${ampm}`;
+  const cliente = stripAscii(String(o.customer || "").trim() || "Mostrador");
+  out += `Fecha:   ${fecha}\n`;
+  out += `Hora:    ${hora}\n`;
+  out += `Cliente: ${cliente}\n`;
+
+  out += DASH;
+
+  // Bloque principal: FORMA DE PAGO destacada.
+  const method = stripAscii(String(o.payment_method || "ELECTRONICO").toUpperCase().trim());
+  out += ALIGN_C + BOLD_ON + "FORMA DE PAGO:\n" + BOLD_OFF;
+  out += ALIGN_C + BOLD_ON + SIZE_DOUBLE + method + "\n" + SIZE_NORMAL + BOLD_OFF;
+  const last4 = String(o.transaction_last4 || "").replace(/\D/g, "").slice(0, 4);
+  if (last4) out += ALIGN_C + `Confirmacion: **** ${last4.padStart(4, "0")}\n`;
+
+  out += ALIGN_L + DASH;
+
+  // TOTAL — etiqueta y valor en una sola línea, en negrilla.
+  const totalStr = money(o.total);
+  const label = "TOTAL:";
+  const spacing = Math.max(1, WIDTH - label.length - totalStr.length);
+  out += ALIGN_L + BOLD_ON + label + " ".repeat(spacing) + totalStr + BOLD_OFF + "\n";
+
+  out += DASH;
+  out += "\n\n\n" + CUT;
+
+  // Codificación byte-a-byte (cada char <= 0xFF ya que sólo usamos ASCII).
+  let binary = "";
+  for (let i = 0; i < out.length; i++) binary += String.fromCharCode(out.charCodeAt(i) & 0xff);
+  if (typeof btoa === "function") return btoa(binary);
+  // Fallback SSR (no debería ejecutarse aquí, la impresión es client-side).
+  return "";
+}
+
+/**
  * Imprime el comprobante compacto de pago electrónico (Nequi/Bancolombia).
  * Se genera automáticamente después de registrar la venta y sirve como soporte
  * físico para la conciliación de pagos al cierre de caja.
  *
- * El Print Server (>= 2.21.0) reconoce el tipo `payment_receipt` y aplica una
- * plantilla térmica ultra compacta que resalta el TOTAL, el MEDIO DE PAGO y
- * los últimos 4 dígitos de la transacción. En Print Servers anteriores el
- * payload cae en la plantilla estándar, así que el comprobante siempre se
- * imprime aunque el cliente no haya actualizado.
+ * A partir de v2.24.0 el diseño se construye 100% en el cliente y viaja como
+ * `raw_escpos_base64`, así cualquier cambio de diseño futuro es un edit del
+ * POS y no requiere reinstalar el Print Server. Se mantiene `type:
+ * "payment_receipt"` por compatibilidad: si por alguna razón el servidor
+ * ignorase los bytes crudos, aún así usa su plantilla del comprobante en vez
+ * de caer al ticket estándar.
  */
 export async function printPaymentReceipt(o: {
   ticket: number | null;
@@ -632,10 +736,16 @@ export async function printPaymentReceipt(o: {
 }): Promise<void> {
   const cajaCfg = await fetchCajaPrinter();
   const b = o.branding ?? DEFAULT_BRANDING;
-  // Comprobante de pagos electrónicos: SIN logotipo por diseño.
-  // Se omiten deliberadamente logo_url / logo_fallback_url para que ni
-  // siquiera print servers antiguos (< v2.21) puedan rasterizarlo si el
-  // payload cae por fallback en la plantilla personalizada.
+  const createdAt = o.created_at ?? new Date().toISOString();
+  const rawEscposBase64 = buildPaymentReceiptEscPosBase64({
+    business_name: b.business_name ?? "",
+    ticket_number: o.ticket,
+    created_at: createdAt,
+    customer: o.customer,
+    payment_method: o.payment_method,
+    transaction_last4: o.transaction_last4,
+    total: Number(o.total) || 0,
+  });
   const payload: PrintPayload = {
     type: "payment_receipt",
     ticket: o.ticket,
@@ -647,16 +757,15 @@ export async function printPaymentReceipt(o: {
     payment_transaction_last4: o.transaction_last4,
     customer: o.customer,
     user_name: o.user_name,
-    created_at: o.created_at ?? new Date().toISOString(),
+    created_at: createdAt,
     business_name: b.business_name,
-    nit: b.nit ?? undefined,
-    address_biz: b.address ?? undefined,
-    phone_biz: b.phone ?? undefined,
-    footer_text: "Conservar para conciliación de caja",
     ticket_config: { ...(b.ticket_config ?? {}), show_logo: false },
     printer_ip: cajaCfg.ip,
     printer_port: cajaCfg.port,
     open_drawer: false,
+    // Bytes ESC/POS pre-generados: cortocircuitan cualquier plantilla del
+    // Print Server. Ver `buildRaw` en print-server/server.js (>= v2.24.0).
+    raw_escpos_base64: rawEscposBase64 || undefined,
   };
   const ok = await sendToLocalPrinter(payload);
   if (!ok) {
