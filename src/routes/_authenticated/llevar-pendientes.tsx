@@ -23,6 +23,7 @@ import { toast } from "sonner";
 import golosoLogo from "@/assets/goloso-logo-official.webp";
 import takeawayImg from "@/assets/takeaway-goloso-3d.webp";
 import { cancelSaleRequest } from "@/lib/sales-cancellation";
+import { PaymentInfoBlock } from "@/components/payment-info-block";
 
 
 export const Route = createFileRoute("/_authenticated/llevar-pendientes")({
@@ -59,6 +60,7 @@ interface Sale {
   subtotal: number;
   status: string;
   payment_method: string | null;
+  payment_details: Record<string, unknown> | null;
   order_type: string | null;
   source: string | null;
   branch_id: string | null;
@@ -123,7 +125,7 @@ function LlevarPendientesPage() {
       let q = supabase
         .from("sales")
         .select(
-          "id,ticket_number,created_at,customer_name,customer_phone,notes,total,subtotal,status,payment_method,order_type,source,branch_id,cancelled_at,cancellation_reason,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)"
+          "id,ticket_number,created_at,customer_name,customer_phone,notes,total,subtotal,status,payment_method,payment_details,order_type,source,branch_id,cancelled_at,cancellation_reason,sale_items(id,product_name,qty,unit_price,subtotal,modifiers)"
         )
         .eq("branch_id", activeBranchId!)
         .eq("order_type", "llevar")
@@ -364,6 +366,17 @@ function LlevarPendientesPage() {
                       )}
                     </div>
 
+                    {isPending && o.payment_method && (
+                      <div className="mt-2">
+                        <PaymentInfoBlock
+                          method={o.payment_method}
+                          details={o.payment_details}
+                          total={o.total}
+                          compact
+                        />
+                      </div>
+                    )}
+
                     <div className="mt-3 flex flex-wrap items-stretch gap-2">
                       <Button
                         size="sm"
@@ -468,6 +481,13 @@ function LlevarPendientesPage() {
                   <span>TOTAL</span>
                   <span className="text-primary">{formatMoney(detail.total)}</span>
                 </div>
+                {detail.payment_method && (
+                  <PaymentInfoBlock
+                    method={detail.payment_method}
+                    details={detail.payment_details}
+                    total={detail.total}
+                  />
+                )}
                 {detail.status === "cancelled" && detail.cancellation_reason && (
                   <div className="border border-red-300 rounded-md p-2 text-xs bg-red-50 dark:bg-red-950/20">
                     <span className="font-semibold text-red-700">Motivo cancelación:</span> {detail.cancellation_reason}
