@@ -29,6 +29,9 @@ export type PrintPayload = {
   payment_method?: string;
   /** Últimos 4 dígitos de la transacción (solo Nequi/Bancolombia) para conciliación. */
   payment_transaction_last4?: string;
+  /** Desglose de pago dividido (Nequi/Bancolombia/Efectivo). Cada parte
+   *  incluye monto y, si aplica, los últimos 4 dígitos de la transacción. */
+  payment_splits?: { method: string; amount: number; transaction_last4?: string }[];
   customer?: string;
   notes?: string;
   address?: string;
