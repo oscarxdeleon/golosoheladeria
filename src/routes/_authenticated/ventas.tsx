@@ -89,10 +89,27 @@ function VentasPage() {
                   </TableCell>
                   <TableCell className="text-right font-medium">{formatMoney(s.total)}</TableCell>
                   <TableCell>
-                    <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
-                      <Receipt className="h-4 w-4 mr-1" /> Ver
-                    </Button>
+                    <div className="flex justify-end gap-1">
+                      {isAdmin && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setChangePay({
+                            id: s.id,
+                            ticket_number: s.ticket_number,
+                            total: Number(s.total),
+                            payment_method: s.payment_method,
+                          })}
+                        >
+                          <Wallet className="h-4 w-4 mr-1" /> Cambiar pago
+                        </Button>
+                      )}
+                      <Button size="sm" variant="ghost" onClick={() => setSelected(s.id)}>
+                        <Receipt className="h-4 w-4 mr-1" /> Ver
+                      </Button>
+                    </div>
                   </TableCell>
+
                 </TableRow>
               ))}
               {sales.length === 0 && (
