@@ -250,6 +250,12 @@ function DespachoDomiciliosPage() {
                     <div className="text-lg font-bold text-primary">{formatMoney(s.total)}</div>
                     <div className="text-xs uppercase text-muted-foreground">{s.payment_method}</div>
                   </div>
+                  <PaymentInfoBlock
+                    method={s.payment_method}
+                    details={s.payment_details}
+                    total={s.total}
+                    compact
+                  />
                   <div className="grid grid-cols-2 gap-2 rounded-lg bg-muted/40 p-2 text-xs text-muted-foreground">
                     <span className="inline-flex items-center gap-1"><CalendarDays className="h-3.5 w-3.5" /> {new Date(s.created_at).toLocaleDateString("es-CO")}</span>
                     <span className="inline-flex items-center gap-1"><UserRound className="h-3.5 w-3.5" /> {courierName(s.courier_id) || "Sin domiciliario"}</span>
