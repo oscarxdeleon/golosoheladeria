@@ -66,8 +66,9 @@ if not exist "config.json" if not exist "auth_state" (
 )
 
 echo Cerrando bot anterior si existe...
-for /f "tokens=5" %%P in ('netstat -ano ^| findstr ":8790 " ^| findstr LISTENING') do (
-  taskkill /F /PID %%P /T >nul 2>nul
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$ports=8790..8810; foreach($p in $ports){ try { $lines=netstat -ano | Select-String (':' + $p + '\s') | Select-String 'LISTENING'; foreach($line in $lines){ $pid=($line.ToString().Trim() -split '\s+')[-1]; if($pid -match '^\d+$'){ taskkill /F /PID $pid /T *> $null } } } catch {} }"
+if errorlevel 1 (
+  echo [AVISO] No se pudieron cerrar todos los procesos anteriores. Se continuara igualmente.
 )
 timeout /t 2 /nobreak >nul
 
@@ -139,14 +140,16 @@ echo Iniciando el bot en segundo plano...
 start "" wscript.exe //nologo "%~dp0start-hidden.vbs"
 
 echo Esperando panel local del bot...
-powershell -NoProfile -ExecutionPolicy Bypass -Command "$ok=$false; for($i=0;$i -lt 30;$i++){ try { Invoke-WebRequest -UseBasicParsing http://localhost:8790/status.json -TimeoutSec 1 | Out-Null; $ok=$true; break } catch { Start-Sleep -Seconds 1 } }; if(-not $ok){ exit 1 }"
+powershell -NoProfile -ExecutionPolicy Bypass -Command "$portFile='%TEMP%\goloso-bot-port.txt'; Remove-Item -LiteralPath $portFile -Force -ErrorAction SilentlyContinue; $ok=$false; $detected=''; for($i=0;$i -lt 45;$i++){ foreach($p in 8790..8810){ try { $s=Invoke-RestMethod -UseBasicParsing -Uri ('http://localhost:'+$p+'/status.json') -TimeoutSec 1; if($s.version -and $s.folder){ $ok=$true; $detected=[string]$p; Set-Content -Path $portFile -Value $detected -Encoding ASCII; break } } catch {} }; if($ok){ break }; Start-Sleep -Seconds 1 }; if(-not $ok){ exit 1 }"
 if errorlevel 1 goto start_failed
-start "" http://localhost:8790
+set "BOT_PANEL_PORT=8790"
+if exist "%TEMP%\goloso-bot-port.txt" set /p BOT_PANEL_PORT=<"%TEMP%\goloso-bot-port.txt"
+start "" http://localhost:%BOT_PANEL_PORT%
 
 echo.
 echo === Instalacion completa ===
 echo.
-echo Se abrio el panel local: http://localhost:8790
+echo Se abrio el panel local: http://localhost:%BOT_PANEL_PORT%
 echo Si esta instalacion ya tenia auth_state, no debe pedir QR.
 echo Solo una instalacion nueva o una sesion cerrada desde WhatsApp mostrara QR.
 echo El bot arrancara solo cada vez que enciendas el PC.
@@ -164,7 +167,7 @@ exit /b 0
 
 :start_failed
   echo.
-  echo [ERROR] El bot no pudo iniciar el panel local en http://localhost:8790.
+  echo [ERROR] El bot no pudo iniciar el panel local en los puertos 8790 a 8810.
   echo Revisa el archivo bot-out.log en esta misma carpeta para ver el detalle.
   if exist bot-out.log (
     echo.
