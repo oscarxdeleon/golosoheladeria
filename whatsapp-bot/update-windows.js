@@ -201,8 +201,7 @@ function persistentSessionRoot() {
 function persistentAuthDirFor(folder) {
   const cfg = readConfig(folder);
   if (!cfg?.token) return '';
-  const branchHint = safePathSegment(cfg.branchName || cfg.branch_name || path.basename(folder), 'sede');
-  return path.join(persistentSessionRoot(), 'Goloso WhatsApp Bot', 'sessions', `${branchHint}-${sessionFingerprintFromConfig(cfg, folder)}`);
+  return path.join(persistentSessionRoot(), 'Goloso WhatsApp Bot', 'sessions', `sede-${sessionFingerprintFromConfig(cfg, folder)}`);
 }
 
 function hasUsableAuthState(dir) {

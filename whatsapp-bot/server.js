@@ -215,8 +215,7 @@ function windowsDataRoot() {
 function persistentAuthDir() {
   if (process.env.GOLOSO_BOT_SESSION_DIR) return process.env.GOLOSO_BOT_SESSION_DIR;
   if (process.platform !== "win32") return LEGACY_AUTH_DIR;
-  const branchHint = safePathSegment(config.branchName || config.branch_name || path.basename(__dirname), "sede");
-  return path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "sessions", `${branchHint}-${sessionFingerprint()}`);
+  return path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "sessions", `sede-${sessionFingerprint()}`);
 }
 
 const AUTH_DIR = persistentAuthDir();
