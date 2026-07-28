@@ -743,7 +743,8 @@ function writeInstallManifest(target, sourceTarget) {
     sourceTarget,
     configPath: path.join(target, 'config.json'),
     persistentAuthDir: persistentAuthDirFor(target),
-    startup: { runValue: RUN_VALUE_NAME, shortcut: STARTUP_LINK_NAME },
+    launcherDir: launcherDirFor(target),
+    startup: { runValue: RUN_VALUE_NAME, shortcut: STARTUP_LINK_NAME, launcher: path.join(launcherDirFor(target), 'goloso-bot-launcher.vbs') },
   };
   fs.writeFileSync(path.join(target, 'installation.json'), JSON.stringify(manifest, null, 2), 'utf8');
 }
