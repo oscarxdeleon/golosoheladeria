@@ -142,15 +142,40 @@ function searchFolders(root, candidates, maxDepth = 6) {
   }
 }
 
-function candidatesFromProcessList(candidates) {
+function folderFromServerCommand(command) {
+  const match = String(command || '').match(/([A-Z]:\\[^\r\n]*?server\.js)/i);
+  return match ? path.dirname(match[1].trim().replace(/^['"]+|['"]+$/g, '')) : '';
+}
+
+function listNodeServerProcesses() {
+  const rows = [];
   try {
-    const output = execSync('wmic process where "name=\'node.exe\'" get CommandLine /value', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    const ps = "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -match 'server\\.js' } | ForEach-Object { ([string]$_.ProcessId) + '|' + ([string]$_.CommandLine) }";
+    const output = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command ${JSON.stringify(ps)}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     for (const line of output.split(/\r?\n/)) {
-      if (!/server\.js/i.test(line)) continue;
-      const match = line.match(/([A-Z]:\\[^\r\n]*?server\.js)/i);
-      if (match) addCandidate(candidates, path.dirname(match[1].trim().replace(/^['"]+|['"]+$/g, '')));
+      const sep = line.indexOf('|');
+      if (sep <= 0) continue;
+      const pid = line.slice(0, sep).trim();
+      const command = line.slice(sep + 1).trim();
+      if (/^\d+$/.test(pid) && /server\.js/i.test(command)) rows.push({ pid, command, folder: folderFromServerCommand(command) });
     }
   } catch {}
+  if (rows.length > 0) return rows;
+  try {
+    const output = execSync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const line of output.split(/\r?\n/)) {
+      if (!/server\.js/i.test(line)) continue;
+      const pidMatch = line.match(/,(\d+)\s*$/);
+      if (!pidMatch) continue;
+      const command = line.slice(0, line.length - pidMatch[0].length);
+      rows.push({ pid: pidMatch[1], command, folder: folderFromServerCommand(command) });
+    }
+  } catch {}
+  return rows;
+}
+
+function candidatesFromProcessList(candidates) {
+  for (const proc of listNodeServerProcesses()) addCandidate(candidates, proc.folder);
 }
 
 function candidatesFromRegistry(candidates) {
