@@ -21,6 +21,7 @@ import { Route as TabletAutoTokenRouteImport } from './routes/tablet-auto.$token
 import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as DownloadsWhatsappBotDotzipRouteImport } from './routes/downloads.whatsapp-bot[.]zip'
+import { Route as DownloadsManifestDotjsonRouteImport } from './routes/downloads.manifest[.]json'
 import { Route as DownloadsGolositoDotzipRouteImport } from './routes/downloads.golosito[.]zip'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
@@ -139,6 +140,12 @@ const DownloadsWhatsappBotDotzipRoute =
   DownloadsWhatsappBotDotzipRouteImport.update({
     id: '/downloads/whatsapp-bot.zip',
     path: '/downloads/whatsapp-bot.zip',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DownloadsManifestDotjsonRoute =
+  DownloadsManifestDotjsonRouteImport.update({
+    id: '/downloads/manifest.json',
+    path: '/downloads/manifest.json',
     getParentRoute: () => rootRouteImport,
   } as any)
 const DownloadsGolositoDotzipRoute = DownloadsGolositoDotzipRouteImport.update({
@@ -503,6 +510,7 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
+  '/downloads/manifest.json': typeof DownloadsManifestDotjsonRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
@@ -574,6 +582,7 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
+  '/downloads/manifest.json': typeof DownloadsManifestDotjsonRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/t/$tableNumber': typeof TTableNumberRoute
   '/tablet-auto/$token': typeof TabletAutoTokenRoute
@@ -647,6 +656,7 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
   '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
+  '/downloads/manifest.json': typeof DownloadsManifestDotjsonRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
   '/t/$tableNumber': typeof TTableNumberRoute
@@ -721,6 +731,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/ventas'
     | '/downloads/golosito.zip'
+    | '/downloads/manifest.json'
     | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
     | '/t/$tableNumber'
@@ -792,6 +803,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/ventas'
     | '/downloads/golosito.zip'
+    | '/downloads/manifest.json'
     | '/downloads/whatsapp-bot.zip'
     | '/t/$tableNumber'
     | '/tablet-auto/$token'
@@ -864,6 +876,7 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
     | '/downloads/golosito.zip'
+    | '/downloads/manifest.json'
     | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
     | '/t/$tableNumber'
@@ -901,6 +914,7 @@ export interface RootRouteChildren {
   MisPuntosRoute: typeof MisPuntosRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
   DownloadsGolositoDotzipRoute: typeof DownloadsGolositoDotzipRoute
+  DownloadsManifestDotjsonRoute: typeof DownloadsManifestDotjsonRoute
   DownloadsWhatsappBotDotzipRoute: typeof DownloadsWhatsappBotDotzipRoute
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
@@ -996,6 +1010,13 @@ declare module '@tanstack/react-router' {
       path: '/downloads/whatsapp-bot.zip'
       fullPath: '/downloads/whatsapp-bot.zip'
       preLoaderRoute: typeof DownloadsWhatsappBotDotzipRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/downloads/manifest.json': {
+      id: '/downloads/manifest.json'
+      path: '/downloads/manifest.json'
+      fullPath: '/downloads/manifest.json'
+      preLoaderRoute: typeof DownloadsManifestDotjsonRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/downloads/golosito.zip': {
@@ -1558,6 +1579,7 @@ const rootRouteChildren: RootRouteChildren = {
   MisPuntosRoute: MisPuntosRoute,
   TabletPedidosRoute: TabletPedidosRoute,
   DownloadsGolositoDotzipRoute: DownloadsGolositoDotzipRoute,
+  DownloadsManifestDotjsonRoute: DownloadsManifestDotjsonRoute,
   DownloadsWhatsappBotDotzipRoute: DownloadsWhatsappBotDotzipRoute,
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,

@@ -10,9 +10,10 @@ REM ============================================================
 setlocal EnableExtensions
 title Goloso - Actualizador remoto del Bot Windows
 
-set "VERSION=8.22.6"
-REM Usar el enlace estable evita errores 404 si la ruta versionada aun no fue publicada.
-set "URL=https://golosoheladeria.lovable.app/downloads/golosito.zip"
+set "BASE_URL=https://golosoheladeria.lovable.app"
+set "MANIFEST_URL=%BASE_URL%/downloads/manifest.json"
+set "VERSION="
+set "URL="
 set "FALLBACK_URL=https://golosoheladeria.lovable.app/downloads/whatsapp-bot.zip"
 set "STAMP=%DATE%_%TIME%"
 set "STAMP=%STAMP: =0%"
@@ -21,6 +22,7 @@ set "STAMP=%STAMP::=%"
 set "STAMP=%STAMP:.=%"
 set "STAMP=%STAMP:,=%"
 set "TMPDIR=%TEMP%\goloso-bot-update-%STAMP%"
+set "MANIFEST=%TMPDIR%\manifest.json"
 set "ZIP=%TMPDIR%\golosito.zip"
 set "EXTRACT=%TMPDIR%\extract"
 set "TARGET="
@@ -30,9 +32,8 @@ echo ============================================================
 echo  Goloso WhatsApp Bot - actualizacion remota
 echo ============================================================
 echo.
-echo Descargando ultima version estable desde:
-echo   %URL%
-echo Version esperada: %VERSION%
+echo Consultando version oficial publicada:
+echo   %MANIFEST_URL%
 echo.
 
 where node >nul 2>nul
@@ -47,7 +48,23 @@ mkdir "%TMPDIR%" >nul 2>nul
 mkdir "%EXTRACT%" >nul 2>nul
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ProgressPreference='SilentlyContinue'; $urls=@('%URL%','%FALLBACK_URL%'); foreach($u in $urls){ try { Write-Host ('Intentando: ' + $u); Invoke-WebRequest -UseBasicParsing -Uri $u -OutFile '%ZIP%' -TimeoutSec 60; if((Test-Path '%ZIP%') -and ((Get-Item '%ZIP%').Length -gt 0)){ exit 0 } } catch { Write-Host $_.Exception.Message } }; exit 1"
+  "$ProgressPreference='SilentlyContinue'; $headers=@{'Cache-Control'='no-cache';'Pragma'='no-cache'}; try { Invoke-WebRequest -UseBasicParsing -Uri ('%MANIFEST_URL%?t=' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()) -Headers $headers -OutFile '%MANIFEST%' -TimeoutSec 60; $m=Get-Content '%MANIFEST%' -Raw | ConvertFrom-Json; if(-not $m.version -or -not $m.zipUrl){ throw 'manifest incompleto' }; $zipUrl=[string]$m.zipUrl; if($zipUrl.StartsWith('/')){ $zipUrl='%BASE_URL%' + $zipUrl }; Set-Content -Path '%TMPDIR%\version.txt' -Value ([string]$m.version) -Encoding ASCII; Set-Content -Path '%TMPDIR%\url.txt' -Value $zipUrl -Encoding ASCII; Write-Host ('Version oficial: ' + $m.version); Write-Host ('ZIP oficial: ' + $zipUrl); exit 0 } catch { Write-Host $_.Exception.Message; exit 1 }"
+if errorlevel 1 (
+  echo [ERROR] No se pudo consultar la version oficial publicada.
+  echo No se aplica ningun cambio para evitar reinstalar una version antigua.
+  pause
+  exit /b 1
+)
+
+set /p VERSION=<"%TMPDIR%\version.txt"
+set /p URL=<"%TMPDIR%\url.txt"
+echo Version esperada: %VERSION%
+echo Descargando ZIP oficial desde:
+echo   %URL%
+echo.
+
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$ProgressPreference='SilentlyContinue'; $headers=@{'Cache-Control'='no-cache';'Pragma'='no-cache'}; $urls=@('%URL%','%FALLBACK_URL%'); foreach($u in $urls){ try { Write-Host ('Intentando: ' + $u); Invoke-WebRequest -UseBasicParsing -Uri ($u + ($(if($u.Contains('?')){'&'}else{'?'}) + 't=' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds())) -Headers $headers -OutFile '%ZIP%' -TimeoutSec 60; if((Test-Path '%ZIP%') -and ((Get-Item '%ZIP%').Length -gt 0)){ exit 0 } } catch { Write-Host $_.Exception.Message } }; exit 1"
 if errorlevel 1 (
   echo [ERROR] No se pudo descargar el ZIP. Revisa la conexion a internet.
   pause
@@ -93,7 +110,7 @@ if not "%EXPECTED%"=="%VERSION%" (
   echo [ERROR] El ZIP descargado no es la version esperada.
   echo Esperada: %VERSION%
   echo Recibida : %EXPECTED%
-  echo Publica/actualiza el proyecto en Lovable y vuelve a ejecutar este archivo.
+  echo Se cancela para evitar instalar una version antigua o cacheada.
   pause
   exit /b 1
 )
