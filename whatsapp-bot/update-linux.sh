@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.20.9"
+BOT_VERSION="8.22.2"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.9.zip"
-FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.9.zip"
+PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.22.2.zip"
+FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.22.2.zip"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-${PRIMARY_DOWNLOAD_URL}}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
@@ -160,13 +160,17 @@ if ! curl -fL --retry 3 --retry-delay 2 "${DOWNLOAD_URL}" -o "${tmp_dir}/whatsap
   fi
 fi
 unzip -qo "${tmp_dir}/whatsapp-bot.zip" -d "${tmp_dir}/pkg"
+PKG_DIR="${tmp_dir}/pkg"
+if [[ -d "${tmp_dir}/pkg/whatsapp-bot" ]]; then
+  PKG_DIR="${tmp_dir}/pkg/whatsapp-bot"
+fi
 
-if [[ ! -f "${tmp_dir}/pkg/server.js" ]]; then
+if [[ ! -f "${PKG_DIR}/server.js" ]]; then
   echo "[ERROR] El ZIP descargado no contiene server.js." >&2
   exit 3
 fi
 
-downloaded_version="$(grep -Eo 'BOT_VERSION[[:space:]]*=[[:space:]]*"[^"]+"' "${tmp_dir}/pkg/server.js" | head -n1 | sed -E 's/.*"([^"]+)"/\1/')"
+downloaded_version="$(grep -Eo 'BOT_VERSION[[:space:]]*=[[:space:]]*"[^"]+"' "${PKG_DIR}/server.js" | head -n1 | sed -E 's/.*"([^"]+)"/\1/')"
 if [[ "${downloaded_version}" != "${BOT_VERSION}" ]]; then
   echo "[ERROR] El paquete descargado trae versión ${downloaded_version:-desconocida}, se esperaba ${BOT_VERSION}." >&2
     echo "        URL usada: ${DOWNLOAD_URL}" >&2
@@ -336,8 +340,8 @@ for file in \
   SOLUCION-SIN-SABER-CARPETA.bat \
   uninstall-windows.bat
 do
-  if [[ -f "${tmp_dir}/pkg/${file}" ]]; then
-    cp -f "${tmp_dir}/pkg/${file}" "${TARGET_DIR}/${file}"
+  if [[ -f "${PKG_DIR}/${file}" ]]; then
+    cp -f "${PKG_DIR}/${file}" "${TARGET_DIR}/${file}"
   fi
 done
 chmod +x "${TARGET_DIR}/update-linux.sh" || true
@@ -382,7 +386,7 @@ active_json=""
 for attempt in $(seq 1 20); do
   sleep 2
   if active_json="$(curl -fsS "http://localhost:${expected_port}/status.json" 2>/dev/null)"; then
-    active_version="$(printf '%s' "${active_json}" | sed -nE 's/.*"version":"([^"]+)".*/\1/p')"
+    active_version="$(ACTIVE_JSON="${active_json}" node -e 'try { const s = JSON.parse(process.env.ACTIVE_JSON || "{}"); process.stdout.write(String(s.version || "")); } catch {}')"
     if [[ "${active_version}" == "${BOT_VERSION}" ]]; then
       echo "Panel local: http://localhost:${expected_port}/status.json"
       echo "${active_json}"

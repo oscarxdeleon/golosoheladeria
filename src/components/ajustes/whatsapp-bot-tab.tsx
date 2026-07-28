@@ -421,7 +421,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                     if (compareVersions(v, REMOTE_MANAGEMENT_MIN_VERSION) >= 0) {
                       toast.success(`Versión detectada: v${v}. Panel actualizado.`);
                     } else {
-                      toast.info(`El bot sigue reportando v${v}. Ejecuta la actualización puente en el servidor.`);
+                      toast.info(`El bot sigue reportando v${v}. Ejecuta el actualizador automático descargable una vez en el PC de la sede.`);
                     }
                   }
                 }}
@@ -440,7 +440,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               </Button>
             </div>
             <p className="mt-2 text-xs text-amber-900/80">
-              Descarga el actualizador, ábrelo, escribe la IP del servidor y la contraseña. Él ejecuta todo solo y actualiza las sedes detectadas sin copiar comandos.
+              Descarga el actualizador, ejecútalo una sola vez en el PC de la sede y verifica que termine mostrando v{REMOTE_MANAGEMENT_MIN_VERSION}. No borra el QR ni la sesión de WhatsApp.
             </p>
           </div>
         )}

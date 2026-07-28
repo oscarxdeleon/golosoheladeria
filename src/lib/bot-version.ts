@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.22.1";
+export const BOT_VERSION = "8.22.2";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -25,6 +25,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.22.2",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Corrección definitiva del sistema de actualización: el comando remoto ahora descarga siempre el update-linux.sh más reciente, el actualizador Linux dejó de apuntar a 8.20.9, soporta ZIP con carpeta raíz whatsapp-bot/, y el actualizador Windows detecta correctamente Santa/Parque (puertos 8790/8791) antes de verificar la versión activa.",
+  },
   {
     version: "8.22.1",
     date: "2026-07-28",
