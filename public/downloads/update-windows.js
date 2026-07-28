@@ -7,7 +7,7 @@ import { execSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const LOCAL_PORTS = [8790, 8791];
+const LOCAL_PORTS = Array.from({ length: 21 }, (_, index) => 8790 + index);
 const API_URL = 'https://golosoheladeria.lovable.app';
 
 const args = process.argv.slice(2);
@@ -122,8 +122,26 @@ function candidatesFromRegistry(candidates) {
   } catch {}
 }
 
+function activePanelFolderFromLocalStatus() {
+  if (process.platform !== 'win32') return '';
+  try {
+    const ps = "$ports=8790..8810; foreach($p in $ports){ try { $s=Invoke-RestMethod -UseBasicParsing -Uri ('http://localhost:'+$p+'/status.json') -TimeoutSec 1; if($s.folder -and (Test-Path -LiteralPath $s.folder)){ Write-Output $s.folder; exit 0 } } catch {} }; exit 0";
+    const output = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${ps.replace(/"/g, '\\"')}"`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
+    return resolveFolder(output.split(/\r?\n/).find(Boolean) || '');
+  } catch {
+    return '';
+  }
+}
+
 function findInstalledBotFolder() {
   const candidates = new Set();
+
+  const activePanelFolder = activePanelFolderFromLocalStatus();
+  if (activePanelFolder && isBotFolder(activePanelFolder)) {
+    step('Panel local activo detectado');
+    console.log(`Se actualizará exactamente esta carpeta: ${activePanelFolder}`);
+    return activePanelFolder;
+  }
 
   candidatesFromProcessList(candidates);
   candidatesFromRegistry(candidates);
@@ -258,10 +276,12 @@ function stopCurrentBot(target) {
   step('Cerrando bot anterior');
   stopNodeProcessesInFolder(target);
   const expectedPort = inferPortFromFolder(target);
+  const portsToStop = [...new Set([expectedPort, ...LOCAL_PORTS])];
   try {
     const output = execSync('netstat -ano', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     for (const line of output.split(/\r?\n/)) {
-      if (!line.includes(`:${expectedPort}`) || !/LISTENING/i.test(line)) continue;
+      if (!/LISTENING/i.test(line)) continue;
+      if (!portsToStop.some((port) => line.includes(`:${port}`))) continue;
       const parts = line.trim().split(/\s+/);
       const pid = parts[parts.length - 1];
       if (/^\d+$/.test(pid)) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });
@@ -270,6 +290,7 @@ function stopCurrentBot(target) {
   try { fs.rmSync(path.join(target, '.goloso-bot.lock'), { force: true }); } catch {}
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.2'), { force: true }); } catch {}
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.3'), { force: true }); } catch {}
+  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.4'), { force: true }); } catch {}
 }
 
 function copyRecursive(src, dest) {

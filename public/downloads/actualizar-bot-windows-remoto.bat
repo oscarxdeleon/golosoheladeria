@@ -23,6 +23,7 @@ set "STAMP=%STAMP:,=%"
 set "TMPDIR=%TEMP%\goloso-bot-update-%STAMP%"
 set "ZIP=%TMPDIR%\golosito.zip"
 set "EXTRACT=%TMPDIR%\extract"
+set "TARGET="
 
 echo.
 echo ============================================================
@@ -97,8 +98,23 @@ if not "%EXPECTED%"=="%VERSION%" (
   exit /b 1
 )
 
+echo Detectando carpeta activa del bot instalado...
+for /f "usebackq delims=" %%T in (`powershell -NoProfile -ExecutionPolicy Bypass -Command "$ports=8790..8810; foreach($p in $ports){ try { $s=Invoke-RestMethod -UseBasicParsing -Uri ('http://localhost:'+$p+'/status.json') -TimeoutSec 2; if($s.folder -and (Test-Path -LiteralPath $s.folder)){ Write-Output $s.folder; exit 0 } } catch {} }; exit 0"`) do (
+  if not defined TARGET set "TARGET=%%T"
+)
+if defined TARGET (
+  echo Carpeta activa detectada: %TARGET%
+) else (
+  echo No se detecto panel local activo; el actualizador hara busqueda profunda.
+)
+echo.
+
 pushd "%SRC%"
-node "%SRC%\update-windows.js"
+if defined TARGET (
+  node "%SRC%\update-windows.js" --target "%TARGET%" --force
+) else (
+  node "%SRC%\update-windows.js" --force
+)
 set "EC=%ERRORLEVEL%"
 popd
 
