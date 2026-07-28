@@ -26,11 +26,17 @@ set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 
 echo.
-echo [ERROR] No se encontro automaticamente una sesion anterior de WhatsApp ^(codigo %EC%^).
+if "%EC%"=="2" (
+  echo [ERROR] No se encontro automaticamente una instalacion anterior del bot ^(codigo %EC%^).
+) else if "%EC%"=="3" (
+  echo [ERROR] Se encontro una instalacion, pero no tiene sesion WhatsApp local ni persistente ^(codigo %EC%^).
+) else (
+  echo [ERROR] La actualizacion automatica no se pudo completar ^(codigo %EC%^).
+  echo No significa necesariamente que se haya perdido la sesion; revisa el mensaje tecnico anterior.
+)
 echo.
-echo Esto significa que en este PC no aparece la carpeta auth_state anterior,
-echo o fue borrada/movida. Sin auth_state no se puede recuperar la vinculacion,
-echo porque ahi WhatsApp guarda las llaves de sesion.
+echo Si el mensaje anterior habla de version o carpeta estable, ejecuta el actualizador remoto nuevo.
+echo Si realmente no aparece auth_state ni sesion persistente, WhatsApp pedira QR.
 echo.
 echo Si recuerdas alguna carpeta posible, arrastrala a esta ventana y presiona ENTER.
 echo Si no, presiona ENTER para salir sin hacer instalacion nueva.

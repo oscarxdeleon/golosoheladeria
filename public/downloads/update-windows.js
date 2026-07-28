@@ -25,6 +25,7 @@ const getValue = (flag) => {
 
 const autoFromInstaller = hasFlag('--auto-from-installer');
 const force = hasFlag('--force');
+const skipManifestValidation = hasFlag('--skip-manifest') || process.env.GOLOSO_BOT_SKIP_MANIFEST === '1';
 let targetPath = getValue('--target').trim().replace(/^['"]+|['"]+$/g, '');
 
 function step(text) {
@@ -831,29 +832,43 @@ function fetchRemoteManifest() {
 }
 
 async function validateSourcePackageAgainstManifest() {
-  step('Validando version oficial publicada');
+  step('Validando paquete descargado');
+  const localVersion = readExpectedVersion();
+  console.log(`Version del paquete descargado: ${localVersion || 'desconocida'}`);
+  if (!localVersion) {
+    console.log('[ERROR] El paquete descargado no tiene version en package.json.');
+    process.exit(6);
+  }
+  if (skipManifestValidation) {
+    console.log('Validacion remota omitida: se instalara exactamente el ZIP descargado.');
+    return { version: localVersion, skippedManifest: true };
+  }
+
+  step('Comparando con manifiesto publicado');
   let manifest;
   try {
     manifest = await fetchRemoteManifest();
   } catch (e) {
     if (process.env.GOLOSO_BOT_ALLOW_OFFLINE_UPDATE === '1') {
       console.log(`AVISO: no se pudo consultar manifiesto remoto (${e?.message || e}). Continuando por GOLOSO_BOT_ALLOW_OFFLINE_UPDATE=1.`);
-      return { version: readExpectedVersion(), offline: true };
+      return { version: localVersion, offline: true };
     }
     console.log(`[ERROR] No se pudo consultar la version oficial publicada: ${e?.message || e}`);
     console.log('No se aplico ningun cambio para evitar reinstalar una version vieja por error. Revisa internet y ejecuta de nuevo el actualizador remoto.');
     process.exit(6);
   }
-  const localVersion = readExpectedVersion();
   const officialVersion = String(manifest.version || '').trim();
-  console.log(`Version del paquete descargado: ${localVersion || 'desconocida'}`);
   console.log(`Version oficial publicada: ${officialVersion}`);
   if (!localVersion || compareVersions(localVersion, officialVersion) < 0) {
     console.log('[ERROR] El paquete local es anterior a la version oficial publicada.');
     console.log('Se cancela para impedir que Windows vuelva a arrancar una version antigua. Ejecuta actualizar-bot-windows-remoto.bat desde la nube.');
     process.exit(6);
   }
-  return manifest;
+  if (compareVersions(localVersion, officialVersion) > 0) {
+    console.log('AVISO: el ZIP descargado es mas nuevo que el manifiesto publicado.');
+    console.log('Se instalara la version del ZIP para evitar el error de version desincronizada.');
+  }
+  return { ...manifest, version: localVersion };
 }
 
 function fetchStatus(port) {
