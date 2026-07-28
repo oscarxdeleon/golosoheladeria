@@ -868,8 +868,8 @@ function enqueueIncoming(from, task) {
   return next;
 }
 
-async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
-  logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode }, "incoming");
+async function processResolvedIncoming(sock, msg, from, text, audioNode, jid, msgId) {
+  logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode, msgId }, "incoming");
   state.lastIncomingAt = Date.now();
   state.lastIncomingFrom = from;
   state.lastIncomingPreview = text ? text.slice(0, 120) : audioNode ? "[nota de voz]" : "[sin texto]";
@@ -880,7 +880,7 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
   let reply = null;
   let incomingData = null;
   if (text) {
-    incomingData = await handleIncoming(from, text);
+    incomingData = await handleIncoming(from, text, msgId);
     reply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
     if (reply) state.lastReplySource = incomingData?.source || incomingData?.matched_trigger || "fixed";
   }
