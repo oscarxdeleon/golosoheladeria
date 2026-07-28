@@ -371,9 +371,17 @@ async function main() {
   registerStartup(targetDir);
   await startBot(targetDir);
 
+  const expected = readExpectedVersion();
+  const versionOk = await verifyInstalledVersion(expected);
+
   console.log('');
-  console.log('Actualizacion completa.');
-  console.log('No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR.');
+  if (versionOk) {
+    console.log(`Actualizacion completa. Version activa: ${expected}`);
+    console.log('No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR.');
+  } else {
+    console.log('[ERROR] La actualizacion NO quedo aplicada. Vuelve a ejecutar el actualizador como Administrador.');
+    process.exit(5);
+  }
 }
 
 main().catch((error) => {
