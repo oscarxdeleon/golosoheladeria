@@ -717,9 +717,10 @@ function registerStartup(target) {
   } finally {
     try { fs.unlinkSync(tempVbs); } catch {}
   }
-  spawnSync('reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', RUN_VALUE_NAME, '/t', 'REG_SZ', '/d', `wscript.exe "${vbsPath}"`, '/f'], { stdio: 'ignore' });
+  spawnSync('reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', RUN_VALUE_NAME, '/t', 'REG_SZ', '/d', `wscript.exe "${launcher.launcherVbsPath}"`, '/f'], { stdio: 'ignore' });
   const taskName = `${RUN_VALUE_NAME}-${sessionFingerprintFromConfig(readConfig(target), target)}`;
-  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', taskName, '/TR', `wscript.exe "${vbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
+  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', taskName, '/TR', `wscript.exe "${launcher.launcherVbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
+  return launcher;
 }
 
 function writeInstallManifest(target, sourceTarget) {
