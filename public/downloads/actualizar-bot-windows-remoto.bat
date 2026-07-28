@@ -11,7 +11,9 @@ setlocal EnableExtensions
 title Goloso - Actualizador remoto del Bot Windows
 
 set "VERSION=8.22.4"
-set "URL=https://golosoheladeria.lovable.app/downloads/golosito-v%VERSION%.zip"
+REM Usar el enlace estable evita errores 404 si la ruta versionada aun no fue publicada.
+set "URL=https://golosoheladeria.lovable.app/downloads/golosito.zip"
+set "FALLBACK_URL=https://golosoheladeria.lovable.app/downloads/whatsapp-bot.zip"
 set "STAMP=%DATE%_%TIME%"
 set "STAMP=%STAMP: =0%"
 set "STAMP=%STAMP:/=%"
@@ -27,8 +29,9 @@ echo ============================================================
 echo  Goloso WhatsApp Bot - actualizacion remota
 echo ============================================================
 echo.
-echo Descargando ultima version desde:
+echo Descargando ultima version estable desde:
 echo   %URL%
+echo Version esperada: %VERSION%
 echo.
 
 where node >nul 2>nul
@@ -43,7 +46,7 @@ mkdir "%TMPDIR%" >nul 2>nul
 mkdir "%EXTRACT%" >nul 2>nul
 
 powershell -NoProfile -ExecutionPolicy Bypass -Command ^
-  "$ProgressPreference='SilentlyContinue'; try { Invoke-WebRequest -UseBasicParsing -Uri '%URL%' -OutFile '%ZIP%' -TimeoutSec 60 } catch { Write-Host $_.Exception.Message; exit 1 }"
+  "$ProgressPreference='SilentlyContinue'; $urls=@('%URL%','%FALLBACK_URL%'); foreach($u in $urls){ try { Write-Host ('Intentando: ' + $u); Invoke-WebRequest -UseBasicParsing -Uri $u -OutFile '%ZIP%' -TimeoutSec 60; if((Test-Path '%ZIP%') -and ((Get-Item '%ZIP%').Length -gt 0)){ exit 0 } } catch { Write-Host $_.Exception.Message } }; exit 1"
 if errorlevel 1 (
   echo [ERROR] No se pudo descargar el ZIP. Revisa la conexion a internet.
   pause
@@ -84,6 +87,15 @@ set "EXPECTED=%EXPECTED: =%"
 set "EXPECTED=%EXPECTED:"=%"
 echo Version a instalar: %EXPECTED%
 echo.
+
+if not "%EXPECTED%"=="%VERSION%" (
+  echo [ERROR] El ZIP descargado no es la version esperada.
+  echo Esperada: %VERSION%
+  echo Recibida : %EXPECTED%
+  echo Publica/actualiza el proyecto en Lovable y vuelve a ejecutar este archivo.
+  pause
+  exit /b 1
+)
 
 pushd "%SRC%"
 node "%SRC%\update-windows.js"
