@@ -428,11 +428,6 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                   <Download className="mr-2 h-4 w-4" /> Actualizador automático Windows
                 </a>
               </Button>
-              <Button asChild size="sm" variant="outline">
-                <a href={AUTO_UPDATE_MAC_LINUX_URL} download>
-                  <Download className="mr-2 h-4 w-4" /> Mac / Linux
-                </a>
-              </Button>
             </div>
             <p className="mt-2 text-xs text-amber-900/80">
               Descarga el actualizador, ejecútalo una sola vez en el PC de la sede y verifica que termine mostrando v{REMOTE_MANAGEMENT_MIN_VERSION}. No borra el QR ni la sesión de WhatsApp.
