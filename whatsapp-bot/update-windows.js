@@ -277,6 +277,44 @@ function waitForPanel() {
   });
 }
 
+function readExpectedVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(SOURCE_DIR, 'package.json'), 'utf8'));
+    return String(pkg.version || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function fetchStatus() {
+  return new Promise((resolve) => {
+    const req = http.get({ hostname: 'localhost', port: LOCAL_PORT, path: '/status.json', timeout: 2000 }, (res) => {
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
+async function verifyInstalledVersion(expected) {
+  if (!expected) return true;
+  step(`Verificando version activa (esperada: ${expected})`);
+  for (let i = 0; i < 20; i++) {
+    const s = await fetchStatus();
+    if (s && String(s.version || '').trim() === expected) {
+      console.log(`OK: bot activo version ${s.version}`);
+      return true;
+    }
+    if (s && s.version) console.log(`Version actual ${s.version}, esperando ${expected}...`);
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  console.log(`[ERROR] La version activa no coincide con ${expected}.`);
+  console.log('Un proceso viejo del bot esta bloqueando el puerto. Cierra sesion de Windows y vuelve a ejecutar el actualizador.');
+  return false;
+}
+
 async function startBot(target) {
   step('Iniciando bot actualizado');
   spawn('wscript.exe', ['//nologo', path.join(target, 'start-hidden.vbs')], { cwd: target, detached: true, stdio: 'ignore' }).unref();
