@@ -697,6 +697,27 @@ function buildSafetyReply() {
   return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.";
 }
 
+// Convierte una respuesta con opciones estructuradas en texto numerado.
+// El bot local no usa botones nativos de WhatsApp (poco confiables entre
+// clientes y versiones de Business). Si el backend devuelve
+// `options` o `buttons` como arreglo, las anexamos como lista numerada
+// al final del texto. El cliente puede responder con "1", "2" o el
+// título de la opción y el backend lo interpreta como confirmación.
+function appendOptionsToReply(text, options) {
+  if (typeof text !== "string") return text;
+  const opts = Array.isArray(options) ? options.filter(Boolean) : [];
+  if (!opts.length) return text;
+  const lines = opts
+    .map((o, i) => {
+      const title = typeof o === "string" ? o : String(o?.title ?? o?.label ?? o?.text ?? "").trim();
+      return title ? `${i + 1}) ${title}` : "";
+    })
+    .filter(Boolean);
+  if (!lines.length) return text;
+  const base = text.trim();
+  return `${base}${base ? "\n\n" : ""}${lines.join("\n")}`;
+}
+
 function buildUnresolvedPhoneReply() {
   return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nRecibí tu mensaje, pero WhatsApp no me entregó correctamente tu número de contacto.\n\nPor favor envíanos nuevamente tu mensaje o escríbenos desde el número principal para ayudarte con tu pedido.";
 }
