@@ -21,7 +21,7 @@ if errorlevel 1 (
   exit /b 1
 )
 
-node "%~dp0update-windows.js"
+node "%~dp0update-windows.js" --force
 set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 
