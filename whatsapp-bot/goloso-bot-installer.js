@@ -317,10 +317,11 @@ function writeStartup(token) {
   ensureDir(authDir);
   const vbsPath = path.join(RUNTIME_DIR, "start-hidden.vbs");
   const outLog = path.join(LOG_DIR, "bot-out.log");
-  const escapedRuntime = RUNTIME_DIR.replace(/"/g, """");
-  const escapedData = DATA_ROOT.replace(/"/g, """");
-  const escapedAuth = authDir.replace(/"/g, """");
-  const escapedOut = outLog.replace(/"/g, """");
+  const vbsString = (value) => String(value).replace(/"/g, '""');
+  const escapedRuntime = vbsString(RUNTIME_DIR);
+  const escapedData = vbsString(DATA_ROOT);
+  const escapedAuth = vbsString(authDir);
+  const escapedOut = vbsString(outLog);
   const body = [
     `' ${STARTUP_METHOD}`,
     `' version=${EXPECTED}`,
