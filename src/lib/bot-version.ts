@@ -14,7 +14,7 @@ export const BOT_DOWNLOAD_URL = `/downloads/${BOT_DOWNLOAD_FILENAME}`;
 export const BOT_LATEST_DOWNLOAD_URL = "/downloads/golosito.zip";
 
 /** SHA-256 del ZIP oficial publicado para validar integridad en instaladores remotos. */
-export const BOT_DOWNLOAD_SHA256 = "pending-regeneration";
+export const BOT_DOWNLOAD_SHA256 = "6d82887bce6a76c3ecba1257ac272018684e8c47ab7f8c40663877c9b297e9b8";
 
 export type BotReleaseStatus = "exitosa" | "fallida";
 
