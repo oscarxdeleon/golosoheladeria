@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.22.3";
+export const BOT_VERSION = "8.22.4";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -25,6 +25,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.22.4",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Blindaje definitivo de sesión WhatsApp en Windows: las credenciales se migran a una carpeta persistente por sede en AppData, el actualizador respalda/restaura sesiones y el bot ya no borra auth_state automáticamente ante falsos cierres durante actualización.",
+  },
   {
     version: "8.22.3",
     date: "2026-07-28",

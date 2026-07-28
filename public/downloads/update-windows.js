@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
+import { createHash } from 'node:crypto';
 import { execSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -54,6 +55,7 @@ function isBotFolder(folder) {
 function scoreFolder(folder) {
   let score = 0;
   if (exists(path.join(folder, 'auth_state'))) score += 100;
+  if (hasPersistentAuthState(folder)) score += 120;
   if (exists(path.join(folder, 'config.json'))) score += 80;
   if (exists(path.join(folder, 'server.js'))) score += 40;
   if (exists(path.join(folder, 'start-hidden.vbs'))) score += 20;
@@ -166,6 +168,74 @@ function findInstalledBotFolder() {
 
 function inferPortFromFolder(folder) {
   return /sede\s*2|sede2|parque/i.test(String(folder || '')) ? 8791 : 8790;
+}
+
+function readConfig(folder) {
+  try {
+    const cfgPath = path.join(folder, 'config.json');
+    if (!exists(cfgPath)) return null;
+    return JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function safePathSegment(value, fallback = 'sede') {
+  return String(value || fallback).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || fallback;
+}
+
+function sessionFingerprintFromConfig(cfg, fallbackFolder) {
+  return createHash('sha256')
+    .update(String(cfg?.token || fallbackFolder || 'default'))
+    .digest('hex')
+    .slice(0, 18);
+}
+
+function persistentSessionRoot() {
+  return process.env.GOLOSO_BOT_DATA_DIR
+    || process.env.APPDATA
+    || process.env.LOCALAPPDATA
+    || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Roaming');
+}
+
+function persistentAuthDirFor(folder) {
+  const cfg = readConfig(folder);
+  if (!cfg?.token) return '';
+  return path.join(persistentSessionRoot(), 'Goloso WhatsApp Bot', 'sessions', `sede-${sessionFingerprintFromConfig(cfg, folder)}`);
+}
+
+function hasUsableAuthState(dir) {
+  return Boolean(dir) && exists(path.join(dir, 'creds.json'));
+}
+
+function hasPersistentAuthState(folder) {
+  return hasUsableAuthState(persistentAuthDirFor(folder));
+}
+
+function preserveAuthState(target, backupDir) {
+  const legacyAuth = path.join(target, 'auth_state');
+  const persistentAuth = persistentAuthDirFor(target);
+  if (hasUsableAuthState(legacyAuth)) copyRecursive(legacyAuth, path.join(backupDir, 'auth_state'));
+  if (hasUsableAuthState(persistentAuth)) copyRecursive(persistentAuth, path.join(backupDir, 'persistent_auth_state'));
+  if (!hasUsableAuthState(persistentAuth) && hasUsableAuthState(legacyAuth)) {
+    fs.mkdirSync(path.dirname(persistentAuth), { recursive: true });
+    copyRecursive(legacyAuth, persistentAuth);
+    console.log(`Sesion migrada a carpeta persistente protegida: ${persistentAuth}`);
+  }
+}
+
+function restoreAuthStateIfMissing(target, backupDir) {
+  const legacyAuth = path.join(target, 'auth_state');
+  const persistentAuth = persistentAuthDirFor(target);
+  if (!hasUsableAuthState(persistentAuth) && hasUsableAuthState(path.join(backupDir, 'persistent_auth_state'))) {
+    fs.mkdirSync(path.dirname(persistentAuth), { recursive: true });
+    copyRecursive(path.join(backupDir, 'persistent_auth_state'), persistentAuth);
+    console.log('Sesion persistente restaurada desde respaldo de seguridad.');
+  }
+  if (!hasUsableAuthState(legacyAuth) && hasUsableAuthState(path.join(backupDir, 'auth_state'))) {
+    copyRecursive(path.join(backupDir, 'auth_state'), legacyAuth);
+    console.log('auth_state legado restaurado desde respaldo de seguridad.');
+  }
 }
 
 function stopNodeProcessesInFolder(target) {
@@ -381,8 +451,11 @@ async function main() {
   }
 
   console.log(`Carpeta detectada: ${targetDir}`);
-  if (!exists(path.join(targetDir, 'auth_state'))) {
-    console.log('AVISO: No se encontro auth_state en esa carpeta.');
+  const persistentAuthDir = persistentAuthDirFor(targetDir);
+  const hasLegacyAuth = hasUsableAuthState(path.join(targetDir, 'auth_state'));
+  const hasPersistentAuth = hasUsableAuthState(persistentAuthDir);
+  if (!hasLegacyAuth && !hasPersistentAuth) {
+    console.log('AVISO: No se encontro una sesion WhatsApp previa (ni auth_state ni sesion persistente).');
     if (autoFromInstaller) process.exit(3);
     if (!force) {
       console.log('Este PC no tiene una sesion de WhatsApp previa que conservar.');
@@ -390,16 +463,21 @@ async function main() {
       process.exit(3);
     }
     console.log('Continuando por --force. Es posible que WhatsApp pida QR.');
+  } else if (hasPersistentAuth) {
+    console.log(`Sesion WhatsApp persistente detectada: ${persistentAuthDir}`);
+  } else {
+    console.log('Sesion WhatsApp antigua detectada en auth_state; se migrara a almacenamiento persistente protegido.');
   }
 
   const backupDir = path.join(targetDir, `backup-before-update-${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}`);
   fs.mkdirSync(backupDir, { recursive: true });
   if (exists(path.join(targetDir, 'config.json'))) fs.copyFileSync(path.join(targetDir, 'config.json'), path.join(backupDir, 'config.json'));
-  if (exists(path.join(targetDir, 'auth_state'))) copyRecursive(path.join(targetDir, 'auth_state'), path.join(backupDir, 'auth_state'));
+  preserveAuthState(targetDir, backupDir);
 
   stopCurrentBot(targetDir);
   copyBotFiles(targetDir);
   updateConfig(targetDir);
+  restoreAuthStateIfMissing(targetDir, backupDir);
   ensureDependencies(targetDir);
   registerStartup(targetDir);
   await startBot(targetDir);
@@ -410,7 +488,7 @@ async function main() {
   console.log('');
   if (versionOk) {
     console.log(`Actualizacion completa. Version activa: ${expected}`);
-    console.log('No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR.');
+    console.log('No se borro la sesion de WhatsApp. La nueva version usa almacenamiento persistente protegido para no pedir QR en futuras actualizaciones.');
   } else {
     console.log('[ERROR] La actualizacion NO quedo aplicada. Vuelve a ejecutar el actualizador como Administrador.');
     process.exit(5);

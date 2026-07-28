@@ -10,7 +10,7 @@ REM ============================================================
 setlocal EnableExtensions
 title Goloso - Actualizador remoto del Bot Windows
 
-set "VERSION=8.22.3"
+set "VERSION=8.22.4"
 set "URL=https://golosoheladeria.lovable.app/downloads/golosito-v%VERSION%.zip"
 set "STAMP=%DATE%_%TIME%"
 set "STAMP=%STAMP: =0%"
