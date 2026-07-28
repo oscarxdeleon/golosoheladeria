@@ -449,28 +449,60 @@ async function ackCommand(cmd) {
   }
 }
 
-function rmAuthDir() {
+function archiveAuthStateBeforeDestructiveAction(reason = "unknown") {
   try {
-    if (fs.existsSync(AUTH_DIR)) {
-      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
-      logger.info("auth_state removed");
-    }
+    if (!hasUsableAuthState(AUTH_DIR)) return false;
+    const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\..+$/, "");
+    const archiveDir = path.join(SESSION_BACKUP_DIR, `protected-${stamp}`);
+    copyDirSafe(AUTH_DIR, archiveDir);
+    logger.warn({ reason, archiveDir }, "protected auth_state archive created before destructive action");
+    return true;
   } catch (e) {
-    logger.warn({ err: String(e) }, "could not remove auth_state");
+    logger.warn({ err: String(e), reason }, "could not create protected auth_state archive");
+    return false;
   }
 }
 
-function resetAuthStateForFreshQr(reason = "logged_out") {
+function rmAuthDir({ reason = "manual", allowDestructive = false } = {}) {
   try {
-    rmAuthDir();
-    fs.rmSync(SESSION_BACKUP_DIR, { recursive: true, force: true });
+    if (!allowDestructive) {
+      logger.warn({ reason, authDir: AUTH_DIR }, "auth_state deletion blocked by session preservation guard");
+      state.lastError = "La sesión de WhatsApp está protegida y no fue eliminada. Usa Desvincular solo si realmente quieres generar QR nuevo.";
+      return false;
+    }
+    archiveAuthStateBeforeDestructiveAction(reason);
+    if (fs.existsSync(AUTH_DIR)) {
+      fs.rmSync(AUTH_DIR, { recursive: true, force: true });
+      logger.warn({ reason, authDir: AUTH_DIR }, "auth_state removed by explicit destructive action");
+    }
+    return true;
+  } catch (e) {
+    logger.warn({ err: String(e) }, "could not remove auth_state");
+    return false;
+  }
+}
+
+function resetAuthStateForFreshQr(reason = "logged_out", { allowDestructive = false } = {}) {
+  try {
+    const removed = rmAuthDir({ reason, allowDestructive });
+    if (!allowDestructive || !removed) return false;
+    const protectedArchives = [];
+    if (fs.existsSync(SESSION_BACKUP_DIR)) {
+      for (const entry of fs.readdirSync(SESSION_BACKUP_DIR, { withFileTypes: true })) {
+        if (entry.isDirectory() && entry.name.startsWith("protected-")) protectedArchives.push(entry.name);
+      }
+    }
+    for (const entry of fs.readdirSync(SESSION_BACKUP_DIR, { withFileTypes: true })) {
+      if (entry.isDirectory() && entry.name.startsWith("protected-")) continue;
+      fs.rmSync(path.join(SESSION_BACKUP_DIR, entry.name), { recursive: true, force: true });
+    }
     fs.rmSync(SESSION_META_PATH, { force: true });
     fs.rmSync(SESSION_RESTORE_MARKER, { force: true });
     state.phone = null;
     state.qr = null;
     state.qrDataUrl = null;
     state.lastError = null;
-    logger.warn({ reason }, "auth_state and backups cleared to generate a fresh QR");
+    logger.warn({ reason, protectedArchives }, "auth_state cleared only after explicit unlink command");
     return true;
   } catch (e) {
     state.lastError = `No se pudo limpiar la sesión para generar QR nuevo: ${String(e)}`;
@@ -485,6 +517,20 @@ function copyDirSafe(source, target) {
   fs.rmSync(target, { recursive: true, force: true });
   fs.cpSync(source, target, { recursive: true, force: true });
   return true;
+}
+
+function migrateLegacyAuthState() {
+  try {
+    if (AUTH_DIR === LEGACY_AUTH_DIR) return false;
+    if (hasUsableAuthState(AUTH_DIR)) return false;
+    if (!hasUsableAuthState(LEGACY_AUTH_DIR)) return false;
+    copyDirSafe(LEGACY_AUTH_DIR, AUTH_DIR);
+    logger.warn({ from: LEGACY_AUTH_DIR, to: AUTH_DIR }, "legacy auth_state migrated to persistent Windows data folder");
+    return true;
+  } catch (e) {
+    logger.warn({ err: String(e), from: LEGACY_AUTH_DIR, to: AUTH_DIR }, "legacy auth_state migration failed");
+    return false;
+  }
 }
 
 function readSessionMeta() {
@@ -572,25 +618,33 @@ function restoreAuthStateFromBackup(reason = "startup") {
 }
 
 function ensureAuthStateBeforeConnect() {
+  migrateLegacyAuthState();
   if (hasUsableAuthState(AUTH_DIR)) return;
   restoreAuthStateFromBackup("faltaba auth_state/creds.json antes de conectar");
 }
 
 async function tryRestoreAfterLogout(reason) {
-  logger.warn({ reason }, "logged out session will not be restored; forcing fresh QR");
-  return false;
+  logger.warn({ reason }, "logged out reported; preserving auth_state and trying controlled reconnect before showing QR");
+  state.lastError = "WhatsApp reportó cierre de sesión. Se conservaron las credenciales locales y se intentará reconectar automáticamente antes de pedir QR.";
+  if (restoreAuthStateFromBackup(`logged_out: ${reason}`)) return true;
+  backupAuthState(`logged_out_preserved: ${reason}`);
+  return hasUsableAuthState(AUTH_DIR);
 }
 
 async function startFreshPairingAfterLogout(reason) {
-  resetAuthStateForFreshQr(reason);
+  const restored = await tryRestoreAfterLogout(reason);
   if (currentSock) {
     try { currentSock.ws?.close?.(); } catch { /* noop */ }
     currentSock = null;
   }
   markConnectionState("connecting");
-  state.detail = "WhatsApp cerró la sesión anterior. Se limpió la sesión local, las copias antiguas y se está generando un QR nuevo.";
+  state.qr = null;
+  state.qrDataUrl = null;
+  state.detail = restored
+    ? "WhatsApp cerró la conexión durante el arranque. La sesión local se conservó y el bot reintentará reconectar sin QR."
+    : "WhatsApp cerró la sesión anterior. No se borraron credenciales automáticamente; si realmente fue desvinculado desde el teléfono, usa Desvincular para generar QR nuevo.";
   await pushStatus();
-      scheduleReconnect(2500, "fresh_pairing_after_logout");
+  scheduleReconnect(restored ? 5000 : 15000, restored ? "logged_out_preserved_reconnect" : "logged_out_wait_before_qr");
 }
 
 function removeSignalSessionFiles() {
