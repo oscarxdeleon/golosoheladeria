@@ -264,13 +264,40 @@ function searchUsableAuthDirs(root, results, maxDepth = 7) {
   }
 }
 
+function matchingConfigToken(folder, expectedToken) {
+  const cfg = readConfig(folder);
+  return Boolean(expectedToken && cfg?.token && String(cfg.token) === String(expectedToken));
+}
+
+function addMatchingAuthFromBotFolder(folder, expectedToken, matches) {
+  if (!matchingConfigToken(folder, expectedToken)) return;
+  const legacy = path.join(folder, 'auth_state');
+  const persistent = persistentAuthDirFor(folder);
+  if (hasUsableAuthState(legacy)) matches.push(legacy);
+  if (hasUsableAuthState(persistent)) matches.push(persistent);
+}
+
 function findReusableAuthState(target) {
+  const targetCfg = readConfig(target);
+  const expectedToken = targetCfg?.token ? String(targetCfg.token) : '';
+  if (!expectedToken) return '';
+
   const targetLegacyAuth = resolveFolder(path.join(target, 'auth_state'));
   const targetPersistentAuth = resolveFolder(persistentAuthDirFor(target));
+  const botCandidates = new Set();
   const results = [];
+
+  addMatchingAuthFromBotFolder(target, expectedToken, results);
+  const expectedPersistent = persistentAuthDirFor(target);
+  const expectedBackup = path.join(persistentSessionRoot(), 'Goloso WhatsApp Bot', 'session-backups', sessionFingerprintFromConfig(targetCfg, target), 'latest');
+  if (hasUsableAuthState(expectedPersistent)) results.push(expectedPersistent);
+  if (hasUsableAuthState(expectedBackup)) results.push(expectedBackup);
+
   for (const root of [...new Set([target, path.dirname(target), ...commonSearchRoots()])]) {
-    searchUsableAuthDirs(root, results, 7);
+    searchFolders(root, botCandidates, 7);
   }
+
+  for (const folder of botCandidates) addMatchingAuthFromBotFolder(folder, expectedToken, results);
 
   const unique = [...new Set(results.map(resolveFolder).filter(Boolean))].filter((folder) => {
     if (targetLegacyAuth && folder === targetLegacyAuth) return false;
@@ -281,6 +308,8 @@ function findReusableAuthState(target) {
   unique.sort((a, b) => {
     const score = (folder) => {
       let value = 0;
+      if (folder === resolveFolder(expectedPersistent)) value += 500;
+      if (folder === resolveFolder(expectedBackup)) value += 420;
       if (/Goloso WhatsApp Bot[\\/]sessions/i.test(folder)) value += 300;
       if (/auth_state$/i.test(folder)) value += 220;
       if (/session-backups[\\/].*[\\/]latest$/i.test(folder)) value += 180;
