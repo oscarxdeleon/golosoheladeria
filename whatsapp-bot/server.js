@@ -675,9 +675,12 @@ async function executeRemoteCommand(cmd) {
 }
 
 
-async function handleIncoming(from, body) {
+async function handleIncoming(from, body, msgId) {
   try {
-    const res = await postBackendJson({ action: "incoming", from, message: body }, { label: "incoming" });
+    const res = await postBackendJson(
+      { action: "incoming", from, message: body, msg_id: msgId || null },
+      { label: "incoming" },
+    );
     if (!res.ok) {
       logger.warn({ status: res.status, body: res.text }, "incoming push failed");
       return { reply: null, error: res.text || `HTTP ${res.status}`, use_ai: true };
