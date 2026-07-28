@@ -44,6 +44,7 @@ function ensureDir(dir) {
 ensureDir(LOG_DIR);
 
 function log(message, detail = undefined) {
+  ensureDir(LOG_DIR);
   const suffix = detail === undefined ? "" : ` ${typeof detail === "string" ? detail : JSON.stringify(detail)}`;
   fs.appendFileSync(LOG_PATH, `[${new Date().toISOString()}] ${message}${suffix}\n`, "utf8");
 }
@@ -265,9 +266,11 @@ function cleanupWindowsEntrypoints() {
 }
 
 function removeOldFolders() {
+  const protectedRoots = new Set([norm(ROOT), norm(DATA_ROOT), norm(LOG_DIR)].filter(Boolean));
   for (const folder of findCandidateFolders()) {
     const normalized = norm(folder);
     if (!normalized || normalized === norm(SOURCE_DIR) || normalized === norm(RUNTIME_DIR)) continue;
+    if (protectedRoots.has(normalized)) continue;
     if (!/goloso|golosito|whatsapp/i.test(folder)) continue;
     try {
       removePath(folder);
