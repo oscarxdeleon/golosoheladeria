@@ -19,7 +19,7 @@ const argValue = (name) => {
   return index >= 0 ? String(args[index + 1] || "").trim() : "";
 };
 
-const TOKEN = argValue("--token");
+const TOKEN = argValue("--token") || String(process.env.GOLOSO_BRANCH_TOKEN || "").trim();
 const EXPECTED = argValue("--expected") || packageVersion(SOURCE_DIR) || serverVersion(SOURCE_DIR);
 const MAX_ATTEMPTS = 3;
 
@@ -288,6 +288,7 @@ function copyRuntimeFiles() {
     "README.md",
     "goloso-bot-installer.js",
     "uninstall-windows.bat",
+    "install-windows.bat",
   ];
   for (const file of files) {
     const src = path.join(SOURCE_DIR, file);

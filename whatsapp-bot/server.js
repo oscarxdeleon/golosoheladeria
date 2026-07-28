@@ -46,7 +46,7 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.22.9";
+const BOT_VERSION = "8.23.0";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
@@ -347,6 +347,14 @@ function compareVersions(a, b) {
     if (delta !== 0) return delta;
   }
   return 0;
+}
+
+function readPackageVersion() {
+  try {
+    return String(JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"))?.version || "").trim();
+  } catch {
+    return "";
+  }
 }
 
 async function checkOfficialBotVersionOnStartup() {
