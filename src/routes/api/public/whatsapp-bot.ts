@@ -677,6 +677,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           text?: string;
           audio_b64?: string;
           audio_mime?: string;
+          msg_id?: string;
         } | null = null;
         try {
           body = await request.json();
