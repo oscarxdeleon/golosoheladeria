@@ -34,7 +34,7 @@ export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
     author: "Equipo Goloso",
     status: "exitosa",
     notes:
-      "Sustitución total del actualizador Windows por instalación limpia: crea un runtime único en LocalAppData, cierra procesos viejos, limpia Startup/Registro/tareas/cachés, neutraliza copias antiguas y valida package/server/installation/status antes y después de simular reinicio.",
+      "Sustitución total del actualizador Windows por instalación limpia: crea una única ruta fija de ejecución en LocalAppData, cierra procesos viejos, limpia Startup/Registro/tareas/cachés, neutraliza copias antiguas, conserva sesión por sede aparte y valida package/server/installation/status antes y después de simular reinicio.",
   },
   {
     version: "8.22.8",
