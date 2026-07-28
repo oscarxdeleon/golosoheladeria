@@ -261,11 +261,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
   const qc = useQueryClient();
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
-  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | "update" | null>(null);
+  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | null>(null);
 
   const [progressStep, setProgressStep] = useState<string | null>(null);
-  const needsManualBridgeUpdate = compareVersions(cfg.bot_version, REMOTE_MANAGEMENT_MIN_VERSION) < 0;
 
   const pollForChange = async (
     predicate: (row: BotConfigRow) => boolean,
@@ -291,11 +289,10 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
     return null;
   };
 
-  const sendCommand = async (command: "unlink" | "reconnect" | "restart" | "update") => {
+  const sendCommand = async (command: "unlink" | "reconnect" | "restart") => {
     setBusyCmd(command);
-    const baselineVersion = (cfg.bot_version ?? "").trim();
     const baselineSeenAt = cfg.last_seen_at ? new Date(cfg.last_seen_at).getTime() : 0;
-    if (command === "restart" || command === "update") {
+    if (command === "restart") {
       setProgressStep("Enviando orden al bot…");
     }
     const { error } = await supabase.rpc("whatsapp_bot_request_command", {
@@ -305,34 +302,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
     if (error) {
       setBusyCmd(null);
       setProgressStep(null);
-      toast.error(command === "update" && /forbidden/i.test(error.message)
-        ? "Solo un Administrador puede actualizar el bot."
-        : error.message);
-      return;
-    }
-
-    if (command === "update") {
-      const result = await pollForChange(
-        (row) => {
-          const reported = (row.bot_version ?? "").trim();
-          return reported !== "" && reported !== baselineVersion && compareVersions(reported, baselineVersion) > 0;
-        },
-        { timeoutMs: 180_000, stepLabel: (s) => `Esperando confirmación del bot… (${s}s / 180s)` },
-      );
-      setBusyCmd(null);
-      setProgressStep(null);
-      if (result) {
-        toast.success(`✅ Bot actualizado. Nueva versión reportada: v${result.bot_version}.`);
-      } else {
-        toast.error(
-          `El bot no confirmó una versión nueva en 3 minutos (sigue reportando v${baselineVersion || "desconocida"}). ` +
-          (compareVersions(baselineVersion, REMOTE_MANAGEMENT_MIN_VERSION) < 0
-            ? "Esta versión no acepta comandos remotos. Debes ejecutar la actualización puente una vez desde el servidor."
-            : "Verifica el proceso PM2 en el servidor."),
-          { duration: 12000 },
-        );
-      }
-      onChanged();
+      toast.error(error.message);
       return;
     }
 
@@ -349,13 +319,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
       if (result) {
         toast.success(`✅ Bot reiniciado. Estado actual: ${result.connection_status}.`);
       } else {
-        toast.error(
-          `El bot no volvió a reportar señal en 60s. ` +
-          (compareVersions(baselineVersion, REMOTE_MANAGEMENT_MIN_VERSION) < 0
-            ? `La versión instalada (v${baselineVersion || "desconocida"}) no acepta comandos remotos: requiere actualización puente.`
-            : "Revisa PM2 en el servidor."),
-          { duration: 12000 },
-        );
+        toast.error("El bot no volvió a reportar señal en 60s.", { duration: 12000 });
       }
       onChanged();
       return;
@@ -388,52 +352,6 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </ol>
           <p className="mt-2 text-xs text-emerald-800/80">No necesitas entrar al servidor ni ejecutar comandos. Si el QR no aparece, presiona <b>Regenerar QR</b> dentro del mismo diálogo.</p>
         </div>
-        {needsManualBridgeUpdate && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            <div className="mb-2 flex items-center gap-2 font-semibold">
-              <AlertTriangle className="h-4 w-4" /> Actualización puente requerida
-            </div>
-            <p>
-              Esta sede todavía reporta versión <b>v{cfg.bot_version ?? "desconocida"}</b>. Para que los botones
-              <b> Reiniciar Bot</b> y <b>Actualizar Bot</b> funcionen desde este panel, primero instala la actualización descargable una sola vez.
-            </p>
-            <p className="mt-2 text-xs text-amber-900/80">
-              Después de quedar en v{REMOTE_MANAGEMENT_MIN_VERSION} o superior, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  const { data } = await supabase
-                    .from("whatsapp_bot_config")
-                    .select("*")
-                    .eq("branch_id", cfg.branch_id)
-                    .maybeSingle();
-                  if (data) {
-                    qc.setQueryData(["whatsapp-bot-config", cfg.branch_id], data);
-                    const v = (data as BotConfigRow).bot_version ?? "desconocida";
-                    if (compareVersions(v, REMOTE_MANAGEMENT_MIN_VERSION) >= 0) {
-                      toast.success(`Versión detectada: v${v}. Panel actualizado.`);
-                    } else {
-                      toast.info(`El bot sigue reportando v${v}. Ejecuta el actualizador automático descargable una vez en el PC de la sede.`);
-                    }
-                  }
-                }}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" /> Verificar versión ahora
-              </Button>
-              <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                <a href={AUTO_UPDATE_WINDOWS_URL} download>
-                  <Download className="mr-2 h-4 w-4" /> Actualizador automático Windows
-                </a>
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-amber-900/80">
-              Descarga el actualizador, ejecútalo una sola vez en el PC de la sede y verifica que termine mostrando v{REMOTE_MANAGEMENT_MIN_VERSION}. No borra el QR ni la sesión de WhatsApp.
-            </p>
-          </div>
-        )}
         <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
           <div className={`grid h-14 w-14 place-items-center rounded-full ${meta.color} text-white shadow-lg`}>
             <Icon className="h-7 w-7" />
@@ -471,14 +389,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                   <DropdownMenuItem onClick={() => sendCommand("reconnect")} disabled={busyCmd !== null}>
                     <RotateCw className="mr-2 h-4 w-4" /> Reconectar
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setRestartOpen(true)} disabled={busyCmd !== null || needsManualBridgeUpdate}>
+                  <DropdownMenuItem onClick={() => setRestartOpen(true)} disabled={busyCmd !== null}>
                     <RefreshCw className="mr-2 h-4 w-4" /> Reiniciar bot
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem onClick={() => setUpdateOpen(true)} disabled={busyCmd !== null || needsManualBridgeUpdate}>
-                      <Download className="mr-2 h-4 w-4" /> Solo actualizar
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
@@ -526,21 +439,6 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             <AlertDialogFooter>
               <AlertDialogCancel>Cancelar</AlertDialogCancel>
               <AlertDialogAction onClick={() => sendCommand("restart")}>Sí, reiniciar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
-        <AlertDialog open={updateOpen} onOpenChange={setUpdateOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Actualizar el Bot a la última versión?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se descargará la última versión publicada, se aplicarán las nuevas configuraciones y el servicio se reiniciará automáticamente. La sesión de WhatsApp se conserva. Esta operación puede tardar entre 30 segundos y 2 minutos. Solo un Administrador puede ejecutarla.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => sendCommand("update")}>Sí, actualizar</AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
