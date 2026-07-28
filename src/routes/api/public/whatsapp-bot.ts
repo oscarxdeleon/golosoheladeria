@@ -872,7 +872,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   metadata: { context: ctx ?? null },
                 });
                 if (error === "rate_limited") {
-                  const rateLimitTakesOrders = Boolean(preloadedOrdering?.ordering_enabled);
+                  const rateLimitTakesOrders = true;
                   const reply = buildActiveSessionFallback(preloadedCart, formatCOP)
                     ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders, hasSessionData(preloadedCart));
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
