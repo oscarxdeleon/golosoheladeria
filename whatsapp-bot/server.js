@@ -45,11 +45,13 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.22.1";
+const BOT_VERSION = "8.22.2";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
+const LATEST_LINUX_UPDATE_URL = `${CANONICAL_API_URL}/downloads/update-linux.sh`;
+const LATEST_WINDOWS_UPDATE_URL = `${CANONICAL_API_URL}/downloads/actualizar-bot-windows-remoto.bat`;
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 3;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
@@ -598,6 +600,49 @@ async function repairSignalSessions(reason) {
 
 let commandInFlight = false;
 let commandStartedAt = 0;
+
+function launchDetached(command, args, options = {}) {
+  const child = spawn(command, args, {
+    detached: true,
+    stdio: "ignore",
+    ...options,
+  });
+  child.unref();
+  return child;
+}
+
+function launchWindowsSelfUpdate() {
+  const escapedUrl = LATEST_WINDOWS_UPDATE_URL.replaceAll("'", "''");
+  const ps = [
+    "$ErrorActionPreference='Stop'",
+    "$ProgressPreference='SilentlyContinue'",
+    "$bat=Join-Path $env:TEMP ('goloso-bot-remoto-' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() + '.bat')",
+    `Invoke-WebRequest -UseBasicParsing -Uri '${escapedUrl}' -OutFile $bat -TimeoutSec 60`,
+    "Start-Process -FilePath $bat -WorkingDirectory $env:TEMP",
+  ].join("; ");
+  return launchDetached("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], { cwd: __dirname });
+}
+
+function launchLinuxSelfUpdate() {
+  const scriptPath = path.join(__dirname, "update-linux.sh");
+  const logPath = path.join(__dirname, "last-update.log");
+  const out = fs.openSync(logPath, "a");
+  const command = [
+    "set -Eeuo pipefail",
+    `curl -fsSL '${LATEST_LINUX_UPDATE_URL}?v=${BOT_VERSION}' -o '${scriptPath}'`,
+    `chmod +x '${scriptPath}'`,
+    `bash '${scriptPath}' '${__dirname}'`,
+  ].join(" && ");
+  const child = spawn("bash", ["-lc", command], {
+    detached: true,
+    stdio: ["ignore", out, out],
+    env: { ...process.env },
+    cwd: __dirname,
+  });
+  child.unref();
+  return { child, logPath };
+}
+
 async function executeRemoteCommand(cmd) {
   if (commandInFlight) {
     logger.warn({ cmd, commandStartedAt }, "remote command ignored because another command is still running");
@@ -649,22 +694,16 @@ async function executeRemoteCommand(cmd) {
       await ackCommand("update");
       await pushStatus();
       try {
-        const script = path.join(__dirname, "update-linux.sh");
-        if (!fs.existsSync(script)) {
-          logger.warn({ script }, "update-linux.sh no encontrado");
+        if (process.platform === "win32") {
+          const child = launchWindowsSelfUpdate();
+          logger.warn({ pid: child.pid, url: LATEST_WINDOWS_UPDATE_URL }, "windows update launcher started");
+          state.detail = "Actualizador Windows lanzado. Se descargará la última versión y se reiniciará el bot.";
           return;
         }
-        const logPath = path.join(__dirname, "last-update.log");
-        const out = fs.openSync(logPath, "a");
-        const child = spawn("bash", [script, __dirname], {
-          detached: true,
-          stdio: ["ignore", out, out],
-          env: { ...process.env },
-        });
-        child.unref();
-        logger.warn({ pid: child.pid, logPath }, "update script launched (PM2 respawnará el bot al terminar)");
+        const { child, logPath } = launchLinuxSelfUpdate();
+        logger.warn({ pid: child.pid, logPath, url: LATEST_LINUX_UPDATE_URL }, "latest update script launched (PM2 respawnará el bot al terminar)");
       } catch (e) {
-        logger.error({ err: String(e) }, "no se pudo lanzar update-linux.sh");
+        logger.error({ err: String(e) }, "no se pudo lanzar el actualizador remoto");
       }
       return;
     }
