@@ -752,7 +752,7 @@ async function executeRemoteCommand(cmd) {
         try { currentSock.ws?.close?.(); } catch { /* noop */ }
         currentSock = null;
       }
-      resetAuthStateForFreshQr("desvinculación solicitada desde POS");
+      resetAuthStateForFreshQr("desvinculación solicitada desde POS", { allowDestructive: true });
       await ackCommand("unlink");
       markConnectionState("connecting");
       state.qr = null;
@@ -1429,7 +1429,7 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, unresolvedPhoneCount: state.unresolvedPhoneCount, lastUnresolvedJid: state.lastUnresolvedJid, lastUnresolvedAt: state.lastUnresolvedAt, lastBaileysEventAt: state.lastBaileysEventAt, lastBaileysEvent: state.lastBaileysEvent, instanceId: INSTANCE_ID, instanceRetired, hasQr: Boolean(state.qr), port: activeLocalPort, folder: __dirname }));
+      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, unresolvedPhoneCount: state.unresolvedPhoneCount, lastUnresolvedJid: state.lastUnresolvedJid, lastUnresolvedAt: state.lastUnresolvedAt, lastBaileysEventAt: state.lastBaileysEventAt, lastBaileysEvent: state.lastBaileysEvent, instanceId: INSTANCE_ID, instanceRetired, hasQr: Boolean(state.qr), hasAuthState: hasUsableAuthState(AUTH_DIR), authDir: AUTH_DIR, legacyAuthDir: LEGACY_AUTH_DIR, port: activeLocalPort, folder: __dirname }));
       return;
     }
     res.writeHead(404); res.end();
