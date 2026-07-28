@@ -902,7 +902,13 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid, ms
   let incomingData = null;
   if (text) {
     incomingData = await handleIncoming(from, text, msgId);
-    reply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
+    const rawReply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
+    const options = Array.isArray(incomingData?.options)
+      ? incomingData.options
+      : Array.isArray(incomingData?.buttons)
+      ? incomingData.buttons
+      : null;
+    reply = rawReply ? appendOptionsToReply(rawReply, options) : null;
     if (reply) state.lastReplySource = incomingData?.source || incomingData?.matched_trigger || "fixed";
   }
 
