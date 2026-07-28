@@ -660,8 +660,8 @@ if (!canonicalAlreadyRunning(config)) startCanonical(config);
 
   const vbs = [
     'Set WshShell = CreateObject("WScript.Shell")',
-    `WshShell.CurrentDirectory = "${launcherDir.replace(/\/g, '\\')}"`,
-    `WshShell.Run "cmd /c node ""${launcherScriptPath.replace(/\/g, '\\')}"" >> ""${launcherLogPath.replace(/\/g, '\\')}"" 2>&1", 0, False`,
+    `WshShell.CurrentDirectory = "${launcherDir.replace(/\\/g, '\\\\')}"`,
+    `WshShell.Run "cmd /c node ""${launcherScriptPath.replace(/\\/g, '\\\\')}"" >> ""${launcherLogPath.replace(/\\/g, '\\\\')}"" 2>&1", 0, False`,
   ].join('\r\n');
   fs.writeFileSync(launcherVbsPath, vbs, 'utf8');
   return { launcherDir, launcherConfigPath, launcherScriptPath, launcherVbsPath, launcherLogPath };
@@ -671,7 +671,7 @@ function writeLegacyRedirect(folder, launcherVbsPath) {
   if (!folder || !exists(folder)) return;
   const redirect = [
     'Set WshShell = CreateObject("WScript.Shell")',
-    `WshShell.Run "wscript.exe //nologo ""${launcherVbsPath.replace(/\/g, '\\')}""", 0, False`,
+    `WshShell.Run "wscript.exe //nologo ""${launcherVbsPath.replace(/\\/g, '\\\\')}""", 0, False`,
   ].join('\r\n');
   try { fs.writeFileSync(path.join(folder, 'start-hidden.vbs'), redirect, 'utf8'); } catch {}
 }
