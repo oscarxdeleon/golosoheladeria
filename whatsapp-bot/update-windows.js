@@ -197,6 +197,9 @@ function stopCurrentBot(target) {
       if (/^\d+$/.test(pid)) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });
     }
   } catch {}
+  try { fs.rmSync(path.join(target, '.goloso-bot.lock'), { force: true }); } catch {}
+  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.2'), { force: true }); } catch {}
+  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.3'), { force: true }); } catch {}
 }
 
 function copyRecursive(src, dest) {

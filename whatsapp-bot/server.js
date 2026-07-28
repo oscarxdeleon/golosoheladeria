@@ -45,7 +45,7 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.22.2";
+const BOT_VERSION = "8.22.3";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
@@ -395,6 +395,8 @@ async function retireDuplicateInstance(activeInstanceId) {
     try { currentSock.ws?.close?.(); } catch { /* noop */ }
     currentSock = null;
   }
+  releaseInstanceLock();
+  setTimeout(() => process.exit(0), 2500);
 }
 
 async function ackCommand(cmd) {

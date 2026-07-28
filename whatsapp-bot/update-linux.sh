@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.22.2"
+BOT_VERSION="8.22.3"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.22.2.zip"
-FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.22.2.zip"
+PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.22.3.zip"
+FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.22.3.zip"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-${PRIMARY_DOWNLOAD_URL}}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
@@ -320,6 +320,7 @@ for old_pid in "${duplicate_node_pids[@]:-}"; do
 done
 
 kill_port_owner "${expected_port}"
+rm -f "${TARGET_DIR}/.goloso-bot.lock" "${TARGET_DIR}/.goloso-bridge-update-8.22.2" "${TARGET_DIR}/.goloso-bridge-update-8.22.3" || true
 old_processes_stopped=true
 
 echo ""
