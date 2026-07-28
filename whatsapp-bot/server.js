@@ -626,7 +626,7 @@ async function tryRestoreAfterLogout(reason) {
   logger.warn({ reason }, "logged out reported; preserving auth_state and trying controlled reconnect before showing QR");
   state.lastError = "WhatsApp reportó cierre de sesión. Se conservaron las credenciales locales y se intentará reconectar automáticamente antes de pedir QR.";
   if (restoreAuthStateFromBackup(`logged_out: ${reason}`)) return true;
-  backupAuthState(`logged_out_preserved: ${reason}`);
+  archiveAuthStateBeforeDestructiveAction(`logged_out_preserved: ${reason}`);
   return hasUsableAuthState(AUTH_DIR);
 }
 
@@ -1253,7 +1253,7 @@ async function startSocket() {
     if (generation !== socketGeneration) return;
     markBaileysEvent("creds.update");
     await saveCreds(...args);
-    backupAuthState("creds.update");
+    if (state.status === "connected" || state.phone) backupAuthState("creds.update");
   });
 
   sock.ev.on("connection.update", async (update) => {
