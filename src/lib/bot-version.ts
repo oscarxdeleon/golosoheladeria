@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.21.0";
+export const BOT_VERSION = "8.22.0";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -25,6 +25,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.22.0",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Soporte para respuestas con opciones estructuradas: el backend puede enviar 'options' y el bot las convierte en lista numerada (1, 2, 3…) que el cliente puede responder por número o por texto. Base para el rediseño de flujo conversacional.",
+  },
   {
     version: "8.21.0",
     date: "2026-07-28",
