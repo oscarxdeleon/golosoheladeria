@@ -1481,6 +1481,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   });
                 }
 
+                // 🎯 Desbloqueo: si el cliente confirmó ("sí", "confirmar",
+                // "listo") pero aún faltan datos, responde deterministamente
+                // pidiendo SOLO lo que falta, en vez de dejar que la IA
+                // eventualmente responda vacío y bloquee el flujo.
+                if (currentItems.length > 0 && isConfirmation(text) && missingCartFields(currentCart).length > 0) {
+                  void logBotEvent(token, conversationId, from, "fsm_confirm_pending_data", {
+                    metadata: { missing: missingCartFields(currentCart) },
+                  });
+                  return buildCartProgressReply(currentCart, fmtCOP, "Perfecto, para cerrar tu pedido me falta:");
+                }
+
                 // 🔥 EXTRACTOR MULTI-ENTIDAD: en un solo pase captura TODO lo
                 // que el cliente envió junto ("Oscar, Calle 9 #14-59, Bello
                 // Horizonte, Nequi" → nombre + dirección + barrio + pago).
