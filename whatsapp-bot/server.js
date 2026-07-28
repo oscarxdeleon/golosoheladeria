@@ -698,7 +698,9 @@ function restartProcessPreservingSession(reason) {
   releaseInstanceLock();
   try {
     if (process.platform === "win32") {
-      launchDetached(process.execPath, [path.join(__dirname, "server.js")], {
+      const starterPath = path.join(__dirname, "start-hidden.vbs");
+      const command = `ping -n 3 127.0.0.1 >nul && wscript.exe //nologo "${starterPath}"`;
+      launchDetached("cmd.exe", ["/c", command], {
         cwd: __dirname,
         env: { ...process.env },
         windowsHide: true,
