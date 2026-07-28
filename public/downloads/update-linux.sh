@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.20.9"
+BOT_VERSION="8.22.2"
 CANONICAL_API_URL="https://golosoheladeria.lovable.app"
-PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.20.9.zip"
-FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.20.9.zip"
+PRIMARY_DOWNLOAD_URL="https://golosoheladeria.lovable.app/downloads/golosito-v8.22.2.zip"
+FALLBACK_DOWNLOAD_URL="https://golosoheladeria.vercel.app/downloads/golosito-v8.22.2.zip"
 DOWNLOAD_URL="${GOLOSO_BOT_ZIP_URL:-${PRIMARY_DOWNLOAD_URL}}"
 TARGET_DIR="${1:-$(pwd)}"
 PM2_NAME="${2:-${PM2_NAME:-}}"
@@ -160,13 +160,17 @@ if ! curl -fL --retry 3 --retry-delay 2 "${DOWNLOAD_URL}" -o "${tmp_dir}/whatsap
   fi
 fi
 unzip -qo "${tmp_dir}/whatsapp-bot.zip" -d "${tmp_dir}/pkg"
+PKG_DIR="${tmp_dir}/pkg"
+if [[ -d "${tmp_dir}/pkg/whatsapp-bot" ]]; then
+  PKG_DIR="${tmp_dir}/pkg/whatsapp-bot"
+fi
 
-if [[ ! -f "${tmp_dir}/pkg/server.js" ]]; then
+if [[ ! -f "${PKG_DIR}/server.js" ]]; then
   echo "[ERROR] El ZIP descargado no contiene server.js." >&2
   exit 3
 fi
 
-downloaded_version="$(grep -Eo 'BOT_VERSION[[:space:]]*=[[:space:]]*"[^"]+"' "${tmp_dir}/pkg/server.js" | head -n1 | sed -E 's/.*"([^"]+)"/\1/')"
+downloaded_version="$(grep -Eo 'BOT_VERSION[[:space:]]*=[[:space:]]*"[^"]+"' "${PKG_DIR}/server.js" | head -n1 | sed -E 's/.*"([^"]+)"/\1/')"
 if [[ "${downloaded_version}" != "${BOT_VERSION}" ]]; then
   echo "[ERROR] El paquete descargado trae versión ${downloaded_version:-desconocida}, se esperaba ${BOT_VERSION}." >&2
     echo "        URL usada: ${DOWNLOAD_URL}" >&2
@@ -336,8 +340,8 @@ for file in \
   SOLUCION-SIN-SABER-CARPETA.bat \
   uninstall-windows.bat
 do
-  if [[ -f "${tmp_dir}/pkg/${file}" ]]; then
-    cp -f "${tmp_dir}/pkg/${file}" "${TARGET_DIR}/${file}"
+  if [[ -f "${PKG_DIR}/${file}" ]]; then
+    cp -f "${PKG_DIR}/${file}" "${TARGET_DIR}/${file}"
   fi
 done
 chmod +x "${TARGET_DIR}/update-linux.sh" || true
@@ -404,32 +408,14 @@ if [[ "${active_version}" != "${BOT_VERSION}" ]]; then
   exit 6
 fi
 
-# Marcar como completa ANTES del cron: el bot ya está actualizado y verificado.
-# El cron es opcional; su fallo no debe disparar rollback.
-update_completed=true
-
 echo ""
 echo "== Instalando auto-actualización diaria (cron 4:00 AM) =="
-install_cron() {
-  local cron_marker="# goloso-auto-update ${PM2_NAME}"
-  local cron_line="0 4 * * * curl -fsSL https://golosoheladeria.lovable.app/downloads/update-linux.sh | bash -s ${TARGET_DIR} ${PM2_NAME} >> /var/log/goloso-${PM2_NAME}-update.log 2>&1 ${cron_marker}"
-  local current=""
-  current="$(crontab -l 2>/dev/null || true)"
-  local filtered=""
-  filtered="$(printf '%s\n' "${current}" | grep -v "${cron_marker}" || true)"
-  {
-    if [[ -n "${filtered}" ]]; then printf '%s\n' "${filtered}"; fi
-    printf '%s\n' "${cron_line}"
-  } | crontab - 2>/dev/null || return 1
-  return 0
-}
-if install_cron; then
-  echo "Cron instalado: se actualizará automáticamente cada día a las 4:00 AM"
-else
-  echo "⚠️ No se pudo instalar el cron automático (permiso o crontab no disponible). El bot quedó actualizado correctamente."
-fi
+cron_marker="# goloso-auto-update ${PM2_NAME}"
+cron_line="0 4 * * * curl -fsSL https://golosoheladeria.lovable.app/downloads/update-linux.sh | bash -s ${TARGET_DIR} ${PM2_NAME} >> /var/log/goloso-${PM2_NAME}-update.log 2>&1 ${cron_marker}"
+( crontab -l 2>/dev/null | grep -v "${cron_marker}" ; echo "${cron_line}" ) | crontab -
+echo "Cron instalado: se actualizará automáticamente cada día a las 4:00 AM"
 
 echo ""
 echo "✅ Actualización completa. Debe verse: Versión : ${BOT_VERSION}"
 echo "   Sede ${branch_key} verificada en puerto ${expected_port}."
-
+update_completed=true

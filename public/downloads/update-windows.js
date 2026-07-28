@@ -6,7 +6,7 @@ import { execSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const LOCAL_PORT = 8790;
+const LOCAL_PORTS = [8790, 8791];
 const API_URL = 'https://golosoheladeria.lovable.app';
 
 const args = process.argv.slice(2);
@@ -164,12 +164,33 @@ function findInstalledBotFolder() {
   return valid[0] || '';
 }
 
-function stopCurrentBot() {
+function inferPortFromFolder(folder) {
+  return /sede\s*2|sede2|parque/i.test(String(folder || '')) ? 8791 : 8790;
+}
+
+function stopNodeProcessesInFolder(target) {
+  const resolvedTarget = resolveFolder(target);
+  if (!resolvedTarget) return;
+  try {
+    const output = execSync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const line of output.split(/\r?\n/)) {
+      if (!/server\.js/i.test(line)) continue;
+      const pidMatch = line.match(/,(\d+)\s*$/);
+      if (!pidMatch) continue;
+      const command = line.slice(0, line.length - pidMatch[0].length);
+      if (!command.toLowerCase().includes(resolvedTarget.toLowerCase()) && !command.toLowerCase().includes('server.js')) continue;
+      spawnSync('taskkill', ['/F', '/PID', pidMatch[1], '/T'], { shell: true, stdio: 'ignore' });
+    }
+  } catch {}
+}
+
+function stopCurrentBot(target) {
   step('Cerrando bot anterior');
+  stopNodeProcessesInFolder(target);
   try {
     const output = execSync('netstat -ano', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     for (const line of output.split(/\r?\n/)) {
-      if (!line.includes(`:${LOCAL_PORT}`) || !/LISTENING/i.test(line)) continue;
+      if (!LOCAL_PORTS.some((port) => line.includes(`:${port}`)) || !/LISTENING/i.test(line)) continue;
       const parts = line.trim().split(/\s+/);
       const pid = parts[parts.length - 1];
       if (/^\d+$/.test(pid)) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });
@@ -257,11 +278,11 @@ function registerStartup(target) {
   spawnSync('reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', 'GolosoWhatsAppBot', '/t', 'REG_SZ', '/d', `wscript.exe "${vbsPath}"`, '/f'], { stdio: 'ignore' });
 }
 
-function waitForPanel() {
+function waitForPanel(port) {
   return new Promise((resolve) => {
     const started = Date.now();
     const tick = () => {
-      const req = http.get({ hostname: 'localhost', port: LOCAL_PORT, path: '/status.json', timeout: 1000 }, (res) => {
+      const req = http.get({ hostname: 'localhost', port, path: '/status.json', timeout: 1000 }, (res) => {
         res.resume();
         resolve(true);
       });
@@ -277,12 +298,58 @@ function waitForPanel() {
   });
 }
 
+function readExpectedVersion() {
+  try {
+    const pkg = JSON.parse(fs.readFileSync(path.join(SOURCE_DIR, 'package.json'), 'utf8'));
+    return String(pkg.version || '').trim();
+  } catch {
+    return '';
+  }
+}
+
+function fetchStatus(port) {
+  return new Promise((resolve) => {
+    const req = http.get({ hostname: 'localhost', port, path: '/status.json', timeout: 2000 }, (res) => {
+      let data = '';
+      res.on('data', (c) => { data += c; });
+      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+    });
+    req.on('error', () => resolve(null));
+    req.on('timeout', () => { req.destroy(); resolve(null); });
+  });
+}
+
+async function verifyInstalledVersion(expected, target, expectedPort) {
+  if (!expected) return true;
+  step(`Verificando version activa (esperada: ${expected})`);
+  const resolvedTarget = resolveFolder(target);
+  const ports = [expectedPort, ...LOCAL_PORTS.filter((port) => port !== expectedPort)];
+  for (let i = 0; i < 20; i++) {
+    for (const port of ports) {
+      const s = await fetchStatus(port);
+      if (s && String(s.version || '').trim() === expected) {
+        const statusFolder = resolveFolder(String(s.folder || ''));
+        if (!resolvedTarget || !statusFolder || statusFolder === resolvedTarget) {
+          console.log(`OK: bot activo version ${s.version} en puerto ${port}`);
+          return true;
+        }
+      }
+      if (s && s.version) console.log(`Puerto ${port}: version actual ${s.version}, esperando ${expected}...`);
+    }
+    await new Promise((r) => setTimeout(r, 2000));
+  }
+  console.log(`[ERROR] La version activa no coincide con ${expected}.`);
+  console.log('Un proceso viejo del bot esta bloqueando el puerto. Cierra sesion de Windows y vuelve a ejecutar el actualizador.');
+  return false;
+}
+
 async function startBot(target) {
   step('Iniciando bot actualizado');
+  const port = inferPortFromFolder(target);
   spawn('wscript.exe', ['//nologo', path.join(target, 'start-hidden.vbs')], { cwd: target, detached: true, stdio: 'ignore' }).unref();
-  const ok = await waitForPanel();
+  const ok = await waitForPanel(port);
   if (ok) {
-    spawn('cmd', ['/c', 'start', '', `http://localhost:${LOCAL_PORT}`], { detached: true, stdio: 'ignore', shell: true }).unref();
+    spawn('cmd', ['/c', 'start', '', `http://localhost:${port}`], { detached: true, stdio: 'ignore', shell: true }).unref();
   } else {
     console.log('El bot se actualizo, pero el panel local no respondio en 30s. Revisa bot-out.log.');
   }
@@ -326,16 +393,24 @@ async function main() {
   if (exists(path.join(targetDir, 'config.json'))) fs.copyFileSync(path.join(targetDir, 'config.json'), path.join(backupDir, 'config.json'));
   if (exists(path.join(targetDir, 'auth_state'))) copyRecursive(path.join(targetDir, 'auth_state'), path.join(backupDir, 'auth_state'));
 
-  stopCurrentBot();
+  stopCurrentBot(targetDir);
   copyBotFiles(targetDir);
   updateConfig(targetDir);
   ensureDependencies(targetDir);
   registerStartup(targetDir);
   await startBot(targetDir);
 
+  const expected = readExpectedVersion();
+  const versionOk = await verifyInstalledVersion(expected, targetDir, inferPortFromFolder(targetDir));
+
   console.log('');
-  console.log('Actualizacion completa.');
-  console.log('No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR.');
+  if (versionOk) {
+    console.log(`Actualizacion completa. Version activa: ${expected}`);
+    console.log('No se borro auth_state. Si la sesion seguia activa en WhatsApp, no necesitas escanear QR.');
+  } else {
+    console.log('[ERROR] La actualizacion NO quedo aplicada. Vuelve a ejecutar el actualizador como Administrador.');
+    process.exit(5);
+  }
 }
 
 main().catch((error) => {
