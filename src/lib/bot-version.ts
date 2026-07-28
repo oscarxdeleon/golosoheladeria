@@ -13,6 +13,9 @@ export const BOT_DOWNLOAD_URL = `/downloads/${BOT_DOWNLOAD_FILENAME}`;
 /** URL estable (redirect) que siempre apunta a la última versión publicada. */
 export const BOT_LATEST_DOWNLOAD_URL = "/downloads/golosito.zip";
 
+/** SHA-256 del ZIP oficial publicado para validar integridad en instaladores remotos. */
+export const BOT_DOWNLOAD_SHA256 = "f4c15ce7a24f0bcb0f4ab76100bc9356ff8ee36fa01cf69aa481a8786f745fda";
+
 export type BotReleaseStatus = "exitosa" | "fallida";
 
 export interface BotReleaseEntry {
@@ -31,7 +34,7 @@ export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
     author: "Equipo Goloso",
     status: "exitosa",
     notes:
-      "Cambio definitivo del actualizador Windows: el ZIP descargado manda sobre el manifiesto atrasado, se elimina el bloqueo por versión oficial desincronizada y los errores ya no se confunden con pérdida de sesión WhatsApp.",
+      "Sustitución total del actualizador Windows por instalación limpia: crea una única ruta fija de ejecución en LocalAppData, cierra procesos viejos, limpia Startup/Registro/tareas/cachés, neutraliza copias antiguas, conserva sesión por sede aparte y valida package/server/installation/status antes y después de simular reinicio.",
   },
   {
     version: "8.22.8",

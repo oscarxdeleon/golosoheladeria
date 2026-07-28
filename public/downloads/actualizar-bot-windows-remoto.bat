@@ -16,6 +16,7 @@ set "VERSION="
 set "URL="
 set "PRIMARY_URL=https://golosoheladeria.lovable.app/downloads/golosito.zip"
 set "FALLBACK_URL=https://golosoheladeria.lovable.app/downloads/whatsapp-bot.zip"
+set "EXPECTED_SHA256=f4c15ce7a24f0bcb0f4ab76100bc9356ff8ee36fa01cf69aa481a8786f745fda"
 set "STAMP=%DATE%_%TIME%"
 set "STAMP=%STAMP: =0%"
 set "STAMP=%STAMP:/=%"
@@ -63,6 +64,15 @@ if "%ZIPSIZE%"=="0" (
   exit /b 1
 )
 echo Descargado (%ZIPSIZE% bytes).
+echo Validando integridad SHA-256...
+powershell -NoProfile -ExecutionPolicy Bypass -Command ^
+  "$expected='%EXPECTED_SHA256%'.ToLowerInvariant(); $actual=(Get-FileHash -Algorithm SHA256 -LiteralPath '%ZIP%').Hash.ToLowerInvariant(); Write-Host ('SHA-256 descargado: ' + $actual); if($actual -ne $expected){ Write-Host ('[ERROR] Integridad invalida. Esperado: ' + $expected); exit 1 }; exit 0"
+if errorlevel 1 (
+  echo [ERROR] El ZIP descargado no coincide con la version oficial publicada.
+  echo Borra el archivo temporal y vuelve a intentar. Si persiste, contacta soporte.
+  pause
+  exit /b 1
+)
 echo.
 echo Extrayendo en %EXTRACT% ...
 

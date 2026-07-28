@@ -2,30 +2,27 @@ import fs from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import http from 'node:http';
-import https from 'node:https';
 import { createHash } from 'node:crypto';
 import { execSync, spawn, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const SOURCE_DIR = path.dirname(fileURLToPath(import.meta.url));
-const LOCAL_PORTS = Array.from({ length: 21 }, (_, index) => 8790 + index);
 const API_URL = 'https://golosoheladeria.lovable.app';
-const RELEASE_MANIFEST_URL = `${API_URL}/downloads/manifest.json`;
-const APP_DATA_FOLDER = 'Goloso WhatsApp Bot';
+const APP_NAME = 'Goloso WhatsApp Bot';
+const INSTALL_ROOT_NAME = 'GolosoBotRuntime';
 const STARTUP_LINK_NAME = 'Goloso WhatsApp Bot.lnk';
 const RUN_VALUE_NAME = 'GolosoWhatsAppBot';
-const LAUNCHER_FOLDER_NAME = 'launcher';
-
+const LOCAL_PORTS = Array.from({ length: 21 }, (_, index) => 8790 + index);
 const args = process.argv.slice(2);
+
 const hasFlag = (flag) => args.includes(flag);
 const getValue = (flag) => {
   const index = args.indexOf(flag);
   return index >= 0 ? args[index + 1] || '' : '';
 };
 
-const autoFromInstaller = hasFlag('--auto-from-installer');
 const force = hasFlag('--force');
-const skipManifestValidation = hasFlag('--skip-manifest') || process.env.GOLOSO_BOT_SKIP_MANIFEST === '1';
+const autoFromInstaller = hasFlag('--auto-from-installer');
 let targetPath = getValue('--target').trim().replace(/^['"]+|['"]+$/g, '');
 
 function step(text) {
@@ -34,20 +31,27 @@ function step(text) {
 }
 
 function exists(filePath) {
-  try {
-    return fs.existsSync(filePath);
-  } catch {
-    return false;
-  }
+  try { return fs.existsSync(filePath); } catch { return false; }
+}
+
+function readText(filePath) {
+  try { return fs.readFileSync(filePath, 'utf8'); } catch { return ''; }
+}
+
+function readJson(filePath) {
+  try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return null; }
+}
+
+function writeJson(filePath, value) {
+  fs.writeFileSync(filePath, `${JSON.stringify(value, null, 2)}\n`, 'utf8');
 }
 
 function resolveFolder(folder) {
-  try {
-    if (!folder || !exists(folder)) return '';
-    return fs.realpathSync(folder);
-  } catch {
-    return '';
-  }
+  try { return folder && exists(folder) ? fs.realpathSync(folder) : ''; } catch { return ''; }
+}
+
+function normalizeForCompare(folder) {
+  return resolveFolder(folder).toLowerCase();
 }
 
 function addCandidate(set, folder) {
@@ -55,32 +59,105 @@ function addCandidate(set, folder) {
   if (resolved) set.add(resolved);
 }
 
-function isBotFolder(folder) {
-  const hasIdentity = exists(path.join(folder, 'config.json')) || exists(path.join(folder, 'auth_state'));
-  const hasExecutable = exists(path.join(folder, 'server.js')) || exists(path.join(folder, 'package.json')) || exists(path.join(folder, 'start-hidden.vbs'));
-  return hasIdentity && hasExecutable;
-}
-
 function isBackupOrTempFolderName(name) {
   return /^backup-before-update/i.test(name)
     || /^goloso-bot-update-/i.test(name)
+    || /^goloso-clean-install-/i.test(name)
     || /^extract$/i.test(name)
     || /^pkg$/i.test(name)
+    || /^node_modules$/i.test(name)
     || /^session-backups$/i.test(name)
     || /^sessions$/i.test(name)
-    || /^session-meta$/i.test(name);
+    || /^session-meta$/i.test(name)
+    || /^cache$/i.test(name)
+    || /^caches$/i.test(name)
+    || /^temp$/i.test(name)
+    || /^tmp$/i.test(name);
 }
 
-function scoreFolder(folder) {
-  let score = 0;
-  if (hasUsableAuthState(path.join(folder, 'auth_state'))) score += 180;
-  else if (exists(path.join(folder, 'auth_state'))) score += 20;
-  if (hasPersistentAuthState(folder)) score += 120;
-  if (exists(path.join(folder, 'config.json'))) score += 80;
-  if (exists(path.join(folder, 'server.js'))) score += 40;
-  if (exists(path.join(folder, 'start-hidden.vbs'))) score += 20;
-  if (exists(path.join(folder, 'package.json'))) score += 10;
-  return score;
+function isBotFolder(folder) {
+  if (!folder || !exists(folder)) return false;
+  const hasConfig = exists(path.join(folder, 'config.json'));
+  const hasAuth = exists(path.join(folder, 'auth_state')) || hasUsableAuthState(path.join(folder, 'auth_state'));
+  const hasCode = exists(path.join(folder, 'server.js')) || exists(path.join(folder, 'package.json')) || exists(path.join(folder, 'start-hidden.vbs'));
+  return hasCode && (hasConfig || hasAuth || /goloso|whatsapp|bot/i.test(folder));
+}
+
+function readConfig(folder) {
+  const cfg = readJson(path.join(folder, 'config.json'));
+  return cfg && typeof cfg === 'object' ? cfg : null;
+}
+
+function readPackageVersion(folder) {
+  return String(readJson(path.join(folder, 'package.json'))?.version || '').trim();
+}
+
+function readServerVersion(folder) {
+  const server = readText(path.join(folder, 'server.js'));
+  return server.match(/BOT_VERSION\s*=\s*["']([^"']+)["']/)?.[1]?.trim() || '';
+}
+
+function expectedVersion() {
+  const pkgVersion = readPackageVersion(SOURCE_DIR);
+  const serverVersion = readServerVersion(SOURCE_DIR);
+  if (pkgVersion && serverVersion && pkgVersion !== serverVersion) {
+    console.log(`[ERROR] Paquete inconsistente: package.json=${pkgVersion}, server.js=${serverVersion}`);
+    process.exit(6);
+  }
+  return pkgVersion || serverVersion;
+}
+
+function compareVersions(a, b) {
+  const pa = String(a || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const delta = (pa[i] || 0) - (pb[i] || 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
+function hasUsableAuthState(dir) {
+  return Boolean(dir) && exists(path.join(dir, 'creds.json'));
+}
+
+function appDataRoot() {
+  return process.env.APPDATA || process.env.LOCALAPPDATA || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Roaming');
+}
+
+function localAppDataRoot() {
+  return process.env.LOCALAPPDATA || process.env.APPDATA || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Local');
+}
+
+function sessionFingerprintFromToken(token, fallback = 'default') {
+  return createHash('sha256').update(String(token || fallback)).digest('hex').slice(0, 18);
+}
+
+function tokenFingerprintFromFolder(folder) {
+  const cfg = readConfig(folder);
+  return sessionFingerprintFromToken(cfg?.token || '', folder || 'default');
+}
+
+function cleanInstallRoot() {
+  return path.join(localAppDataRoot(), INSTALL_ROOT_NAME);
+}
+
+function cleanAppDirForFingerprint(fingerprint) {
+  void fingerprint;
+  return path.join(cleanInstallRoot(), 'app');
+}
+
+function cleanLauncherDirForFingerprint(fingerprint) {
+  void fingerprint;
+  return path.join(cleanInstallRoot(), 'launcher');
+}
+
+function persistentAuthDirForFingerprint(fingerprint) {
+  return path.join(appDataRoot(), APP_NAME, 'sessions', `sede-${fingerprint}`);
+}
+
+function backupRootForFingerprint(fingerprint) {
+  return path.join(appDataRoot(), APP_NAME, 'clean-install-backups', `sede-${fingerprint}`);
 }
 
 function commonSearchRoots() {
@@ -89,11 +166,12 @@ function commonSearchRoots() {
     path.join(userProfile, 'Desktop'),
     path.join(userProfile, 'Documents'),
     path.join(userProfile, 'Downloads'),
-    path.join(process.env.LOCALAPPDATA || '', ''),
-    path.join(process.env.APPDATA || '', ''),
-    path.join(process.env.ProgramFiles || '', 'Goloso WhatsApp Bot'),
-    path.join(process.env.ProgramData || '', 'Goloso WhatsApp Bot'),
-    path.join(userProfile, 'Goloso WhatsApp Bot'),
+    path.join(localAppDataRoot(), ''),
+    path.join(appDataRoot(), ''),
+    path.join(process.env.ProgramFiles || '', APP_NAME),
+    path.join(process.env['ProgramFiles(x86)'] || '', APP_NAME),
+    path.join(process.env.ProgramData || '', APP_NAME),
+    path.join(userProfile, APP_NAME),
     path.join(userProfile, 'BOT'),
     'C:\\BOT',
     'C:\\GolosoBot',
@@ -105,37 +183,24 @@ function commonSearchRoots() {
 function searchFolders(root, candidates, maxDepth = 6) {
   const resolvedRoot = resolveFolder(root);
   if (!resolvedRoot) return;
-
-  const excluded = new Set(['node_modules', '.git', 'Cache', 'Caches', 'Code Cache', 'Temp', 'tmp']);
+  const excluded = new Set(['node_modules', '.git', 'Cache', 'Caches', 'Code Cache', 'Temp', 'tmp', '$Recycle.Bin']);
   const queue = [{ folder: resolvedRoot, depth: 0 }];
   let visited = 0;
-
-  while (queue.length && visited < 50000) {
+  while (queue.length && visited < 70000) {
     const { folder, depth } = queue.shift();
     visited += 1;
-
     const name = path.basename(folder);
     if (isBackupOrTempFolderName(name)) continue;
     if (name === 'auth_state') {
       addCandidate(candidates, path.dirname(folder));
       continue;
     }
-
-    if (/Goloso.*Bot/i.test(name) || /WhatsApp.*Bot/i.test(name) || /^whatsapp-bot/i.test(name) || /^BOT/i.test(name)) {
-      addCandidate(candidates, folder);
-    }
-    if (exists(path.join(folder, 'auth_state')) || exists(path.join(folder, 'config.json'))) {
+    if (/goloso|whatsapp|bot/i.test(name) || exists(path.join(folder, 'config.json')) || exists(path.join(folder, 'auth_state'))) {
       addCandidate(candidates, folder);
     }
     if (depth >= maxDepth) continue;
-
     let entries = [];
-    try {
-      entries = fs.readdirSync(folder, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
+    try { entries = fs.readdirSync(folder, { withFileTypes: true }); } catch { continue; }
     for (const entry of entries) {
       if (!entry.isDirectory() || excluded.has(entry.name)) continue;
       queue.push({ folder: path.join(folder, entry.name), depth: depth + 1 });
@@ -151,178 +216,100 @@ function folderFromServerCommand(command) {
 function listNodeServerProcesses() {
   const rows = [];
   try {
-    const ps = "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -match 'server\\.js' } | ForEach-Object { ([string]$_.ProcessId) + '|' + ([string]$_.CommandLine) }";
+    const ps = "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Where-Object { $_.CommandLine -match 'server\\.js|goloso-bot-launcher\\.cjs|update-windows\\.js' } | ForEach-Object { ([string]$_.ProcessId) + '|' + ([string]$_.CommandLine) }";
     const output = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command ${JSON.stringify(ps)}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     for (const line of output.split(/\r?\n/)) {
       const sep = line.indexOf('|');
       if (sep <= 0) continue;
       const pid = line.slice(0, sep).trim();
       const command = line.slice(sep + 1).trim();
-      if (/^\d+$/.test(pid) && /server\.js/i.test(command)) rows.push({ pid, command, folder: folderFromServerCommand(command) });
-    }
-  } catch {}
-  if (rows.length > 0) return rows;
-  try {
-    const output = execSync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    for (const line of output.split(/\r?\n/)) {
-      if (!/server\.js/i.test(line)) continue;
-      const pidMatch = line.match(/,(\d+)\s*$/);
-      if (!pidMatch) continue;
-      const command = line.slice(0, line.length - pidMatch[0].length);
-      rows.push({ pid: pidMatch[1], command, folder: folderFromServerCommand(command) });
+      if (/^\d+$/.test(pid)) rows.push({ pid, command, folder: folderFromServerCommand(command) });
     }
   } catch {}
   return rows;
 }
 
-function candidatesFromProcessList(candidates) {
-  for (const proc of listNodeServerProcesses()) addCandidate(candidates, proc.folder);
-}
-
-function candidatesFromRegistry(candidates) {
+function activePanelFolders() {
+  const folders = [];
   try {
-    const output = execSync('reg query HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run /v GolosoWhatsAppBot', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    const match = output.match(/([A-Z]:\\[^\r\n]*?start-hidden\.vbs)/i);
-    if (match) addCandidate(candidates, path.dirname(match[1].trim().replace(/^['"]+|['"]+$/g, '')));
+    const ps = "$ports=8790..8810; foreach($p in $ports){ try { $s=Invoke-RestMethod -UseBasicParsing -Uri ('http://localhost:'+$p+'/status.json') -TimeoutSec 1; if($s.folder -and (Test-Path -LiteralPath $s.folder)){ Write-Output ([string]$s.folder) } } catch {} }";
+    const output = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command ${JSON.stringify(ps)}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const line of output.split(/\r?\n/)) addCandidate({ add: (v) => folders.push(v) }, line.trim());
   } catch {}
+  return [...new Set(folders.map(resolveFolder).filter(Boolean))];
 }
 
-function activePanelFolderFromLocalStatus() {
-  if (process.platform !== 'win32') return '';
+function candidatesFromStartup() {
+  const candidates = new Set();
   try {
-    const ps = "$ports=8790..8810; foreach($p in $ports){ try { $s=Invoke-RestMethod -UseBasicParsing -Uri ('http://localhost:'+$p+'/status.json') -TimeoutSec 1; if($s.folder -and (Test-Path -LiteralPath $s.folder)){ Write-Output $s.folder; exit 0 } } catch {} }; exit 0";
-    const output = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command "${ps.replace(/"/g, '\\"')}"`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
-    return resolveFolder(output.split(/\r?\n/).find(Boolean) || '');
-  } catch {
-    return '';
-  }
+    const ps = [
+      "$paths=@([Environment]::GetFolderPath('Startup'),[Environment]::GetFolderPath('CommonStartup')) | Where-Object { $_ }",
+      "$ws=New-Object -ComObject WScript.Shell",
+      "foreach($p in $paths){ if(Test-Path $p){ Get-ChildItem -LiteralPath $p -Filter '*.lnk' | ForEach-Object { try { $s=$ws.CreateShortcut($_.FullName); Write-Output ($s.TargetPath + ' ' + $s.Arguments + ' ' + $s.WorkingDirectory) } catch {} } } }",
+      "$runs=@('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run')",
+      "foreach($run in $runs){ if(Test-Path $run){ Get-ItemProperty -Path $run | ForEach-Object { $_.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | ForEach-Object { Write-Output ([string]$_.Value) } } } }",
+      "try { Get-ScheduledTask | Where-Object { ($_.TaskName -match 'Goloso|WhatsApp') -or (($_.Actions | Out-String) -match 'Goloso|WhatsApp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher') } | ForEach-Object { $_.Actions | ForEach-Object { Write-Output (($_.Execute + ' ' + $_.Arguments + ' ' + $_.WorkingDirectory)) } } } catch {}",
+    ].join('; ');
+    const output = execSync(`powershell -NoProfile -ExecutionPolicy Bypass -Command ${JSON.stringify(ps)}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const line of output.split(/\r?\n/)) {
+      const text = line.trim();
+      if (!/goloso|whatsapp|server\.js|start-hidden\.vbs|launcher/i.test(text)) continue;
+      const serverMatch = text.match(/([A-Z]:\\[^\r\n"']*?server\.js)/i);
+      const vbsMatch = text.match(/([A-Z]:\\[^\r\n"']*?(?:start-hidden|goloso-bot-launcher)\.vbs)/i);
+      const dirMatch = text.match(/([A-Z]:\\[^\r\n"']*?(?:Goloso[^\r\n"']*|whatsapp-bot[^\r\n"']*))/i);
+      if (serverMatch) addCandidate(candidates, path.dirname(serverMatch[1]));
+      if (vbsMatch) addCandidate(candidates, path.dirname(vbsMatch[1]));
+      if (dirMatch) addCandidate(candidates, dirMatch[1]);
+    }
+  } catch {}
+  return [...candidates];
+}
+
+function scoreFolder(folder) {
+  let score = 0;
+  if (exists(path.join(folder, 'config.json'))) score += 120;
+  if (hasUsableAuthState(path.join(folder, 'auth_state'))) score += 100;
+  if (exists(path.join(folder, 'server.js'))) score += 60;
+  if (exists(path.join(folder, 'package.json'))) score += 30;
+  if (exists(path.join(folder, 'start-hidden.vbs'))) score += 20;
+  const version = readPackageVersion(folder) || readServerVersion(folder);
+  if (version) score += Math.max(0, Math.min(50, compareVersions(version, '8.0.0') + 20));
+  try { score += Math.min(20, fs.statSync(folder).mtimeMs / 1e12); } catch {}
+  return score;
 }
 
 function findInstalledBotFolder() {
   const candidates = new Set();
-
-  const activePanelFolder = activePanelFolderFromLocalStatus();
-  if (activePanelFolder && isBotFolder(activePanelFolder)) {
-    step('Panel local activo detectado');
-    console.log(`Se actualizará exactamente esta carpeta: ${activePanelFolder}`);
-    return activePanelFolder;
-  }
-
-  candidatesFromProcessList(candidates);
-  candidatesFromRegistry(candidates);
-
-  if (exists(path.join(SOURCE_DIR, 'config.json')) || exists(path.join(SOURCE_DIR, 'auth_state'))) {
-    addCandidate(candidates, SOURCE_DIR);
-  }
+  for (const folder of activePanelFolders()) addCandidate(candidates, folder);
+  for (const proc of listNodeServerProcesses()) addCandidate(candidates, proc.folder);
+  for (const folder of candidatesFromStartup()) addCandidate(candidates, folder);
+  if (exists(path.join(SOURCE_DIR, 'config.json')) || exists(path.join(SOURCE_DIR, 'auth_state'))) addCandidate(candidates, SOURCE_DIR);
 
   step('Busqueda profunda automatica');
-  console.log('Revisando Escritorio, Descargas, Documentos, AppData y carpetas comunes...');
+  console.log('Revisando procesos, accesos directos, Registro, tareas, AppData, Descargas y carpetas comunes...');
   for (const root of [...new Set(commonSearchRoots())]) searchFolders(root, candidates, 6);
 
   const valid = [...candidates].filter(isBotFolder);
-  valid.sort((a, b) => {
-    const delta = scoreFolder(b) - scoreFolder(a);
-    if (delta !== 0) return delta;
-    try {
-      return fs.statSync(b).mtimeMs - fs.statSync(a).mtimeMs;
-    } catch {
-      return 0;
-    }
-  });
+  valid.sort((a, b) => scoreFolder(b) - scoreFolder(a));
   return valid[0] || '';
-}
-
-function inferPortFromFolder(folder) {
-  return /sede\s*2|sede2|parque/i.test(String(folder || '')) ? 8791 : 8790;
-}
-
-function readConfig(folder) {
-  try {
-    const cfgPath = path.join(folder, 'config.json');
-    if (!exists(cfgPath)) return null;
-    return JSON.parse(fs.readFileSync(cfgPath, 'utf8'));
-  } catch {
-    return null;
-  }
-}
-
-function safePathSegment(value, fallback = 'sede') {
-  return String(value || fallback).replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || fallback;
-}
-
-function sessionFingerprintFromConfig(cfg, fallbackFolder) {
-  return createHash('sha256')
-    .update(String(cfg?.token || fallbackFolder || 'default'))
-    .digest('hex')
-    .slice(0, 18);
-}
-
-function persistentSessionRoot() {
-  return process.env.GOLOSO_BOT_DATA_DIR
-    || process.env.APPDATA
-    || process.env.LOCALAPPDATA
-    || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Roaming');
-}
-
-function canonicalAppsRoot() {
-  return process.env.GOLOSO_BOT_APP_DIR
-    || process.env.LOCALAPPDATA
-    || process.env.APPDATA
-    || path.join(process.env.USERPROFILE || os.homedir(), 'AppData', 'Local');
-}
-
-function canonicalInstallDirFor(folder) {
-  const cfg = readConfig(folder);
-  const fingerprint = sessionFingerprintFromConfig(cfg, folder);
-  return path.join(canonicalAppsRoot(), APP_DATA_FOLDER, 'apps', `sede-${fingerprint}`);
-}
-
-function launcherDirFor(folder) {
-  const cfg = readConfig(folder);
-  const fingerprint = sessionFingerprintFromConfig(cfg, folder);
-  return path.join(canonicalAppsRoot(), APP_DATA_FOLDER, LAUNCHER_FOLDER_NAME, `sede-${fingerprint}`);
-}
-
-function persistentAuthDirFor(folder) {
-  const cfg = readConfig(folder);
-  if (!cfg?.token) return '';
-  return path.join(persistentSessionRoot(), 'Goloso WhatsApp Bot', 'sessions', `sede-${sessionFingerprintFromConfig(cfg, folder)}`);
-}
-
-function hasUsableAuthState(dir) {
-  return Boolean(dir) && exists(path.join(dir, 'creds.json'));
-}
-
-function hasPersistentAuthState(folder) {
-  return hasUsableAuthState(persistentAuthDirFor(folder));
 }
 
 function searchUsableAuthDirs(root, results, maxDepth = 7) {
   const resolvedRoot = resolveFolder(root);
   if (!resolvedRoot) return;
-
   const excluded = new Set(['node_modules', '.git', 'Cache', 'Caches', 'Code Cache', 'Temp', 'tmp']);
   const queue = [{ folder: resolvedRoot, depth: 0 }];
   let visited = 0;
-
-  while (queue.length && visited < 60000) {
+  while (queue.length && visited < 70000) {
     const { folder, depth } = queue.shift();
     visited += 1;
-
     if (isBackupOrTempFolderName(path.basename(folder))) continue;
-
     if (hasUsableAuthState(folder)) results.push(folder);
     const authState = path.join(folder, 'auth_state');
     if (hasUsableAuthState(authState)) results.push(authState);
-
     if (depth >= maxDepth) continue;
     let entries = [];
-    try {
-      entries = fs.readdirSync(folder, { withFileTypes: true });
-    } catch {
-      continue;
-    }
-
+    try { entries = fs.readdirSync(folder, { withFileTypes: true }); } catch { continue; }
     for (const entry of entries) {
       if (!entry.isDirectory() || excluded.has(entry.name)) continue;
       queue.push({ folder: path.join(folder, entry.name), depth: depth + 1 });
@@ -330,181 +317,126 @@ function searchUsableAuthDirs(root, results, maxDepth = 7) {
   }
 }
 
-function matchingConfigToken(folder, expectedToken) {
+function sameToken(folder, token) {
   const cfg = readConfig(folder);
-  return Boolean(expectedToken && cfg?.token && String(cfg.token) === String(expectedToken));
+  return Boolean(token && cfg?.token && String(cfg.token) === String(token));
 }
 
-function addMatchingAuthFromBotFolder(folder, expectedToken, matches) {
-  if (!matchingConfigToken(folder, expectedToken)) return;
-  const legacy = path.join(folder, 'auth_state');
-  const persistent = persistentAuthDirFor(folder);
-  if (hasUsableAuthState(legacy)) matches.push(legacy);
-  if (hasUsableAuthState(persistent)) matches.push(persistent);
-}
-
-function findReusableAuthState(target) {
-  const targetCfg = readConfig(target);
-  const expectedToken = targetCfg?.token ? String(targetCfg.token) : '';
-  if (!expectedToken) return '';
-
-  const targetLegacyAuth = resolveFolder(path.join(target, 'auth_state'));
-  const targetPersistentAuth = resolveFolder(persistentAuthDirFor(target));
-  const botCandidates = new Set();
+function collectReusableAuthDirs(target, fingerprint) {
+  const cfg = readConfig(target);
+  const token = String(cfg?.token || '');
   const results = [];
-
-  addMatchingAuthFromBotFolder(target, expectedToken, results);
-  const expectedPersistent = persistentAuthDirFor(target);
-  const expectedBackup = path.join(persistentSessionRoot(), 'Goloso WhatsApp Bot', 'session-backups', sessionFingerprintFromConfig(targetCfg, target), 'latest');
-  if (hasUsableAuthState(expectedPersistent)) results.push(expectedPersistent);
-  if (hasUsableAuthState(expectedBackup)) results.push(expectedBackup);
-
+  const persistent = persistentAuthDirForFingerprint(fingerprint);
+  if (hasUsableAuthState(persistent)) results.push(persistent);
+  if (hasUsableAuthState(path.join(target, 'auth_state'))) results.push(path.join(target, 'auth_state'));
+  const botCandidates = new Set();
   for (const root of [...new Set([target, path.dirname(target), ...commonSearchRoots()])]) {
     searchFolders(root, botCandidates, 7);
   }
-
-  for (const folder of botCandidates) addMatchingAuthFromBotFolder(folder, expectedToken, results);
-
-  const unique = [...new Set(results.map(resolveFolder).filter(Boolean))].filter((folder) => {
-    if (targetLegacyAuth && folder === targetLegacyAuth) return false;
-    if (targetPersistentAuth && folder === targetPersistentAuth) return false;
-    return true;
-  });
-
+  for (const folder of botCandidates) {
+    if (!sameToken(folder, token)) continue;
+    if (hasUsableAuthState(path.join(folder, 'auth_state'))) results.push(path.join(folder, 'auth_state'));
+    const candidateFingerprint = tokenFingerprintFromFolder(folder);
+    const candidatePersistent = persistentAuthDirForFingerprint(candidateFingerprint);
+    if (candidateFingerprint === fingerprint && hasUsableAuthState(candidatePersistent)) results.push(candidatePersistent);
+  }
+  const unique = [...new Set(results.map(resolveFolder).filter(Boolean))];
   unique.sort((a, b) => {
-    const score = (folder) => {
+    const rank = (folder) => {
       let value = 0;
-      if (folder === resolveFolder(expectedPersistent)) value += 500;
-      if (folder === resolveFolder(expectedBackup)) value += 420;
+      if (normalizeForCompare(folder) === normalizeForCompare(persistent)) value += 500;
       if (/Goloso WhatsApp Bot[\\/]sessions/i.test(folder)) value += 300;
-      if (/auth_state$/i.test(folder)) value += 220;
-      if (/session-backups[\\/].*[\\/]latest$/i.test(folder)) value += 180;
+      if (/auth_state$/i.test(folder)) value += 200;
       try { value += Math.min(100, fs.statSync(path.join(folder, 'creds.json')).mtimeMs / 1e12); } catch {}
       return value;
     };
-    return score(b) - score(a);
+    return rank(b) - rank(a);
   });
-
-  return unique[0] || '';
-}
-
-function recoverAuthStateFromOtherFolder(target) {
-  const source = findReusableAuthState(target);
-  if (!source) return false;
-
-  const persistentAuth = persistentAuthDirFor(target);
-  const legacyAuth = path.join(target, 'auth_state');
-  console.log(`Sesion WhatsApp encontrada en otra ubicacion: ${source}`);
-  if (persistentAuth) {
-    fs.mkdirSync(path.dirname(persistentAuth), { recursive: true });
-    copyRecursive(source, persistentAuth);
-    console.log(`Sesion migrada a almacenamiento persistente: ${persistentAuth}`);
-  }
-  if (!hasUsableAuthState(legacyAuth)) copyRecursive(source, legacyAuth);
-  return true;
-}
-
-function preserveAuthState(target, backupDir) {
-  const legacyAuth = path.join(target, 'auth_state');
-  const persistentAuth = persistentAuthDirFor(target);
-  if (hasUsableAuthState(legacyAuth)) copyRecursive(legacyAuth, path.join(backupDir, 'auth_state'));
-  if (hasUsableAuthState(persistentAuth)) copyRecursive(persistentAuth, path.join(backupDir, 'persistent_auth_state'));
-  if (!hasUsableAuthState(persistentAuth) && hasUsableAuthState(legacyAuth)) {
-    fs.mkdirSync(path.dirname(persistentAuth), { recursive: true });
-    copyRecursive(legacyAuth, persistentAuth);
-    console.log(`Sesion migrada a carpeta persistente protegida: ${persistentAuth}`);
-  }
-}
-
-function restoreAuthStateIfMissing(target, backupDir) {
-  const legacyAuth = path.join(target, 'auth_state');
-  const persistentAuth = persistentAuthDirFor(target);
-  if (!hasUsableAuthState(persistentAuth) && hasUsableAuthState(path.join(backupDir, 'persistent_auth_state'))) {
-    fs.mkdirSync(path.dirname(persistentAuth), { recursive: true });
-    copyRecursive(path.join(backupDir, 'persistent_auth_state'), persistentAuth);
-    console.log('Sesion persistente restaurada desde respaldo de seguridad.');
-  }
-  if (!hasUsableAuthState(legacyAuth) && hasUsableAuthState(path.join(backupDir, 'auth_state'))) {
-    copyRecursive(path.join(backupDir, 'auth_state'), legacyAuth);
-    console.log('auth_state legado restaurado desde respaldo de seguridad.');
-  }
-}
-
-function stopNodeProcessesInFolder(target) {
-  const resolvedTarget = resolveFolder(target);
-  if (!resolvedTarget) return;
-  for (const proc of listNodeServerProcesses()) {
-    const folder = resolveFolder(proc.folder);
-    const haystack = `${proc.command || ''} ${folder || ''}`.toLowerCase();
-    if (!haystack.includes(resolvedTarget.toLowerCase())) continue;
-    spawnSync('taskkill', ['/F', '/PID', proc.pid, '/T'], { shell: true, stdio: 'ignore' });
-  }
-}
-
-function stopNodeProcessesForToken(expectedToken) {
-  if (!expectedToken) return;
-  for (const proc of listNodeServerProcesses()) {
-    const cfg = readConfig(proc.folder);
-    if (cfg?.token && String(cfg.token) === String(expectedToken)) {
-      spawnSync('taskkill', ['/F', '/PID', proc.pid, '/T'], { shell: true, stdio: 'ignore' });
-    }
-  }
-}
-
-function stopCurrentBot(target) {
-  step('Cerrando bot anterior');
-  const cfg = readConfig(target);
-  stopNodeProcessesForToken(cfg?.token ? String(cfg.token) : '');
-  stopNodeProcessesInFolder(target);
-  const expectedPort = inferPortFromFolder(target);
-  const portsToStop = [...new Set([expectedPort, ...LOCAL_PORTS])];
-  try {
-    const output = execSync('netstat -ano', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    for (const line of output.split(/\r?\n/)) {
-      if (!/LISTENING/i.test(line)) continue;
-      if (!portsToStop.some((port) => line.includes(`:${port}`))) continue;
-      const parts = line.trim().split(/\s+/);
-      const pid = parts[parts.length - 1];
-      if (/^\d+$/.test(pid)) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });
-    }
-  } catch {}
-  try { fs.rmSync(path.join(target, '.goloso-bot.lock'), { force: true }); } catch {}
-  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.2'), { force: true }); } catch {}
-  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.3'), { force: true }); } catch {}
-  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.4'), { force: true }); } catch {}
-  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.5'), { force: true }); } catch {}
-  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.6'), { force: true }); } catch {}
-}
-
-function sameTokenFolder(folder, expectedToken) {
-  if (!expectedToken) return false;
-  const cfg = readConfig(folder);
-  return Boolean(cfg?.token && String(cfg.token) === String(expectedToken));
-}
-
-function findRelatedBotFolders(target) {
-  const targetCfg = readConfig(target);
-  const expectedToken = targetCfg?.token ? String(targetCfg.token) : '';
-  if (!expectedToken) return [target];
-  const candidates = new Set();
-  addCandidate(candidates, target);
-  addCandidate(candidates, canonicalInstallDirFor(target));
-  for (const root of [...new Set([target, path.dirname(target), canonicalAppsRoot(), ...commonSearchRoots()])]) {
-    searchFolders(root, candidates, 7);
-  }
-  const canonical = resolveFolder(canonicalInstallDirFor(target));
-  const folders = [...candidates]
-    .filter((folder) => !isBackupOrTempFolderName(path.basename(folder)))
-    .filter((folder) => folder === canonical || sameTokenFolder(folder, expectedToken));
-  return [...new Set(folders.map(resolveFolder).filter(Boolean))];
+  return unique;
 }
 
 function copyRecursive(src, dest) {
   fs.cpSync(src, dest, { recursive: true, force: true });
 }
 
-function copyBotFiles(target) {
-  step('Actualizando archivos del bot');
+function removeContents(folder, preserveNames = new Set()) {
+  if (!exists(folder)) return;
+  for (const entry of fs.readdirSync(folder)) {
+    if (preserveNames.has(entry)) continue;
+    fs.rmSync(path.join(folder, entry), { recursive: true, force: true, maxRetries: 3, retryDelay: 300 });
+  }
+}
+
+function inferPortFromFolder(folder) {
+  const cfg = readConfig(folder);
+  const text = `${folder} ${cfg?.branch || ''} ${cfg?.name || ''}`;
+  return /sede\s*2|sede2|parque/i.test(text) ? 8791 : 8790;
+}
+
+function stopAllGolosoProcesses() {
+  step('Cerrando por completo procesos antiguos');
+  const currentPid = String(process.pid);
+  for (const proc of listNodeServerProcesses()) {
+    if (String(proc.pid) === currentPid) continue;
+    const haystack = `${proc.command || ''} ${proc.folder || ''}`;
+    if (/goloso|whatsapp|server\.js|goloso-bot-launcher|update-windows\.js/i.test(haystack)) {
+      spawnSync('taskkill', ['/F', '/PID', proc.pid, '/T'], { shell: true, stdio: 'ignore' });
+    }
+  }
+  try {
+    const output = execSync('netstat -ano', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    for (const line of output.split(/\r?\n/)) {
+      if (!/LISTENING/i.test(line)) continue;
+      if (!LOCAL_PORTS.some((port) => line.includes(`:${port}`))) continue;
+      const pid = line.trim().split(/\s+/).pop();
+      if (/^\d+$/.test(pid) && pid !== currentPid) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });
+    }
+  } catch {}
+}
+
+function cleanupStartupAndUpdaterCaches() {
+  step('Eliminando arranques, caches e instaladores viejos');
+  const cleanRoot = cleanInstallRoot().replace(/'/g, "''");
+  const ps = [
+    "$ErrorActionPreference='SilentlyContinue'",
+    `$cleanRoot='${cleanRoot}'`,
+    "$startupPaths=@([Environment]::GetFolderPath('Startup'),[Environment]::GetFolderPath('CommonStartup')) | Where-Object { $_ }",
+    "$ws=New-Object -ComObject WScript.Shell",
+    "foreach($startup in $startupPaths){ if(Test-Path $startup){ Get-ChildItem -LiteralPath $startup -Filter '*.lnk' | ForEach-Object { $delete=$false; try { $s=$ws.CreateShortcut($_.FullName); $blob=(($_.Name+' '+$s.TargetPath+' '+$s.Arguments+' '+$s.WorkingDirectory)).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher|golosobotruntime'){ $delete=$true } } catch { if($_.Name -match 'Goloso|WhatsApp'){ $delete=$true } }; if($delete){ Remove-Item -LiteralPath $_.FullName -Force } } } }",
+    "$runs=@('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run')",
+    "foreach($run in $runs){ if(Test-Path $run){ Get-ItemProperty -Path $run | ForEach-Object { $_.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | ForEach-Object { $name=$_.Name; $value=String($_.Value); $blob=($name+' '+$value).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher|golosobotruntime'){ Remove-ItemProperty -Path $run -Name $name -Force } } } } }",
+    "try { Get-ScheduledTask | Where-Object { ($_.TaskName -match 'Goloso|WhatsApp|Golosito') -or (($_.Actions | Out-String) -match 'Goloso|WhatsApp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher|golosobotruntime') } | Unregister-ScheduledTask -Confirm:$false } catch {}",
+    "$tempRoots=@($env:TEMP,$env:TMP,(Join-Path $env:LOCALAPPDATA 'Temp')) | Where-Object { $_ -and (Test-Path $_) } | Select-Object -Unique",
+    "foreach($t in $tempRoots){ Get-ChildItem -LiteralPath $t -Force -ErrorAction SilentlyContinue | Where-Object { $_.Name -match 'goloso|golosito|whatsapp-bot|squirrel|electron-updater' } | Remove-Item -Recurse -Force -ErrorAction SilentlyContinue }",
+    "$cacheRoots=@((Join-Path $env:LOCALAPPDATA 'SquirrelTemp'),(Join-Path $env:LOCALAPPDATA 'electron-updater'),(Join-Path $env:APPDATA 'electron-updater'),(Join-Path $env:LOCALAPPDATA 'goloso-updater'),(Join-Path $env:APPDATA 'goloso-updater'))",
+    "foreach($c in $cacheRoots){ if(Test-Path $c){ Remove-Item -LiteralPath $c -Recurse -Force -ErrorAction SilentlyContinue } }",
+  ].join('; ');
+  spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps], { stdio: 'ignore' });
+}
+
+function collectRelatedInstallDirs(target, fingerprint) {
+  const token = String(readConfig(target)?.token || '');
+  const candidates = new Set();
+  addCandidate(candidates, target);
+  addCandidate(candidates, cleanAppDirForFingerprint(fingerprint));
+  for (const folder of activePanelFolders()) addCandidate(candidates, folder);
+  for (const proc of listNodeServerProcesses()) addCandidate(candidates, proc.folder);
+  for (const folder of candidatesFromStartup()) addCandidate(candidates, folder);
+  for (const root of [...new Set([target, path.dirname(target), cleanInstallRoot(), ...commonSearchRoots()])]) searchFolders(root, candidates, 6);
+  return [...candidates]
+    .map(resolveFolder)
+    .filter(Boolean)
+    .filter((folder) => !isBackupOrTempFolderName(path.basename(folder)))
+    .filter((folder) => {
+      if (normalizeForCompare(folder) === normalizeForCompare(SOURCE_DIR)) return false;
+      if (normalizeForCompare(folder) === normalizeForCompare(cleanAppDirForFingerprint(fingerprint))) return true;
+      if (sameToken(folder, token)) return true;
+      const version = readPackageVersion(folder) || readServerVersion(folder);
+      return /goloso|whatsapp|bot/i.test(folder) && Boolean(version) && compareVersions(version, expectedVersion()) < 0;
+    });
+}
+
+function copyPackageFiles(target) {
   const files = [
     'server.js',
     'setup.js',
@@ -522,195 +454,157 @@ function copyBotFiles(target) {
   ];
   for (const file of files) {
     const src = path.join(SOURCE_DIR, file);
-    const dest = path.join(target, file);
-    if (!exists(src)) continue;
-    if (resolveFolder(src) && resolveFolder(src) === resolveFolder(dest)) continue;
-    fs.copyFileSync(src, dest);
+    if (exists(src)) fs.copyFileSync(src, path.join(target, file));
   }
-}
-
-function updateConfig(target) {
-  const configPath = path.join(target, 'config.json');
-  if (!exists(configPath)) {
-    console.log('No se encontro config.json. Si es instalacion nueva, ejecuta install-windows.bat.');
-    return;
-  }
-  const cfg = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  cfg.apiUrl = API_URL;
-  fs.writeFileSync(configPath, `${JSON.stringify(cfg, null, 2)}\n`, 'utf8');
 }
 
 function ensureDependencies(target) {
   if (exists(path.join(target, 'node_modules', '@whiskeysockets', 'baileys'))) return;
   const sourceModules = path.join(SOURCE_DIR, 'node_modules');
   if (exists(path.join(sourceModules, '@whiskeysockets', 'baileys'))) {
-    step('Copiando dependencias incluidas');
     copyRecursive(sourceModules, path.join(target, 'node_modules'));
     return;
   }
-  step('Instalando dependencias faltantes');
+  step('Instalando dependencias');
   const result = spawnSync('npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], { cwd: target, shell: true, stdio: 'inherit' });
   if (result.status !== 0) process.exit(result.status || 1);
 }
 
-function writeLauncherFiles(target, expectedVersion = readExpectedVersion()) {
-  const launcherDir = launcherDirFor(target);
-  const launcherConfigPath = path.join(launcherDir, 'launcher.json');
-  const launcherScriptPath = path.join(launcherDir, 'goloso-bot-launcher.cjs');
-  const launcherVbsPath = path.join(launcherDir, 'goloso-bot-launcher.vbs');
-  const launcherLogPath = path.join(launcherDir, 'launcher.log');
-  const cfg = readConfig(target);
-  fs.mkdirSync(launcherDir, { recursive: true });
-  fs.writeFileSync(launcherConfigPath, JSON.stringify({
-    app: 'Goloso WhatsApp Bot',
-    targetDir: target,
-    expectedVersion,
-    token: cfg?.token || '',
-    apiUrl: API_URL,
-    remoteUpdaterUrl: `${API_URL}/downloads/actualizar-bot-windows-remoto.bat`,
-    writtenAt: new Date().toISOString(),
-  }, null, 2), 'utf8');
+function validateSourcePackage() {
+  step('Validando paquete nuevo');
+  const expected = expectedVersion();
+  if (!expected) {
+    console.log('[ERROR] El ZIP no contiene version valida en package.json/server.js.');
+    process.exit(6);
+  }
+  const required = ['server.js', 'package.json', 'setup.js', 'start-hidden.vbs'];
+  for (const file of required) {
+    if (!exists(path.join(SOURCE_DIR, file))) {
+      console.log(`[ERROR] El ZIP no contiene ${file}.`);
+      process.exit(6);
+    }
+  }
+  console.log(`Version del paquete nuevo: ${expected}`);
+  return expected;
+}
 
+function installCleanRuntime(target, fingerprint, expected) {
+  step('Instalando runtime limpio y unico');
+  const cfg = readConfig(target);
+  const cleanDir = cleanAppDirForFingerprint(fingerprint);
+  const authDir = persistentAuthDirForFingerprint(fingerprint);
+  const backupRoot = backupRootForFingerprint(fingerprint);
+  const backupDir = path.join(backupRoot, new Date().toISOString().replace(/[-:]/g, '').slice(0, 15));
+  fs.mkdirSync(cleanDir, { recursive: true });
+  fs.mkdirSync(authDir, { recursive: true });
+  fs.mkdirSync(backupDir, { recursive: true });
+
+  if (exists(path.join(target, 'config.json'))) fs.copyFileSync(path.join(target, 'config.json'), path.join(backupDir, 'config.json'));
+  if (hasUsableAuthState(path.join(target, 'auth_state'))) copyRecursive(path.join(target, 'auth_state'), path.join(backupDir, 'auth_state'));
+  if (hasUsableAuthState(authDir)) copyRecursive(authDir, path.join(backupDir, 'persistent_auth_state'));
+
+  const reusableAuth = collectReusableAuthDirs(target, fingerprint)[0] || '';
+  if (reusableAuth && normalizeForCompare(reusableAuth) !== normalizeForCompare(authDir)) {
+    console.log(`Sesion WhatsApp conservada desde: ${reusableAuth}`);
+    removeContents(authDir);
+    copyRecursive(reusableAuth, authDir);
+  }
+
+  removeContents(cleanDir, new Set(['config.json']));
+  copyPackageFiles(cleanDir);
+  writeJson(path.join(cleanDir, 'config.json'), { ...(cfg || {}), apiUrl: API_URL });
+  if (hasUsableAuthState(authDir)) copyRecursive(authDir, path.join(cleanDir, 'auth_state'));
+  ensureDependencies(cleanDir);
+  writeJson(path.join(cleanDir, 'installation.json'), {
+    app: APP_NAME,
+    method: 'clean-runtime-v1',
+    version: expected,
+    installedAt: new Date().toISOString(),
+    installDir: cleanDir,
+    previousTarget: target,
+    persistentAuthDir: authDir,
+    backupDir,
+  });
+  return cleanDir;
+}
+
+function neutralizeOldFolders(folders, cleanDir, launcherVbsPath, expected) {
+  step('Neutralizando copias antiguas');
+  const clean = normalizeForCompare(cleanDir);
+  const unique = [...new Set(folders.map(resolveFolder).filter(Boolean))];
+  for (const folder of unique) {
+    const normalized = normalizeForCompare(folder);
+    if (!normalized || normalized === clean || normalized === normalizeForCompare(SOURCE_DIR)) continue;
+    try {
+      for (const marker of ['.goloso-bot.lock', '.goloso-bridge-update-8.22.2', '.goloso-bridge-update-8.22.3', '.goloso-bridge-update-8.22.4', '.goloso-bridge-update-8.22.5', '.goloso-bridge-update-8.22.6']) {
+        fs.rmSync(path.join(folder, marker), { force: true });
+      }
+      const redirect = [
+        'Set WshShell = CreateObject("WScript.Shell")',
+        `WshShell.Run "wscript.exe //nologo ""${launcherVbsPath.replace(/\\/g, '\\\\')}""", 0, False`,
+      ].join('\r\n');
+      fs.writeFileSync(path.join(folder, 'start-hidden.vbs'), redirect, 'utf8');
+      fs.writeFileSync(path.join(folder, 'OBSOLETO-USAR-RUNTIME-LIMPIO.txt'), `Esta copia fue neutralizada. Version instalada activa: ${expected}\r\nRuta activa: ${cleanDir}\r\n`, 'utf8');
+      const pkg = readJson(path.join(folder, 'package.json'));
+      if (pkg?.version && compareVersions(String(pkg.version), expected) < 0) {
+        pkg.version = `${expected}-redirect`;
+        writeJson(path.join(folder, 'package.json'), pkg);
+      }
+      console.log(`Neutralizada: ${folder}`);
+    } catch (e) {
+      console.log(`AVISO: no se pudo neutralizar ${folder}: ${e?.message || e}`);
+    }
+  }
+}
+
+function writeLauncher(cleanDir, fingerprint, expected) {
+  const launcherDir = cleanLauncherDirForFingerprint(fingerprint);
+  fs.mkdirSync(launcherDir, { recursive: true });
+  const configPath = path.join(launcherDir, 'launcher.json');
+  const launcherPath = path.join(launcherDir, 'goloso-bot-launcher.cjs');
+  const launcherVbsPath = path.join(launcherDir, 'goloso-bot-launcher.vbs');
+  const logPath = path.join(launcherDir, 'launcher.log');
+  writeJson(configPath, { app: APP_NAME, method: 'clean-runtime-v1', targetDir: cleanDir, expectedVersion: expected, writtenAt: new Date().toISOString() });
   const launcherScript = `const fs = require('fs');
 const path = require('path');
 const { execSync, spawn, spawnSync } = require('child_process');
-
-const CONFIG_PATH = ${JSON.stringify(launcherConfigPath)};
-
-function exists(filePath) { try { return fs.existsSync(filePath); } catch { return false; } }
-function readJson(filePath) { try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return null; } }
-function resolveFolder(folder) { try { return folder && exists(folder) ? fs.realpathSync(folder) : ''; } catch { return ''; } }
-function readBotConfig(folder) { return readJson(path.join(folder, 'config.json')); }
-function readPackageVersion(folder) { return String(readJson(path.join(folder, 'package.json'))?.version || '').trim(); }
-function sameToken(folder, token) { const cfg = readBotConfig(folder); return Boolean(token && cfg?.token && String(cfg.token) === String(token)); }
-function isServerCommand(command) { return /server\\.js/i.test(command || ''); }
-function folderFromCommand(command) {
-  const match = String(command || '').match(/([A-Z]:\\[^\r\n]*?server\\.js)/i);
-  return match ? resolveFolder(path.dirname(match[1].trim().replace(/^['\"]+|['\"]+$/g, ''))) : '';
+const CONFIG_PATH = ${JSON.stringify(configPath)};
+function exists(p){ try { return fs.existsSync(p); } catch { return false; } }
+function readJson(p){ try { return JSON.parse(fs.readFileSync(p,'utf8')); } catch { return null; } }
+function readText(p){ try { return fs.readFileSync(p,'utf8'); } catch { return ''; } }
+function resolveFolder(p){ try { return p && exists(p) ? fs.realpathSync(p) : ''; } catch { return ''; } }
+function version(folder){ return String(readJson(path.join(folder,'package.json'))?.version || '').trim(); }
+function serverVersion(folder){ return readText(path.join(folder,'server.js')).match(/BOT_VERSION\\s*=\\s*["']([^"']+)["']/)?.[1]?.trim() || ''; }
+function folderFromCommand(command){ const m=String(command||'').match(/([A-Z]:\\\\[^\\r\\n]*?server\\.js)/i); return m ? resolveFolder(path.dirname(m[1].trim().replace(/^['\"]+|['\"]+$/g,''))) : ''; }
+function list(){ try { const ps='Get-CimInstance Win32_Process -Filter "Name=\'node.exe\'" | Where-Object { $_.CommandLine -match \'server\\\\.js\' } | ForEach-Object { ([string]$_.ProcessId) + \'|\' + ([string]$_.CommandLine) }'; const out=execSync('powershell -NoProfile -ExecutionPolicy Bypass -Command '+JSON.stringify(ps),{encoding:'utf8',stdio:['ignore','pipe','ignore']}); return out.split(/\\r?\\n/).map(l=>{ const i=l.indexOf('|'); if(i<=0)return null; return {pid:l.slice(0,i).trim(),command:l.slice(i+1),folder:folderFromCommand(l.slice(i+1))}; }).filter(Boolean); } catch { return []; } }
+function kill(pid){ try { spawnSync('taskkill',['/F','/PID',String(pid),'/T'],{shell:true,stdio:'ignore'}); } catch {} }
+function valid(config){ const target=resolveFolder(config.targetDir); return Boolean(target) && version(target)===String(config.expectedVersion) && serverVersion(target)===String(config.expectedVersion); }
+const config=readJson(CONFIG_PATH);
+if(!config || !valid(config)) process.exit(3);
+const target=resolveFolder(config.targetDir).toLowerCase();
+for(const proc of list()){ const f=resolveFolder(proc.folder).toLowerCase(); if(f && f!==target && /goloso|whatsapp|bot/i.test(f)) kill(proc.pid); }
+if(!list().some((proc)=>resolveFolder(proc.folder).toLowerCase()===target)){
+  const vbs=path.join(config.targetDir,'start-hidden.vbs');
+  if(exists(vbs)) spawn('wscript.exe',['//nologo',vbs],{cwd:config.targetDir,detached:true,stdio:'ignore'}).unref();
+  else spawn('node',[path.join(config.targetDir,'server.js')],{cwd:config.targetDir,detached:true,stdio:'ignore'}).unref();
 }
-function compareVersions(a, b) {
-  const pa = String(a || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
-  const pb = String(b || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
-    const delta = (pa[i] || 0) - (pb[i] || 0);
-    if (delta !== 0) return delta;
-  }
-  return 0;
-}
-function listNodeServerProcesses() {
-  try {
-    const output = execSync('wmic process where "name=\\'node.exe\\'" get ProcessId,CommandLine /format:csv', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    return output.split(/\r?\n/).map((line) => {
-      if (!isServerCommand(line)) return null;
-      const pidMatch = line.match(/,(\d+)\s*$/);
-      if (!pidMatch) return null;
-      const command = line.slice(0, line.length - pidMatch[0].length);
-      return { pid: pidMatch[1], command, folder: folderFromCommand(command) };
-    }).filter(Boolean);
-  } catch {
-    return [];
-  }
-}
-function killPid(pid) { try { spawnSync('taskkill', ['/F', '/PID', String(pid), '/T'], { shell: true, stdio: 'ignore' }); } catch {} }
-function verifyTarget(config) {
-  const folder = resolveFolder(config.targetDir);
-  if (!folder) return false;
-  const version = readPackageVersion(folder);
-  const serverPath = path.join(folder, 'server.js');
-  const server = exists(serverPath) ? fs.readFileSync(serverPath, 'utf8') : '';
-  return version === String(config.expectedVersion || '').trim() && server.includes('BOT_VERSION = "' + version + '"');
-}
-function launchRemoteUpdater(config) {
-  const updater = String(config.remoteUpdaterUrl || '').replaceAll("'", "''");
-  const ps = [
-    "$ErrorActionPreference='Stop'",
-    "$ProgressPreference='SilentlyContinue'",
-    "$bat=Join-Path $env:TEMP ('goloso-bot-repair-' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() + '.bat')",
-    "$headers=@{'Cache-Control'='no-cache';'Pragma'='no-cache'}",
-    "Invoke-WebRequest -UseBasicParsing -Uri '" + updater + "?repair=1&t=' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() -Headers $headers -OutFile $bat -TimeoutSec 60",
-    "Start-Process -FilePath $bat -WorkingDirectory $env:TEMP",
-  ].join('; ');
-  spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps], { detached: true, stdio: 'ignore' }).unref();
-}
-function stopLegacyProcesses(config) {
-  const target = resolveFolder(config.targetDir).toLowerCase();
-  for (const proc of listNodeServerProcesses()) {
-    const folder = resolveFolder(proc.folder);
-    if (!folder) continue;
-    const normalized = folder.toLowerCase();
-    if (target && normalized === target) continue;
-    const version = readPackageVersion(folder);
-    const isSameToken = sameToken(folder, config.token);
-    const isOldGoloso = /goloso|whatsapp/i.test(folder) && compareVersions(version, config.expectedVersion) < 0;
-    if (isSameToken || isOldGoloso) killPid(proc.pid);
-  }
-}
-function canonicalAlreadyRunning(config) {
-  const target = resolveFolder(config.targetDir).toLowerCase();
-  if (!target) return false;
-  return listNodeServerProcesses().some((proc) => resolveFolder(proc.folder).toLowerCase() === target);
-}
-function startCanonical(config) {
-  const target = resolveFolder(config.targetDir);
-  if (!target) return;
-  const vbs = path.join(target, 'start-hidden.vbs');
-  if (exists(vbs)) spawn('wscript.exe', ['//nologo', vbs], { cwd: target, detached: true, stdio: 'ignore' }).unref();
-  else spawn('node', [path.join(target, 'server.js')], { cwd: target, detached: true, stdio: 'ignore' }).unref();
-}
-
-const config = readJson(CONFIG_PATH);
-if (!config?.targetDir) process.exit(2);
-if (!verifyTarget(config)) {
-  launchRemoteUpdater(config);
-  process.exit(0);
-}
-stopLegacyProcesses(config);
-if (!canonicalAlreadyRunning(config)) startCanonical(config);
 `;
-  fs.writeFileSync(launcherScriptPath, launcherScript, 'utf8');
-
+  fs.writeFileSync(launcherPath, launcherScript, 'utf8');
   const vbs = [
     'Set WshShell = CreateObject("WScript.Shell")',
     `WshShell.CurrentDirectory = "${launcherDir.replace(/\\/g, '\\\\')}"`,
-    `WshShell.Run "cmd /c node ""${launcherScriptPath.replace(/\\/g, '\\\\')}"" >> ""${launcherLogPath.replace(/\\/g, '\\\\')}"" 2>&1", 0, False`,
+    `WshShell.Run "cmd /c node ""${launcherPath.replace(/\\/g, '\\\\')}"" >> ""${logPath.replace(/\\/g, '\\\\')}"" 2>&1", 0, False`,
   ].join('\r\n');
   fs.writeFileSync(launcherVbsPath, vbs, 'utf8');
-  return { launcherDir, launcherConfigPath, launcherScriptPath, launcherVbsPath, launcherLogPath };
+  return { launcherDir, launcherVbsPath, configPath };
 }
 
-function writeLegacyRedirect(folder, launcherVbsPath) {
-  if (!folder || !exists(folder)) return;
-  const redirect = [
-    'Set WshShell = CreateObject("WScript.Shell")',
-    `WshShell.Run "wscript.exe //nologo ""${launcherVbsPath.replace(/\\/g, '\\\\')}""", 0, False`,
-  ].join('\r\n');
-  try { fs.writeFileSync(path.join(folder, 'start-hidden.vbs'), redirect, 'utf8'); } catch {}
-}
-
-function cleanupOldStartupEntries(canonicalTarget) {
-  step('Eliminando arranques antiguos');
-  const canonical = resolveFolder(canonicalTarget).toLowerCase().replace(/'/g, "''");
-  const ps = [
-    "$ErrorActionPreference='SilentlyContinue'",
-    `$canonical='${canonical}'`,
-    "$startupPaths=@([Environment]::GetFolderPath('Startup'),[Environment]::GetFolderPath('CommonStartup')) | Where-Object { $_ }",
-    "$ws=New-Object -ComObject WScript.Shell",
-    "foreach($startup in $startupPaths){ if(Test-Path $startup){ Get-ChildItem -LiteralPath $startup -Filter '*.lnk' | ForEach-Object { $delete=$false; try { $s=$ws.CreateShortcut($_.FullName); $blob=(($_.Name+' '+$s.TargetPath+' '+$s.Arguments+' '+$s.WorkingDirectory)).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher'){ $delete=$true }; if($s.WorkingDirectory -and $s.WorkingDirectory.ToLowerInvariant() -eq $canonical){ $delete=$false } } catch { if($_.Name -match 'Goloso|WhatsApp'){ $delete=$true } }; if($delete){ Remove-Item -LiteralPath $_.FullName -Force } } } }",
-    "$runs=@('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run')",
-    "foreach($run in $runs){ if(Test-Path $run){ Get-ItemProperty -Path $run | ForEach-Object { $_.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | ForEach-Object { $name=$_.Name; $value=String($_.Value); $blob=($name+' '+$value).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher'){ Remove-ItemProperty -Path $run -Name $name -Force } } } } }",
-    "try { Get-ScheduledTask | Where-Object { ($_.TaskName -match 'Goloso|WhatsApp') -or (($_.Actions | Out-String) -match 'Goloso|WhatsApp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher') } | Unregister-ScheduledTask -Confirm:$false } catch {}",
-  ].join('; ');
-  spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps], { stdio: 'ignore' });
-}
-
-function registerStartup(target) {
-  step('Registrando inicio automatico estable');
-  cleanupOldStartupEntries(target);
-  const launcher = writeLauncherFiles(target, readExpectedVersion());
-  const startup = path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
-  const tempVbs = path.join(os.tmpdir(), `goloso_bot_shortcut_${Date.now()}.vbs`);
-  const linkPath = path.join(startup, STARTUP_LINK_NAME);
+function registerCleanStartup(launcher, fingerprint) {
+  step('Registrando unico inicio automatico');
+  const startup = path.join(appDataRoot(), 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
   fs.mkdirSync(startup, { recursive: true });
+  const linkPath = path.join(startup, STARTUP_LINK_NAME);
+  const tempVbs = path.join(os.tmpdir(), `goloso_clean_shortcut_${Date.now()}.vbs`);
   const vbs = [
     'Set ws = WScript.CreateObject("WScript.Shell")',
     `Set s = ws.CreateShortcut("${linkPath.replace(/\\/g, '\\\\')}")`,
@@ -729,307 +623,137 @@ function registerStartup(target) {
     try { fs.unlinkSync(tempVbs); } catch {}
   }
   spawnSync('reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', RUN_VALUE_NAME, '/t', 'REG_SZ', '/d', `wscript.exe "${launcher.launcherVbsPath}"`, '/f'], { stdio: 'ignore' });
-  const taskName = `${RUN_VALUE_NAME}-${sessionFingerprintFromConfig(readConfig(target), target)}`;
-  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', taskName, '/TR', `wscript.exe "${launcher.launcherVbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
-  return launcher;
+  void fingerprint;
+  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', `${RUN_VALUE_NAME}-Clean`, '/TR', `wscript.exe "${launcher.launcherVbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
 }
 
-function writeInstallManifest(target, sourceTarget) {
-  const expected = readExpectedVersion();
-  const manifest = {
-    app: 'Goloso WhatsApp Bot',
-    version: expected,
-    installedAt: new Date().toISOString(),
-    installDir: target,
-    sourceTarget,
-    configPath: path.join(target, 'config.json'),
-    persistentAuthDir: persistentAuthDirFor(target),
-    launcherDir: launcherDirFor(target),
-    startup: { runValue: RUN_VALUE_NAME, shortcut: STARTUP_LINK_NAME, launcher: path.join(launcherDirFor(target), 'goloso-bot-launcher.vbs') },
-  };
-  fs.writeFileSync(path.join(target, 'installation.json'), JSON.stringify(manifest, null, 2), 'utf8');
-}
-
-function verifyFilesVersion(expected, target) {
-  const pkgPath = path.join(target, 'package.json');
-  const serverPath = path.join(target, 'server.js');
-  const pkg = exists(pkgPath) ? JSON.parse(fs.readFileSync(pkgPath, 'utf8')) : null;
-  const server = exists(serverPath) ? fs.readFileSync(serverPath, 'utf8') : '';
-  return String(pkg?.version || '').trim() === expected && server.includes(`BOT_VERSION = "${expected}"`);
-}
-
-function waitForPanel(port) {
-  return new Promise((resolve) => {
-    const started = Date.now();
-    const tick = () => {
-      const req = http.get({ hostname: 'localhost', port, path: '/status.json', timeout: 1000 }, (res) => {
-        res.resume();
-        resolve(true);
-      });
-      req.on('error', () => {
-        if (Date.now() - started > 30000) resolve(false);
-        else setTimeout(tick, 1000);
-      });
-      req.on('timeout', () => {
-        req.destroy();
-      });
-    };
-    tick();
-  });
-}
-
-function readExpectedVersion() {
-  try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(SOURCE_DIR, 'package.json'), 'utf8'));
-    return String(pkg.version || '').trim();
-  } catch {
-    return '';
+function verifyFiles(expected, cleanDir) {
+  const pkg = readPackageVersion(cleanDir);
+  const server = readServerVersion(cleanDir);
+  const install = readJson(path.join(cleanDir, 'installation.json'))?.version || '';
+  if (pkg !== expected || server !== expected || install !== expected) {
+    console.log(`[ERROR] Versiones de archivos no coinciden. package=${pkg}, server=${server}, installation=${install}, esperado=${expected}`);
+    return false;
   }
-}
-
-function compareVersions(a, b) {
-  const pa = String(a || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
-  const pb = String(b || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
-  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
-    const delta = (pa[i] || 0) - (pb[i] || 0);
-    if (delta !== 0) return delta;
-  }
-  return 0;
-}
-
-function fetchRemoteManifest() {
-  return new Promise((resolve, reject) => {
-    const url = `${RELEASE_MANIFEST_URL}?t=${Date.now()}`;
-    const req = https.get(url, {
-      timeout: 10_000,
-      headers: {
-        'Cache-Control': 'no-cache',
-        Pragma: 'no-cache',
-        'User-Agent': `GolosoBotUpdater/${readExpectedVersion() || 'unknown'}`,
-      },
-    }, (res) => {
-      let body = '';
-      res.on('data', (chunk) => { body += chunk; });
-      res.on('end', () => {
-        if (!res.statusCode || res.statusCode < 200 || res.statusCode >= 300) {
-          reject(new Error(`manifest HTTP ${res.statusCode}`));
-          return;
-        }
-        try {
-          const manifest = JSON.parse(body);
-          if (!manifest.version || !manifest.zipUrl) throw new Error('manifest incompleto');
-          resolve(manifest);
-        } catch (e) {
-          reject(e);
-        }
-      });
-    });
-    req.on('error', reject);
-    req.on('timeout', () => {
-      req.destroy(new Error('manifest timeout'));
-    });
-  });
-}
-
-async function validateSourcePackageAgainstManifest() {
-  step('Validando paquete descargado');
-  const localVersion = readExpectedVersion();
-  console.log(`Version del paquete descargado: ${localVersion || 'desconocida'}`);
-  if (!localVersion) {
-    console.log('[ERROR] El paquete descargado no tiene version en package.json.');
-    process.exit(6);
-  }
-  if (skipManifestValidation) {
-    console.log('Validacion remota omitida: se instalara exactamente el ZIP descargado.');
-    return { version: localVersion, skippedManifest: true };
-  }
-
-  step('Comparando con manifiesto publicado');
-  let manifest;
-  try {
-    manifest = await fetchRemoteManifest();
-  } catch (e) {
-    if (process.env.GOLOSO_BOT_ALLOW_OFFLINE_UPDATE === '1') {
-      console.log(`AVISO: no se pudo consultar manifiesto remoto (${e?.message || e}). Continuando por GOLOSO_BOT_ALLOW_OFFLINE_UPDATE=1.`);
-      return { version: localVersion, offline: true };
-    }
-    console.log(`[ERROR] No se pudo consultar la version oficial publicada: ${e?.message || e}`);
-    console.log('No se aplico ningun cambio para evitar reinstalar una version vieja por error. Revisa internet y ejecuta de nuevo el actualizador remoto.');
-    process.exit(6);
-  }
-  const officialVersion = String(manifest.version || '').trim();
-  console.log(`Version oficial publicada: ${officialVersion}`);
-  if (!localVersion || compareVersions(localVersion, officialVersion) < 0) {
-    console.log('[ERROR] El paquete local es anterior a la version oficial publicada.');
-    console.log('Se cancela para impedir que Windows vuelva a arrancar una version antigua. Ejecuta actualizar-bot-windows-remoto.bat desde la nube.');
-    process.exit(6);
-  }
-  if (compareVersions(localVersion, officialVersion) > 0) {
-    console.log('AVISO: el ZIP descargado es mas nuevo que el manifiesto publicado.');
-    console.log('Se instalara la version del ZIP para evitar el error de version desincronizada.');
-  }
-  return { ...manifest, version: localVersion };
+  return true;
 }
 
 function fetchStatus(port) {
   return new Promise((resolve) => {
-    const req = http.get({ hostname: 'localhost', port, path: '/status.json', timeout: 2000 }, (res) => {
-      let data = '';
-      res.on('data', (c) => { data += c; });
-      res.on('end', () => { try { resolve(JSON.parse(data)); } catch { resolve(null); } });
+    const req = http.get({ hostname: 'localhost', port, path: '/status.json', timeout: 1500 }, (res) => {
+      let body = '';
+      res.on('data', (chunk) => { body += chunk; });
+      res.on('end', () => { try { resolve(JSON.parse(body)); } catch { resolve(null); } });
     });
     req.on('error', () => resolve(null));
     req.on('timeout', () => { req.destroy(); resolve(null); });
   });
 }
 
-async function verifyInstalledVersion(expected, target, expectedPort) {
-  if (!expected) return true;
-  step(`Verificando version activa (esperada: ${expected})`);
-  const resolvedTarget = resolveFolder(target);
-  const ports = [expectedPort, ...LOCAL_PORTS.filter((port) => port !== expectedPort)];
-  for (let i = 0; i < 20; i++) {
+async function waitForActiveVersion(expected, cleanDir, preferredPort) {
+  const target = normalizeForCompare(cleanDir);
+  const ports = [...new Set([preferredPort, ...LOCAL_PORTS])];
+  for (let attempt = 0; attempt < 30; attempt += 1) {
     for (const port of ports) {
-      const s = await fetchStatus(port);
-      if (s && String(s.version || '').trim() === expected) {
-        const statusFolder = resolveFolder(String(s.folder || ''));
-        if (!resolvedTarget || !statusFolder || statusFolder === resolvedTarget) {
-          console.log(`OK: bot activo version ${s.version} en puerto ${port}`);
-          return true;
-        }
+      const status = await fetchStatus(port);
+      if (!status?.version) continue;
+      const folder = normalizeForCompare(String(status.folder || ''));
+      if (String(status.version).trim() === expected && folder === target) {
+        console.log(`OK: version en memoria ${status.version}, puerto ${port}, carpeta ${status.folder}`);
+        return true;
       }
-      if (s && s.version) console.log(`Puerto ${port}: version actual ${s.version}, esperando ${expected}...`);
+      console.log(`Puerto ${port}: version=${status.version}, carpeta=${status.folder || 'desconocida'}; esperando ${expected} en ${cleanDir}`);
     }
-    await new Promise((r) => setTimeout(r, 2000));
+    await new Promise((resolve) => setTimeout(resolve, 2000));
   }
-  console.log(`[ERROR] La version activa no coincide con ${expected}.`);
-  console.log('Un proceso viejo del bot esta bloqueando el puerto. Cierra sesion de Windows y vuelve a ejecutar el actualizador.');
   return false;
 }
 
-async function startBot(target) {
-  step('Iniciando bot actualizado');
-  const port = inferPortFromFolder(target);
-  const launcher = writeLauncherFiles(target, readExpectedVersion());
+async function simulateRestart(expected, cleanDir, launcher, preferredPort) {
+  step('Prueba real de reinicio del bot');
+  stopAllGolosoProcesses();
   spawn('wscript.exe', ['//nologo', launcher.launcherVbsPath], { cwd: launcher.launcherDir, detached: true, stdio: 'ignore' }).unref();
-  const ok = await waitForPanel(port);
-  if (ok) {
-    spawn('cmd', ['/c', 'start', '', `http://localhost:${port}`], { detached: true, stdio: 'ignore', shell: true }).unref();
-  } else {
-    console.log('El bot se actualizo, pero el panel local no respondio en 30s. Revisa bot-out.log.');
+  const ok = await waitForActiveVersion(expected, cleanDir, preferredPort);
+  if (!ok) {
+    console.log('[ERROR] Tras simular reinicio, no quedo activa la version esperada.');
+    return false;
   }
+  return true;
+}
+
+function printValidationSummary(expected, cleanDir, launcher) {
+  console.log('');
+  console.log('Validaciones finales:');
+  console.log(` - Ubicacion ejecutable: ${path.join(cleanDir, 'server.js')}`);
+  console.log(` - Version package.json: ${readPackageVersion(cleanDir)}`);
+  console.log(` - Version server.js: ${readServerVersion(cleanDir)}`);
+  console.log(` - Version installation.json: ${readJson(path.join(cleanDir, 'installation.json'))?.version || ''}`);
+  console.log(` - Version instalador descargado: ${expectedVersion()}`);
+  console.log(` - Launcher unico: ${launcher.launcherVbsPath}`);
 }
 
 async function main() {
   console.log('');
-  console.log('Goloso WhatsApp Bot - actualizacion sin QR');
-  console.log('Este proceso conserva config.json y auth_state para no volver a vincular WhatsApp.');
+  console.log('Goloso WhatsApp Bot - instalacion limpia definitiva');
+  console.log('Este metodo NO repara el updater anterior: lo reemplaza por un runtime limpio, unico y verificable.');
 
+  const expected = validateSourcePackage();
   let targetDir = '';
   if (targetPath) {
     if (!exists(targetPath)) {
       console.log(`La ruta indicada no existe: ${targetPath}`);
       process.exit(4);
     }
-    targetDir = fs.realpathSync(targetPath);
+    targetDir = resolveFolder(targetPath);
     if (path.basename(targetDir).toLowerCase() === 'auth_state') targetDir = path.dirname(targetDir);
   } else {
     targetDir = findInstalledBotFolder();
   }
 
   if (!targetDir) {
-    console.log('No se encontro automaticamente la carpeta anterior del bot.');
+    console.log('No se encontro automaticamente la instalacion anterior del bot.');
     process.exit(2);
   }
-
-  const releaseManifest = await validateSourcePackageAgainstManifest();
-  const expected = String(releaseManifest.version || readExpectedVersion()).trim();
-
-  console.log(`Carpeta detectada: ${targetDir}`);
   if (!exists(path.join(targetDir, 'config.json'))) {
-    console.log('[ERROR] La carpeta detectada no tiene config.json; no es seguro actualizar porque no se puede identificar la sede.');
+    console.log('[ERROR] La carpeta detectada no tiene config.json; no se puede identificar la sede.');
     process.exit(2);
   }
-  const persistentAuthDir = persistentAuthDirFor(targetDir);
-  let hasLegacyAuth = hasUsableAuthState(path.join(targetDir, 'auth_state'));
-  let hasPersistentAuth = hasUsableAuthState(persistentAuthDir);
-  if (!hasLegacyAuth && !hasPersistentAuth) {
-    console.log('No se encontro sesion dentro de la carpeta detectada; buscando auth_state en otras ubicaciones del PC...');
-    if (recoverAuthStateFromOtherFolder(targetDir)) {
-      hasLegacyAuth = hasUsableAuthState(path.join(targetDir, 'auth_state'));
-      hasPersistentAuth = hasUsableAuthState(persistentAuthDir);
-    }
-  }
-  if (!hasLegacyAuth && !hasPersistentAuth) {
+
+  const cfg = readConfig(targetDir);
+  const fingerprint = sessionFingerprintFromToken(cfg?.token || '', targetDir);
+  const authCandidates = collectReusableAuthDirs(targetDir, fingerprint);
+  if (authCandidates.length === 0) {
     console.log('AVISO: No se encontro una sesion WhatsApp previa (ni auth_state ni sesion persistente).');
     if (autoFromInstaller) process.exit(3);
     if (!force) {
-      console.log('Este PC no tiene una sesion de WhatsApp previa que conservar.');
-      console.log('Cancelando actualizacion sin QR. Usa install-windows.bat para instalacion nueva.');
+      console.log('Cancelando para no convertir una actualizacion sin QR en instalacion nueva.');
       process.exit(3);
     }
     console.log('Continuando por --force. Es posible que WhatsApp pida QR.');
-  } else if (hasPersistentAuth) {
-    console.log(`Sesion WhatsApp persistente detectada: ${persistentAuthDir}`);
-  } else {
-    console.log('Sesion WhatsApp antigua detectada en auth_state; se migrara a almacenamiento persistente protegido.');
   }
 
-  const canonicalTargetDir = canonicalInstallDirFor(targetDir);
-  const relatedDirs = findRelatedBotFolders(targetDir);
-  fs.mkdirSync(canonicalTargetDir, { recursive: true });
-  if (!exists(path.join(canonicalTargetDir, 'config.json'))) {
-    fs.copyFileSync(path.join(targetDir, 'config.json'), path.join(canonicalTargetDir, 'config.json'));
-  }
-  console.log(`Carpeta estable de arranque: ${canonicalTargetDir}`);
-  if (relatedDirs.length > 1) {
-    console.log('Carpetas relacionadas que quedaran neutralizadas/actualizadas:');
-    for (const folder of relatedDirs) console.log(` - ${folder}`);
-  }
+  console.log(`Carpeta anterior detectada: ${targetDir}`);
+  console.log(`Runtime limpio destino: ${cleanAppDirForFingerprint(fingerprint)}`);
+  console.log(`Sesion persistente destino: ${persistentAuthDirForFingerprint(fingerprint)}`);
+  console.log('El codigo ejecutable usa una unica ruta fija; solo la sesion se separa por sede.');
 
-  const backupDir = path.join(canonicalTargetDir, `backup-before-update-${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}`);
-  fs.mkdirSync(backupDir, { recursive: true });
-  if (exists(path.join(targetDir, 'config.json'))) fs.copyFileSync(path.join(targetDir, 'config.json'), path.join(backupDir, 'config.json'));
-  preserveAuthState(targetDir, backupDir);
+  const relatedDirs = collectRelatedInstallDirs(targetDir, fingerprint);
+  stopAllGolosoProcesses();
+  cleanupStartupAndUpdaterCaches();
+  const cleanDir = installCleanRuntime(targetDir, fingerprint, expected);
+  const launcher = writeLauncher(cleanDir, fingerprint, expected);
+  neutralizeOldFolders(relatedDirs, cleanDir, launcher.launcherVbsPath, expected);
+  registerCleanStartup(launcher, fingerprint);
 
-  stopCurrentBot(targetDir);
-  const dirsToUpdate = [...new Set([canonicalTargetDir, targetDir, ...relatedDirs].map(resolveFolder).filter(Boolean))];
-  for (const dir of dirsToUpdate) {
-    try {
-      fs.mkdirSync(dir, { recursive: true });
-      if (!exists(path.join(dir, 'config.json'))) fs.copyFileSync(path.join(targetDir, 'config.json'), path.join(dir, 'config.json'));
-      copyBotFiles(dir);
-      updateConfig(dir);
-      restoreAuthStateIfMissing(dir, backupDir);
-      writeInstallManifest(dir, targetDir);
-    } catch (e) {
-      console.log(`AVISO: No se pudo actualizar carpeta secundaria ${dir}: ${e?.message || e}`);
-    }
-  }
-
-  if (!verifyFilesVersion(expected, canonicalTargetDir)) {
-    console.log(`[ERROR] La carpeta estable no quedo con archivos version ${expected}.`);
-    process.exit(5);
-  }
-
-  ensureDependencies(canonicalTargetDir);
-  const launcher = registerStartup(canonicalTargetDir);
-  for (const dir of dirsToUpdate) {
-    if (resolveFolder(dir) !== resolveFolder(canonicalTargetDir)) writeLegacyRedirect(dir, launcher.launcherVbsPath);
-  }
-  await startBot(canonicalTargetDir);
-
-  const versionOk = await verifyInstalledVersion(expected, canonicalTargetDir, inferPortFromFolder(canonicalTargetDir));
+  if (!verifyFiles(expected, cleanDir)) process.exit(5);
+  const preferredPort = inferPortFromFolder(cleanDir);
+  const restartOk = await simulateRestart(expected, cleanDir, launcher, preferredPort);
+  printValidationSummary(expected, cleanDir, launcher);
+  if (!restartOk) process.exit(5);
 
   console.log('');
-  if (versionOk) {
-    console.log(`Actualizacion completa. Version activa: ${expected}`);
-    console.log(`Arranque permanente corregido: Windows iniciara desde ${canonicalTargetDir}`);
-    console.log('No se borro la sesion de WhatsApp. La nueva version usa almacenamiento persistente protegido para no pedir QR en futuras actualizaciones.');
-  } else {
-    console.log('[ERROR] La actualizacion NO quedo aplicada. Vuelve a ejecutar el actualizador como Administrador.');
-    process.exit(5);
-  }
+  console.log(`Actualizacion limpia completa. Version activa y persistente: ${expected}`);
+  console.log('La version antigua quedo neutralizada y Windows arrancara solo desde el runtime limpio.');
 }
 
 main().catch((error) => {
