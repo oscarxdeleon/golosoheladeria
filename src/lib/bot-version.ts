@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.22.9";
+export const BOT_VERSION = "8.23.0";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -14,7 +14,7 @@ export const BOT_DOWNLOAD_URL = `/downloads/${BOT_DOWNLOAD_FILENAME}`;
 export const BOT_LATEST_DOWNLOAD_URL = "/downloads/golosito.zip";
 
 /** SHA-256 del ZIP oficial publicado para validar integridad en instaladores remotos. */
-export const BOT_DOWNLOAD_SHA256 = "f4c15ce7a24f0bcb0f4ab76100bc9356ff8ee36fa01cf69aa481a8786f745fda";
+export const BOT_DOWNLOAD_SHA256 = "pending-regeneration";
 
 export type BotReleaseStatus = "exitosa" | "fallida";
 
@@ -28,6 +28,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.23.0",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Nuevo instalador Windows de un solo clic: descarga el paquete oficial, valida SHA-256, elimina la instalación anterior, instala en runtime único, registra solo los accesos nuevos y verifica package/server/startup/proceso/ruta antes de finalizar.",
+  },
   {
     version: "8.22.9",
     date: "2026-07-28",

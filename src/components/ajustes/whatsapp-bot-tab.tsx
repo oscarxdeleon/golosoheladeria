@@ -86,18 +86,6 @@ interface MessageRow {
 }
 
 const AUTO_UPDATE_WINDOWS_URL = "/downloads/instalar-actualizar-golosito.bat";
-const REMOTE_MANAGEMENT_MIN_VERSION = "8.17.1";
-
-function compareVersions(a?: string | null, b = REMOTE_MANAGEMENT_MIN_VERSION): number {
-  const left = String(a ?? "0").split(".").map((part) => Number(part) || 0);
-  const right = b.split(".").map((part) => Number(part) || 0);
-  const max = Math.max(left.length, right.length);
-  for (let i = 0; i < max; i += 1) {
-    const delta = (left[i] ?? 0) - (right[i] ?? 0);
-    if (delta !== 0) return delta;
-  }
-  return 0;
-}
 
 function normalizeColombiaWhatsApp(raw: string): string {
   const digits = String(raw ?? "").replace(/\D+/g, "");
