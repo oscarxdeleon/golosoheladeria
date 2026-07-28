@@ -26,6 +26,14 @@ export interface BotReleaseEntry {
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
   {
+    version: "8.21.0",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Anti-duplicado a nivel base de datos: el bot reenvía el ID del mensaje y el backend descarta reintentos del mismo webhook, evitando saludos y respuestas duplicadas.",
+  },
+  {
     version: "8.20.9",
     date: "2026-07-26",
     author: "Equipo Goloso",
