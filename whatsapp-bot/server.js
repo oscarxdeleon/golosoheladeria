@@ -16,6 +16,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
 import { spawn } from "node:child_process";
+import { createHash } from "node:crypto";
 import QRCode from "qrcode";
 import makeWASocket, {
   useMultiFileAuthState,
@@ -26,7 +27,7 @@ import makeWASocket, {
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CONFIG_PATH = path.join(__dirname, "config.json");
-const AUTH_DIR = path.join(__dirname, "auth_state");
+const LEGACY_AUTH_DIR = path.join(__dirname, "auth_state");
 const inferredBranchPort = /sede\s*2|sede2|parque/i.test(__dirname) ? 8791 : 8790;
 const REQUESTED_LOCAL_PORT = Number(process.env.PORT) || inferredBranchPort;
 const LOCAL_PORT_SCAN_LIMIT = 20;
@@ -45,7 +46,7 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.22.3";
+const BOT_VERSION = "8.22.4";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
@@ -56,10 +57,6 @@ const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
 const SIGNAL_REPAIR_THRESHOLD = 3;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
-const SESSION_BACKUP_DIR = path.join(__dirname, "auth_state_backups");
-const SESSION_BACKUP_LATEST_DIR = path.join(SESSION_BACKUP_DIR, "latest");
-const SESSION_META_PATH = path.join(__dirname, "session-meta.json");
-const SESSION_RESTORE_MARKER = path.join(__dirname, ".session-restore-attempted");
 const INSTANCE_LOCK_PATH = path.join(__dirname, ".goloso-bot.lock");
 const INSTANCE_STARTED_AT = new Date().toISOString();
 const INSTANCE_ID = `${process.pid}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -195,6 +192,47 @@ if (originalApiUrl !== config.apiUrl) {
   } catch (e) {
     logger.warn({ err: String(e) }, "could not persist canonical apiUrl");
   }
+}
+
+function safePathSegment(value, fallback = "default") {
+  return String(value || fallback).replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || fallback;
+}
+
+function sessionFingerprint() {
+  return createHash("sha256")
+    .update(String(config.token || __dirname))
+    .digest("hex")
+    .slice(0, 18);
+}
+
+function windowsDataRoot() {
+  return process.env.GOLOSO_BOT_DATA_DIR
+    || process.env.APPDATA
+    || process.env.LOCALAPPDATA
+    || path.join(process.env.USERPROFILE || __dirname, "AppData", "Roaming");
+}
+
+function persistentAuthDir() {
+  if (process.env.GOLOSO_BOT_SESSION_DIR) return process.env.GOLOSO_BOT_SESSION_DIR;
+  if (process.platform !== "win32") return LEGACY_AUTH_DIR;
+  const branchHint = safePathSegment(config.branchName || config.branch_name || path.basename(__dirname), "sede");
+  return path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "sessions", `${branchHint}-${sessionFingerprint()}`);
+}
+
+const AUTH_DIR = persistentAuthDir();
+const SESSION_BACKUP_DIR = process.platform === "win32"
+  ? path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "session-backups", sessionFingerprint())
+  : path.join(__dirname, "auth_state_backups");
+const SESSION_BACKUP_LATEST_DIR = path.join(SESSION_BACKUP_DIR, "latest");
+const SESSION_META_PATH = process.platform === "win32"
+  ? path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "session-meta", `${sessionFingerprint()}.json`)
+  : path.join(__dirname, "session-meta.json");
+const SESSION_RESTORE_MARKER = process.platform === "win32"
+  ? path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "session-meta", `${sessionFingerprint()}.restore-attempted`)
+  : path.join(__dirname, ".session-restore-attempted");
+
+for (const folder of [AUTH_DIR, SESSION_BACKUP_DIR, path.dirname(SESSION_META_PATH)]) {
+  try { fs.mkdirSync(folder, { recursive: true }); } catch { /* noop */ }
 }
 
 function isProcessAlive(pid) {
