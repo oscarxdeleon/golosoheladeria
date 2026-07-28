@@ -399,6 +399,7 @@ function stopCurrentBot(target) {
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.2'), { force: true }); } catch {}
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.3'), { force: true }); } catch {}
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.4'), { force: true }); } catch {}
+  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.5'), { force: true }); } catch {}
 }
 
 function copyRecursive(src, dest) {
@@ -570,6 +571,7 @@ async function main() {
       process.exit(4);
     }
     targetDir = fs.realpathSync(targetPath);
+    if (path.basename(targetDir).toLowerCase() === 'auth_state') targetDir = path.dirname(targetDir);
   } else {
     targetDir = findInstalledBotFolder();
   }
