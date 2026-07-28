@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.22.5";
+export const BOT_VERSION = "8.22.6";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -25,6 +25,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.22.6",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Corrige el aviso de cierre de sesión en Windows: ante logged_out el bot conserva credenciales, reinicia el proceso local para reconectar sin QR, limpia avisos transitorios al conectar y solo genera QR nuevo tras varios rechazos seguros de WhatsApp.",
+  },
   {
     version: "8.22.5",
     date: "2026-07-28",

@@ -10,7 +10,7 @@ REM ============================================================
 setlocal EnableExtensions
 title Goloso - Actualizador remoto del Bot Windows
 
-set "VERSION=8.22.5"
+set "VERSION=8.22.6"
 REM Usar el enlace estable evita errores 404 si la ruta versionada aun no fue publicada.
 set "URL=https://golosoheladeria.lovable.app/downloads/golosito.zip"
 set "FALLBACK_URL=https://golosoheladeria.lovable.app/downloads/whatsapp-bot.zip"
