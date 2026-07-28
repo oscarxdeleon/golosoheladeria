@@ -682,12 +682,12 @@ function cleanupOldStartupEntries(canonicalTarget) {
   const ps = [
     "$ErrorActionPreference='SilentlyContinue'",
     `$canonical='${canonical}'`,
-    "$startup=[Environment]::GetFolderPath('Startup')",
+    "$startupPaths=@([Environment]::GetFolderPath('Startup'),[Environment]::GetFolderPath('CommonStartup')) | Where-Object { $_ }",
     "$ws=New-Object -ComObject WScript.Shell",
-    "if(Test-Path $startup){ Get-ChildItem -LiteralPath $startup -Filter '*.lnk' | ForEach-Object { $delete=$false; try { $s=$ws.CreateShortcut($_.FullName); $blob=(($_.Name+' '+$s.TargetPath+' '+$s.Arguments+' '+$s.WorkingDirectory)).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs'){ $delete=$true }; if($s.WorkingDirectory -and $s.WorkingDirectory.ToLowerInvariant() -eq $canonical){ $delete=$false } } catch { if($_.Name -match 'Goloso|WhatsApp'){ $delete=$true } }; if($delete){ Remove-Item -LiteralPath $_.FullName -Force } } }",
-    "$run='HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'",
-    "if(Test-Path $run){ Get-ItemProperty -Path $run | ForEach-Object { $_.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | ForEach-Object { $name=$_.Name; $value=String($_.Value); $blob=($name+' '+$value).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs'){ Remove-ItemProperty -Path $run -Name $name -Force } } } }",
-    "try { Get-ScheduledTask | Where-Object { ($_.TaskName -match 'Goloso|WhatsApp') -or (($_.Actions | Out-String) -match 'Goloso|WhatsApp|server\\.js|start-hidden\\.vbs') } | Unregister-ScheduledTask -Confirm:$false } catch {}",
+    "foreach($startup in $startupPaths){ if(Test-Path $startup){ Get-ChildItem -LiteralPath $startup -Filter '*.lnk' | ForEach-Object { $delete=$false; try { $s=$ws.CreateShortcut($_.FullName); $blob=(($_.Name+' '+$s.TargetPath+' '+$s.Arguments+' '+$s.WorkingDirectory)).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher'){ $delete=$true }; if($s.WorkingDirectory -and $s.WorkingDirectory.ToLowerInvariant() -eq $canonical){ $delete=$false } } catch { if($_.Name -match 'Goloso|WhatsApp'){ $delete=$true } }; if($delete){ Remove-Item -LiteralPath $_.FullName -Force } } } }",
+    "$runs=@('HKCU:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\Microsoft\\Windows\\CurrentVersion\\Run','HKLM:\\Software\\WOW6432Node\\Microsoft\\Windows\\CurrentVersion\\Run')",
+    "foreach($run in $runs){ if(Test-Path $run){ Get-ItemProperty -Path $run | ForEach-Object { $_.PSObject.Properties | Where-Object { $_.MemberType -eq 'NoteProperty' } | ForEach-Object { $name=$_.Name; $value=String($_.Value); $blob=($name+' '+$value).ToLowerInvariant(); if($blob -match 'goloso|whatsapp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher'){ Remove-ItemProperty -Path $run -Name $name -Force } } } } }",
+    "try { Get-ScheduledTask | Where-Object { ($_.TaskName -match 'Goloso|WhatsApp') -or (($_.Actions | Out-String) -match 'Goloso|WhatsApp|server\\.js|start-hidden\\.vbs|goloso-bot-launcher') } | Unregister-ScheduledTask -Confirm:$false } catch {}",
   ].join('; ');
   spawnSync('powershell', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps], { stdio: 'ignore' });
 }
