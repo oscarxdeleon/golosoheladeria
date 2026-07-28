@@ -2,15 +2,13 @@
 
 Bot local que corre en el **PC de cada sede** y responde automáticamente a los clientes que escriben al WhatsApp de esa sede. Se configura desde el POS de Goloso.
 
-## Actualizar sin volver a escanear QR
+## Instalación / actualización Windows
 
-Si el bot ya estaba conectado en ese PC, **no borres la carpeta anterior** ni la carpeta `auth_state/`.
+La instalación oficial se hace desde el POS con un único botón: **Ajustes → WhatsApp Bot → Instalar / Actualizar Bot**.
 
-1. Descarga y descomprime el ZIP nuevo.
-2. Ejecuta **`SOLUCION-SIN-SABER-CARPETA.bat`** si no sabes dónde quedó instalado el bot anterior. También funciona **`ACTUALIZAR-SIN-QR.bat`**.
-3. El actualizador hará una búsqueda profunda en Windows, conservará `config.json` y `auth_state/`, reemplazará solo el código del bot y lo iniciará de nuevo.
+Ese instalador descarga el paquete oficial, valida SHA-256, cierra procesos anteriores, elimina instalaciones viejas, instala en `%LOCALAPPDATA%\GolositoBot\app`, registra los nuevos accesos e inicia el bot validando la versión en ejecución.
 
-Mientras `auth_state/` exista y WhatsApp no haya cerrado la sesión desde el celular, **no tendrás que vincular nuevamente con QR**. Esta versión además crea una copia local en `auth_state_backups/latest/` y la restaura automáticamente si la carpeta activa se daña o desaparece durante un reinicio/actualización.
+La sesión de WhatsApp se guarda separada del código en AppData por sede para evitar volver a escanear QR durante actualizaciones normales.
 
 ## Actualización definitiva en Ubuntu / Droplet con PM2
 
@@ -33,12 +31,10 @@ Si por error ejecutas `install-windows.bat`, esta versión primero intenta detec
 
 ## Instalación nueva (Windows)
 
-1. Requisitos: [Node.js 18+](https://nodejs.org) instalado en el PC.
-2. Descomprime esta carpeta en un directorio **permanente** (no el escritorio ni Descargas).
-3. En el POS, abre **Ajustes → WhatsApp Bot**, elige la sede y copia el **Token**.
-4. Doble-click a `install-windows.bat`. Cuando pida el token, pégalo. No pide URL: usa automáticamente la URL publicada del POS.
-5. Se abre `http://localhost:8790`. Cuando salga el QR, escanéalo con WhatsApp Business del celular de la sede (Menú → Dispositivos vinculados → Vincular un dispositivo).
-6. Estado pasa a **Conectado**. Listo.
+1. Requisito: [Node.js 18+](https://nodejs.org) instalado en el PC.
+2. En el POS, abre **Ajustes → WhatsApp Bot** y presiona **Instalar / Actualizar Bot**.
+3. Ejecuta el archivo descargado. No pide token, rutas ni carpetas.
+4. Si es primera vinculación, escanea el QR desde WhatsApp Business de la sede.
 
 Si el QR no aparece en el POS, abre `http://localhost:8790` en el mismo PC donde instalaste el bot. Ese panel local muestra el QR y también indica si el token no coincide o si no pudo sincronizar con el POS. Como respaldo, el QR también se dibuja en la consola cuando WhatsApp lo entrega.
 
@@ -49,9 +45,8 @@ El bot queda registrado para **arrancar solo con Windows**. Al apagar el PC se d
 ## Estructura
 
 - `server.js` — bot principal (Baileys + polling al POS).
-- `setup.js` — configuración interactiva del token y URL para instalaciones nuevas.
-- `SOLUCION-SIN-SABER-CARPETA.bat` — busca automáticamente la sesión anterior aunque no sepas la ruta.
-- `ACTUALIZAR-SIN-QR.bat` — actualización segura que conserva la sesión de WhatsApp.
+- `goloso-bot-installer.js` — instalador único Windows con limpieza, instalación y validación.
+- `setup.js` — respaldo para configuración local manual.
 - `update-linux.sh` — actualización segura para Ubuntu/Droplet con PM2.
 - `config.json` — se genera al ejecutar setup (contiene el token, mantener privado).
 - `auth_state/` — sesión de WhatsApp guardada por Baileys. **No borrar** (perdería la vinculación).

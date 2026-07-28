@@ -8,12 +8,3 @@ echo Si abriste este archivo desde una descarga anterior, vuelve al POS y descar
 pause
 endlocal
 exit /b 1
-  echo ============================================================
-  echo  [ERROR] La actualizacion NO quedo aplicada. Codigo: %EC%
-  echo  Ejecuta este archivo otra vez como Administrador
-  echo  (clic derecho ^> Ejecutar como administrador).
-  echo ============================================================
-)
-echo.
-pause
-exit /b %EC%
