@@ -53,6 +53,7 @@ const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar
 const LOGGED_OUT_RECOVERY_WINDOW_MS = 10 * 60_000;
 const LOGGED_OUT_MAX_PRESERVED_RETRIES = 3;
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
+const RELEASE_MANIFEST_URL = `${CANONICAL_API_URL}/downloads/manifest.json`;
 const LATEST_LINUX_UPDATE_URL = `${CANONICAL_API_URL}/downloads/update-linux.sh`;
 const LATEST_WINDOWS_UPDATE_URL = `${CANONICAL_API_URL}/downloads/actualizar-bot-windows-remoto.bat`;
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
@@ -333,6 +334,42 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = BACKEND_REQUEST_T
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
     clearTimeout(timer);
+  }
+}
+
+function compareVersions(a, b) {
+  const pa = String(a || "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+  const pb = String(b || "").split(".").map((n) => Number.parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const delta = (pa[i] || 0) - (pb[i] || 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+
+async function checkOfficialBotVersionOnStartup() {
+  try {
+    const res = await fetchWithTimeout(`${RELEASE_MANIFEST_URL}?t=${Date.now()}`, {
+      headers: { "Cache-Control": "no-cache", Pragma: "no-cache" },
+    }, VERSION_FETCH_TIMEOUT_MS);
+    if (!res.ok) throw new Error(`manifest HTTP ${res.status}`);
+    const manifest = await res.json();
+    const officialVersion = String(manifest?.version || "").trim();
+    if (!officialVersion) throw new Error("manifest sin version");
+    if (compareVersions(BOT_VERSION, officialVersion) < 0) {
+      state.detail = `Versión ${BOT_VERSION} obsoleta. Actualizando automáticamente a ${officialVersion}...`;
+      state.lastError = null;
+      await pushStatus();
+      if (process.platform === "win32") {
+        const child = launchWindowsSelfUpdate();
+        logger.warn({ current: BOT_VERSION, official: officialVersion, pid: child.pid }, "outdated windows bot detected; self update started");
+      } else {
+        const { child, logPath } = launchLinuxSelfUpdate();
+        logger.warn({ current: BOT_VERSION, official: officialVersion, pid: child.pid, logPath }, "outdated bot detected; self update started");
+      }
+    }
+  } catch (e) {
+    logger.warn({ err: String(e) }, "official bot version check skipped");
   }
 }
 
@@ -775,15 +812,20 @@ function launchDetached(command, args, options = {}) {
 }
 
 function launchWindowsSelfUpdate() {
-  const escapedUrl = LATEST_WINDOWS_UPDATE_URL.replaceAll("'", "''");
+  const escapedUrl = `${LATEST_WINDOWS_UPDATE_URL}?v=${BOT_VERSION}&t=${Date.now()}`.replaceAll("'", "''");
   const ps = [
     "$ErrorActionPreference='Stop'",
     "$ProgressPreference='SilentlyContinue'",
     "$bat=Join-Path $env:TEMP ('goloso-bot-remoto-' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() + '.bat')",
-    `Invoke-WebRequest -UseBasicParsing -Uri '${escapedUrl}' -OutFile $bat -TimeoutSec 60`,
+    "$headers=@{'Cache-Control'='no-cache';'Pragma'='no-cache'}",
+    `Invoke-WebRequest -UseBasicParsing -Uri '${escapedUrl}' -Headers $headers -OutFile $bat -TimeoutSec 60`,
     "Start-Process -FilePath $bat -WorkingDirectory $env:TEMP",
   ].join("; ");
   return launchDetached("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", ps], { cwd: __dirname });
+}
+
+function launchWindowsRestart() {
+  return launchDetached("wscript.exe", ["//nologo", path.join(__dirname, "start-hidden.vbs")], { cwd: __dirname });
 }
 
 function launchLinuxSelfUpdate() {
@@ -848,7 +890,12 @@ async function executeRemoteCommand(cmd) {
       state.detail = "Reiniciando servicio por solicitud del POS...";
       await ackCommand("restart");
       await pushStatus();
-      logger.warn("remote restart requested — exiting so PM2 respawns");
+      if (process.platform === "win32") {
+        const child = launchWindowsRestart();
+        logger.warn({ pid: child.pid }, "remote restart requested — windows relauncher started");
+      } else {
+        logger.warn("remote restart requested — exiting so supervisor respawns");
+      }
       setTimeout(() => process.exit(0), 1200);
       return;
     }
@@ -1562,6 +1609,7 @@ async function main() {
   setInterval(pushStatus, HEARTBEAT_MS);
   setInterval(pollOutbound, OUTBOUND_POLL_MS);
   void pushStatus();
+  setTimeout(() => { void checkOfficialBotVersionOnStartup(); }, 8_000);
 
   // ---- Watchdog: auto-reinicio si el bot queda "pegado" ----
   // pm2 (o systemd/nssm) volverá a levantar el proceso al hacer exit(1).
