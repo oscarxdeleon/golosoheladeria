@@ -26,6 +26,14 @@ export interface BotReleaseEntry {
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
   {
+    version: "8.22.1",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Actualizador remoto para Windows: nuevo .bat que descarga siempre el ZIP más reciente desde la nube, lo extrae en temp y ejecuta el updater desde allí (los archivos nuevos SÍ reemplazan los viejos). Verificación de versión post-instalación consultando /status.json — si la versión activa no coincide con la esperada, el actualizador aborta con error explícito en lugar de reportar falso éxito.",
+  },
+  {
     version: "8.22.0",
     date: "2026-07-28",
     author: "Equipo Goloso",
