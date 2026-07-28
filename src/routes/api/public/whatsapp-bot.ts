@@ -872,7 +872,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   metadata: { context: ctx ?? null },
                 });
                 if (error === "rate_limited") {
-                  const rateLimitTakesOrders = Boolean(preloadedOrdering?.ordering_enabled);
+                  const rateLimitTakesOrders = true;
                   const reply = buildActiveSessionFallback(preloadedCart, formatCOP)
                     ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders, hasSessionData(preloadedCart));
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
@@ -1098,8 +1098,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               }
 
               // 4) Config de ordering ya viene del bootstrap. Cero round-trips.
+              // Nota: el switch "Toma de pedidos por WhatsApp" fue eliminado de la UI;
+              // en modo "Chatbot completo" (único modo que llega hasta aquí gracias
+              // al gate `chatbot_mode_gate`) la toma de pedidos queda SIEMPRE activa.
               const orderCfg = preloadedOrdering;
-              const orderingEnabled = !!(orderCfg?.ordering_enabled);
+              const orderingEnabled = true;
               const dryRun = !!(orderCfg?.dry_run);
 
 
