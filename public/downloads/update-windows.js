@@ -178,7 +178,7 @@ function stopNodeProcessesInFolder(target) {
       const pidMatch = line.match(/,(\d+)\s*$/);
       if (!pidMatch) continue;
       const command = line.slice(0, line.length - pidMatch[0].length);
-      if (!command.toLowerCase().includes(resolvedTarget.toLowerCase()) && !command.toLowerCase().includes('server.js')) continue;
+      if (!command.toLowerCase().includes(resolvedTarget.toLowerCase())) continue;
       spawnSync('taskkill', ['/F', '/PID', pidMatch[1], '/T'], { shell: true, stdio: 'ignore' });
     }
   } catch {}
@@ -187,10 +187,11 @@ function stopNodeProcessesInFolder(target) {
 function stopCurrentBot(target) {
   step('Cerrando bot anterior');
   stopNodeProcessesInFolder(target);
+  const expectedPort = inferPortFromFolder(target);
   try {
     const output = execSync('netstat -ano', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     for (const line of output.split(/\r?\n/)) {
-      if (!LOCAL_PORTS.some((port) => line.includes(`:${port}`)) || !/LISTENING/i.test(line)) continue;
+      if (!line.includes(`:${expectedPort}`) || !/LISTENING/i.test(line)) continue;
       const parts = line.trim().split(/\s+/);
       const pid = parts[parts.length - 1];
       if (/^\d+$/.test(pid)) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });

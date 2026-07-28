@@ -386,7 +386,7 @@ active_json=""
 for attempt in $(seq 1 20); do
   sleep 2
   if active_json="$(curl -fsS "http://localhost:${expected_port}/status.json" 2>/dev/null)"; then
-    active_version="$(printf '%s' "${active_json}" | sed -nE 's/.*"version":"([^"]+)".*/\1/p')"
+    active_version="$(ACTIVE_JSON="${active_json}" node -e 'try { const s = JSON.parse(process.env.ACTIVE_JSON || "{}"); process.stdout.write(String(s.version || "")); } catch {}')"
     if [[ "${active_version}" == "${BOT_VERSION}" ]]; then
       echo "Panel local: http://localhost:${expected_port}/status.json"
       echo "${active_json}"
