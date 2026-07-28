@@ -432,37 +432,22 @@ function restoreAuthStateIfMissing(target, backupDir) {
 function stopNodeProcessesInFolder(target) {
   const resolvedTarget = resolveFolder(target);
   if (!resolvedTarget) return;
-  try {
-    const output = execSync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    for (const line of output.split(/\r?\n/)) {
-      if (!/server\.js/i.test(line)) continue;
-      const pidMatch = line.match(/,(\d+)\s*$/);
-      if (!pidMatch) continue;
-      const command = line.slice(0, line.length - pidMatch[0].length);
-      if (!command.toLowerCase().includes(resolvedTarget.toLowerCase())) continue;
-      spawnSync('taskkill', ['/F', '/PID', pidMatch[1], '/T'], { shell: true, stdio: 'ignore' });
-    }
-  } catch {}
+  for (const proc of listNodeServerProcesses()) {
+    const folder = resolveFolder(proc.folder);
+    const haystack = `${proc.command || ''} ${folder || ''}`.toLowerCase();
+    if (!haystack.includes(resolvedTarget.toLowerCase())) continue;
+    spawnSync('taskkill', ['/F', '/PID', proc.pid, '/T'], { shell: true, stdio: 'ignore' });
+  }
 }
 
 function stopNodeProcessesForToken(expectedToken) {
   if (!expectedToken) return;
-  try {
-    const output = execSync('wmic process where "name=\'node.exe\'" get ProcessId,CommandLine /format:csv', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-    for (const line of output.split(/\r?\n/)) {
-      if (!/server\.js/i.test(line)) continue;
-      const pidMatch = line.match(/,(\d+)\s*$/);
-      if (!pidMatch) continue;
-      const command = line.slice(0, line.length - pidMatch[0].length);
-      const folderMatch = command.match(/([A-Z]:\\[^\r\n]*?server\.js)/i);
-      if (!folderMatch) continue;
-      const folder = path.dirname(folderMatch[1].trim().replace(/^['"]+|['"]+$/g, ''));
-      const cfg = readConfig(folder);
-      if (cfg?.token && String(cfg.token) === String(expectedToken)) {
-        spawnSync('taskkill', ['/F', '/PID', pidMatch[1], '/T'], { shell: true, stdio: 'ignore' });
-      }
+  for (const proc of listNodeServerProcesses()) {
+    const cfg = readConfig(proc.folder);
+    if (cfg?.token && String(cfg.token) === String(expectedToken)) {
+      spawnSync('taskkill', ['/F', '/PID', proc.pid, '/T'], { shell: true, stdio: 'ignore' });
     }
-  } catch {}
+  }
 }
 
 function stopCurrentBot(target) {
