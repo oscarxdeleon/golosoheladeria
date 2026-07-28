@@ -216,9 +216,8 @@ export function WhatsAppBotTab() {
       <AfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <PickupAfterHoursCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <MenuTriggersCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
-      <AiAssistantCard cfg={cfg} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
-      
-      <OrderingCard branchId={cfg.branch_id} />
+      {/* Asistente IA y Toma de pedidos: controlados 100% por "Estado del Chatbot".
+          Modo "Chatbot completo" activa IA + toma de pedidos automáticamente. */}
       <FaqManagerCard branchId={cfg.branch_id} />
       <ReportRecipientsCard branchId={cfg.branch_id} />
       {isAdmin && <GeminiQuotaCard />}
