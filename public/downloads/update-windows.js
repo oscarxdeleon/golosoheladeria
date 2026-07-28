@@ -276,10 +276,12 @@ function stopCurrentBot(target) {
   step('Cerrando bot anterior');
   stopNodeProcessesInFolder(target);
   const expectedPort = inferPortFromFolder(target);
+  const portsToStop = [...new Set([expectedPort, ...LOCAL_PORTS])];
   try {
     const output = execSync('netstat -ano', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
     for (const line of output.split(/\r?\n/)) {
-      if (!line.includes(`:${expectedPort}`) || !/LISTENING/i.test(line)) continue;
+      if (!/LISTENING/i.test(line)) continue;
+      if (!portsToStop.some((port) => line.includes(`:${port}`))) continue;
       const parts = line.trim().split(/\s+/);
       const pid = parts[parts.length - 1];
       if (/^\d+$/.test(pid)) spawnSync('taskkill', ['/F', '/PID', pid, '/T'], { shell: true, stdio: 'ignore' });
