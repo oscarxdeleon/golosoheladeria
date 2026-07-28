@@ -2856,6 +2856,8 @@ export type Database = {
           fsm_state: string
           id: string
           items: Json
+          last_inbound_msg_id: string | null
+          last_reply_at: string | null
           metadata: Json
           order_type: string
           payment_method: string | null
@@ -2880,6 +2882,8 @@ export type Database = {
           fsm_state?: string
           id?: string
           items?: Json
+          last_inbound_msg_id?: string | null
+          last_reply_at?: string | null
           metadata?: Json
           order_type?: string
           payment_method?: string | null
@@ -2904,6 +2908,8 @@ export type Database = {
           fsm_state?: string
           id?: string
           items?: Json
+          last_inbound_msg_id?: string | null
+          last_reply_at?: string | null
           metadata?: Json
           order_type?: string
           payment_method?: string | null
@@ -3953,10 +3959,20 @@ export type Database = {
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_get_mode: { Args: { _token: string }; Returns: string }
       whatsapp_bot_get_pending: { Args: { _token: string }; Returns: Json }
-      whatsapp_bot_handle_incoming: {
-        Args: { _body: string; _from: string; _token: string }
-        Returns: Json
-      }
+      whatsapp_bot_handle_incoming:
+        | {
+            Args: { _body: string; _from: string; _token: string }
+            Returns: Json
+          }
+        | {
+            Args: {
+              _body: string
+              _from: string
+              _msg_id: string
+              _token: string
+            }
+            Returns: Json
+          }
       whatsapp_bot_is_online_open: {
         Args: { _branch_id: string }
         Returns: boolean

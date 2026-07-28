@@ -677,6 +677,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
           text?: string;
           audio_b64?: string;
           audio_mime?: string;
+          msg_id?: string;
         } | null = null;
         try {
           body = await request.json();
@@ -718,11 +719,13 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
             case "incoming": {
               const from = String(body.from ?? "").trim();
               const msg = String(body.message ?? "");
+              const msgId = typeof body.msg_id === "string" ? body.msg_id.trim().slice(0, 128) : "";
               if (!from) return json({ error: "missing_from" }, 400);
               const r = await callRpc("whatsapp_bot_handle_incoming", {
                 _token: token,
                 _from: from,
                 _body: msg,
+                _msg_id: msgId || null,
               });
               if (!r.ok) return json({ error: "rpc_failed", detail: r.data }, r.status);
               const fixedData = (r.data && typeof r.data === "object" ? r.data : {}) as Record<string, unknown>;

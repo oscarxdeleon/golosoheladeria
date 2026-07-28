@@ -45,7 +45,7 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.20.9";
+const BOT_VERSION = "8.21.0";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
@@ -675,9 +675,12 @@ async function executeRemoteCommand(cmd) {
 }
 
 
-async function handleIncoming(from, body) {
+async function handleIncoming(from, body, msgId) {
   try {
-    const res = await postBackendJson({ action: "incoming", from, message: body }, { label: "incoming" });
+    const res = await postBackendJson(
+      { action: "incoming", from, message: body, msg_id: msgId || null },
+      { label: "incoming" },
+    );
     if (!res.ok) {
       logger.warn({ status: res.status, body: res.text }, "incoming push failed");
       return { reply: null, error: res.text || `HTTP ${res.status}`, use_ai: true };
@@ -865,8 +868,8 @@ function enqueueIncoming(from, task) {
   return next;
 }
 
-async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
-  logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode }, "incoming");
+async function processResolvedIncoming(sock, msg, from, text, audioNode, jid, msgId) {
+  logger.info({ from, jid, textLen: text.length, hasAudio: !!audioNode, msgId }, "incoming");
   state.lastIncomingAt = Date.now();
   state.lastIncomingFrom = from;
   state.lastIncomingPreview = text ? text.slice(0, 120) : audioNode ? "[nota de voz]" : "[sin texto]";
@@ -877,7 +880,7 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid) {
   let reply = null;
   let incomingData = null;
   if (text) {
-    incomingData = await handleIncoming(from, text);
+    incomingData = await handleIncoming(from, text, msgId);
     reply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
     if (reply) state.lastReplySource = incomingData?.source || incomingData?.matched_trigger || "fixed";
   }
@@ -1218,7 +1221,8 @@ async function startSocket() {
           "phone_unresolved — se procesará con JID anónimo para no perder la conversación",
         );
       }
-      await enqueueIncoming(from, () => processResolvedIncoming(sock, msg, from, text, audioNode, jid));
+      const localMsgId = msg.key.id || "";
+      await enqueueIncoming(from, () => processResolvedIncoming(sock, msg, from, text, audioNode, jid, localMsgId));
     }
   });
 
