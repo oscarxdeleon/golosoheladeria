@@ -251,6 +251,12 @@ function canonicalInstallDirFor(folder) {
   return path.join(canonicalAppsRoot(), APP_DATA_FOLDER, 'apps', `sede-${fingerprint}`);
 }
 
+function launcherDirFor(folder) {
+  const cfg = readConfig(folder);
+  const fingerprint = sessionFingerprintFromConfig(cfg, folder);
+  return path.join(canonicalAppsRoot(), APP_DATA_FOLDER, LAUNCHER_FOLDER_NAME, `sede-${fingerprint}`);
+}
+
 function persistentAuthDirFor(folder) {
   const cfg = readConfig(folder);
   if (!cfg?.token) return '';
