@@ -90,7 +90,7 @@ interface MessageRow {
 const WHATSAPP_BOT_DOWNLOAD_URL = BOT_LATEST_DOWNLOAD_URL;
 const AUTO_UPDATE_WINDOWS_URL = "/downloads/actualizar-bot-windows-remoto.bat";
 const AUTO_UPDATE_MAC_LINUX_URL = "/downloads/actualizar-bot-automatico-mac-linux.sh";
-const REMOTE_MANAGEMENT_MIN_VERSION = BOT_VERSION;
+const REMOTE_MANAGEMENT_MIN_VERSION = "8.17.1";
 
 function compareVersions(a?: string | null, b = REMOTE_MANAGEMENT_MIN_VERSION): number {
   const left = String(a ?? "0").split(".").map((part) => Number(part) || 0);
