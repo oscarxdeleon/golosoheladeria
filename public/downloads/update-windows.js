@@ -54,13 +54,33 @@ function isBotFolder(folder) {
 
 function scoreFolder(folder) {
   let score = 0;
-  if (exists(path.join(folder, 'auth_state'))) score += 100;
+  if (hasUsableAuthState(path.join(folder, 'auth_state'))) score += 180;
+  else if (exists(path.join(folder, 'auth_state'))) score += 20;
   if (hasPersistentAuthState(folder)) score += 120;
   if (exists(path.join(folder, 'config.json'))) score += 80;
   if (exists(path.join(folder, 'server.js'))) score += 40;
   if (exists(path.join(folder, 'start-hidden.vbs'))) score += 20;
   if (exists(path.join(folder, 'package.json'))) score += 10;
   return score;
+}
+
+function commonSearchRoots() {
+  const userProfile = process.env.USERPROFILE || os.homedir();
+  return [
+    path.join(userProfile, 'Desktop'),
+    path.join(userProfile, 'Documents'),
+    path.join(userProfile, 'Downloads'),
+    path.join(process.env.LOCALAPPDATA || '', ''),
+    path.join(process.env.APPDATA || '', ''),
+    path.join(process.env.ProgramFiles || '', 'Goloso WhatsApp Bot'),
+    path.join(process.env.ProgramData || '', 'Goloso WhatsApp Bot'),
+    path.join(userProfile, 'Goloso WhatsApp Bot'),
+    path.join(userProfile, 'BOT'),
+    'C:\\BOT',
+    'C:\\GolosoBot',
+    'C:\\Goloso WhatsApp Bot',
+    userProfile,
+  ].filter(Boolean);
 }
 
 function searchFolders(root, candidates, maxDepth = 6) {
@@ -150,26 +170,9 @@ function findInstalledBotFolder() {
     addCandidate(candidates, SOURCE_DIR);
   }
 
-  const userProfile = process.env.USERPROFILE || os.homedir();
-  const roots = [
-    path.join(userProfile, 'Desktop'),
-    path.join(userProfile, 'Documents'),
-    path.join(userProfile, 'Downloads'),
-    path.join(process.env.LOCALAPPDATA || '', ''),
-    path.join(process.env.APPDATA || '', ''),
-    path.join(process.env.ProgramFiles || '', 'Goloso WhatsApp Bot'),
-    path.join(process.env.ProgramData || '', 'Goloso WhatsApp Bot'),
-    path.join(userProfile, 'Goloso WhatsApp Bot'),
-    path.join(userProfile, 'BOT'),
-    'C:\\BOT',
-    'C:\\GolosoBot',
-    'C:\\Goloso WhatsApp Bot',
-    userProfile,
-  ].filter(Boolean);
-
   step('Busqueda profunda automatica');
   console.log('Revisando Escritorio, Descargas, Documentos, AppData y carpetas comunes...');
-  for (const root of [...new Set(roots)]) searchFolders(root, candidates, 6);
+  for (const root of [...new Set(commonSearchRoots())]) searchFolders(root, candidates, 6);
 
   const valid = [...candidates].filter(isBotFolder);
   valid.sort((a, b) => {
@@ -228,6 +231,111 @@ function hasUsableAuthState(dir) {
 
 function hasPersistentAuthState(folder) {
   return hasUsableAuthState(persistentAuthDirFor(folder));
+}
+
+function searchUsableAuthDirs(root, results, maxDepth = 7) {
+  const resolvedRoot = resolveFolder(root);
+  if (!resolvedRoot) return;
+
+  const excluded = new Set(['node_modules', '.git', 'Cache', 'Caches', 'Code Cache', 'Temp', 'tmp']);
+  const queue = [{ folder: resolvedRoot, depth: 0 }];
+  let visited = 0;
+
+  while (queue.length && visited < 60000) {
+    const { folder, depth } = queue.shift();
+    visited += 1;
+
+    if (hasUsableAuthState(folder)) results.push(folder);
+    const authState = path.join(folder, 'auth_state');
+    if (hasUsableAuthState(authState)) results.push(authState);
+
+    if (depth >= maxDepth) continue;
+    let entries = [];
+    try {
+      entries = fs.readdirSync(folder, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isDirectory() || excluded.has(entry.name)) continue;
+      queue.push({ folder: path.join(folder, entry.name), depth: depth + 1 });
+    }
+  }
+}
+
+function matchingConfigToken(folder, expectedToken) {
+  const cfg = readConfig(folder);
+  return Boolean(expectedToken && cfg?.token && String(cfg.token) === String(expectedToken));
+}
+
+function addMatchingAuthFromBotFolder(folder, expectedToken, matches) {
+  if (!matchingConfigToken(folder, expectedToken)) return;
+  const legacy = path.join(folder, 'auth_state');
+  const persistent = persistentAuthDirFor(folder);
+  if (hasUsableAuthState(legacy)) matches.push(legacy);
+  if (hasUsableAuthState(persistent)) matches.push(persistent);
+}
+
+function findReusableAuthState(target) {
+  const targetCfg = readConfig(target);
+  const expectedToken = targetCfg?.token ? String(targetCfg.token) : '';
+  if (!expectedToken) return '';
+
+  const targetLegacyAuth = resolveFolder(path.join(target, 'auth_state'));
+  const targetPersistentAuth = resolveFolder(persistentAuthDirFor(target));
+  const botCandidates = new Set();
+  const results = [];
+
+  addMatchingAuthFromBotFolder(target, expectedToken, results);
+  const expectedPersistent = persistentAuthDirFor(target);
+  const expectedBackup = path.join(persistentSessionRoot(), 'Goloso WhatsApp Bot', 'session-backups', sessionFingerprintFromConfig(targetCfg, target), 'latest');
+  if (hasUsableAuthState(expectedPersistent)) results.push(expectedPersistent);
+  if (hasUsableAuthState(expectedBackup)) results.push(expectedBackup);
+
+  for (const root of [...new Set([target, path.dirname(target), ...commonSearchRoots()])]) {
+    searchFolders(root, botCandidates, 7);
+  }
+
+  for (const folder of botCandidates) addMatchingAuthFromBotFolder(folder, expectedToken, results);
+
+  const unique = [...new Set(results.map(resolveFolder).filter(Boolean))].filter((folder) => {
+    if (targetLegacyAuth && folder === targetLegacyAuth) return false;
+    if (targetPersistentAuth && folder === targetPersistentAuth) return false;
+    return true;
+  });
+
+  unique.sort((a, b) => {
+    const score = (folder) => {
+      let value = 0;
+      if (folder === resolveFolder(expectedPersistent)) value += 500;
+      if (folder === resolveFolder(expectedBackup)) value += 420;
+      if (/Goloso WhatsApp Bot[\\/]sessions/i.test(folder)) value += 300;
+      if (/auth_state$/i.test(folder)) value += 220;
+      if (/session-backups[\\/].*[\\/]latest$/i.test(folder)) value += 180;
+      try { value += Math.min(100, fs.statSync(path.join(folder, 'creds.json')).mtimeMs / 1e12); } catch {}
+      return value;
+    };
+    return score(b) - score(a);
+  });
+
+  return unique[0] || '';
+}
+
+function recoverAuthStateFromOtherFolder(target) {
+  const source = findReusableAuthState(target);
+  if (!source) return false;
+
+  const persistentAuth = persistentAuthDirFor(target);
+  const legacyAuth = path.join(target, 'auth_state');
+  console.log(`Sesion WhatsApp encontrada en otra ubicacion: ${source}`);
+  if (persistentAuth) {
+    fs.mkdirSync(path.dirname(persistentAuth), { recursive: true });
+    copyRecursive(source, persistentAuth);
+    console.log(`Sesion migrada a almacenamiento persistente: ${persistentAuth}`);
+  }
+  if (!hasUsableAuthState(legacyAuth)) copyRecursive(source, legacyAuth);
+  return true;
 }
 
 function preserveAuthState(target, backupDir) {
@@ -291,6 +399,7 @@ function stopCurrentBot(target) {
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.2'), { force: true }); } catch {}
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.3'), { force: true }); } catch {}
   try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.4'), { force: true }); } catch {}
+  try { fs.rmSync(path.join(target, '.goloso-bridge-update-8.22.5'), { force: true }); } catch {}
 }
 
 function copyRecursive(src, dest) {
@@ -462,6 +571,7 @@ async function main() {
       process.exit(4);
     }
     targetDir = fs.realpathSync(targetPath);
+    if (path.basename(targetDir).toLowerCase() === 'auth_state') targetDir = path.dirname(targetDir);
   } else {
     targetDir = findInstalledBotFolder();
   }
@@ -473,8 +583,15 @@ async function main() {
 
   console.log(`Carpeta detectada: ${targetDir}`);
   const persistentAuthDir = persistentAuthDirFor(targetDir);
-  const hasLegacyAuth = hasUsableAuthState(path.join(targetDir, 'auth_state'));
-  const hasPersistentAuth = hasUsableAuthState(persistentAuthDir);
+  let hasLegacyAuth = hasUsableAuthState(path.join(targetDir, 'auth_state'));
+  let hasPersistentAuth = hasUsableAuthState(persistentAuthDir);
+  if (!hasLegacyAuth && !hasPersistentAuth) {
+    console.log('No se encontro sesion dentro de la carpeta detectada; buscando auth_state en otras ubicaciones del PC...');
+    if (recoverAuthStateFromOtherFolder(targetDir)) {
+      hasLegacyAuth = hasUsableAuthState(path.join(targetDir, 'auth_state'));
+      hasPersistentAuth = hasUsableAuthState(persistentAuthDir);
+    }
+  }
   if (!hasLegacyAuth && !hasPersistentAuth) {
     console.log('AVISO: No se encontro una sesion WhatsApp previa (ni auth_state ni sesion persistente).');
     if (autoFromInstaller) process.exit(3);

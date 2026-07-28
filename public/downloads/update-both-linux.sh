@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -Eeuo pipefail
 
-BOT_VERSION="8.22.4"
+BOT_VERSION="8.22.5"
 BASE_URL="https://golosoheladeria.lovable.app"
 FALLBACK_BASE_URL="https://golosoheladeria.vercel.app"
 UPDATE_URL="${BASE_URL}/downloads/update-linux.sh?v=${BOT_VERSION}"

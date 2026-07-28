@@ -25,7 +25,7 @@ if errorlevel 1 (
 REM --- Intento 1: deteccion automatica + busqueda profunda ---
 echo Buscando automaticamente la instalacion anterior del bot en este PC...
 echo No necesitas saber donde esta la carpeta: se revisaran ubicaciones comunes.
-node "%~dp0update-windows.js"
+node "%~dp0update-windows.js" --force
 set "EC=%ERRORLEVEL%"
 if "%EC%"=="0" goto :done
 
@@ -33,7 +33,7 @@ echo.
 if "%EC%"=="2" (
   echo [AVISO] No se encontro ninguna carpeta anterior con sesion de WhatsApp.
 ) else if "%EC%"=="3" (
-  echo [AVISO] Se encontro una carpeta, pero no tiene la sesion 'auth_state'.
+  echo [AVISO] Se encontro una carpeta, pero no tiene sesion WhatsApp local ni persistente.
 ) else (
   echo [AVISO] La actualizacion automatica no se pudo completar ^(codigo %EC%^).
 )
