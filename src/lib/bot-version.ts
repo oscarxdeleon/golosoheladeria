@@ -2,7 +2,7 @@
 // Cada nueva versión debe agregarse al inicio de BOT_VERSION_HISTORY.
 
 export const BOT_NAME = "Golosito";
-export const BOT_VERSION = "8.22.7";
+export const BOT_VERSION = "8.22.8";
 
 /** Nombre estandarizado del archivo descargable: `golosito-vX.Y.Z.zip`. */
 export const BOT_DOWNLOAD_FILENAME = `golosito-v${BOT_VERSION}.zip`;
@@ -25,6 +25,14 @@ export interface BotReleaseEntry {
 
 // Historial más reciente primero.
 export const BOT_VERSION_HISTORY: BotReleaseEntry[] = [
+  {
+    version: "8.22.8",
+    date: "2026-07-28",
+    author: "Equipo Goloso",
+    status: "exitosa",
+    notes:
+      "Corrige el falso error del instalador Windows en sede Parque: ahora detecta automáticamente el panel local en cualquier puerto 8790-8810, abre el puerto correcto y no falla cuando Parque usa 8791.",
+  },
   {
     version: "8.22.7",
     date: "2026-07-28",
