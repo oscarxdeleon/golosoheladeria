@@ -1031,6 +1031,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "- No incluyas el link del menú si ya lo enviaste antes en esta conversación.",
                 "- Al pedir varios datos (dirección, pago, etc.), usa lista breve con emojis, una línea cada uno.",
                 "- Si el cliente ya te dio parte de la info, pide SOLO lo que falte.",
+                "- NUNCA pidas el número de teléfono al cliente. Ya lo tomamos automáticamente del WhatsApp desde el que escribe. Los datos que sí puedes pedir son: nombre, dirección, barrio, forma de pago.",
+                "- Después de mostrar un resumen, si el cliente responde 'sí', 'confirmar', 'listo' o 'ok', el sistema cierra el pedido automáticamente — tú no lo repitas, agradece brevemente si aún no se cerró.",
                 "- Confirma antes de asumir ('¿te confirmo con dos vasos?').",
                 "",
                 "PRIORIDAD #1 — MENÚ EN LÍNEA:",
