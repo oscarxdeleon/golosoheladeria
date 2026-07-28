@@ -46,10 +46,12 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.22.5";
+const BOT_VERSION = "8.22.6";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
+const LOGGED_OUT_RECOVERY_WINDOW_MS = 10 * 60_000;
+const LOGGED_OUT_MAX_PRESERVED_RETRIES = 3;
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const LATEST_LINUX_UPDATE_URL = `${CANONICAL_API_URL}/downloads/update-linux.sh`;
 const LATEST_WINDOWS_UPDATE_URL = `${CANONICAL_API_URL}/downloads/actualizar-bot-windows-remoto.bat`;
@@ -229,6 +231,9 @@ const SESSION_META_PATH = process.platform === "win32"
 const SESSION_RESTORE_MARKER = process.platform === "win32"
   ? path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "session-meta", `${sessionFingerprint()}.restore-attempted`)
   : path.join(__dirname, ".session-restore-attempted");
+const LOGGED_OUT_RECOVERY_PATH = process.platform === "win32"
+  ? path.join(windowsDataRoot(), "Goloso WhatsApp Bot", "session-meta", `${sessionFingerprint()}.logged-out-recovery.json`)
+  : path.join(__dirname, ".logged-out-recovery.json");
 
 for (const folder of [AUTH_DIR, SESSION_BACKUP_DIR, path.dirname(SESSION_META_PATH)]) {
   try { fs.mkdirSync(folder, { recursive: true }); } catch { /* noop */ }
@@ -623,15 +628,21 @@ function ensureAuthStateBeforeConnect() {
 }
 
 async function tryRestoreAfterLogout(reason) {
-  logger.warn({ reason }, "logged out reported; preserving auth_state and trying controlled reconnect before showing QR");
-  state.lastError = "WhatsApp reportó cierre de sesión. Se conservaron las credenciales locales y se intentará reconectar automáticamente antes de pedir QR.";
-  if (restoreAuthStateFromBackup(`logged_out: ${reason}`)) return true;
+  const recoveryCount = recordLoggedOutRecovery(reason);
+  logger.warn({ reason, recoveryCount }, "logged out reported; preserving auth_state and restarting before showing QR");
+  state.lastError = null;
+  state.detail = `WhatsApp cerró la conexión. Se conservaron las credenciales y el bot reintentará reconectar sin QR (${recoveryCount}/${LOGGED_OUT_MAX_PRESERVED_RETRIES}).`;
+  const restored = restoreAuthStateFromBackup(`logged_out: ${reason}`);
   archiveAuthStateBeforeDestructiveAction(`logged_out_preserved: ${reason}`);
-  return hasUsableAuthState(AUTH_DIR);
+  return {
+    canRetry: restored || hasUsableAuthState(AUTH_DIR),
+    restored,
+    recoveryCount,
+  };
 }
 
 async function startFreshPairingAfterLogout(reason) {
-  const restored = await tryRestoreAfterLogout(reason);
+  const recovery = await tryRestoreAfterLogout(reason);
   if (currentSock) {
     try { currentSock.ws?.close?.(); } catch { /* noop */ }
     currentSock = null;
@@ -639,11 +650,70 @@ async function startFreshPairingAfterLogout(reason) {
   markConnectionState("connecting");
   state.qr = null;
   state.qrDataUrl = null;
-  state.detail = restored
-    ? "WhatsApp cerró la conexión durante el arranque. La sesión local se conservó y el bot reintentará reconectar sin QR."
-    : "WhatsApp cerró la sesión anterior. No se borraron credenciales automáticamente; si realmente fue desvinculado desde el teléfono, usa Desvincular para generar QR nuevo.";
+  if (recovery.canRetry && recovery.recoveryCount <= LOGGED_OUT_MAX_PRESERVED_RETRIES) {
+    state.detail = recovery.restored
+      ? "WhatsApp cerró la conexión; se restauró la copia segura de la sesión y el bot se reiniciará para reconectar sin QR."
+      : "WhatsApp cerró la conexión; la sesión local se conservó y el bot se reiniciará para reconectar sin QR.";
+    await pushStatus();
+    restartProcessPreservingSession(`logged_out_preserved_${recovery.recoveryCount}`);
+    return;
+  }
+  state.lastError = "WhatsApp confirmó que esta sesión ya no es válida después de varios reintentos seguros. Se generará un QR nuevo sin mezclar ni borrar respaldos protegidos.";
+  state.detail = "Generando QR nuevo porque WhatsApp rechazó repetidamente la sesión guardada.";
+  resetAuthStateForFreshQr(`logged_out_repeated: ${reason}`, { allowDestructive: true });
   await pushStatus();
-  scheduleReconnect(restored ? 5000 : 15000, restored ? "logged_out_preserved_reconnect" : "logged_out_wait_before_qr");
+  scheduleReconnect(1500, "logged_out_qr_after_safe_retries");
+}
+
+function recordLoggedOutRecovery(reason) {
+  const now = Date.now();
+  let attempts = [];
+  try {
+    if (fs.existsSync(LOGGED_OUT_RECOVERY_PATH)) {
+      const raw = JSON.parse(fs.readFileSync(LOGGED_OUT_RECOVERY_PATH, "utf-8"));
+      attempts = Array.isArray(raw?.attempts) ? raw.attempts : [];
+    }
+  } catch { /* noop */ }
+  attempts = attempts
+    .map((entry) => ({ at: Number(entry?.at) || 0, reason: String(entry?.reason || "") }))
+    .filter((entry) => now - entry.at < LOGGED_OUT_RECOVERY_WINDOW_MS);
+  attempts.push({ at: now, reason: String(reason || "logged_out").slice(0, 180) });
+  try {
+    fs.mkdirSync(path.dirname(LOGGED_OUT_RECOVERY_PATH), { recursive: true });
+    fs.writeFileSync(LOGGED_OUT_RECOVERY_PATH, JSON.stringify({ attempts }, null, 2));
+  } catch (e) {
+    logger.warn({ err: String(e) }, "could not persist logged_out recovery counter");
+  }
+  return attempts.length;
+}
+
+function clearLoggedOutRecovery() {
+  try { fs.rmSync(LOGGED_OUT_RECOVERY_PATH, { force: true }); } catch { /* noop */ }
+}
+
+function restartProcessPreservingSession(reason) {
+  logger.warn({ reason }, "restarting bot process while preserving WhatsApp session");
+  state.lastError = null;
+  state.detail = "Reiniciando el bot para reconectar WhatsApp sin pedir QR...";
+  releaseInstanceLock();
+  try {
+    if (process.platform === "win32") {
+      const starterPath = path.join(__dirname, "start-hidden.vbs");
+      const command = `ping -n 3 127.0.0.1 >nul && wscript.exe //nologo "${starterPath}"`;
+      launchDetached("cmd.exe", ["/c", command], {
+        cwd: __dirname,
+        env: { ...process.env },
+        windowsHide: true,
+      });
+      setTimeout(() => process.exit(0), 1000);
+      return;
+    }
+  } catch (e) {
+    logger.warn({ err: String(e), reason }, "self restart spawn failed; falling back to normal reconnect");
+    scheduleReconnect(5000, `self_restart_failed_${reason}`);
+    return;
+  }
+  setTimeout(() => process.exit(1), 1000);
 }
 
 function removeSignalSessionFiles() {
@@ -1280,6 +1350,8 @@ async function startSocket() {
       state.qrDataUrl = null;
       state.phone = sock.user?.id?.split(":")[0]?.split("@")[0] ?? null;
       state.detail = "Conectado correctamente.";
+      state.lastError = null;
+      clearLoggedOutRecovery();
       writeSessionMeta(state.phone);
       backupAuthState("connection.open");
       try { if (fs.existsSync(SESSION_RESTORE_MARKER)) fs.rmSync(SESSION_RESTORE_MARKER, { force: true }); } catch { /* noop */ }
