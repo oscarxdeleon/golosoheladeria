@@ -449,9 +449,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
               <div className="flex items-center gap-3">
                 <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
                 <div>
-                  <div className="text-base font-semibold">
-                    {busyCmd === "update" ? "Actualizando Bot de WhatsApp" : "Reiniciando Bot de WhatsApp"}
-                  </div>
+                  <div className="text-base font-semibold">Reiniciando Bot de WhatsApp</div>
                   <div className="text-sm text-muted-foreground">{progressStep}</div>
                 </div>
               </div>
