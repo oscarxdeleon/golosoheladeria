@@ -1221,7 +1221,8 @@ async function startSocket() {
           "phone_unresolved — se procesará con JID anónimo para no perder la conversación",
         );
       }
-      await enqueueIncoming(from, () => processResolvedIncoming(sock, msg, from, text, audioNode, jid));
+      const localMsgId = msg.key.id || "";
+      await enqueueIncoming(from, () => processResolvedIncoming(sock, msg, from, text, audioNode, jid, localMsgId));
     }
   });
 
