@@ -22,6 +22,7 @@ import { Route as TTableNumberRouteImport } from './routes/t.$tableNumber'
 import { Route as SSlugRouteImport } from './routes/s.$slug'
 import { Route as DownloadsWhatsappBotDotzipRouteImport } from './routes/downloads.whatsapp-bot[.]zip'
 import { Route as DownloadsManifestDotjsonRouteImport } from './routes/downloads.manifest[.]json'
+import { Route as DownloadsInstalarActualizarGolositoDotbatRouteImport } from './routes/downloads.instalar-actualizar-golosito[.]bat'
 import { Route as DownloadsGolositoDotzipRouteImport } from './routes/downloads.golosito[.]zip'
 import { Route as AuthenticatedVentasRouteImport } from './routes/_authenticated/ventas'
 import { Route as AuthenticatedUsuariosRouteImport } from './routes/_authenticated/usuarios'
@@ -146,6 +147,12 @@ const DownloadsManifestDotjsonRoute =
   DownloadsManifestDotjsonRouteImport.update({
     id: '/downloads/manifest.json',
     path: '/downloads/manifest.json',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const DownloadsInstalarActualizarGolositoDotbatRoute =
+  DownloadsInstalarActualizarGolositoDotbatRouteImport.update({
+    id: '/downloads/instalar-actualizar-golosito.bat',
+    path: '/downloads/instalar-actualizar-golosito.bat',
     getParentRoute: () => rootRouteImport,
   } as any)
 const DownloadsGolositoDotzipRoute = DownloadsGolositoDotzipRouteImport.update({
@@ -510,6 +517,7 @@ export interface FileRoutesByFullPath {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
+  '/downloads/instalar-actualizar-golosito.bat': typeof DownloadsInstalarActualizarGolositoDotbatRoute
   '/downloads/manifest.json': typeof DownloadsManifestDotjsonRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
@@ -582,6 +590,7 @@ export interface FileRoutesByTo {
   '/usuarios': typeof AuthenticatedUsuariosRoute
   '/ventas': typeof AuthenticatedVentasRoute
   '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
+  '/downloads/instalar-actualizar-golosito.bat': typeof DownloadsInstalarActualizarGolositoDotbatRoute
   '/downloads/manifest.json': typeof DownloadsManifestDotjsonRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/t/$tableNumber': typeof TTableNumberRoute
@@ -656,6 +665,7 @@ export interface FileRoutesById {
   '/_authenticated/usuarios': typeof AuthenticatedUsuariosRoute
   '/_authenticated/ventas': typeof AuthenticatedVentasRoute
   '/downloads/golosito.zip': typeof DownloadsGolositoDotzipRoute
+  '/downloads/instalar-actualizar-golosito.bat': typeof DownloadsInstalarActualizarGolositoDotbatRoute
   '/downloads/manifest.json': typeof DownloadsManifestDotjsonRoute
   '/downloads/whatsapp-bot.zip': typeof DownloadsWhatsappBotDotzipRoute
   '/s/$slug': typeof SSlugRouteWithChildren
@@ -731,6 +741,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/ventas'
     | '/downloads/golosito.zip'
+    | '/downloads/instalar-actualizar-golosito.bat'
     | '/downloads/manifest.json'
     | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
@@ -803,6 +814,7 @@ export interface FileRouteTypes {
     | '/usuarios'
     | '/ventas'
     | '/downloads/golosito.zip'
+    | '/downloads/instalar-actualizar-golosito.bat'
     | '/downloads/manifest.json'
     | '/downloads/whatsapp-bot.zip'
     | '/t/$tableNumber'
@@ -876,6 +888,7 @@ export interface FileRouteTypes {
     | '/_authenticated/usuarios'
     | '/_authenticated/ventas'
     | '/downloads/golosito.zip'
+    | '/downloads/instalar-actualizar-golosito.bat'
     | '/downloads/manifest.json'
     | '/downloads/whatsapp-bot.zip'
     | '/s/$slug'
@@ -914,6 +927,7 @@ export interface RootRouteChildren {
   MisPuntosRoute: typeof MisPuntosRoute
   TabletPedidosRoute: typeof TabletPedidosRoute
   DownloadsGolositoDotzipRoute: typeof DownloadsGolositoDotzipRoute
+  DownloadsInstalarActualizarGolositoDotbatRoute: typeof DownloadsInstalarActualizarGolositoDotbatRoute
   DownloadsManifestDotjsonRoute: typeof DownloadsManifestDotjsonRoute
   DownloadsWhatsappBotDotzipRoute: typeof DownloadsWhatsappBotDotzipRoute
   SSlugRoute: typeof SSlugRouteWithChildren
@@ -1017,6 +1031,13 @@ declare module '@tanstack/react-router' {
       path: '/downloads/manifest.json'
       fullPath: '/downloads/manifest.json'
       preLoaderRoute: typeof DownloadsManifestDotjsonRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/downloads/instalar-actualizar-golosito.bat': {
+      id: '/downloads/instalar-actualizar-golosito.bat'
+      path: '/downloads/instalar-actualizar-golosito.bat'
+      fullPath: '/downloads/instalar-actualizar-golosito.bat'
+      preLoaderRoute: typeof DownloadsInstalarActualizarGolositoDotbatRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/downloads/golosito.zip': {
@@ -1579,6 +1600,8 @@ const rootRouteChildren: RootRouteChildren = {
   MisPuntosRoute: MisPuntosRoute,
   TabletPedidosRoute: TabletPedidosRoute,
   DownloadsGolositoDotzipRoute: DownloadsGolositoDotzipRoute,
+  DownloadsInstalarActualizarGolositoDotbatRoute:
+    DownloadsInstalarActualizarGolositoDotbatRoute,
   DownloadsManifestDotjsonRoute: DownloadsManifestDotjsonRoute,
   DownloadsWhatsappBotDotzipRoute: DownloadsWhatsappBotDotzipRoute,
   SSlugRoute: SSlugRouteWithChildren,
