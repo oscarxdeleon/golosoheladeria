@@ -623,7 +623,8 @@ function registerCleanStartup(launcher, fingerprint) {
     try { fs.unlinkSync(tempVbs); } catch {}
   }
   spawnSync('reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', RUN_VALUE_NAME, '/t', 'REG_SZ', '/d', `wscript.exe "${launcher.launcherVbsPath}"`, '/f'], { stdio: 'ignore' });
-  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', `${RUN_VALUE_NAME}-Clean-${fingerprint}`, '/TR', `wscript.exe "${launcher.launcherVbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
+  void fingerprint;
+  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', `${RUN_VALUE_NAME}-Clean`, '/TR', `wscript.exe "${launcher.launcherVbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
 }
 
 function verifyFiles(expected, cleanDir) {

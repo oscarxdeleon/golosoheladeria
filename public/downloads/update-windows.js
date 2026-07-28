@@ -143,11 +143,13 @@ function cleanInstallRoot() {
 }
 
 function cleanAppDirForFingerprint(fingerprint) {
-  return path.join(cleanInstallRoot(), 'apps', `sede-${fingerprint}`, 'current');
+  void fingerprint;
+  return path.join(cleanInstallRoot(), 'app');
 }
 
 function cleanLauncherDirForFingerprint(fingerprint) {
-  return path.join(cleanInstallRoot(), 'launchers', `sede-${fingerprint}`);
+  void fingerprint;
+  return path.join(cleanInstallRoot(), 'launcher');
 }
 
 function persistentAuthDirForFingerprint(fingerprint) {
@@ -621,7 +623,8 @@ function registerCleanStartup(launcher, fingerprint) {
     try { fs.unlinkSync(tempVbs); } catch {}
   }
   spawnSync('reg', ['add', 'HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run', '/v', RUN_VALUE_NAME, '/t', 'REG_SZ', '/d', `wscript.exe "${launcher.launcherVbsPath}"`, '/f'], { stdio: 'ignore' });
-  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', `${RUN_VALUE_NAME}-Clean-${fingerprint}`, '/TR', `wscript.exe "${launcher.launcherVbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
+  void fingerprint;
+  spawnSync('schtasks', ['/Create', '/SC', 'ONLOGON', '/TN', `${RUN_VALUE_NAME}-Clean`, '/TR', `wscript.exe "${launcher.launcherVbsPath}"`, '/F'], { shell: true, stdio: 'ignore' });
 }
 
 function verifyFiles(expected, cleanDir) {
@@ -732,6 +735,7 @@ async function main() {
   console.log(`Carpeta anterior detectada: ${targetDir}`);
   console.log(`Runtime limpio destino: ${cleanAppDirForFingerprint(fingerprint)}`);
   console.log(`Sesion persistente destino: ${persistentAuthDirForFingerprint(fingerprint)}`);
+  console.log('El codigo ejecutable usa una unica ruta fija; solo la sesion se separa por sede.');
 
   const relatedDirs = collectRelatedInstallDirs(targetDir, fingerprint);
   stopAllGolosoProcesses();
