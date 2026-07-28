@@ -542,6 +542,140 @@ function ensureDependencies(target) {
   if (result.status !== 0) process.exit(result.status || 1);
 }
 
+function writeLauncherFiles(target, expectedVersion = readExpectedVersion()) {
+  const launcherDir = launcherDirFor(target);
+  const launcherConfigPath = path.join(launcherDir, 'launcher.json');
+  const launcherScriptPath = path.join(launcherDir, 'goloso-bot-launcher.cjs');
+  const launcherVbsPath = path.join(launcherDir, 'goloso-bot-launcher.vbs');
+  const launcherLogPath = path.join(launcherDir, 'launcher.log');
+  const cfg = readConfig(target);
+  fs.mkdirSync(launcherDir, { recursive: true });
+  fs.writeFileSync(launcherConfigPath, JSON.stringify({
+    app: 'Goloso WhatsApp Bot',
+    targetDir: target,
+    expectedVersion,
+    token: cfg?.token || '',
+    apiUrl: API_URL,
+    remoteUpdaterUrl: `${API_URL}/downloads/actualizar-bot-windows-remoto.bat`,
+    writtenAt: new Date().toISOString(),
+  }, null, 2), 'utf8');
+
+  const launcherScript = `const fs = require('fs');
+const path = require('path');
+const { execSync, spawn, spawnSync } = require('child_process');
+
+const CONFIG_PATH = ${JSON.stringify(launcherConfigPath)};
+
+function exists(filePath) { try { return fs.existsSync(filePath); } catch { return false; } }
+function readJson(filePath) { try { return JSON.parse(fs.readFileSync(filePath, 'utf8')); } catch { return null; } }
+function resolveFolder(folder) { try { return folder && exists(folder) ? fs.realpathSync(folder) : ''; } catch { return ''; } }
+function readBotConfig(folder) { return readJson(path.join(folder, 'config.json')); }
+function readPackageVersion(folder) { return String(readJson(path.join(folder, 'package.json'))?.version || '').trim(); }
+function sameToken(folder, token) { const cfg = readBotConfig(folder); return Boolean(token && cfg?.token && String(cfg.token) === String(token)); }
+function isServerCommand(command) { return /server\\.js/i.test(command || ''); }
+function folderFromCommand(command) {
+  const match = String(command || '').match(/([A-Z]:\\[^\r\n]*?server\\.js)/i);
+  return match ? resolveFolder(path.dirname(match[1].trim().replace(/^['\"]+|['\"]+$/g, ''))) : '';
+}
+function compareVersions(a, b) {
+  const pa = String(a || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
+  const pb = String(b || '').split('.').map((n) => Number.parseInt(n, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i += 1) {
+    const delta = (pa[i] || 0) - (pb[i] || 0);
+    if (delta !== 0) return delta;
+  }
+  return 0;
+}
+function listNodeServerProcesses() {
+  try {
+    const output = execSync('wmic process where "name=\\'node.exe\\'" get ProcessId,CommandLine /format:csv', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    return output.split(/\r?\n/).map((line) => {
+      if (!isServerCommand(line)) return null;
+      const pidMatch = line.match(/,(\d+)\s*$/);
+      if (!pidMatch) return null;
+      const command = line.slice(0, line.length - pidMatch[0].length);
+      return { pid: pidMatch[1], command, folder: folderFromCommand(command) };
+    }).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
+function killPid(pid) { try { spawnSync('taskkill', ['/F', '/PID', String(pid), '/T'], { shell: true, stdio: 'ignore' }); } catch {} }
+function verifyTarget(config) {
+  const folder = resolveFolder(config.targetDir);
+  if (!folder) return false;
+  const version = readPackageVersion(folder);
+  const serverPath = path.join(folder, 'server.js');
+  const server = exists(serverPath) ? fs.readFileSync(serverPath, 'utf8') : '';
+  return version === String(config.expectedVersion || '').trim() && server.includes('BOT_VERSION = "' + version + '"');
+}
+function launchRemoteUpdater(config) {
+  const updater = String(config.remoteUpdaterUrl || '').replaceAll("'", "''");
+  const ps = [
+    "$ErrorActionPreference='Stop'",
+    "$ProgressPreference='SilentlyContinue'",
+    "$bat=Join-Path $env:TEMP ('goloso-bot-repair-' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() + '.bat')",
+    "$headers=@{'Cache-Control'='no-cache';'Pragma'='no-cache'}",
+    "Invoke-WebRequest -UseBasicParsing -Uri '" + updater + "?repair=1&t=' + [DateTimeOffset]::UtcNow.ToUnixTimeSeconds() -Headers $headers -OutFile $bat -TimeoutSec 60",
+    "Start-Process -FilePath $bat -WorkingDirectory $env:TEMP",
+  ].join('; ');
+  spawn('powershell.exe', ['-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', ps], { detached: true, stdio: 'ignore' }).unref();
+}
+function stopLegacyProcesses(config) {
+  const target = resolveFolder(config.targetDir).toLowerCase();
+  for (const proc of listNodeServerProcesses()) {
+    const folder = resolveFolder(proc.folder);
+    if (!folder) continue;
+    const normalized = folder.toLowerCase();
+    if (target && normalized === target) continue;
+    const version = readPackageVersion(folder);
+    const isSameToken = sameToken(folder, config.token);
+    const isOldGoloso = /goloso|whatsapp/i.test(folder) && compareVersions(version, config.expectedVersion) < 0;
+    if (isSameToken || isOldGoloso) killPid(proc.pid);
+  }
+}
+function canonicalAlreadyRunning(config) {
+  const target = resolveFolder(config.targetDir).toLowerCase();
+  if (!target) return false;
+  return listNodeServerProcesses().some((proc) => resolveFolder(proc.folder).toLowerCase() === target);
+}
+function startCanonical(config) {
+  const target = resolveFolder(config.targetDir);
+  if (!target) return;
+  const vbs = path.join(target, 'start-hidden.vbs');
+  if (exists(vbs)) spawn('wscript.exe', ['//nologo', vbs], { cwd: target, detached: true, stdio: 'ignore' }).unref();
+  else spawn('node', [path.join(target, 'server.js')], { cwd: target, detached: true, stdio: 'ignore' }).unref();
+}
+
+const config = readJson(CONFIG_PATH);
+if (!config?.targetDir) process.exit(2);
+if (!verifyTarget(config)) {
+  launchRemoteUpdater(config);
+  process.exit(0);
+}
+stopLegacyProcesses(config);
+if (!canonicalAlreadyRunning(config)) startCanonical(config);
+`;
+  fs.writeFileSync(launcherScriptPath, launcherScript, 'utf8');
+
+  const vbs = [
+    'Set WshShell = CreateObject("WScript.Shell")',
+    `WshShell.CurrentDirectory = "${launcherDir.replace(/\/g, '\\')}"`,
+    `WshShell.Run "cmd /c node ""${launcherScriptPath.replace(/\/g, '\\')}"" >> ""${launcherLogPath.replace(/\/g, '\\')}"" 2>&1", 0, False`,
+  ].join('\r\n');
+  fs.writeFileSync(launcherVbsPath, vbs, 'utf8');
+  return { launcherDir, launcherConfigPath, launcherScriptPath, launcherVbsPath, launcherLogPath };
+}
+
+function writeLegacyRedirect(folder, launcherVbsPath) {
+  if (!folder || !exists(folder)) return;
+  const redirect = [
+    'Set WshShell = CreateObject("WScript.Shell")',
+    `WshShell.Run "wscript.exe //nologo ""${launcherVbsPath.replace(/\/g, '\\')}""", 0, False`,
+  ].join('\r\n');
+  try { fs.writeFileSync(path.join(folder, 'start-hidden.vbs'), redirect, 'utf8'); } catch {}
+}
+
 function cleanupOldStartupEntries(canonicalTarget) {
   step('Eliminando arranques antiguos');
   const canonical = resolveFolder(canonicalTarget).toLowerCase().replace(/'/g, "''");
