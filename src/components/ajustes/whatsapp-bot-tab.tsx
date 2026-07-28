@@ -30,14 +30,12 @@ import {
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { GeminiQuotaCard } from "./gemini-quota-card";
-import { UpdateReconnectWizard } from "./update-reconnect-wizard";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
 import {
   BOT_NAME,
   BOT_VERSION,
   BOT_DOWNLOAD_FILENAME,
-  BOT_LATEST_DOWNLOAD_URL,
   BOT_VERSION_HISTORY,
 } from "@/lib/bot-version";
 
@@ -87,21 +85,7 @@ interface MessageRow {
   received_at: string;
 }
 
-const WHATSAPP_BOT_DOWNLOAD_URL = BOT_LATEST_DOWNLOAD_URL;
-const AUTO_UPDATE_WINDOWS_URL = "/downloads/actualizar-bot-windows-remoto.bat";
-const AUTO_UPDATE_MAC_LINUX_URL = "/downloads/actualizar-bot-automatico-mac-linux.sh";
-const REMOTE_MANAGEMENT_MIN_VERSION = "8.17.1";
-
-function compareVersions(a?: string | null, b = REMOTE_MANAGEMENT_MIN_VERSION): number {
-  const left = String(a ?? "0").split(".").map((part) => Number(part) || 0);
-  const right = b.split(".").map((part) => Number(part) || 0);
-  const max = Math.max(left.length, right.length);
-  for (let i = 0; i < max; i += 1) {
-    const delta = (left[i] ?? 0) - (right[i] ?? 0);
-    if (delta !== 0) return delta;
-  }
-  return 0;
-}
+const AUTO_UPDATE_WINDOWS_URL = "/downloads/instalar-actualizar-golosito.bat";
 
 function normalizeColombiaWhatsApp(raw: string): string {
   const digits = String(raw ?? "").replace(/\D+/g, "");
@@ -265,12 +249,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
   const qc = useQueryClient();
   const [unlinkOpen, setUnlinkOpen] = useState(false);
   const [restartOpen, setRestartOpen] = useState(false);
-  const [updateOpen, setUpdateOpen] = useState(false);
-  const [wizardOpen, setWizardOpen] = useState(false);
-  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | "update" | null>(null);
+  const [busyCmd, setBusyCmd] = useState<"unlink" | "reconnect" | "restart" | null>(null);
 
   const [progressStep, setProgressStep] = useState<string | null>(null);
-  const needsManualBridgeUpdate = compareVersions(cfg.bot_version, REMOTE_MANAGEMENT_MIN_VERSION) < 0;
 
   const pollForChange = async (
     predicate: (row: BotConfigRow) => boolean,
@@ -296,11 +277,10 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
     return null;
   };
 
-  const sendCommand = async (command: "unlink" | "reconnect" | "restart" | "update") => {
+  const sendCommand = async (command: "unlink" | "reconnect" | "restart") => {
     setBusyCmd(command);
-    const baselineVersion = (cfg.bot_version ?? "").trim();
     const baselineSeenAt = cfg.last_seen_at ? new Date(cfg.last_seen_at).getTime() : 0;
-    if (command === "restart" || command === "update") {
+    if (command === "restart") {
       setProgressStep("Enviando orden al bot…");
     }
     const { error } = await supabase.rpc("whatsapp_bot_request_command", {
@@ -310,34 +290,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
     if (error) {
       setBusyCmd(null);
       setProgressStep(null);
-      toast.error(command === "update" && /forbidden/i.test(error.message)
-        ? "Solo un Administrador puede actualizar el bot."
-        : error.message);
-      return;
-    }
-
-    if (command === "update") {
-      const result = await pollForChange(
-        (row) => {
-          const reported = (row.bot_version ?? "").trim();
-          return reported !== "" && reported !== baselineVersion && compareVersions(reported, baselineVersion) > 0;
-        },
-        { timeoutMs: 180_000, stepLabel: (s) => `Esperando confirmación del bot… (${s}s / 180s)` },
-      );
-      setBusyCmd(null);
-      setProgressStep(null);
-      if (result) {
-        toast.success(`✅ Bot actualizado. Nueva versión reportada: v${result.bot_version}.`);
-      } else {
-        toast.error(
-          `El bot no confirmó una versión nueva en 3 minutos (sigue reportando v${baselineVersion || "desconocida"}). ` +
-          (compareVersions(baselineVersion, REMOTE_MANAGEMENT_MIN_VERSION) < 0
-            ? "Esta versión no acepta comandos remotos. Debes ejecutar la actualización puente una vez desde el servidor."
-            : "Verifica el proceso PM2 en el servidor."),
-          { duration: 12000 },
-        );
-      }
-      onChanged();
+      toast.error(error.message);
       return;
     }
 
@@ -354,13 +307,7 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
       if (result) {
         toast.success(`✅ Bot reiniciado. Estado actual: ${result.connection_status}.`);
       } else {
-        toast.error(
-          `El bot no volvió a reportar señal en 60s. ` +
-          (compareVersions(baselineVersion, REMOTE_MANAGEMENT_MIN_VERSION) < 0
-            ? `La versión instalada (v${baselineVersion || "desconocida"}) no acepta comandos remotos: requiere actualización puente.`
-            : "Revisa PM2 en el servidor."),
-          { duration: 12000 },
-        );
+        toast.error("El bot no volvió a reportar señal en 60s.", { duration: 12000 });
       }
       onChanged();
       return;
@@ -393,57 +340,6 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </ol>
           <p className="mt-2 text-xs text-emerald-800/80">No necesitas entrar al servidor ni ejecutar comandos. Si el QR no aparece, presiona <b>Regenerar QR</b> dentro del mismo diálogo.</p>
         </div>
-        {needsManualBridgeUpdate && (
-          <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-            <div className="mb-2 flex items-center gap-2 font-semibold">
-              <AlertTriangle className="h-4 w-4" /> Actualización puente requerida
-            </div>
-            <p>
-              Esta sede todavía reporta versión <b>v{cfg.bot_version ?? "desconocida"}</b>. Para que los botones
-              <b> Reiniciar Bot</b> y <b>Actualizar Bot</b> funcionen desde este panel, primero instala la actualización descargable una sola vez.
-            </p>
-            <p className="mt-2 text-xs text-amber-900/80">
-              Después de quedar en v{REMOTE_MANAGEMENT_MIN_VERSION} o superior, las siguientes actualizaciones ya se podrán hacer desde aquí sin terminal.
-            </p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={async () => {
-                  const { data } = await supabase
-                    .from("whatsapp_bot_config")
-                    .select("*")
-                    .eq("branch_id", cfg.branch_id)
-                    .maybeSingle();
-                  if (data) {
-                    qc.setQueryData(["whatsapp-bot-config", cfg.branch_id], data);
-                    const v = (data as BotConfigRow).bot_version ?? "desconocida";
-                    if (compareVersions(v, REMOTE_MANAGEMENT_MIN_VERSION) >= 0) {
-                      toast.success(`Versión detectada: v${v}. Panel actualizado.`);
-                    } else {
-                      toast.info(`El bot sigue reportando v${v}. Ejecuta el actualizador automático descargable una vez en el PC de la sede.`);
-                    }
-                  }
-                }}
-              >
-                <RefreshCw className="mr-2 h-4 w-4" /> Verificar versión ahora
-              </Button>
-              <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-                <a href={AUTO_UPDATE_WINDOWS_URL} download>
-                  <Download className="mr-2 h-4 w-4" /> Actualizador automático Windows
-                </a>
-              </Button>
-              <Button asChild size="sm" variant="outline">
-                <a href={AUTO_UPDATE_MAC_LINUX_URL} download>
-                  <Download className="mr-2 h-4 w-4" /> Mac / Linux
-                </a>
-              </Button>
-            </div>
-            <p className="mt-2 text-xs text-amber-900/80">
-              Descarga el actualizador, ejecútalo una sola vez en el PC de la sede y verifica que termine mostrando v{REMOTE_MANAGEMENT_MIN_VERSION}. No borra el QR ni la sesión de WhatsApp.
-            </p>
-          </div>
-        )}
         <div className="flex flex-wrap items-center gap-4 rounded-xl border bg-card p-4">
           <div className={`grid h-14 w-14 place-items-center rounded-full ${meta.color} text-white shadow-lg`}>
             <Icon className="h-7 w-7" />
@@ -467,17 +363,6 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
             )}
           </div>
           <div className="flex w-full flex-col gap-3">
-            {isAdmin && (
-              <Button
-                size="lg"
-                onClick={() => setWizardOpen(true)}
-                disabled={busyCmd !== null || needsManualBridgeUpdate}
-                className="w-full bg-emerald-600 hover:bg-emerald-700 text-base font-semibold"
-                title="Ejecuta todo el ciclo: actualizar, reiniciar, validar sesión, QR si aplica y verificación final."
-              >
-                <RotateCw className="mr-2 h-5 w-5" /> Actualizar y Reconectar
-              </Button>
-            )}
             <div className="flex flex-wrap items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setQrOpen(true)}>
                 <QrCode className="mr-2 h-4 w-4" /> Ver / Generar QR
@@ -492,14 +377,9 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
                   <DropdownMenuItem onClick={() => sendCommand("reconnect")} disabled={busyCmd !== null}>
                     <RotateCw className="mr-2 h-4 w-4" /> Reconectar
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setRestartOpen(true)} disabled={busyCmd !== null || needsManualBridgeUpdate}>
+                  <DropdownMenuItem onClick={() => setRestartOpen(true)} disabled={busyCmd !== null}>
                     <RefreshCw className="mr-2 h-4 w-4" /> Reiniciar bot
                   </DropdownMenuItem>
-                  {isAdmin && (
-                    <DropdownMenuItem onClick={() => setUpdateOpen(true)} disabled={busyCmd !== null || needsManualBridgeUpdate}>
-                      <Download className="mr-2 h-4 w-4" /> Solo actualizar
-                    </DropdownMenuItem>
-                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     className="text-destructive focus:text-destructive"
@@ -551,30 +431,13 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </AlertDialogContent>
         </AlertDialog>
 
-        <AlertDialog open={updateOpen} onOpenChange={setUpdateOpen}>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>¿Actualizar el Bot a la última versión?</AlertDialogTitle>
-              <AlertDialogDescription>
-                Se descargará la última versión publicada, se aplicarán las nuevas configuraciones y el servicio se reiniciará automáticamente. La sesión de WhatsApp se conserva. Esta operación puede tardar entre 30 segundos y 2 minutos. Solo un Administrador puede ejecutarla.
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Cancelar</AlertDialogCancel>
-              <AlertDialogAction onClick={() => sendCommand("update")}>Sí, actualizar</AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-
         {progressStep && (
           <div className="fixed inset-0 z-50 grid place-items-center bg-black/60 backdrop-blur-sm">
             <div className="w-[90%] max-w-md rounded-2xl border bg-card p-6 shadow-2xl">
               <div className="flex items-center gap-3">
                 <RefreshCw className="h-6 w-6 animate-spin text-emerald-600" />
                 <div>
-                  <div className="text-base font-semibold">
-                    {busyCmd === "update" ? "Actualizando Bot de WhatsApp" : "Reiniciando Bot de WhatsApp"}
-                  </div>
+                  <div className="text-base font-semibold">Reiniciando Bot de WhatsApp</div>
                   <div className="text-sm text-muted-foreground">{progressStep}</div>
                 </div>
               </div>
@@ -645,12 +508,6 @@ function StatusCard({ cfg, branch, onChanged }: { cfg: BotConfigRow; branch?: Br
           </DialogContent>
         </Dialog>
 
-        <UpdateReconnectWizard
-          open={wizardOpen}
-          onOpenChange={setWizardOpen}
-          branchId={cfg.branch_id}
-          branchName={branch?.name}
-        />
       </CardContent>
     </Card>
 
@@ -787,71 +644,37 @@ function ChatbotModeCard({ cfg, onChanged }: { cfg: BotConfigRow; onChanged: () 
 
 
 function InstallCard({ cfg }: { cfg: BotConfigRow }) {
-  const [showToken, setShowToken] = useState(false);
-  const copyToken = async () => {
-    await navigator.clipboard.writeText(cfg.device_token);
-    toast.success("Token copiado");
-  };
-  const rotateToken = async () => {
-    if (!confirm("Regenerar el token invalidará el bot instalado hasta configurar el nuevo token. ¿Continuar?")) return;
-    const { data, error } = await supabase.rpc("whatsapp_bot_rotate_token", { _branch_id: cfg.branch_id });
-    if (error) { toast.error(error.message); return; }
-    toast.success("Token regenerado. Configura el bot con el nuevo token.");
-    // Realtime actualizará la vista
-    void data;
-  };
+  const installerUrl = `${AUTO_UPDATE_WINDOWS_URL}?token=${encodeURIComponent(cfg.device_token)}`;
+  const installSteps = [
+    "Descargando...",
+    "Cerrando versión anterior...",
+    "Eliminando archivos antiguos...",
+    "Instalando...",
+    "Verificando...",
+    "Instalación completada correctamente.",
+  ];
   return (
     <Card>
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-primary" /> Instalación en el PC de la sede</CardTitle>
-          <CardDescription>Descarga el bot. Si ya estaba vinculado, actualízalo sin token y sin QR.</CardDescription>
+        <CardTitle className="flex items-center gap-2"><Smartphone className="h-5 w-5 text-primary" /> Instalación del Bot Windows</CardTitle>
+        <CardDescription>Un único instalador limpia todo lo anterior, instala la versión nueva y valida el bot en ejecución.</CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        <ol className="space-y-2 text-sm">
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">1</span> Si no sabes dónde quedó instalado, descarga el ZIP nuevo y ejecuta <code>SOLUCION-SIN-SABER-CARPETA.bat</code>.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">2</span> El actualizador hará una búsqueda profunda, conserva <code>config.json</code> y <code>auth_state</code>, y no pide token ni QR.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">3</span> Si por error ejecutas <code>install-windows.bat</code>, también intentará actualizar automáticamente antes de pedir token.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">4</span> Solo una instalación totalmente nueva necesita token y vinculación por QR.</li>
-          <li className="flex gap-2"><span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-primary/10 font-bold text-primary text-xs">5</span> Estado pasa a <b>Conectado</b>. Al reiniciar el PC el bot se recupera solo.</li>
-        </ol>
-
-        <div className="rounded-xl border bg-muted/40 p-4 space-y-3">
-          <div>
-            <Label className="text-xs uppercase tracking-wide text-muted-foreground">Token de esta sede</Label>
-            <div className="mt-1 flex gap-2">
-              <Input
-                readOnly
-                value={showToken ? cfg.device_token : "•".repeat(Math.min(cfg.device_token.length, 32))}
-                className="font-mono text-xs"
-                onFocus={(e) => e.currentTarget.select()}
-              />
-              <Button variant="outline" size="sm" onClick={() => setShowToken((v) => !v)}>{showToken ? "Ocultar" : "Ver"}</Button>
-              <Button variant="outline" size="sm" onClick={copyToken}><Copy className="h-4 w-4" /></Button>
-            </div>
-            <p className="mt-1 text-xs text-muted-foreground">Guárdalo en secreto. Si sospechas que alguien más lo tiene, regenéralo.</p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Button asChild variant="outline" size="sm">
-              <a href={WHATSAPP_BOT_DOWNLOAD_URL} download={BOT_DOWNLOAD_FILENAME}>
-                <Download className="mr-2 h-4 w-4" /> Descargar {BOT_DOWNLOAD_FILENAME}
-              </a>
-            </Button>
-            <Button asChild size="sm" className="bg-emerald-600 hover:bg-emerald-700">
-              <a href={AUTO_UPDATE_WINDOWS_URL} download>
-                <Download className="mr-2 h-4 w-4" /> Actualizador automático Windows
-              </a>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={rotateToken}>
-              <RefreshCw className="mr-2 h-4 w-4" /> Regenerar token
-            </Button>
-          </div>
-          <p className="text-xs text-muted-foreground flex gap-1.5 items-start">
-            <Info className="h-3.5 w-3.5 mt-0.5 shrink-0" />
-            El archivo se descarga como <code>{BOT_DOWNLOAD_FILENAME}</code>. Usa SOLUCION-SIN-SABER-CARPETA.bat si no recuerdas la carpeta anterior. Solo se pedirá QR si auth_state fue borrada o WhatsApp cerró la sesión.
-          </p>
+        <Button asChild size="lg" className="w-full bg-emerald-600 text-base font-semibold hover:bg-emerald-700">
+          <a href={installerUrl} download="instalar-actualizar-golosito.bat">
+            <Download className="mr-2 h-5 w-5" /> Instalar / Actualizar Bot
+          </a>
+        </Button>
+        <div className="rounded-xl border bg-muted/40 p-4 text-sm text-muted-foreground">
+          <ul className="space-y-2">
+            {installSteps.map((step) => (
+              <li key={step} className="flex items-center gap-2">
+                <Check className="h-4 w-4 text-emerald-600" />
+                <span>{step}</span>
+              </li>
+            ))}
+          </ul>
         </div>
-
-        <BotVersionInfoCard installedVersion={cfg.bot_version} lastSeenAt={cfg.last_seen_at} />
       </CardContent>
     </Card>
   );

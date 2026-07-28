@@ -46,7 +46,7 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.22.9";
+const BOT_VERSION = "8.23.0";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
@@ -55,8 +55,10 @@ const LOGGED_OUT_MAX_PRESERVED_RETRIES = 3;
 const CANONICAL_API_URL = "https://golosoheladeria.lovable.app";
 const RELEASE_MANIFEST_URL = `${CANONICAL_API_URL}/downloads/manifest.json`;
 const LATEST_LINUX_UPDATE_URL = `${CANONICAL_API_URL}/downloads/update-linux.sh`;
-const LATEST_WINDOWS_UPDATE_URL = `${CANONICAL_API_URL}/downloads/actualizar-bot-windows-remoto.bat`;
+const LATEST_WINDOWS_UPDATE_URL = `${CANONICAL_API_URL}/downloads/instalar-actualizar-golosito.bat`;
 const LEGACY_API_HOSTS = new Set(["golosoheladeria.vercel.app"]);
+const BUILD_DATE = process.env.GOLOSO_BOT_BUILD_DATE || "2026-07-28";
+const STARTUP_VERSION = process.env.GOLOSO_BOT_STARTUP_VERSION || BOT_VERSION;
 const SIGNAL_REPAIR_THRESHOLD = 3;
 const SIGNAL_REPAIR_WINDOW_MS = 90_000;
 const SIGNAL_REPAIR_COOLDOWN_MS = 120_000;
@@ -345,6 +347,14 @@ function compareVersions(a, b) {
     if (delta !== 0) return delta;
   }
   return 0;
+}
+
+function readPackageVersion() {
+  try {
+    return String(JSON.parse(fs.readFileSync(path.join(__dirname, "package.json"), "utf8"))?.version || "").trim();
+  } catch {
+    return "";
+  }
 }
 
 async function checkOfficialBotVersionOnStartup() {
@@ -1547,7 +1557,7 @@ ${state.lastOutboundError ? `<div class="err"><b>No se pudo procesar la cola de 
     }
     if (req.url === "/status.json") {
       res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ version: BOT_VERSION, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, unresolvedPhoneCount: state.unresolvedPhoneCount, lastUnresolvedJid: state.lastUnresolvedJid, lastUnresolvedAt: state.lastUnresolvedAt, lastBaileysEventAt: state.lastBaileysEventAt, lastBaileysEvent: state.lastBaileysEvent, instanceId: INSTANCE_ID, instanceRetired, hasQr: Boolean(state.qr), hasAuthState: hasUsableAuthState(AUTH_DIR), authDir: AUTH_DIR, legacyAuthDir: LEGACY_AUTH_DIR, port: activeLocalPort, folder: __dirname }));
+      res.end(JSON.stringify({ version: BOT_VERSION, packageVersion: readPackageVersion(), serverVersion: BOT_VERSION, startupVersion: STARTUP_VERSION, buildDate: BUILD_DATE, pid: process.pid, execPath: process.execPath, argv: process.argv, status: state.status, phone: state.phone, detail: state.detail, lastError: state.lastError, lastPushAt: state.lastPushAt, lastPushError: state.lastPushError, lastIncomingAt: state.lastIncomingAt, lastIncomingFrom: state.lastIncomingFrom, lastIncomingPreview: state.lastIncomingPreview, lastReplyAt: state.lastReplyAt, lastReplySource: state.lastReplySource, lastReplyError: state.lastReplyError, lastAiError: state.lastAiError, lastConversationId: state.lastConversationId, lastBackendLatencyMs: state.lastBackendLatencyMs, unresolvedPhoneCount: state.unresolvedPhoneCount, lastUnresolvedJid: state.lastUnresolvedJid, lastUnresolvedAt: state.lastUnresolvedAt, lastBaileysEventAt: state.lastBaileysEventAt, lastBaileysEvent: state.lastBaileysEvent, instanceId: INSTANCE_ID, instanceRetired, hasQr: Boolean(state.qr), hasAuthState: hasUsableAuthState(AUTH_DIR), authDir: AUTH_DIR, legacyAuthDir: LEGACY_AUTH_DIR, port: activeLocalPort, folder: __dirname }));
       return;
     }
     res.writeHead(404); res.end();
