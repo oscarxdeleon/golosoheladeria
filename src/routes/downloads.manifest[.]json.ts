@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { BOT_DOWNLOAD_URL, BOT_LATEST_DOWNLOAD_URL, BOT_VERSION } from "@/lib/bot-version";
+import { BOT_DOWNLOAD_SHA256, BOT_DOWNLOAD_URL, BOT_LATEST_DOWNLOAD_URL, BOT_VERSION } from "@/lib/bot-version";
 
 export const Route = createFileRoute("/downloads/manifest.json")({
   server: {
@@ -12,6 +12,7 @@ export const Route = createFileRoute("/downloads/manifest.json")({
             version: BOT_VERSION,
             zipUrl: BOT_DOWNLOAD_URL,
             latestZipUrl: BOT_LATEST_DOWNLOAD_URL,
+            sha256: BOT_DOWNLOAD_SHA256,
             updatedAt: "2026-07-28",
           },
           {
