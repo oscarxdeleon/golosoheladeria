@@ -1,76 +1,95 @@
-# Optimización de velocidad del Chatbot de WhatsApp
+# Rediseño integral del Chatbot WhatsApp Golosito
 
-## Diagnóstico de la lentitud actual
+## Diagnóstico rápido
 
-Cada mensaje entrante recorre entre **8 y 12 llamadas RPC seriales** antes de que el modelo IA empiece a generar respuesta. Ese es el cuello de botella real, no el modelo.
+Revisando el estado actual (`src/routes/api/public/whatsapp-bot.ts` + `whatsapp-bot/server.js`), estos son los problemas reales:
 
-Flujo actual por mensaje (medido en `whatsapp-bot.ts`):
+1. **Bienvenida duplicada**: el `handle_incoming` marca cooldown pero el bot local reenvía el mismo mensaje al reintentar / al recibir el mismo webhook dos veces (Baileys entrega el mismo `messages.upsert` en algunas reconexiones).
+2. **Bloqueo tras confirmar**: la ruta determinista de confirmación exige carrito "completo" (nombre + dirección + pago). Si falta uno, el "sí" del cliente cae al LLM que a veces responde vacío y el flujo se detiene sin volver a preguntar.
+3. **Lentitud**: cada mensaje sigue haciendo 4-6 llamadas a Gemini + RPCs. La bienvenida no debería tocar IA nunca.
+4. **Falta de botones**: hoy todo es texto. Baileys 6.7 permite `buttonsMessage` (legacy) e `interactiveMessage` (list). Muchos WhatsApp Business ya no renderizan botones, así que hay que **enviar botones cuando se pueda y degradar a texto numerado** que el bot interprete ("1", "2").
+5. **Pide teléfono**: el extractor todavía tiene rama de "phone". Debe eliminarse — el teléfono ya es `from`.
+
+## Arquitectura nueva (FSM explícita, IA opcional)
+
+Estado guardado en `whatsapp_ai_carts.fsm_state`:
 
 ```text
-incoming  → handle_incoming (RPC)
-ai_reply  → ai_context     (RPC, carga menú+FAQs+sabores)
-          → ai_cart_get    (RPC)
-          → ai_history     (RPC)
-          → ai_ordering_config (RPC)
-          → ai_cart_get    (RPC, otra vez en buildOperational)
-          → ai_cart_upsert (RPC opcional)
-          → save_message x2 (RPC)
-          → record_reply   (RPC)
-          → log_event x N  (RPC)
-          → llamada IA (Gemini)
+NEW → CHANNEL_CHOICE → (ONLINE_MENU_SENT | WA_ORDERING)
+WA_ORDERING → COLLECT_ITEMS → COLLECT_MODIFIERS → COLLECT_NAME
+            → COLLECT_ADDRESS → COLLECT_NEIGHBORHOOD → COLLECT_PAYMENT
+            → SUMMARY → CONFIRMED → SENT_TO_POS
 ```
 
-Con ~200ms por RPC contra Supabase = **2–3 s solo en round-trips** antes de la IA, más el modelo. La ventana total roza los 6–8 s que percibe el cliente.
+**Regla clave**: los pasos de bienvenida, elección de canal, resumen y confirmación son 100% deterministas (sin IA). La IA sólo se usa para interpretar productos/modificadores en texto libre. Esto elimina la lentitud del saludo y el bloqueo tras confirmar.
 
-## Cambios de alto impacto
+## Cambios concretos
 
-### 1. Consolidar contexto en una sola RPC
-Nueva RPC `whatsapp_bot_ai_bootstrap(_token, _phone, _limit)` que devuelve en una sola llamada: `context + cart + history + ordering_config + quota_status`. Reemplaza 5 RPCs seriales por 1. **Ahorro esperado: ~800–1200 ms**.
+### A. Backend (`src/routes/api/public/whatsapp-bot.ts`)
 
-### 2. Cache in-memory por sede (TTL 60 s)
-La parte pesada de `ai_context` (menú, sabores, FAQs, config sede) cambia rara vez. Cacheamos por `token` con TTL corto usando un `Map` en el módulo del worker. Solo el segmento por-cliente (`cart`, `history`, `usage_today`) se recarga siempre. **Ahorro: ~400–600 ms** en hits calientes (>90% de mensajes).
+1. **Bienvenida en dos pasos determinista** (sin IA):
+   - Mensaje 1: saludo corto + pregunta de canal.
+   - Estructura de "botones" en un nuevo campo de respuesta `{ text, buttons?: [{id,title}], list? }`. Si el cliente local no soporta botones, se degrada a "1) Menú en línea  2) Pedir por WhatsApp".
+2. **Guarda anti-duplicado reforzada**:
+   - Nueva tabla/columna: `whatsapp_ai_carts.last_inbound_msg_id` + `last_reply_at`. Si `msg_id` ya se procesó → 200 no-op. Si `last_reply_at < 3s` con mismo texto → no-op.
+   - En el bot local, deduplicar por `key.id` en memoria (Set con TTL 5min) antes de POST.
+3. **Ruta canal en línea**: si el usuario elige "Menú en línea", enviar link del menú (`/s/{slug}/menu`) y poner `fsm_state = ONLINE_MENU_SENT`. Cualquier mensaje siguiente en 30min → responder "Tu pedido llegará automáticamente cuando lo finalices en el menú 😊" (una sola vez cada 10min).
+4. **Ruta WhatsApp**: pipeline FSM determinista pidiendo **solo** el próximo dato faltante en este orden: cantidad+producto → modificadores → nombre → dirección → barrio → pago. Nunca pedir teléfono. Extractor entity `phone` eliminado.
+5. **Resumen + confirmación deterministas**:
+   - `SUMMARY` envía resumen con botones "✅ Confirmar" / "✏️ Modificar".
+   - Cualquier texto que matchee `/^(1|si|sí|confirmar|✅|ok|dale|listo)/i` cuando `fsm_state=SUMMARY` → ejecuta `confirm_order` sin IA, responde "¡Pedido confirmado! 🍦 Lo estamos preparando." y setea `SENT_TO_POS`. Esto elimina el bloqueo.
+   - `/^(2|modificar|editar|✏️)/i` → vuelve a `COLLECT_ITEMS` conservando datos ya capturados.
+6. **Modificadores por lista**: cuando `pending_product` tiene `modifier_groups`, enviar lista con opciones numeradas + botones si son ≤3.
 
-### 3. Escrituras y logs no bloqueantes
-`save_message`, `record_reply` y `logBotEvent` se disparan con `ctx.waitUntil` / promesas sueltas (fire-and-forget) en lugar de `await`. Ninguno afecta el texto de respuesta. **Ahorro: ~400–700 ms** al final del turno.
+### B. Velocidad
 
-### 4. Reducir tamaño del prompt de sistema
-- Bajar `selectRelevantProducts` de 20 → 12.
-- Bajar `selectRelevantFaqs` de 8 → 5.
-- Consolidar el bloque `orderingPromptBlock` (hoy ~30 líneas) a versión compacta.
-- Prompt más corto = respuesta del modelo más rápida (TTFB). **Ahorro: ~300–800 ms**.
+1. **Bienvenida sin IA**: ahorra ~3-4s (era el peor caso).
+2. **Cache de menú por sede** ya existe → subir TTL a 120s.
+3. **Un solo await bloqueante por turno**: `handle_incoming` + envío. `record_reply`, `save_message`, `log_event` en fire-and-forget con `ctx.waitUntil`.
+4. **Reducir prompt IA** a solo el bloque del turno actual (producto + modificadores del producto pendiente). Menú completo sólo cuando `fsm_state ∈ {COLLECT_ITEMS}`.
+5. **Bot local**: dedupe por `key.id`, un solo `fetch` en pipeline (`incoming+ai_reply` fusionado ya existe, endurecer timeouts a 8s primer intento).
 
-### 5. Bajar timeout / reintentos agresivos
-- `AI_CALL_TIMEOUT_MS`: primer intento más corto (6 s → 4 s) para failover más rápido a Gemini directo.
-- Reducir `backoffs` de `[400, 900]` a `[200, 500]`.
+### C. Botones interactivos
 
-### 6. Bot local: pipeline paralelo
-En `whatsapp-bot/server.js`, los pasos `incoming → ai_reply → enqueue_reply` se hacen en serie. Fusionar `incoming` + `ai_reply` en una sola llamada cuando el servidor ya devuelve `use_ai=true` (evita un round-trip completo Bogotá↔Cloudflare). **Ahorro: ~300–500 ms por mensaje**.
+`whatsapp-bot/server.js`:
+- Añadir helper `sendInteractive(jid, { text, buttons?, list? })` que use `sock.sendMessage(jid, { text, buttons: [...], headerType: 1 })` con fallback automático a texto numerado si el envío interactivo falla o si el número está en la lista de "clientes sin soporte botones" (registrada en memoria tras primer fallo).
+- Bump a `v8.22.0`.
 
-### 7. Índices que faltan
-Verificar y crear si hace falta:
+### D. Migración
+
 ```sql
-CREATE INDEX IF NOT EXISTS idx_wa_messages_phone_created
-  ON whatsapp_ai_messages (branch_id, phone, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_wa_carts_phone_status
-  ON whatsapp_ai_carts (branch_id, phone, status);
+ALTER TABLE whatsapp_ai_carts
+  ADD COLUMN IF NOT EXISTS last_inbound_msg_id text,
+  ADD COLUMN IF NOT EXISTS last_reply_at timestamptz;
+
+CREATE INDEX IF NOT EXISTS idx_wa_carts_last_msg
+  ON whatsapp_ai_carts (branch_id, phone, last_inbound_msg_id);
 ```
+Actualizar `whatsapp_bot_handle_incoming` para setear/comparar `last_inbound_msg_id` y devolver `duplicate=true` cuando corresponde.
 
-## Lo que NO se toca
+### E. CRM y POS
 
-- Lógica de guardas de pedido (nombre obligatorio, modificadores, confirmación explícita).
-- Reglas antirriesgo del prompt.
-- Contrato de tools (`search_products`, `add_to_cart`, `confirm_order`, etc.).
-- Formato de respuestas al cliente.
-- Watchdog, updater y versión del bot local salvo el pipeline paralelo.
+Ya funcionan; sólo asegurar que `confirm_order` reciba siempre `phone = from` (nunca lo que el cliente escribió) y que `customers` upsert use ese teléfono.
+
+## Fuera de alcance (no se toca)
+
+- Diseño del comprobante de pago (v2.24.0 recién estable).
+- Módulos POS ajenos al bot.
+- Print server.
 
 ## Validación
 
-- Log de duración por etapa ya existe (`logBotEvent`); antes/después mediremos con `whatsapp_ai_diagnostics`.
-- Prueba manual: 5 mensajes cortos + 1 flujo de pedido completo.
-- Verificar que dos sedes en paralelo no comparten cache (clave = token).
+1. Escribir "hola" desde un número nuevo → recibe saludo + botones/opciones una sola vez (verificable con dos webhooks duplicados forzados).
+2. Elegir "1" → recibe link del menú y no vuelve a molestar.
+3. Elegir "2" → guía pidiendo sólo lo faltante, sin pedir teléfono.
+4. En `SUMMARY` responder "sí" → pedido pasa a POS y responde confirmación.
+5. Medir con `whatsapp_ai_diagnostics`: saludo <800ms, turnos con IA <3s.
 
-## Detalles técnicos
+## Alcance de archivos
 
-- Nueva migración: `whatsapp_bot_ai_bootstrap` (SECURITY DEFINER) + índices.
-- Edits: `src/routes/api/public/whatsapp-bot.ts` (cache por sede, bootstrap, fire-and-forget, prompt más corto), `whatsapp-bot/server.js` (pipeline paralelo, bump a v8.21.0).
-- Sin cambios en tipos generados ni en el cliente Supabase.
+- `src/routes/api/public/whatsapp-bot.ts` (grande, refactor FSM determinista).
+- `whatsapp-bot/server.js` + `package.json` (v8.22.0, dedupe, interactive).
+- Migración SQL nueva (dos columnas + índice + update de `whatsapp_bot_handle_incoming`).
+- `.lovable/plan.md` actualizado.
+
+¿Apruebas para implementar? Si prefieres partirlo, puedo empezar solo por (1) FSM + anti-duplicado + desbloqueo confirmación, y dejar botones interactivos del bot local para una segunda tanda.
