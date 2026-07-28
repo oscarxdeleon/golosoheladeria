@@ -895,7 +895,8 @@ async function verifyInstalledVersion(expected, target, expectedPort) {
 async function startBot(target) {
   step('Iniciando bot actualizado');
   const port = inferPortFromFolder(target);
-  spawn('wscript.exe', ['//nologo', path.join(target, 'start-hidden.vbs')], { cwd: target, detached: true, stdio: 'ignore' }).unref();
+  const launcher = writeLauncherFiles(target, readExpectedVersion());
+  spawn('wscript.exe', ['//nologo', launcher.launcherVbsPath], { cwd: launcher.launcherDir, detached: true, stdio: 'ignore' }).unref();
   const ok = await waitForPanel(port);
   if (ok) {
     spawn('cmd', ['/c', 'start', '', `http://localhost:${port}`], { detached: true, stdio: 'ignore', shell: true }).unref();
@@ -997,7 +998,10 @@ async function main() {
   }
 
   ensureDependencies(canonicalTargetDir);
-  registerStartup(canonicalTargetDir);
+  const launcher = registerStartup(canonicalTargetDir);
+  for (const dir of dirsToUpdate) {
+    if (resolveFolder(dir) !== resolveFolder(canonicalTargetDir)) writeLegacyRedirect(dir, launcher.launcherVbsPath);
+  }
   await startBot(canonicalTargetDir);
 
   const versionOk = await verifyInstalledVersion(expected, canonicalTargetDir, inferPortFromFolder(canonicalTargetDir));
