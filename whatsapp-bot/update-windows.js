@@ -14,6 +14,7 @@ const RELEASE_MANIFEST_URL = `${API_URL}/downloads/manifest.json`;
 const APP_DATA_FOLDER = 'Goloso WhatsApp Bot';
 const STARTUP_LINK_NAME = 'Goloso WhatsApp Bot.lnk';
 const RUN_VALUE_NAME = 'GolosoWhatsAppBot';
+const LAUNCHER_FOLDER_NAME = 'launcher';
 
 const args = process.argv.slice(2);
 const hasFlag = (flag) => args.includes(flag);
