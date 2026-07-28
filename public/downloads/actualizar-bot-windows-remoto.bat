@@ -128,9 +128,9 @@ echo.
 
 pushd "%SRC%"
 if defined TARGET (
-  node "%SRC%\update-windows.js" --target "%TARGET%" --force
+  node "%SRC%\update-windows.js" --target "%TARGET%" --force --skip-manifest
 ) else (
-  node "%SRC%\update-windows.js" --force
+  node "%SRC%\update-windows.js" --force --skip-manifest
 )
 set "EC=%ERRORLEVEL%"
 popd
