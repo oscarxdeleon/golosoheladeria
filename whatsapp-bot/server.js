@@ -45,7 +45,7 @@ const INCOMING_TASK_TIMEOUT_MS = 70_000;
 const PROCESSED_MESSAGE_TTL_MS = 30 * 60_000;
 const PROCESSED_MESSAGE_MAX = 2000;
 const AI_MAX_AUDIO_BYTES = 1_500_000; // ~1.5 MB → notas de voz cortas
-const BOT_VERSION = "8.21.0";
+const BOT_VERSION = "8.22.0";
 const WATCHDOG_INTERVAL_MS = 30_000;          // revisa cada 30s
 const WATCHDOG_MAX_DISCONNECTED_MS = 3 * 60_000; // 3 min sin conexión real → exit
 const WATCHDOG_MAX_OUTBOUND_STALE_MS = 2 * 60_000; // conectado pero sin revisar cola → exit
@@ -697,6 +697,27 @@ function buildSafetyReply() {
   return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nPuedes ver el menú actualizado con fotos y precios aquí 👉 https://golosoheladeria.vercel.app/menu\n\nSi quieres pedir por WhatsApp, dime qué producto te provoca y lo vamos armando paso a paso.";
 }
 
+// Convierte una respuesta con opciones estructuradas en texto numerado.
+// El bot local no usa botones nativos de WhatsApp (poco confiables entre
+// clientes y versiones de Business). Si el backend devuelve
+// `options` o `buttons` como arreglo, las anexamos como lista numerada
+// al final del texto. El cliente puede responder con "1", "2" o el
+// título de la opción y el backend lo interpreta como confirmación.
+function appendOptionsToReply(text, options) {
+  if (typeof text !== "string") return text;
+  const opts = Array.isArray(options) ? options.filter(Boolean) : [];
+  if (!opts.length) return text;
+  const lines = opts
+    .map((o, i) => {
+      const title = typeof o === "string" ? o : String(o?.title ?? o?.label ?? o?.text ?? "").trim();
+      return title ? `${i + 1}) ${title}` : "";
+    })
+    .filter(Boolean);
+  if (!lines.length) return text;
+  const base = text.trim();
+  return `${base}${base ? "\n\n" : ""}${lines.join("\n")}`;
+}
+
 function buildUnresolvedPhoneReply() {
   return "¡Hola! Soy Golosito, tu asistente de Heladería Goloso. 🍦\n\nRecibí tu mensaje, pero WhatsApp no me entregó correctamente tu número de contacto.\n\nPor favor envíanos nuevamente tu mensaje o escríbenos desde el número principal para ayudarte con tu pedido.";
 }
@@ -881,7 +902,13 @@ async function processResolvedIncoming(sock, msg, from, text, audioNode, jid, ms
   let incomingData = null;
   if (text) {
     incomingData = await handleIncoming(from, text, msgId);
-    reply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
+    const rawReply = typeof incomingData?.reply === "string" && incomingData.reply.trim() ? incomingData.reply : null;
+    const options = Array.isArray(incomingData?.options)
+      ? incomingData.options
+      : Array.isArray(incomingData?.buttons)
+      ? incomingData.buttons
+      : null;
+    reply = rawReply ? appendOptionsToReply(rawReply, options) : null;
     if (reply) state.lastReplySource = incomingData?.source || incomingData?.matched_trigger || "fixed";
   }
 
