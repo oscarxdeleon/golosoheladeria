@@ -695,8 +695,8 @@ function cleanupOldStartupEntries(canonicalTarget) {
 function registerStartup(target) {
   step('Registrando inicio automatico estable');
   cleanupOldStartupEntries(target);
+  const launcher = writeLauncherFiles(target, readExpectedVersion());
   const startup = path.join(process.env.APPDATA || '', 'Microsoft', 'Windows', 'Start Menu', 'Programs', 'Startup');
-  const vbsPath = path.join(target, 'start-hidden.vbs');
   const tempVbs = path.join(os.tmpdir(), `goloso_bot_shortcut_${Date.now()}.vbs`);
   const linkPath = path.join(startup, STARTUP_LINK_NAME);
   fs.mkdirSync(startup, { recursive: true });
