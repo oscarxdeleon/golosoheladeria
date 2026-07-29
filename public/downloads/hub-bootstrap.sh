@@ -70,7 +70,7 @@ const {
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 
 if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
@@ -138,9 +138,24 @@ async function forwardToPos(id, st, from, text, msgId) {
   }
 }
 
-async function startBranch(id) {
+function wipeSession(id) {
+  try {
+    const dir = path.join(SESSIONS_DIR, id);
+    if (!fs.existsSync(dir)) return;
+    // preserva hub-config.json (deviceToken/posWebhookBase)
+    const cfg = loadCfg(id);
+    for (const f of fs.readdirSync(dir)) {
+      if (f === 'hub-config.json') continue;
+      fs.rmSync(path.join(dir, f), { recursive: true, force: true });
+    }
+    if (cfg) saveCfg(id, cfg);
+  } catch (e) { console.error(`[${id}] wipeSession`, e.message); }
+}
+
+async function startBranch(id, opts) {
   const st = state(id);
-  if (st.sock) { try { st.sock.end(); } catch {} }
+  if (st.sock) { try { st.sock.end(); } catch {} st.sock = null; }
+  if (opts && opts.reset) wipeSession(id);
   const dir = path.join(SESSIONS_DIR, id);
   fs.mkdirSync(dir, { recursive: true });
   const { state: authState, saveCreds } = await useMultiFileAuthState(dir);
@@ -159,6 +174,7 @@ async function startBranch(id) {
   st.status = 'connecting';
   st.qr = null;
   st.lastError = null;
+  st.failCount = st.failCount || 0;
 
   sock.ev.on('creds.update', saveCreds);
   sock.ev.on('connection.update', async (u) => {
@@ -170,15 +186,29 @@ async function startBranch(id) {
     if (connection === 'open') {
       st.status = 'connected';
       st.qr = null;
+      st.failCount = 0;
       st.phone = sock.user?.id?.split(':')[0]?.split('@')[0] || null;
       st.lastConnectedAt = new Date().toISOString();
     }
     if (connection === 'close') {
       const code = lastDisconnect?.error?.output?.statusCode;
+      const msg = lastDisconnect?.error?.message || '';
       const loggedOut = code === DisconnectReason.loggedOut;
-      st.status = loggedOut ? 'needs_qr' : 'disconnected';
-      st.lastError = lastDisconnect?.error?.message || null;
-      if (!loggedOut) setTimeout(() => startBranch(id).catch(() => {}), 3000);
+      const streamErr = /stream errored|restart required|conflict|515/i.test(msg) || code === 515;
+      st.lastError = msg || null;
+      st.failCount = (st.failCount || 0) + 1;
+      if (loggedOut) {
+        st.status = 'needs_qr';
+        setTimeout(() => startBranch(id, { reset: true }).catch(() => {}), 1500);
+      } else if (streamErr || st.failCount >= 3) {
+        // corrupt/errored session -> wipe & re-QR
+        st.status = 'needs_qr';
+        st.failCount = 0;
+        setTimeout(() => startBranch(id, { reset: true }).catch(() => {}), 2000);
+      } else {
+        st.status = 'disconnected';
+        setTimeout(() => startBranch(id).catch(() => {}), 3000);
+      }
     }
   });
   sock.ev.on('messages.upsert', async (ev) => {
@@ -187,7 +217,7 @@ async function startBranch(id) {
       for (const m of (ev.messages || [])) {
         if (!m.message || m.key?.fromMe) continue;
         const remote = m.key?.remoteJid || '';
-        if (!remote.endsWith('@s.whatsapp.net')) continue; // ignora grupos/estados
+        if (!remote.endsWith('@s.whatsapp.net')) continue;
         const from = remote.split('@')[0];
         const msgId = m.key?.id || null;
         const text =
@@ -236,7 +266,7 @@ app.get('/api/branch/:id/status', auth, (req, res) => {
 app.post('/api/branch/:id/connect', auth, async (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
   try {
-    const { deviceToken, posWebhookBase } = req.body || {};
+    const { deviceToken, posWebhookBase, reset } = req.body || {};
     const st = state(id);
     if (deviceToken || posWebhookBase) {
       const cfg = { ...(st.cfg || {}) };
@@ -245,8 +275,24 @@ app.post('/api/branch/:id/connect', auth, async (req, res) => {
       st.cfg = cfg;
       saveCfg(id, cfg);
     }
-    await startBranch(id);
-    res.json({ ok: true, status: state(id).status, hasWebhook: !!(st.cfg?.deviceToken && st.cfg?.posWebhookBase) });
+    // auto-reset if current session is in a broken state
+    const broken = st.status === 'needs_qr' || st.status === 'error' ||
+      (st.lastError && /stream errored|restart required|conflict|515/i.test(st.lastError));
+    const doReset = reset === true || broken;
+    st.failCount = 0;
+    await startBranch(id, { reset: doReset });
+    res.json({ ok: true, status: state(id).status, reset: doReset, hasWebhook: !!(st.cfg?.deviceToken && st.cfg?.posWebhookBase) });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.post('/api/branch/:id/reset', auth, async (req, res) => {
+  const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
+  try {
+    const st = state(id);
+    try { if (st.sock) st.sock.end(); } catch {}
+    st.sock = null; st.failCount = 0; st.lastError = null;
+    await startBranch(id, { reset: true });
+    res.json({ ok: true, status: state(id).status });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 

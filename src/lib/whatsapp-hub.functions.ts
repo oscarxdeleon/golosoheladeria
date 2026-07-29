@@ -88,11 +88,9 @@ async function assertAdmin(ctx: { supabase: any; userId: string }) {
 
 export const requestBranchHubQr = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d: { branchId: string }) => d)
+  .inputValidator((d: { branchId: string; reset?: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    // Trae device_token de la sede para que el Hub reenvíe entrantes
-    // al endpoint público /api/public/whatsapp-bot ya existente.
     let deviceToken: string | null = null;
     try {
       const { data: cfg } = await context.supabase
@@ -112,10 +110,20 @@ export const requestBranchHubQr = createServerFn({ method: "POST" })
       "https://golosoheladeria.lovable.app";
     const r = await hubFetch(`/api/branch/${data.branchId}/connect`, {
       method: "POST",
-      body: JSON.stringify({ deviceToken, posWebhookBase }),
+      body: JSON.stringify({ deviceToken, posWebhookBase, reset: data.reset === true }),
     });
     await persistSession(data.branchId, { status: r.status || "connecting" }, context.supabase);
-    return { ok: true, status: r.status, hasWebhook: !!r.hasWebhook };
+    return { ok: true, status: r.status, reset: !!r.reset, hasWebhook: !!r.hasWebhook };
+  });
+
+export const resetBranchHub = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { branchId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const r = await hubFetch(`/api/branch/${data.branchId}/reset`, { method: "POST" });
+    await persistSession(data.branchId, { status: r.status || "connecting", last_qr: null, last_error: null }, context.supabase);
+    return { ok: true, status: r.status };
   });
 
 export const getBranchHubStatus = createServerFn({ method: "POST" })
