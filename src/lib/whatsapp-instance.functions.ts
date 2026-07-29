@@ -136,7 +136,7 @@ function extractQr(c: any): { qr: string | null; code: string | null; pairingCod
   return { qr, code, pairingCode };
 }
 
-async function ensureInstance(branchId: string) {
+async function ensureInstance(branchId: string, webhookToken: string) {
   const name = instanceName(branchId);
   try {
     await evo(`/instance/connectionState/${encodeURIComponent(name)}`);
@@ -150,16 +150,12 @@ async function ensureInstance(branchId: string) {
       instanceName: name,
       qrcode: true,
       integration: "WHATSAPP-BAILEYS",
-      webhook: {
-        url: webhookUrl(),
-        byEvents: false,
-        base64: true,
-        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
-      },
+      webhook: webhookConfig(webhookToken),
     }),
   });
   return { name, created: true };
 }
+
 
 /** Estado + QR vigente de la instancia de la sede. */
 export const getInstanceStatus = createServerFn({ method: "POST" })
