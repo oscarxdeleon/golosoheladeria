@@ -29,6 +29,7 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
   const branchId = branchIdProp ?? activeBranchId;
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
+  const [localQr, setLocalQr] = useState<{ qr: string | null; code: string | null }>({ qr: null, code: null });
 
   const status$ = useServerFn(getInstanceStatus);
   const connect$ = useServerFn(connectInstance);
