@@ -439,8 +439,9 @@ export function PublicOrder({
     const phoneOk = phoneDigits.length >= 7;
 
     if (source !== "table_qr") {
-      // Nombre y teléfono siempre obligatorios en menú en línea y kiosko.
+      // Nombre, apellido y teléfono siempre obligatorios en menú en línea y kiosko.
       if (!customerName.trim()) errs.name = true;
+      if (!customerLastName.trim()) errs.lastName = true;
       if (!phoneOk) errs.phone = true;
     }
 
@@ -451,6 +452,7 @@ export function PublicOrder({
 
     setFieldErrors(errs);
     if (errs.name) return "Ingresa tu nombre";
+    if (errs.lastName) return "Por favor ingresa tu apellido.";
     if (errs.phone) return "Ingresa un teléfono de contacto válido";
     if (errs.address || errs.neighborhood) return "Completa la dirección de envío";
 
