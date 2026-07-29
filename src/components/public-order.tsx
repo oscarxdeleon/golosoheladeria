@@ -1356,6 +1356,9 @@ export function PublicOrder({
                   <PremiumField
                     label="Apellido"
                     icon={<IdCard className="h-4 w-4" />}
+                    error={fieldErrors.lastName}
+                    errorText="Por favor ingresa tu apellido."
+                    required
                   >
                     <Input
                       placeholder="Escribe tu apellido"
@@ -1363,8 +1366,9 @@ export function PublicOrder({
                       autoComplete="family-name"
                       autoCapitalize="characters"
                       value={customerLastName}
-                      onChange={(e) => setCustomerLastName(toUpperText(e.target.value))}
-                      className="h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition"
+                      onChange={(e) => { setCustomerLastName(toUpperText(e.target.value)); if (fieldErrors.lastName) setFieldErrors({ ...fieldErrors, lastName: false }); }}
+                      className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.lastName ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      required
                     />
                   </PremiumField>
 
