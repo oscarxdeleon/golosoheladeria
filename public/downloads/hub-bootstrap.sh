@@ -2,10 +2,9 @@
 set -Eeuo pipefail
 
 # =============================================================
-# Goloso WhatsApp Hub - Bootstrap automatico
-# Instala Node 20, PM2, Baileys y arranca el Hub en el puerto 8080.
-# Genera HUB_API_TOKEN aleatorio y lo imprime al final.
-# Idempotente: se puede correr varias veces sin romper nada.
+# Goloso WhatsApp Hub - Bootstrap automatico (Baileys multi-sede)
+# Idempotente: se puede correr varias veces para actualizar.
+# Genera HUB_API_TOKEN aleatorio la primera vez; lo conserva luego.
 # =============================================================
 
 HUB_DIR="/opt/goloso-hub"
@@ -21,34 +20,28 @@ if [[ $EUID -ne 0 ]]; then
   exit 1
 fi
 
-log "1/7 Actualizando paquetes base"
+log "1/6 Paquetes base"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -y >/dev/null
 apt-get install -y curl ca-certificates gnupg ufw jq >/dev/null
 ok "Paquetes base listos"
 
-log "2/7 Instalando Node.js 20"
+log "2/6 Node.js 20 + PM2"
 if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | cut -d. -f1)" != "v20" && "$(node -v | cut -d. -f1)" != "v22" ]]; then
   curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
   apt-get install -y nodejs >/dev/null
 fi
-ok "Node $(node -v) / npm $(npm -v)"
+command -v pm2 >/dev/null 2>&1 || npm install -g pm2 >/dev/null
+ok "Node $(node -v) / pm2 $(pm2 -v)"
 
-log "3/7 Instalando PM2"
-if ! command -v pm2 >/dev/null 2>&1; then
-  npm install -g pm2 >/dev/null
-fi
-ok "PM2 $(pm2 -v)"
-
-log "4/7 Preparando carpeta del Hub en ${HUB_DIR}"
-mkdir -p "${HUB_DIR}"
+log "3/6 Hub en ${HUB_DIR}"
+mkdir -p "${HUB_DIR}/sessions"
 cd "${HUB_DIR}"
 
-if [[ ! -f package.json ]]; then
-  cat > package.json <<'JSON'
+cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
@@ -60,33 +53,97 @@ if [[ ! -f package.json ]]; then
   }
 }
 JSON
-fi
 
-# ---- server.js (Hub minimal listo para extender) ----
 cat > server.js <<'NODE'
 const express = require('express');
 const crypto = require('crypto');
 const path = require('path');
 const fs = require('fs');
+const pino = require('pino');
+const QRCode = require('qrcode');
+const {
+  default: makeWASocket,
+  useMultiFileAuthState,
+  DisconnectReason,
+  fetchLatestBaileysVersion,
+} = require('@whiskeysockets/baileys');
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.0.0';
+const VERSION = '1.1.0';
+const SESSIONS_DIR = path.join(__dirname, 'sessions');
 
-if (!TOKEN) {
-  console.error('HUB_API_TOKEN missing. Refusing to start.');
-  process.exit(1);
+if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
+fs.mkdirSync(SESSIONS_DIR, { recursive: true });
+
+const logger = pino({ level: 'warn' });
+const app = express();
+app.use(express.json({ limit: '4mb' }));
+
+// branchId -> { sock, status, qr (data-url), phone, lastConnectedAt, lastError }
+const branches = new Map();
+
+function safeId(id) {
+  if (!id || typeof id !== 'string') return null;
+  if (!/^[a-zA-Z0-9_\-]{1,64}$/.test(id)) return null;
+  return id;
 }
 
-const app = express();
-app.use(express.json({ limit: '2mb' }));
+function state(id) {
+  if (!branches.has(id)) branches.set(id, { sock: null, status: 'disconnected', qr: null, phone: null });
+  return branches.get(id);
+}
 
-// Public health (no auth)
-app.get('/health', (_req, res) => {
-  res.json({ ok: true, version: VERSION, uptime: process.uptime() });
-});
+async function startBranch(id) {
+  const st = state(id);
+  if (st.sock) { try { st.sock.end(); } catch {} }
+  const dir = path.join(SESSIONS_DIR, id);
+  fs.mkdirSync(dir, { recursive: true });
+  const { state: authState, saveCreds } = await useMultiFileAuthState(dir);
+  const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 0] }));
 
-// Auth middleware
+  const sock = makeWASocket({
+    version,
+    auth: authState,
+    logger,
+    printQRInTerminal: false,
+    browser: ['Goloso Hub', 'Chrome', '1.0'],
+    syncFullHistory: false,
+    markOnlineOnConnect: false,
+  });
+  st.sock = sock;
+  st.status = 'connecting';
+  st.qr = null;
+  st.lastError = null;
+
+  sock.ev.on('creds.update', saveCreds);
+  sock.ev.on('connection.update', async (u) => {
+    const { connection, lastDisconnect, qr } = u;
+    if (qr) {
+      st.qr = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
+      st.status = 'awaiting_qr';
+    }
+    if (connection === 'open') {
+      st.status = 'connected';
+      st.qr = null;
+      st.phone = sock.user?.id?.split(':')[0]?.split('@')[0] || null;
+      st.lastConnectedAt = new Date().toISOString();
+    }
+    if (connection === 'close') {
+      const code = lastDisconnect?.error?.output?.statusCode;
+      const loggedOut = code === DisconnectReason.loggedOut;
+      st.status = loggedOut ? 'needs_qr' : 'disconnected';
+      st.lastError = lastDisconnect?.error?.message || null;
+      if (!loggedOut) setTimeout(() => startBranch(id).catch(() => {}), 3000);
+    }
+  });
+  sock.ev.on('messages.upsert', async (m) => {
+    // Inbound webhook forwarding (Fase 3). No-op por ahora.
+  });
+  return st;
+}
+
+// --- Auth ---
 function auth(req, res, next) {
   const h = req.headers['authorization'] || '';
   const t = h.startsWith('Bearer ') ? h.slice(7) : '';
@@ -97,50 +154,72 @@ function auth(req, res, next) {
   next();
 }
 
-// Placeholder endpoints - se extienden en Fase 2 con Baileys real
-const sessions = new Map(); // branchId -> { status, qr, phone, updatedAt }
+// --- Public ---
+app.get('/health', (_req, res) =>
+  res.json({ ok: true, version: VERSION, uptime: process.uptime(), branches: branches.size }));
 
-app.get('/api/status', auth, (_req, res) => {
+// --- Protected ---
+app.get('/api/branch/:id/status', auth, (req, res) => {
+  const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
+  const st = state(id);
   res.json({
-    ok: true,
-    version: VERSION,
-    branches: Array.from(sessions.entries()).map(([id, s]) => ({ id, ...s })),
+    branchId: id,
+    status: st.status,
+    qr: st.qr,
+    phone: st.phone,
+    lastConnectedAt: st.lastConnectedAt || null,
+    lastError: st.lastError || null,
   });
 });
 
-app.get('/api/branch/:id/status', auth, (req, res) => {
-  const s = sessions.get(req.params.id) || { status: 'disconnected' };
-  res.json(s);
+app.post('/api/branch/:id/connect', auth, async (req, res) => {
+  const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
+  try { await startBranch(id); res.json({ ok: true, status: state(id).status }); }
+  catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
-app.post('/api/branch/:id/connect', auth, (req, res) => {
-  const id = req.params.id;
-  sessions.set(id, { status: 'awaiting_qr', qr: null, updatedAt: Date.now() });
-  res.json({ ok: true, status: 'awaiting_qr' });
-});
-
-app.post('/api/branch/:id/logout', auth, (req, res) => {
-  sessions.delete(req.params.id);
+app.post('/api/branch/:id/logout', auth, async (req, res) => {
+  const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
+  const st = state(id);
+  try { if (st.sock) await st.sock.logout(); } catch {}
+  try { if (st.sock) st.sock.end(); } catch {}
+  try { fs.rmSync(path.join(SESSIONS_DIR, id), { recursive: true, force: true }); } catch {}
+  branches.delete(id);
   res.json({ ok: true });
 });
 
-app.post('/api/send', auth, (req, res) => {
+app.post('/api/send', auth, async (req, res) => {
   const { branchId, to, text } = req.body || {};
-  if (!branchId || !to || !text) return res.status(400).json({ error: 'missing fields' });
-  console.log(`[send] ${branchId} -> ${to}: ${text.slice(0, 80)}`);
-  res.json({ ok: true, queued: true });
+  const id = safeId(branchId);
+  if (!id || !to || !text) return res.status(400).json({ error: 'missing fields' });
+  const st = state(id);
+  if (!st.sock || st.status !== 'connected') return res.status(409).json({ error: 'not_connected' });
+  try {
+    const jid = String(to).replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+    await st.sock.sendMessage(jid, { text: String(text) });
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
-app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Goloso Hub v${VERSION} listening on :${PORT}`);
-});
+// Autostart branches with existing session on disk
+(async () => {
+  const dirs = fs.readdirSync(SESSIONS_DIR, { withFileTypes: true })
+    .filter(d => d.isDirectory()).map(d => d.name);
+  for (const id of dirs) {
+    startBranch(id).catch((e) => console.error(`[${id}] autostart failed`, e.message));
+  }
+})();
+
+app.listen(PORT, '0.0.0.0', () => console.log(`Goloso Hub v${VERSION} :${PORT}`));
 NODE
 
-log "5/7 Instalando dependencias npm (puede tardar 1-2 min)"
+log "4/6 Instalando dependencias (2-4 min)"
 npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 || npm install --omit=dev --no-audit --no-fund
-ok "Dependencias instaladas"
+ok "Dependencias listas"
 
-log "6/7 Configurando token y arranque con PM2"
+log "5/6 Token y arranque con PM2"
 if [[ ! -f "${ENV_FILE}" ]] || ! grep -q '^HUB_API_TOKEN=' "${ENV_FILE}"; then
   TOKEN_VALUE="$(openssl rand -hex 24 2>/dev/null || node -e 'console.log(require("crypto").randomBytes(24).toString("hex"))')"
   cat > "${ENV_FILE}" <<EOF
@@ -149,37 +228,24 @@ HUB_API_TOKEN=${TOKEN_VALUE}
 EOF
   chmod 600 "${ENV_FILE}"
 fi
-
-# shellcheck disable=SC1090
 set -a; source "${ENV_FILE}"; set +a
 
 pm2 delete goloso-hub >/dev/null 2>&1 || true
 HUB_PORT="${HUB_PORT}" HUB_API_TOKEN="${HUB_API_TOKEN}" \
   pm2 start server.js --name goloso-hub --update-env >/dev/null
-
 pm2 save >/dev/null
 pm2 startup systemd -u root --hp /root >/dev/null 2>&1 || true
+command -v ufw >/dev/null 2>&1 && ufw allow "${HUB_PORT}"/tcp >/dev/null 2>&1 || true
+ok "Hub corriendo"
 
-# Firewall
-if command -v ufw >/dev/null 2>&1; then
-  ufw allow "${HUB_PORT}"/tcp >/dev/null 2>&1 || true
-fi
-ok "Hub arrancado con PM2"
-
-log "7/7 Verificando"
-sleep 2
+log "6/6 Verificando"
+sleep 3
 IP="$(curl -s https://api.ipify.org || hostname -I | awk '{print $1}')"
 HEALTH="$(curl -sf "http://127.0.0.1:${HUB_PORT}/health" || echo 'FAIL')"
-if [[ "${HEALTH}" == *'"ok":true'* ]]; then
-  ok "Hub responde en http://${IP}:${HUB_PORT}/health"
-else
-  warn "El Hub no respondio localmente. Revisa: pm2 logs goloso-hub"
-fi
+[[ "${HEALTH}" == *'"ok":true'* ]] && ok "Hub responde en http://${IP}:${HUB_PORT}/health" || warn "pm2 logs goloso-hub"
 
 echo ""
 echo "================ COPIA ESTOS DOS VALORES ================"
 echo "HUB_URL=http://${IP}:${HUB_PORT}"
 echo "HUB_API_TOKEN=${HUB_API_TOKEN}"
 echo "========================================================="
-echo ""
-echo "Pegalos en el chat del POS para continuar la configuracion."
