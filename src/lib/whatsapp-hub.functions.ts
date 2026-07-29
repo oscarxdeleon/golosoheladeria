@@ -92,7 +92,7 @@ export const requestBranchHubQr = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const r = await hubFetch(`/api/branch/${data.branchId}/connect`, { method: "POST" });
-    await persistSession(data.branchId, { status: r.status || "connecting" });
+    await persistSession(data.branchId, { status: r.status || "connecting" }, context.supabase);
     return { ok: true, status: r.status };
   });
 
