@@ -27,6 +27,7 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
   const getStatus = useServerFn(getBranchHubStatus);
   const requestQr = useServerFn(requestBranchHubQr);
   const logout = useServerFn(logoutBranchHub);
+  const reset = useServerFn(resetBranchHub);
 
   const branch = branches.find((b) => b.id === branchId);
 
@@ -45,13 +46,23 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
   }, [status]);
 
   const connectMut = useMutation({
-    mutationFn: () => requestQr({ data: { branchId: branchId! } }),
+    mutationFn: (reset?: boolean) => requestQr({ data: { branchId: branchId!, reset: reset === true } }),
     onSuccess: () => {
       setPolling(true);
       toast.success("Generando QR...");
       qc.invalidateQueries({ queryKey: ["whatsapp-hub-status", branchId] });
     },
     onError: (e: any) => toast.error(e?.message || "No se pudo conectar al Hub"),
+  });
+
+  const resetMut = useMutation({
+    mutationFn: () => reset({ data: { branchId: branchId! } }),
+    onSuccess: () => {
+      setPolling(true);
+      toast.success("Sesión reiniciada — escanea el nuevo QR");
+      qc.invalidateQueries({ queryKey: ["whatsapp-hub-status", branchId] });
+    },
+    onError: (e: any) => toast.error(e?.message || "No se pudo reiniciar"),
   });
 
   const logoutMut = useMutation({
