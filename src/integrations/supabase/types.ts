@@ -3082,6 +3082,7 @@ export type Database = {
           created_at: string
           device_token: string
           enabled: boolean
+          evolution_webhook_token: string
           greet_cooldown_hours: number
           last_connected_at: string | null
           last_outbound_error: string | null
@@ -3129,6 +3130,7 @@ export type Database = {
           created_at?: string
           device_token?: string
           enabled?: boolean
+          evolution_webhook_token?: string
           greet_cooldown_hours?: number
           last_connected_at?: string | null
           last_outbound_error?: string | null
@@ -3176,6 +3178,7 @@ export type Database = {
           created_at?: string
           device_token?: string
           enabled?: boolean
+          evolution_webhook_token?: string
           greet_cooldown_hours?: number
           last_connected_at?: string | null
           last_outbound_error?: string | null
@@ -4063,6 +4066,22 @@ export type Database = {
         Returns: string
       }
       whatsapp_bot_rotate_token: {
+        Args: { _branch_id: string }
+        Returns: string
+      }
+      whatsapp_evolution_auth: {
+        Args: { _branch_id: string; _token: string }
+        Returns: Json
+      }
+      whatsapp_evolution_get_token: {
+        Args: { _branch_id: string }
+        Returns: string
+      }
+      whatsapp_evolution_persist: {
+        Args: { _branch_id: string; _patch: Json; _token: string }
+        Returns: Json
+      }
+      whatsapp_evolution_rotate_token: {
         Args: { _branch_id: string }
         Returns: string
       }
