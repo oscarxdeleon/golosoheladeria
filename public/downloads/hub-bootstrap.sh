@@ -232,6 +232,8 @@ async function startBranch(id, opts) {
       st.status = 'connected';
       st.qr = null;
       st.qrGeneratedAt = null;
+      st.pairingCode = null;
+      st.pairingCodeAt = null;
       if (st.qrTimer) clearTimeout(st.qrTimer);
       st.qrTimer = null;
       st.failCount = 0;
