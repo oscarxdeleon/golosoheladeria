@@ -1,0 +1,103 @@
+import { createServerFn } from "@tanstack/react-start";
+import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+
+function hubBase() {
+  const url = process.env.HUB_URL;
+  const token = process.env.HUB_API_TOKEN;
+  if (!url || !token) throw new Error("HUB_URL / HUB_API_TOKEN not configured");
+  return { url: url.replace(/\/$/, ""), token };
+}
+
+async function hubFetch(path: string, init?: RequestInit) {
+  const { url, token } = hubBase();
+  const res = await fetch(`${url}${path}`, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+      ...(init?.headers || {}),
+    },
+  });
+  const text = await res.text();
+  let body: any = null;
+  try { body = text ? JSON.parse(text) : null; } catch { body = { raw: text }; }
+  if (!res.ok) throw new Error(body?.error || `hub_${res.status}`);
+  return body;
+}
+
+async function persistSession(
+  branchId: string,
+  data: { status: string; connected_phone?: string | null; last_qr?: string | null; last_error?: string | null }
+) {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  const now = new Date().toISOString();
+  const patch: Record<string, any> = {
+    branch_id: branchId,
+    status: data.status,
+    connected_phone: data.connected_phone ?? null,
+    last_error: data.last_error ?? null,
+    updated_at: now,
+  };
+  if (data.last_qr !== undefined) {
+    patch.last_qr = data.last_qr;
+    patch.last_qr_at = data.last_qr ? now : null;
+  }
+  if (data.status === "connected") patch.last_connected_at = now;
+  if (data.status === "disconnected" || data.status === "needs_qr") patch.last_disconnected_at = now;
+  await supabaseAdmin.from("whatsapp_hub_sessions").upsert(patch, { onConflict: "branch_id" });
+}
+
+async function assertAdmin(ctx: { supabase: any; userId: string }) {
+  const { data, error } = await ctx.supabase.rpc("has_role", { _user_id: ctx.userId, _role: "admin" });
+  if (error || !data) throw new Error("Solo administradores");
+}
+
+export const requestBranchHubQr = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { branchId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const r = await hubFetch(`/api/branch/${data.branchId}/connect`, { method: "POST" });
+    await persistSession(data.branchId, { status: r.status || "connecting" });
+    return { ok: true, status: r.status };
+  });
+
+export const getBranchHubStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { branchId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const r = await hubFetch(`/api/branch/${data.branchId}/status`);
+    await persistSession(data.branchId, {
+      status: r.status,
+      connected_phone: r.phone,
+      last_qr: r.qr ?? null,
+      last_error: r.lastError ?? null,
+    });
+    return {
+      status: r.status as string,
+      qr: (r.qr as string | null) ?? null,
+      phone: (r.phone as string | null) ?? null,
+      lastError: (r.lastError as string | null) ?? null,
+    };
+  });
+
+export const logoutBranchHub = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { branchId: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    await hubFetch(`/api/branch/${data.branchId}/logout`, { method: "POST" });
+    await persistSession(data.branchId, { status: "disconnected", connected_phone: null, last_qr: null });
+    return { ok: true };
+  });
+
+export const sendHubMessage = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { branchId: string; to: string; text: string }) => d)
+  .handler(async ({ data }) => {
+    return hubFetch(`/api/send`, {
+      method: "POST",
+      body: JSON.stringify({ branchId: data.branchId, to: data.to, text: data.text }),
+    });
+  });
