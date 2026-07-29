@@ -41,12 +41,12 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
   "dependencies": {
-    "baileys": "latest",
+    "baileys": "6.7.19",
     "express": "^4.19.2",
     "pino": "^9.4.0",
     "qrcode": "^1.5.4"
