@@ -4,9 +4,11 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, QrCode, LogOut, RefreshCw, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Loader2, QrCode, LogOut, RefreshCw, CheckCircle2, AlertCircle, RotateCcw, KeyRound } from "lucide-react";
 import { toast } from "sonner";
-import { requestBranchHubQr, getBranchHubStatus, logoutBranchHub, resetBranchHub } from "@/lib/whatsapp-hub.functions";
+import { requestBranchHubQr, getBranchHubStatus, logoutBranchHub, resetBranchHub, pairBranchHub } from "@/lib/whatsapp-hub.functions";
 import { useBranch } from "@/contexts/branch-context";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
@@ -23,11 +25,14 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
   const branchId = branchIdProp ?? activeBranchId;
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
+  const [pairPhone, setPairPhone] = useState("");
+  const [showPair, setShowPair] = useState(false);
 
   const getStatus = useServerFn(getBranchHubStatus);
   const requestQr = useServerFn(requestBranchHubQr);
   const logout = useServerFn(logoutBranchHub);
   const reset = useServerFn(resetBranchHub);
+  const pair = useServerFn(pairBranchHub);
 
   const branch = branches.find((b) => b.id === branchId);
 
@@ -76,6 +81,17 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
     onError: (e: any) => toast.error(e?.message || "Error al cerrar sesión"),
   });
 
+  const pairMut = useMutation({
+    mutationFn: () => pair({ data: { branchId: branchId!, phone: pairPhone } }),
+    onSuccess: (r) => {
+      setPolling(true);
+      toast.success(`Código generado: ${r.code}`);
+      qc.invalidateQueries({ queryKey: ["whatsapp-hub-status", branchId] });
+      setTimeout(() => refetch(), 1200);
+    },
+    onError: (e: any) => toast.error(e?.message || "No se pudo generar el código"),
+  });
+
   if (!branchId) return null;
   const s = status?.status || "disconnected";
   const meta = STATUS_LABELS[s] || STATUS_LABELS.disconnected;
@@ -118,6 +134,51 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
             </p>
           </div>
         )}
+
+        {status?.pairingCode && s !== "connected" && (
+          <div className="flex flex-col items-center gap-2 p-4 bg-primary/5 border border-primary/30 rounded-lg">
+            <p className="text-xs text-muted-foreground">Código de vinculación (válido ~60s):</p>
+            <p className="text-3xl font-mono font-bold tracking-widest">{status.pairingCode}</p>
+            <p className="text-xs text-center text-muted-foreground max-w-sm">
+              En el teléfono: WhatsApp → <b>Ajustes → Dispositivos vinculados → Vincular un dispositivo → Vincular con número de teléfono</b> → escribe este código.
+            </p>
+          </div>
+        )}
+
+        {s !== "connected" && (
+          <div className="border-t pt-3">
+            <button
+              type="button"
+              className="text-xs text-primary underline"
+              onClick={() => setShowPair((v) => !v)}
+            >
+              {showPair ? "Ocultar" : "¿El QR no funciona? Usar código de 8 dígitos"}
+            </button>
+            {showPair && (
+              <div className="mt-2 flex flex-col sm:flex-row gap-2">
+                <div className="flex-1">
+                  <Label htmlFor="pair-phone" className="text-xs">Número con código de país (ej: 573001234567)</Label>
+                  <Input
+                    id="pair-phone"
+                    value={pairPhone}
+                    onChange={(e) => setPairPhone(e.target.value.replace(/[^0-9]/g, ""))}
+                    placeholder="573001234567"
+                    inputMode="numeric"
+                  />
+                </div>
+                <Button
+                  className="self-end"
+                  onClick={() => pairMut.mutate()}
+                  disabled={pairMut.isPending || pairPhone.length < 10}
+                >
+                  {pairMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <KeyRound className="h-4 w-4 mr-2" />}
+                  Generar código
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
+
 
         {status?.lastError && (
           <div className="text-xs text-destructive p-2 bg-destructive/10 rounded">

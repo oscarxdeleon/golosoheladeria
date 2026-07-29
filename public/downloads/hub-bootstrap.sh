@@ -41,12 +41,12 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.6.0",
+  "version": "1.7.0",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
   "dependencies": {
-    "baileys": "latest",
+    "baileys": "6.7.19",
     "express": "^4.19.2",
     "pino": "^9.4.0",
     "qrcode": "^1.5.4"
@@ -72,7 +72,7 @@ const {
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.6.0';
+const VERSION = '1.7.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 const QR_TTL_MS = 55_000;
 
@@ -193,7 +193,7 @@ async function startBranch(id, opts) {
     auth: authState,
     logger,
     printQRInTerminal: false,
-    browser: Browsers.macOS('Desktop'),
+    browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: false,
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
@@ -232,6 +232,8 @@ async function startBranch(id, opts) {
       st.status = 'connected';
       st.qr = null;
       st.qrGeneratedAt = null;
+      st.pairingCode = null;
+      st.pairingCodeAt = null;
       if (st.qrTimer) clearTimeout(st.qrTimer);
       st.qrTimer = null;
       st.failCount = 0;
@@ -316,6 +318,8 @@ app.get('/api/branch/:id/status', auth, (req, res) => {
     qrGeneratedAt: st.qrGeneratedAt || null,
     qrExpiresInMs: st.qrGeneratedAt ? Math.max(0, QR_TTL_MS - (Date.now() - new Date(st.qrGeneratedAt).getTime())) : null,
     phone: st.phone,
+    pairingCode: st.pairingCode || null,
+    pairingCodeAt: st.pairingCodeAt || null,
     lastConnectedAt: st.lastConnectedAt || null,
     lastError: st.lastError || null,
   });
@@ -354,6 +358,35 @@ app.post('/api/branch/:id/reset', auth, async (req, res) => {
     await startBranchLocked(id, { reset: true });
     res.json({ ok: true, status: state(id).status });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.post('/api/branch/:id/pair', auth, async (req, res) => {
+  const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
+  const phone = String((req.body || {}).phone || '').replace(/[^0-9]/g, '');
+  if (phone.length < 10) return res.status(400).json({ error: 'bad_phone' });
+  try {
+    let st = state(id);
+    if (!st.sock || st.status === 'disconnected' || st.status === 'needs_qr' || st.status === 'error') {
+      await startBranchLocked(id, { reset: true });
+      // wait briefly for sock to be ready
+      for (let i = 0; i < 30; i++) {
+        st = state(id);
+        if (st.sock && !st.sock.authState?.creds?.registered) break;
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+    st = state(id);
+    if (!st.sock) return res.status(500).json({ error: 'sock_not_ready' });
+    if (st.sock.authState?.creds?.registered) return res.status(409).json({ error: 'already_registered' });
+    const code = await st.sock.requestPairingCode(phone);
+    // format XXXX-XXXX
+    const pretty = code.length === 8 ? `${code.slice(0,4)}-${code.slice(4)}` : code;
+    st.pairingCode = pretty;
+    st.pairingCodeAt = new Date().toISOString();
+    res.json({ ok: true, code: pretty, phone });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
 });
 
 app.post('/api/branch/:id/logout', auth, async (req, res) => {

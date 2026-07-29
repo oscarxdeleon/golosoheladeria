@@ -131,8 +131,23 @@ export const getBranchHubStatus = createServerFn({ method: "POST" })
       status: r.status as string,
       qr: (r.qr as string | null) ?? null,
       phone: (r.phone as string | null) ?? null,
+      pairingCode: (r.pairingCode as string | null) ?? null,
       lastError: (r.lastError as string | null) ?? null,
     };
+  });
+
+export const pairBranchHub = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { branchId: string; phone: string }) => d)
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
+    const phone = String(data.phone).replace(/[^0-9]/g, "");
+    if (phone.length < 10) throw new Error("Número inválido (incluye código de país, ej: 573001234567)");
+    const r = await hubFetch(`/api/branch/${data.branchId}/pair`, {
+      method: "POST",
+      body: JSON.stringify({ phone }),
+    });
+    return { ok: true, code: r.code as string, phone: r.phone as string };
   });
 
 export const logoutBranchHub = createServerFn({ method: "POST" })
