@@ -22,17 +22,33 @@ fi
 
 log "1/6 Paquetes base"
 export DEBIAN_FRONTEND=noninteractive
-apt-get update -y >/dev/null
-apt-get install -y curl ca-certificates gnupg ufw jq >/dev/null
+NEED_PKGS=()
+for p in curl ca-certificates gnupg jq; do
+  command -v "$p" >/dev/null 2>&1 || NEED_PKGS+=("$p")
+done
+# ufw es opcional (no bloquea si falla)
+if [[ ${#NEED_PKGS[@]} -gt 0 ]]; then
+  # Libera locks colgados de apt/dpkg
+  pkill -9 apt apt-get dpkg unattended-upgrade 2>/dev/null || true
+  rm -f /var/lib/dpkg/lock-frontend /var/lib/dpkg/lock /var/cache/apt/archives/lock /var/lib/apt/lists/lock 2>/dev/null || true
+  dpkg --configure -a 2>/dev/null || true
+  # Con timeout duro para que no se cuelgue eternamente
+  timeout 180 apt-get -o Acquire::ForceIPv4=true -o Acquire::Retries=3 update -y >/dev/null 2>&1 || warn "apt-get update fallo, continuo con cache"
+  timeout 300 apt-get -o Acquire::ForceIPv4=true install -y "${NEED_PKGS[@]}" >/dev/null 2>&1 || {
+    warn "Fallo instalando ${NEED_PKGS[*]}, reintento sin cache"
+    timeout 300 apt-get install -y --no-download "${NEED_PKGS[@]}" >/dev/null 2>&1 || true
+  }
+fi
+command -v ufw >/dev/null 2>&1 || timeout 120 apt-get install -y ufw >/dev/null 2>&1 || true
 ok "Paquetes base listos"
 
 log "2/6 Node.js 20 + PM2"
 if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | cut -d. -f1)" != "v20" && "$(node -v | cut -d. -f1)" != "v22" ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
-  apt-get install -y nodejs >/dev/null
+  timeout 60 curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null 2>&1 || warn "NodeSource repo no respondio"
+  timeout 300 apt-get install -y nodejs >/dev/null 2>&1 || warn "Fallo instalando nodejs"
 fi
-command -v pm2 >/dev/null 2>&1 || npm install -g pm2 >/dev/null
-ok "Node $(node -v) / pm2 $(pm2 -v)"
+command -v pm2 >/dev/null 2>&1 || timeout 300 npm install -g pm2 >/dev/null 2>&1 || warn "Fallo instalando pm2"
+ok "Node $(node -v 2>/dev/null || echo 'N/A') / pm2 $(pm2 -v 2>/dev/null || echo 'N/A')"
 
 log "3/6 Hub en ${HUB_DIR}"
 mkdir -p "${HUB_DIR}/sessions"
