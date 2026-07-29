@@ -193,11 +193,13 @@ async function startBranch(id, opts) {
     auth: authState,
     logger,
     printQRInTerminal: false,
-    browser: Browsers.ubuntu('Chrome'),
+    browser: Browsers.macOS('Desktop'),
     syncFullHistory: false,
     markOnlineOnConnect: false,
+    generateHighQualityLinkPreview: false,
     shouldSyncHistoryMessage: () => false,
   });
+
   st.sock = sock;
   st.status = 'connecting';
   st.qr = null;
