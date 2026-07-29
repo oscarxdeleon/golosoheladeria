@@ -125,9 +125,15 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
 
         <div className="flex flex-wrap gap-2">
           {s !== "connected" && (
-            <Button onClick={() => connectMut.mutate()} disabled={connectMut.isPending}>
+            <Button onClick={() => connectMut.mutate(false)} disabled={connectMut.isPending}>
               {connectMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <QrCode className="h-4 w-4 mr-2" />}
               {s === "awaiting_qr" ? "Regenerar QR" : "Generar QR y vincular"}
+            </Button>
+          )}
+          {s !== "connected" && (status?.lastError || s === "needs_qr" || s === "error" || s === "disconnected") && (
+            <Button variant="secondary" onClick={() => resetMut.mutate()} disabled={resetMut.isPending}>
+              {resetMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <RotateCcw className="h-4 w-4 mr-2" />}
+              Reiniciar sesión (borrar y re-vincular)
             </Button>
           )}
           <Button variant="outline" onClick={() => refetch()}>
