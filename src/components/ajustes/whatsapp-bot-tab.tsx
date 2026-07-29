@@ -29,6 +29,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WhatsAppHubCard } from "./whatsapp-hub-card";
 import { GeminiQuotaCard } from "./gemini-quota-card";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
@@ -190,6 +191,7 @@ export function WhatsAppBotTab() {
         </Card>
       )}
 
+      <WhatsAppHubCard />
       <StatusCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <ChatbotModeCard cfg={cfg} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
 
