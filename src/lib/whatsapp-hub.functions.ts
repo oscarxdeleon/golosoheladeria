@@ -91,9 +91,31 @@ export const requestBranchHubQr = createServerFn({ method: "POST" })
   .inputValidator((d: { branchId: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const r = await hubFetch(`/api/branch/${data.branchId}/connect`, { method: "POST" });
+    // Trae device_token de la sede para que el Hub reenvíe entrantes
+    // al endpoint público /api/public/whatsapp-bot ya existente.
+    let deviceToken: string | null = null;
+    try {
+      const { data: cfg } = await context.supabase
+        .from("whatsapp_bot_config")
+        .select("device_token")
+        .eq("branch_id", data.branchId)
+        .maybeSingle();
+      deviceToken = (cfg?.device_token as string | undefined) ?? null;
+    } catch (e) {
+      console.warn("[hub] no pude leer device_token de la sede", e);
+    }
+    const env = process.env as Record<string, string | undefined>;
+    const posWebhookBase =
+      env.POS_PUBLIC_URL ||
+      env.PUBLIC_URL ||
+      env.VITE_PUBLIC_URL ||
+      "https://golosoheladeria.lovable.app";
+    const r = await hubFetch(`/api/branch/${data.branchId}/connect`, {
+      method: "POST",
+      body: JSON.stringify({ deviceToken, posWebhookBase }),
+    });
     await persistSession(data.branchId, { status: r.status || "connecting" }, context.supabase);
-    return { ok: true, status: r.status };
+    return { ok: true, status: r.status, hasWebhook: !!r.hasWebhook };
   });
 
 export const getBranchHubStatus = createServerFn({ method: "POST" })

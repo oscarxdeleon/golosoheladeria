@@ -70,7 +70,7 @@ const {
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.1.0';
+const VERSION = '1.2.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 
 if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
@@ -80,7 +80,8 @@ const logger = pino({ level: 'warn' });
 const app = express();
 app.use(express.json({ limit: '4mb' }));
 
-// branchId -> { sock, status, qr (data-url), phone, lastConnectedAt, lastError }
+// branchId -> { sock, status, qr, phone, lastConnectedAt, lastError, cfg }
+// cfg = { deviceToken, posWebhookBase } (persistido en <sessionDir>/hub-config.json)
 const branches = new Map();
 
 function safeId(id) {
@@ -89,9 +90,52 @@ function safeId(id) {
   return id;
 }
 
+function cfgPath(id) { return path.join(SESSIONS_DIR, id, 'hub-config.json'); }
+function loadCfg(id) {
+  try { return JSON.parse(fs.readFileSync(cfgPath(id), 'utf8')); } catch { return null; }
+}
+function saveCfg(id, cfg) {
+  try {
+    fs.mkdirSync(path.join(SESSIONS_DIR, id), { recursive: true });
+    fs.writeFileSync(cfgPath(id), JSON.stringify(cfg));
+  } catch (e) { console.error(`[${id}] saveCfg`, e.message); }
+}
+
 function state(id) {
-  if (!branches.has(id)) branches.set(id, { sock: null, status: 'disconnected', qr: null, phone: null });
+  if (!branches.has(id)) {
+    branches.set(id, { sock: null, status: 'disconnected', qr: null, phone: null, cfg: loadCfg(id) });
+  }
   return branches.get(id);
+}
+
+// --- Inbound forwarding hacia POS (Fase 3) ---
+async function forwardToPos(id, st, from, text, msgId) {
+  if (!st.cfg?.posWebhookBase || !st.cfg?.deviceToken) return;
+  const base = String(st.cfg.posWebhookBase).replace(/\/$/, '');
+  const url = `${base}/api/public/whatsapp-bot`;
+  const token = st.cfg.deviceToken;
+  const send = async (action, payload) => {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token, ...payload }),
+      });
+      const t = await r.text();
+      try { return JSON.parse(t); } catch { return { raw: t }; }
+    } catch (e) { console.error(`[${id}] forward ${action}`, e.message); return null; }
+  };
+  const inc = await send('incoming', { from, message: text, msg_id: msgId });
+  let reply = inc?.reply && String(inc.reply).trim();
+  if ((!reply || inc?.use_ai === true) && text && text.trim()) {
+    const ai = await send('ai_reply', { from, text, msg_id: msgId });
+    if (ai?.reply) reply = String(ai.reply).trim();
+  }
+  if (reply && st.sock && st.status === 'connected') {
+    const jid = String(from).replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+    try { await st.sock.sendMessage(jid, { text: reply }); }
+    catch (e) { console.error(`[${id}] sendReply`, e.message); }
+  }
 }
 
 async function startBranch(id) {
@@ -137,8 +181,25 @@ async function startBranch(id) {
       if (!loggedOut) setTimeout(() => startBranch(id).catch(() => {}), 3000);
     }
   });
-  sock.ev.on('messages.upsert', async (m) => {
-    // Inbound webhook forwarding (Fase 3). No-op por ahora.
+  sock.ev.on('messages.upsert', async (ev) => {
+    try {
+      if (ev.type !== 'notify') return;
+      for (const m of (ev.messages || [])) {
+        if (!m.message || m.key?.fromMe) continue;
+        const remote = m.key?.remoteJid || '';
+        if (!remote.endsWith('@s.whatsapp.net')) continue; // ignora grupos/estados
+        const from = remote.split('@')[0];
+        const msgId = m.key?.id || null;
+        const text =
+          m.message.conversation ||
+          m.message.extendedTextMessage?.text ||
+          m.message.imageMessage?.caption ||
+          m.message.videoMessage?.caption ||
+          '';
+        if (!text || !text.trim()) continue;
+        forwardToPos(id, st, from, text.trim(), msgId).catch(() => {});
+      }
+    } catch (e) { console.error(`[${id}] messages.upsert`, e.message); }
   });
   return st;
 }
@@ -174,8 +235,19 @@ app.get('/api/branch/:id/status', auth, (req, res) => {
 
 app.post('/api/branch/:id/connect', auth, async (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
-  try { await startBranch(id); res.json({ ok: true, status: state(id).status }); }
-  catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  try {
+    const { deviceToken, posWebhookBase } = req.body || {};
+    const st = state(id);
+    if (deviceToken || posWebhookBase) {
+      const cfg = { ...(st.cfg || {}) };
+      if (typeof deviceToken === 'string' && deviceToken.length >= 16) cfg.deviceToken = deviceToken;
+      if (typeof posWebhookBase === 'string' && /^https?:\/\//.test(posWebhookBase)) cfg.posWebhookBase = posWebhookBase;
+      st.cfg = cfg;
+      saveCfg(id, cfg);
+    }
+    await startBranch(id);
+    res.json({ ok: true, status: state(id).status, hasWebhook: !!(st.cfg?.deviceToken && st.cfg?.posWebhookBase) });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
 app.post('/api/branch/:id/logout', auth, async (req, res) => {
