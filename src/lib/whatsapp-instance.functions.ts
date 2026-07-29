@@ -203,25 +203,19 @@ export const connectInstance = createServerFn({ method: "POST" })
   .inputValidator((d: { branchId: string; force?: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { name } = await ensureInstance(data.branchId);
+    const webhookToken = await branchWebhookToken(data.branchId, context.supabase);
+    const { name } = await ensureInstance(data.branchId, webhookToken);
     if (data.force) {
       try { await evo(`/instance/logout/${encodeURIComponent(name)}`, { method: "DELETE" }); } catch { /* ya estaba cerrada */ }
     }
-    // Asegura webhook actualizado (idempotente)
+    // Asegura webhook actualizado (idempotente): URL sin token + header privado.
     try {
       await evo(`/webhook/set/${encodeURIComponent(name)}`, {
         method: "POST",
-        body: JSON.stringify({
-          webhook: {
-            enabled: true,
-            url: webhookUrl(),
-            byEvents: false,
-            base64: true,
-            events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
-          },
-        }),
+        body: JSON.stringify({ webhook: webhookConfig(webhookToken) }),
       });
     } catch (e) { console.warn("[evolution] webhook/set falló", e); }
+
 
     const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);
     const { qr, code, pairingCode } = extractQr(c);
