@@ -100,6 +100,17 @@ function mapState(raw: string | null | undefined): string {
   }
 }
 
+/** Evolution v2 devuelve el QR en formas distintas según versión/endpoint. */
+function extractQr(c: any): { qr: string | null; code: string | null; pairingCode: string | null } {
+  const src = c?.qrcode ?? c?.qrCode ?? c;
+  let qr: string | null = src?.base64 ?? c?.base64 ?? null;
+  if (qr && !String(qr).startsWith("data:")) qr = `data:image/png;base64,${qr}`;
+  const rawCode = src?.code ?? c?.code ?? null;
+  const code = rawCode && String(rawCode).length > 20 ? String(rawCode) : null;
+  const pairingCode = src?.pairingCode ?? c?.pairingCode ?? null;
+  return { qr, code, pairingCode };
+}
+
 async function ensureInstance(branchId: string) {
   const name = instanceName(branchId);
   try {
@@ -149,19 +160,20 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
     }
 
     let qr: string | null = null;
+    let code: string | null = null;
     let pairingCode: string | null = null;
     if (exists && state !== "connected") {
       try {
         const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);
-        qr = c?.base64 ?? (c?.code ? null : null);
-        pairingCode = c?.pairingCode ?? null;
-        if (qr && !String(qr).startsWith("data:")) qr = `data:image/png;base64,${qr}`;
-        if (qr) state = "awaiting_qr";
+        const x = extractQr(c);
+        qr = x.qr; code = x.code; pairingCode = x.pairingCode;
+        if (qr || code) state = "awaiting_qr";
       } catch { /* la instancia puede estar reconectando */ }
     }
 
-    await persist(data.branchId, { status: exists ? state : "no_instance", connected_phone: phone, last_qr: qr }, context.supabase);
-    return { exists, status: exists ? state : "no_instance", qr, pairingCode, phone };
+    await persist(data.branchId, { status: exists ? state : "no_instance", connected_phone: phone, last_qr: qr ?? code }, context.supabase);
+    return { exists, status: exists ? state : "no_instance", qr, code, pairingCode, phone };
+
   });
 
 /** Crea (si hace falta) la instancia y devuelve un QR nuevo. */
@@ -191,10 +203,9 @@ export const connectInstance = createServerFn({ method: "POST" })
     } catch (e) { console.warn("[evolution] webhook/set falló", e); }
 
     const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);
-    let qr: string | null = c?.base64 ?? null;
-    if (qr && !String(qr).startsWith("data:")) qr = `data:image/png;base64,${qr}`;
-    await persist(data.branchId, { status: qr ? "awaiting_qr" : "connecting", last_qr: qr, last_error: null }, context.supabase);
-    return { ok: true, qr, pairingCode: c?.pairingCode ?? null };
+    const { qr, code, pairingCode } = extractQr(c);
+    await persist(data.branchId, { status: qr || code ? "awaiting_qr" : "connecting", last_qr: qr ?? code, last_error: null }, context.supabase);
+    return { ok: true, qr, code, pairingCode };
   });
 
 /** Reinicia la instancia sin borrar la sesión. */

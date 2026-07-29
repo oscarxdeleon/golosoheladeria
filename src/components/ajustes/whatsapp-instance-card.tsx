@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, QrCode, LogOut, RefreshCw, CheckCircle2, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { QRCodeCanvas } from "qrcode.react";
 import {
   getInstanceStatus,
   connectInstance,
@@ -29,6 +30,7 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
   const branchId = branchIdProp ?? activeBranchId;
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
+  const [localQr, setLocalQr] = useState<{ qr: string | null; code: string | null }>({ qr: null, code: null });
 
   const status$ = useServerFn(getInstanceStatus);
   const connect$ = useServerFn(connectInstance);
@@ -48,7 +50,12 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
 
   useEffect(() => {
     setPolling(status?.status === "awaiting_qr" || status?.status === "connecting");
+    if (status?.status === "connected") setLocalQr({ qr: null, code: null });
   }, [status]);
+
+  useEffect(() => {
+    setLocalQr({ qr: null, code: null });
+  }, [branchId]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["whatsapp-instance", branchId] });
@@ -57,7 +64,13 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
 
   const connectMut = useMutation({
     mutationFn: (force: boolean) => connect$({ data: { branchId: branchId!, force } }),
-    onSuccess: () => { setPolling(true); toast.success("QR generado — escanéalo desde el teléfono de la sede"); invalidate(); },
+    onSuccess: (r: any) => {
+      setPolling(true);
+      setLocalQr({ qr: r?.qr ?? null, code: r?.code ?? null });
+      if (r?.qr || r?.code) toast.success("QR generado — escanéalo desde el teléfono de la sede");
+      else toast.info("Conectando… el QR aparecerá en unos segundos");
+      invalidate();
+    },
     onError: (e: any) => toast.error(e?.message || "No se pudo generar el QR"),
   });
 
@@ -83,6 +96,8 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
   const s = status?.status || "no_instance";
   const meta = STATUS_LABELS[s] || STATUS_LABELS.disconnected;
   const busy = connectMut.isPending || restartMut.isPending || disconnectMut.isPending || deleteMut.isPending;
+  const qrImage = (status as any)?.qr || localQr.qr || null;
+  const qrCode = (status as any)?.code || localQr.code || null;
 
   return (
     <Card className="border-primary/40">
@@ -120,14 +135,27 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
           </div>
         )}
 
-        {status?.qr && s !== "connected" && (
+        {(qrImage || qrCode) && s !== "connected" && (
           <div className="flex flex-col items-center gap-3 p-4 bg-muted/30 rounded-lg">
-            <img src={status.qr} alt="QR WhatsApp" className="w-64 h-64 rounded bg-white p-2" />
+            {qrImage ? (
+              <img src={qrImage} alt="QR WhatsApp" className="w-64 h-64 rounded bg-white p-2" />
+            ) : (
+              <div className="rounded bg-white p-3">
+                <QRCodeCanvas value={qrCode!} size={240} level="L" includeMargin />
+              </div>
+            )}
             <p className="text-xs text-center text-muted-foreground max-w-sm">
               En el teléfono: WhatsApp → <b>Ajustes → Dispositivos vinculados → Vincular un dispositivo</b> → escanea este QR.
             </p>
           </div>
         )}
+
+        {!qrImage && !qrCode && s !== "connected" && polling && (
+          <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Generando QR…
+          </div>
+        )}
+
 
         {status?.pairingCode && s !== "connected" && (
           <div className="flex flex-col items-center gap-2 p-3 bg-primary/5 border border-primary/30 rounded-lg">
