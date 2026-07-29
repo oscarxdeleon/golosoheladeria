@@ -316,6 +316,8 @@ app.get('/api/branch/:id/status', auth, (req, res) => {
     qrGeneratedAt: st.qrGeneratedAt || null,
     qrExpiresInMs: st.qrGeneratedAt ? Math.max(0, QR_TTL_MS - (Date.now() - new Date(st.qrGeneratedAt).getTime())) : null,
     phone: st.phone,
+    pairingCode: st.pairingCode || null,
+    pairingCodeAt: st.pairingCodeAt || null,
     lastConnectedAt: st.lastConnectedAt || null,
     lastError: st.lastError || null,
   });
