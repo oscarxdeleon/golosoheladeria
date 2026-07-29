@@ -81,6 +81,17 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
     onError: (e: any) => toast.error(e?.message || "Error al cerrar sesión"),
   });
 
+  const pairMut = useMutation({
+    mutationFn: () => pair({ data: { branchId: branchId!, phone: pairPhone } }),
+    onSuccess: (r) => {
+      setPolling(true);
+      toast.success(`Código generado: ${r.code}`);
+      qc.invalidateQueries({ queryKey: ["whatsapp-hub-status", branchId] });
+      setTimeout(() => refetch(), 1200);
+    },
+    onError: (e: any) => toast.error(e?.message || "No se pudo generar el código"),
+  });
+
   if (!branchId) return null;
   const s = status?.status || "disconnected";
   const meta = STATUS_LABELS[s] || STATUS_LABELS.disconnected;
