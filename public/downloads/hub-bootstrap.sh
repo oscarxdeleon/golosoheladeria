@@ -193,7 +193,7 @@ async function startBranch(id, opts) {
     auth: authState,
     logger,
     printQRInTerminal: false,
-    browser: Browsers.macOS('Desktop'),
+    browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: false,
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
