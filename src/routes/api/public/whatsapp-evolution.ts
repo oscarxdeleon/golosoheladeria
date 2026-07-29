@@ -51,13 +51,6 @@ async function deviceToken(branchId: string): Promise<string | null> {
   }
 }
 
-function posBase() {
-  const { readEvolutionEnv } = process.env as unknown as { readEvolutionEnv?: never };
-  // Import dinámico para evitar que este módulo de ruta cargue dependencias en SSR innecesarias.
-  return import("@/lib/evolution-env").then((m) =>
-    (m.readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "")
-  );
-}
 
 async function sendText(instance: string, number: string, text: string) {
   const { readEvolutionEnv } = await import("@/lib/evolution-env");
