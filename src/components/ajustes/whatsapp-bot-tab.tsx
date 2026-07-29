@@ -191,7 +191,7 @@ export function WhatsAppBotTab() {
         </Card>
       )}
 
-      <WhatsAppHubCard />
+      <WhatsAppHubCard branchId={branchId} />
       <StatusCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <ChatbotModeCard cfg={cfg} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
 
