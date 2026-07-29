@@ -183,20 +183,28 @@ async function ensureInstance(branchId: string, webhookToken: string) {
       instanceName: name,
       qrcode: true,
       integration: "WHATSAPP-BAILEYS",
-      webhook: webhookConfig(webhookToken),
+      webhook: await webhookConfig(webhookToken),
     }),
   });
   return { name, created: true };
 }
 
 
-/** Estado + QR vigente de la instancia de la sede. */
+/**
+ * Estado + QR vigente de la instancia de la sede.
+ * AUTOMÁTICO: si la instancia no existe la crea, y siempre deja el webhook
+ * apuntando al dominio desde el que se está usando el POS (Vercel, Lovable o
+ * dominio propio) con el token privado de la sede. El administrador no tiene
+ * que configurar ni pulsar nada: basta con abrir la pantalla.
+ */
 export const getInstanceStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { branchId: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const name = instanceName(data.branchId);
+    const webhookToken = await branchWebhookToken(data.branchId, context.supabase);
+
     let state = "disconnected";
     let phone: string | null = null;
     let exists = true;
@@ -213,6 +221,28 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
       else throw e;
     }
 
+    // Auto-reparación: crear la instancia si falta.
+    if (!exists) {
+      try {
+        await ensureInstance(data.branchId, webhookToken);
+        exists = true;
+        state = "connecting";
+      } catch (e) {
+        console.warn("[evolution] no pude autocrear la instancia", e);
+      }
+    }
+
+    // Auto-reparación: webhook siempre sincronizado con el dominio actual.
+    let webhook: string | null = null;
+    if (exists) {
+      try {
+        const r = await syncWebhook(name, webhookToken);
+        webhook = r.url;
+      } catch (e) {
+        console.warn("[evolution] no pude sincronizar el webhook", e);
+      }
+    }
+
     let qr: string | null = null;
     let code: string | null = null;
     let pairingCode: string | null = null;
@@ -226,9 +256,10 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
     }
 
     await persist(data.branchId, { status: exists ? state : "no_instance", connected_phone: phone, last_qr: qr ?? code }, context.supabase);
-    return { exists, status: exists ? state : "no_instance", qr, code, pairingCode, phone };
+    return { exists, status: exists ? state : "no_instance", qr, code, pairingCode, phone, webhook };
 
   });
+
 
 /** Crea (si hace falta) la instancia y devuelve un QR nuevo. */
 export const connectInstance = createServerFn({ method: "POST" })
