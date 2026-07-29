@@ -100,6 +100,17 @@ function mapState(raw: string | null | undefined): string {
   }
 }
 
+/** Evolution v2 devuelve el QR en formas distintas según versión/endpoint. */
+function extractQr(c: any): { qr: string | null; code: string | null; pairingCode: string | null } {
+  const src = c?.qrcode ?? c?.qrCode ?? c;
+  let qr: string | null = src?.base64 ?? c?.base64 ?? null;
+  if (qr && !String(qr).startsWith("data:")) qr = `data:image/png;base64,${qr}`;
+  const rawCode = src?.code ?? c?.code ?? null;
+  const code = rawCode && String(rawCode).length > 20 ? String(rawCode) : null;
+  const pairingCode = src?.pairingCode ?? c?.pairingCode ?? null;
+  return { qr, code, pairingCode };
+}
+
 async function ensureInstance(branchId: string) {
   const name = instanceName(branchId);
   try {
