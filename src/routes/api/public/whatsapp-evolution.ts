@@ -57,9 +57,9 @@ function posBase() {
 }
 
 async function sendText(instance: string, number: string, text: string) {
-  const env = process.env as Record<string, string | undefined>;
-  const url = (env.EVOLUTION_API_URL || "").replace(/\/$/, "");
-  const key = env.EVOLUTION_API_KEY;
+  const { readEvolutionEnv } = await import("@/lib/evolution-env");
+  const url = (readEvolutionEnv("EVOLUTION_API_URL") || "").replace(/\/$/, "");
+  const key = readEvolutionEnv("EVOLUTION_API_KEY");
   if (!url || !key) return;
   await fetch(`${url}/message/sendText/${encodeURIComponent(instance)}`, {
     method: "POST",
@@ -73,10 +73,11 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
     handlers: {
       GET: () => json({ ok: true, service: "whatsapp-evolution-webhook" }),
       POST: async ({ request }) => {
-        const env = process.env as Record<string, string | undefined>;
-        const expected = env.EVOLUTION_WEBHOOK_TOKEN;
+        const { readEvolutionEnv } = await import("@/lib/evolution-env");
+        const expected = readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN");
         const provided = new URL(request.url).searchParams.get("t") ?? request.headers.get("x-webhook-token");
         if (!expected || provided !== expected) return json({ error: "unauthorized" }, 401);
+
 
         let body: any = null;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
