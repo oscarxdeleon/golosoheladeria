@@ -41,18 +41,19 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
   "dependencies": {
-    "@whiskeysockets/baileys": "6.17.16",
+    "baileys": "latest",
     "express": "^4.19.2",
     "pino": "^9.4.0",
     "qrcode": "^1.5.4"
   }
 }
 JSON
+
 
 cat > server.js <<'NODE'
 const express = require('express');
@@ -67,13 +68,14 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   Browsers,
-} = require('@whiskeysockets/baileys');
+} = require('baileys');
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
-const QR_TTL_MS = 35_000;
+const QR_TTL_MS = 55_000;
+
 
 if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -191,11 +193,13 @@ async function startBranch(id, opts) {
     auth: authState,
     logger,
     printQRInTerminal: false,
-    browser: Browsers.ubuntu('Chrome'),
+    browser: Browsers.macOS('Desktop'),
     syncFullHistory: false,
     markOnlineOnConnect: false,
+    generateHighQualityLinkPreview: false,
     shouldSyncHistoryMessage: () => false,
   });
+
   st.sock = sock;
   st.status = 'connecting';
   st.qr = null;
@@ -391,8 +395,10 @@ NODE
 
 log "4/6 Instalando dependencias (2-4 min)"
 rm -f package-lock.json
+rm -rf node_modules
 npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 || npm install --omit=dev --no-audit --no-fund
 ok "Dependencias listas"
+
 
 log "5/6 Token y arranque con PM2"
 if [[ ! -f "${ENV_FILE}" ]] || ! grep -q '^HUB_API_TOKEN=' "${ENV_FILE}"; then
