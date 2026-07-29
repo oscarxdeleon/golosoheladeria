@@ -181,8 +181,25 @@ async function startBranch(id) {
       if (!loggedOut) setTimeout(() => startBranch(id).catch(() => {}), 3000);
     }
   });
-  sock.ev.on('messages.upsert', async (m) => {
-    // Inbound webhook forwarding (Fase 3). No-op por ahora.
+  sock.ev.on('messages.upsert', async (ev) => {
+    try {
+      if (ev.type !== 'notify') return;
+      for (const m of (ev.messages || [])) {
+        if (!m.message || m.key?.fromMe) continue;
+        const remote = m.key?.remoteJid || '';
+        if (!remote.endsWith('@s.whatsapp.net')) continue; // ignora grupos/estados
+        const from = remote.split('@')[0];
+        const msgId = m.key?.id || null;
+        const text =
+          m.message.conversation ||
+          m.message.extendedTextMessage?.text ||
+          m.message.imageMessage?.caption ||
+          m.message.videoMessage?.caption ||
+          '';
+        if (!text || !text.trim()) continue;
+        forwardToPos(id, st, from, text.trim(), msgId).catch(() => {});
+      }
+    } catch (e) { console.error(`[${id}] messages.upsert`, e.message); }
   });
   return st;
 }
