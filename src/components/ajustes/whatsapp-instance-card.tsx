@@ -50,7 +50,12 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
 
   useEffect(() => {
     setPolling(status?.status === "awaiting_qr" || status?.status === "connecting");
+    if (status?.status === "connected") setLocalQr({ qr: null, code: null });
   }, [status]);
+
+  useEffect(() => {
+    setLocalQr({ qr: null, code: null });
+  }, [branchId]);
 
   const invalidate = () => {
     qc.invalidateQueries({ queryKey: ["whatsapp-instance", branchId] });
