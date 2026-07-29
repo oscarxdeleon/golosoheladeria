@@ -25,11 +25,14 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
   const branchId = branchIdProp ?? activeBranchId;
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
+  const [pairPhone, setPairPhone] = useState("");
+  const [showPair, setShowPair] = useState(false);
 
   const getStatus = useServerFn(getBranchHubStatus);
   const requestQr = useServerFn(requestBranchHubQr);
   const logout = useServerFn(logoutBranchHub);
   const reset = useServerFn(resetBranchHub);
+  const pair = useServerFn(pairBranchHub);
 
   const branch = branches.find((b) => b.id === branchId);
 
