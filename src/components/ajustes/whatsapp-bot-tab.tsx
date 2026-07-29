@@ -106,6 +106,16 @@ export function WhatsAppBotTab() {
   const { branches, activeBranchId } = useBranch();
   const qc = useQueryClient();
   const [branchId, setBranchId] = useState<string | null>(activeBranchId);
+  const [showLegacy, setShowLegacy] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("wa_show_legacy_bot") === "1";
+  });
+  const toggleLegacy = (v: boolean) => {
+    setShowLegacy(v);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("wa_show_legacy_bot", v ? "1" : "0");
+    }
+  };
 
   useEffect(() => {
     if (!branchId && activeBranchId) setBranchId(activeBranchId);
@@ -192,10 +202,32 @@ export function WhatsAppBotTab() {
       )}
 
       <WhatsAppHubCard branchId={branchId} />
-      <StatusCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
-      <ChatbotModeCard cfg={cfg} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
 
-      <InstallCard cfg={cfg} />
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4 text-amber-500" />
+            Bot Windows (legacy)
+          </CardTitle>
+          <CardDescription>
+            Ya no se necesita. El WhatsApp Hub Centralizado lo reemplaza por completo. Solo muéstralo si un técnico te lo pide.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2">
+            <Switch id="show-legacy" checked={showLegacy} onCheckedChange={toggleLegacy} />
+            <Label htmlFor="show-legacy" className="text-sm">Mostrar panel del bot Windows antiguo</Label>
+          </div>
+        </CardContent>
+      </Card>
+
+      {showLegacy && (
+        <>
+          <StatusCard cfg={cfg} branch={branches.find((b) => b.id === cfg.branch_id) as BranchRow | undefined} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
+          <InstallCard cfg={cfg} />
+        </>
+      )}
+      <ChatbotModeCard cfg={cfg} onChanged={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <WelcomeCard cfg={cfg} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
       <FrequencyCard cfg={cfg} onSaved={() => qc.invalidateQueries({ queryKey: ["whatsapp-bot-config", branchId] })} />
 
