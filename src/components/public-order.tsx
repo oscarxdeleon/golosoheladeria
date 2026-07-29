@@ -1648,7 +1648,7 @@ export function PublicOrder({
                       ? "Confirmar pedido"
                       : scheduledFor
                         ? `Confirmar programado · ${formatMoney(total)}`
-                        : `Finalizar pedido · ${formatMoney(total)}`}
+                        : `Confirmar pedido · ${formatMoney(total)}`}
               </Button>
 
 
