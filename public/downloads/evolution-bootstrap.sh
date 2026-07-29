@@ -4,11 +4,9 @@ set -euo pipefail
 echo "▶ Instalando Docker (si falta)…"
 command -v docker >/dev/null 2>&1 || curl -fsSL https://get.docker.com | sh
 mkdir -p /opt/evolution && cd /opt/evolution
-if [ -f .env ]; then . ./.env; fi
-KEY="${AUTHENTICATION_API_KEY:-$(openssl rand -hex 24)}"
-cat > .env <<ENV
-AUTHENTICATION_API_KEY=$KEY
-ENV
+KEY="$(grep -m1 '^AUTHENTICATION_API_KEY=' .env 2>/dev/null | cut -d= -f2- | tr -d '\r\"' || true)"
+if [ -z "$KEY" ]; then KEY="$(openssl rand -hex 24)"; fi
+printf 'AUTHENTICATION_API_KEY=%s\n' "$KEY" > .env
 docker rm -f evolution-api >/dev/null 2>&1 || true
 docker volume create evolution_instances >/dev/null
 docker run -d --name evolution-api --restart always -p 8080:8080 \
