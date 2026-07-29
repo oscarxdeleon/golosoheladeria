@@ -41,18 +41,19 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
   "dependencies": {
-    "@whiskeysockets/baileys": "6.17.16",
+    "baileys": "latest",
     "express": "^4.19.2",
     "pino": "^9.4.0",
     "qrcode": "^1.5.4"
   }
 }
 JSON
+
 
 cat > server.js <<'NODE'
 const express = require('express');
