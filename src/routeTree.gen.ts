@@ -67,6 +67,7 @@ import { Route as SSlugMenuRouteImport } from './routes/s.$slug.menu'
 import { Route as SSlugManifestDotwebmanifestRouteImport } from './routes/s.$slug.manifest[.]webmanifest'
 import { Route as SSlugKioskRouteImport } from './routes/s.$slug.kiosk'
 import { Route as AsistenciaTerminalSlugRouteImport } from './routes/asistencia.terminal.$slug'
+import { Route as ApiPublicWhatsappEvolutionRouteImport } from './routes/api/public/whatsapp-evolution'
 import { Route as ApiPublicWhatsappBotRouteImport } from './routes/api/public/whatsapp-bot'
 import { Route as ApiPublicUserAdminRouteImport } from './routes/api/public/user-admin'
 import { Route as ApiPublicFaqExtractRouteImport } from './routes/api/public/faq-extract'
@@ -384,6 +385,12 @@ const AsistenciaTerminalSlugRoute = AsistenciaTerminalSlugRouteImport.update({
   path: '/asistencia/terminal/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicWhatsappEvolutionRoute =
+  ApiPublicWhatsappEvolutionRouteImport.update({
+    id: '/api/public/whatsapp-evolution',
+    path: '/api/public/whatsapp-evolution',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiPublicWhatsappBotRoute = ApiPublicWhatsappBotRouteImport.update({
   id: '/api/public/whatsapp-bot',
   path: '/api/public/whatsapp-bot',
@@ -535,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -607,6 +615,7 @@ export interface FileRoutesByTo {
   '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -683,6 +692,7 @@ export interface FileRoutesById {
   '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
+  '/api/public/whatsapp-evolution': typeof ApiPublicWhatsappEvolutionRoute
   '/asistencia/terminal/$slug': typeof AsistenciaTerminalSlugRoute
   '/s/$slug/kiosk': typeof SSlugKioskRoute
   '/s/$slug/manifest.webmanifest': typeof SSlugManifestDotwebmanifestRoute
@@ -759,6 +769,7 @@ export interface FileRouteTypes {
     | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
+    | '/api/public/whatsapp-evolution'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -831,6 +842,7 @@ export interface FileRouteTypes {
     | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
+    | '/api/public/whatsapp-evolution'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -906,6 +918,7 @@ export interface FileRouteTypes {
     | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
+    | '/api/public/whatsapp-evolution'
     | '/asistencia/terminal/$slug'
     | '/s/$slug/kiosk'
     | '/s/$slug/manifest.webmanifest'
@@ -936,6 +949,7 @@ export interface RootRouteChildren {
   ApiPublicFaqExtractRoute: typeof ApiPublicFaqExtractRoute
   ApiPublicUserAdminRoute: typeof ApiPublicUserAdminRoute
   ApiPublicWhatsappBotRoute: typeof ApiPublicWhatsappBotRoute
+  ApiPublicWhatsappEvolutionRoute: typeof ApiPublicWhatsappEvolutionRoute
   AsistenciaTerminalSlugRoute: typeof AsistenciaTerminalSlugRoute
   ApiPublicTabletAuthTokenRoute: typeof ApiPublicTabletAuthTokenRoute
 }
@@ -1348,6 +1362,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AsistenciaTerminalSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/whatsapp-evolution': {
+      id: '/api/public/whatsapp-evolution'
+      path: '/api/public/whatsapp-evolution'
+      fullPath: '/api/public/whatsapp-evolution'
+      preLoaderRoute: typeof ApiPublicWhatsappEvolutionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/whatsapp-bot': {
       id: '/api/public/whatsapp-bot'
       path: '/api/public/whatsapp-bot'
@@ -1610,19 +1631,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiPublicFaqExtractRoute: ApiPublicFaqExtractRoute,
   ApiPublicUserAdminRoute: ApiPublicUserAdminRoute,
   ApiPublicWhatsappBotRoute: ApiPublicWhatsappBotRoute,
+  ApiPublicWhatsappEvolutionRoute: ApiPublicWhatsappEvolutionRoute,
   AsistenciaTerminalSlugRoute: AsistenciaTerminalSlugRoute,
   ApiPublicTabletAuthTokenRoute: ApiPublicTabletAuthTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
