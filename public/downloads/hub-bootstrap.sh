@@ -44,11 +44,11 @@ ok "Paquetes base listos"
 
 log "2/6 Node.js 20 + PM2"
 if ! command -v node >/dev/null 2>&1 || [[ "$(node -v | cut -d. -f1)" != "v20" && "$(node -v | cut -d. -f1)" != "v22" ]]; then
-  curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null
-  apt-get install -y nodejs >/dev/null
+  timeout 60 curl -fsSL https://deb.nodesource.com/setup_20.x | bash - >/dev/null 2>&1 || warn "NodeSource repo no respondio"
+  timeout 300 apt-get install -y nodejs >/dev/null 2>&1 || warn "Fallo instalando nodejs"
 fi
-command -v pm2 >/dev/null 2>&1 || npm install -g pm2 >/dev/null
-ok "Node $(node -v) / pm2 $(pm2 -v)"
+command -v pm2 >/dev/null 2>&1 || timeout 300 npm install -g pm2 >/dev/null 2>&1 || warn "Fallo instalando pm2"
+ok "Node $(node -v 2>/dev/null || echo 'N/A') / pm2 $(pm2 -v 2>/dev/null || echo 'N/A')"
 
 log "3/6 Hub en ${HUB_DIR}"
 mkdir -p "${HUB_DIR}/sessions"
