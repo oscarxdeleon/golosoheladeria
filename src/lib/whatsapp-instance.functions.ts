@@ -20,10 +20,36 @@ function publicBase() {
   return (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
 }
 
+/** URL limpia: el token ya NO viaja en el query string, va en un header privado. */
 function webhookUrl() {
-  const token = readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN") || "";
-  return `${publicBase()}/api/public/whatsapp-evolution${token ? `?t=${encodeURIComponent(token)}` : ""}`;
+  return `${publicBase()}/api/public/whatsapp-evolution`;
 }
+
+/** Token propio de la sede (rotable). Fallback: token global de entorno. */
+async function branchWebhookToken(branchId: string, supabase: any): Promise<string> {
+  try {
+    const { data, error } = await supabase.rpc("whatsapp_evolution_get_token", { _branch_id: branchId });
+    if (!error && typeof data === "string" && data.length >= 16) return data;
+  } catch (e) {
+    console.warn("[evolution] no pude leer el token de la sede", e);
+  }
+  return readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN") || "";
+}
+
+function webhookConfig(token: string) {
+  return {
+    enabled: true,
+    url: webhookUrl(),
+    byEvents: false,
+    base64: true,
+    headers: {
+      "Content-Type": "application/json",
+      "x-webhook-token": token,
+    },
+    events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
+  };
+}
+
 
 
 export function instanceName(branchId: string) {
@@ -110,7 +136,7 @@ function extractQr(c: any): { qr: string | null; code: string | null; pairingCod
   return { qr, code, pairingCode };
 }
 
-async function ensureInstance(branchId: string) {
+async function ensureInstance(branchId: string, webhookToken: string) {
   const name = instanceName(branchId);
   try {
     await evo(`/instance/connectionState/${encodeURIComponent(name)}`);
@@ -124,16 +150,12 @@ async function ensureInstance(branchId: string) {
       instanceName: name,
       qrcode: true,
       integration: "WHATSAPP-BAILEYS",
-      webhook: {
-        url: webhookUrl(),
-        byEvents: false,
-        base64: true,
-        events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
-      },
+      webhook: webhookConfig(webhookToken),
     }),
   });
   return { name, created: true };
 }
+
 
 /** Estado + QR vigente de la instancia de la sede. */
 export const getInstanceStatus = createServerFn({ method: "POST" })
@@ -181,25 +203,19 @@ export const connectInstance = createServerFn({ method: "POST" })
   .inputValidator((d: { branchId: string; force?: boolean }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
-    const { name } = await ensureInstance(data.branchId);
+    const webhookToken = await branchWebhookToken(data.branchId, context.supabase);
+    const { name } = await ensureInstance(data.branchId, webhookToken);
     if (data.force) {
       try { await evo(`/instance/logout/${encodeURIComponent(name)}`, { method: "DELETE" }); } catch { /* ya estaba cerrada */ }
     }
-    // Asegura webhook actualizado (idempotente)
+    // Asegura webhook actualizado (idempotente): URL sin token + header privado.
     try {
       await evo(`/webhook/set/${encodeURIComponent(name)}`, {
         method: "POST",
-        body: JSON.stringify({
-          webhook: {
-            enabled: true,
-            url: webhookUrl(),
-            byEvents: false,
-            base64: true,
-            events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
-          },
-        }),
+        body: JSON.stringify({ webhook: webhookConfig(webhookToken) }),
       });
     } catch (e) { console.warn("[evolution] webhook/set falló", e); }
+
 
     const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);
     const { qr, code, pairingCode } = extractQr(c);
