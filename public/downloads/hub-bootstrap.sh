@@ -235,8 +235,19 @@ app.get('/api/branch/:id/status', auth, (req, res) => {
 
 app.post('/api/branch/:id/connect', auth, async (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
-  try { await startBranch(id); res.json({ ok: true, status: state(id).status }); }
-  catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+  try {
+    const { deviceToken, posWebhookBase } = req.body || {};
+    const st = state(id);
+    if (deviceToken || posWebhookBase) {
+      const cfg = { ...(st.cfg || {}) };
+      if (typeof deviceToken === 'string' && deviceToken.length >= 16) cfg.deviceToken = deviceToken;
+      if (typeof posWebhookBase === 'string' && /^https?:\/\//.test(posWebhookBase)) cfg.posWebhookBase = posWebhookBase;
+      st.cfg = cfg;
+      saveCfg(id, cfg);
+    }
+    await startBranch(id);
+    res.json({ ok: true, status: state(id).status, hasWebhook: !!(st.cfg?.deviceToken && st.cfg?.posWebhookBase) });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
 app.post('/api/branch/:id/logout', auth, async (req, res) => {
