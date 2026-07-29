@@ -16,14 +16,43 @@ function api() {
   return { url: url.replace(/\/$/, ""), key };
 }
 
+/**
+ * URL pública del POS. Se detecta SOLA desde la petición actual (funciona igual
+ * en Vercel, en el dominio de Lovable o en un dominio propio, sin configurar
+ * nada). Solo se usa la variable de entorno como respaldo.
+ */
 function publicBase() {
+  try {
+    // Import estático evitado a propósito: solo existe en el runtime de servidor.
+    const req = (globalThis as any).__evoRequest as Request | undefined;
+    const fromReq = req?.url;
+    if (fromReq) {
+      const u = new URL(fromReq);
+      const forwardedHost = req!.headers.get("x-forwarded-host");
+      const forwardedProto = req!.headers.get("x-forwarded-proto");
+      const host = forwardedHost || u.host;
+      const proto = forwardedProto || u.protocol.replace(":", "");
+      if (host && !/^(localhost|127\.0\.0\.1|\[::1\])/i.test(host)) {
+        return `${proto}://${host}`;
+      }
+    }
+  } catch { /* seguimos con el respaldo */ }
   return (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
+}
+
+/** Guarda la petición actual para poder deducir el dominio público. */
+async function captureRequest() {
+  try {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    (globalThis as any).__evoRequest = getRequest();
+  } catch { /* fuera de contexto de petición */ }
 }
 
 /** URL limpia: el token ya NO viaja en el query string, va en un header privado. */
 function webhookUrl() {
   return `${publicBase()}/api/public/whatsapp-evolution`;
 }
+
 
 /** Token propio de la sede (rotable). Fallback: token global de entorno. */
 async function branchWebhookToken(branchId: string, supabase: any): Promise<string> {
