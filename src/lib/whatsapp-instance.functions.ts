@@ -19,40 +19,24 @@ function api() {
 /**
  * URL pública del POS. Se detecta SOLA desde la petición actual (funciona igual
  * en Vercel, en el dominio de Lovable o en un dominio propio, sin configurar
- * nada). Solo se usa la variable de entorno como respaldo.
+ * nada). La variable de entorno queda solo como respaldo.
  */
-function publicBase() {
+async function publicBase(): Promise<string> {
   try {
-    // Import estático evitado a propósito: solo existe en el runtime de servidor.
-    const req = (globalThis as any).__evoRequest as Request | undefined;
-    const fromReq = req?.url;
-    if (fromReq) {
-      const u = new URL(fromReq);
-      const forwardedHost = req!.headers.get("x-forwarded-host");
-      const forwardedProto = req!.headers.get("x-forwarded-proto");
-      const host = forwardedHost || u.host;
-      const proto = forwardedProto || u.protocol.replace(":", "");
-      if (host && !/^(localhost|127\.0\.0\.1|\[::1\])/i.test(host)) {
-        return `${proto}://${host}`;
-      }
-    }
-  } catch { /* seguimos con el respaldo */ }
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const req = getRequest();
+    const u = new URL(req.url);
+    const host = req.headers.get("x-forwarded-host") || u.host;
+    const proto = req.headers.get("x-forwarded-proto") || u.protocol.replace(":", "");
+    if (host && !/^(localhost|127\.0\.0\.1|\[::1\])/i.test(host)) return `${proto}://${host}`;
+  } catch { /* fuera de contexto de petición: usamos el respaldo */ }
   return (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
 }
 
-/** Guarda la petición actual para poder deducir el dominio público. */
-async function captureRequest() {
-  try {
-    const { getRequest } = await import("@tanstack/react-start/server");
-    (globalThis as any).__evoRequest = getRequest();
-  } catch { /* fuera de contexto de petición */ }
-}
-
 /** URL limpia: el token ya NO viaja en el query string, va en un header privado. */
-function webhookUrl() {
-  return `${publicBase()}/api/public/whatsapp-evolution`;
+async function webhookUrl() {
+  return `${await publicBase()}/api/public/whatsapp-evolution`;
 }
-
 
 /** Token propio de la sede (rotable). Fallback: token global de entorno. */
 async function branchWebhookToken(branchId: string, supabase: any): Promise<string> {
@@ -65,10 +49,10 @@ async function branchWebhookToken(branchId: string, supabase: any): Promise<stri
   return readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN") || "";
 }
 
-function webhookConfig(token: string) {
+async function webhookConfig(token: string) {
   return {
     enabled: true,
-    url: webhookUrl(),
+    url: await webhookUrl(),
     byEvents: false,
     base64: true,
     headers: {
@@ -78,6 +62,26 @@ function webhookConfig(token: string) {
     events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
   };
 }
+
+/**
+ * Deja el webhook de la instancia exactamente como debe estar (URL del dominio
+ * actual + token privado de la sede). Idempotente: si ya coincide, no hace nada.
+ */
+async function syncWebhook(name: string, token: string) {
+  const desired = await webhookConfig(token);
+  try {
+    const current = await evo(`/webhook/find/${encodeURIComponent(name)}`);
+    const sameUrl = String(current?.url ?? "") === desired.url;
+    const sameToken = String(current?.headers?.["x-webhook-token"] ?? "") === token;
+    if (sameUrl && sameToken && current?.enabled) return { changed: false, url: desired.url };
+  } catch { /* no existe todavía: lo creamos */ }
+  await evo(`/webhook/set/${encodeURIComponent(name)}`, {
+    method: "POST",
+    body: JSON.stringify({ webhook: desired }),
+  });
+  return { changed: true, url: desired.url };
+}
+
 
 
 
