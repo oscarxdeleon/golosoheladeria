@@ -68,13 +68,14 @@ const {
   DisconnectReason,
   fetchLatestBaileysVersion,
   Browsers,
-} = require('@whiskeysockets/baileys');
+} = require('baileys');
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.5.0';
+const VERSION = '1.6.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
-const QR_TTL_MS = 35_000;
+const QR_TTL_MS = 55_000;
+
 
 if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
