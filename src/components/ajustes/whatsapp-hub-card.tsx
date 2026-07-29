@@ -4,9 +4,9 @@ import { useServerFn } from "@tanstack/react-start";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, QrCode, LogOut, RefreshCw, CheckCircle2, AlertCircle } from "lucide-react";
+import { Loader2, QrCode, LogOut, RefreshCw, CheckCircle2, AlertCircle, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
-import { requestBranchHubQr, getBranchHubStatus, logoutBranchHub } from "@/lib/whatsapp-hub.functions";
+import { requestBranchHubQr, getBranchHubStatus, logoutBranchHub, resetBranchHub } from "@/lib/whatsapp-hub.functions";
 import { useBranch } from "@/contexts/branch-context";
 
 const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secondary" | "destructive" | "outline" }> = {
