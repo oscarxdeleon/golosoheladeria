@@ -149,19 +149,20 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
     }
 
     let qr: string | null = null;
+    let code: string | null = null;
     let pairingCode: string | null = null;
     if (exists && state !== "connected") {
       try {
         const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);
-        qr = c?.base64 ?? (c?.code ? null : null);
-        pairingCode = c?.pairingCode ?? null;
-        if (qr && !String(qr).startsWith("data:")) qr = `data:image/png;base64,${qr}`;
-        if (qr) state = "awaiting_qr";
+        const x = extractQr(c);
+        qr = x.qr; code = x.code; pairingCode = x.pairingCode;
+        if (qr || code) state = "awaiting_qr";
       } catch { /* la instancia puede estar reconectando */ }
     }
 
-    await persist(data.branchId, { status: exists ? state : "no_instance", connected_phone: phone, last_qr: qr }, context.supabase);
-    return { exists, status: exists ? state : "no_instance", qr, pairingCode, phone };
+    await persist(data.branchId, { status: exists ? state : "no_instance", connected_phone: phone, last_qr: qr ?? code }, context.supabase);
+    return { exists, status: exists ? state : "no_instance", qr, code, pairingCode, phone };
+
   });
 
 /** Crea (si hace falta) la instancia y devuelve un QR nuevo. */
