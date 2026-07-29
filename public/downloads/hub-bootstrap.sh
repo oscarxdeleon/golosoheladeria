@@ -395,8 +395,10 @@ NODE
 
 log "4/6 Instalando dependencias (2-4 min)"
 rm -f package-lock.json
+rm -rf node_modules
 npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 || npm install --omit=dev --no-audit --no-fund
 ok "Dependencias listas"
+
 
 log "5/6 Token y arranque con PM2"
 if [[ ! -f "${ENV_FILE}" ]] || ! grep -q '^HUB_API_TOKEN=' "${ENV_FILE}"; then
