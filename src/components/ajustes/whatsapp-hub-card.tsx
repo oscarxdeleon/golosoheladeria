@@ -18,9 +18,9 @@ const STATUS_LABELS: Record<string, { label: string; variant: "default" | "secon
   error: { label: "Error", variant: "destructive" },
 };
 
-export function WhatsAppHubCard() {
+export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string | null } = {}) {
   const { branches, activeBranchId } = useBranch();
-  const branchId = activeBranchId;
+  const branchId = branchIdProp ?? activeBranchId;
   const qc = useQueryClient();
   const [polling, setPolling] = useState(false);
 
@@ -29,6 +29,7 @@ export function WhatsAppHubCard() {
   const logout = useServerFn(logoutBranchHub);
 
   const branch = branches.find((b) => b.id === branchId);
+
 
   const { data: status, refetch } = useQuery({
     queryKey: ["whatsapp-hub-status", branchId],
