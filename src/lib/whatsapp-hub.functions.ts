@@ -41,9 +41,9 @@ async function hubFetch(path: string, init?: RequestInit) {
 
 async function persistSession(
   branchId: string,
-  data: { status: string; connected_phone?: string | null; last_qr?: string | null; last_error?: string | null }
+  data: { status: string; connected_phone?: string | null; last_qr?: string | null; last_error?: string | null },
+  userSupabase?: any
 ) {
-  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   const now = new Date().toISOString();
   const patch: Record<string, any> = {
     branch_id: branchId,
@@ -58,7 +58,27 @@ async function persistSession(
   }
   if (data.status === "connected") patch.last_connected_at = now;
   if (data.status === "disconnected" || data.status === "needs_qr") patch.last_disconnected_at = now;
-  await supabaseAdmin.from("whatsapp_hub_sessions").upsert(patch, { onConflict: "branch_id" });
+
+  // Try service-role first (works on Lovable Cloud). If SUPABASE_SERVICE_ROLE_KEY
+  // is not configured (e.g. Vercel deploy without the key), fall back to the
+  // authenticated user's client. Never let a persist failure break QR flow.
+  try {
+    const env = process.env as Record<string, string | undefined>;
+    if (env.SUPABASE_SERVICE_ROLE_KEY) {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("whatsapp_hub_sessions").upsert(patch, { onConflict: "branch_id" });
+      return;
+    }
+  } catch (e) {
+    console.warn("[hub] persistSession admin failed, falling back to user client", e);
+  }
+  try {
+    if (userSupabase) {
+      await userSupabase.from("whatsapp_hub_sessions").upsert(patch, { onConflict: "branch_id" });
+    }
+  } catch (e) {
+    console.warn("[hub] persistSession user client failed (non-fatal)", e);
+  }
 }
 
 async function assertAdmin(ctx: { supabase: any; userId: string }) {
