@@ -90,6 +90,8 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
   const s = status?.status || "no_instance";
   const meta = STATUS_LABELS[s] || STATUS_LABELS.disconnected;
   const busy = connectMut.isPending || restartMut.isPending || disconnectMut.isPending || deleteMut.isPending;
+  const qrImage = (status as any)?.qr || localQr.qr || null;
+  const qrCode = (status as any)?.code || localQr.code || null;
 
   return (
     <Card className="border-primary/40">
