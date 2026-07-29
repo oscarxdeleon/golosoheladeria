@@ -122,7 +122,7 @@ export const logoutBranchHub = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     await hubFetch(`/api/branch/${data.branchId}/logout`, { method: "POST" });
-    await persistSession(data.branchId, { status: "disconnected", connected_phone: null, last_qr: null });
+    await persistSession(data.branchId, { status: "disconnected", connected_phone: null, last_qr: null }, context.supabase);
     return { ok: true };
   });
 
