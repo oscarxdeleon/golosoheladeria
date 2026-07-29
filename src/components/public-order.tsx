@@ -136,7 +136,7 @@ export function PublicOrder({
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackSentRating, setFeedbackSentRating] = useState<number | null>(null);
   const [lastSaleId, setLastSaleId] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; lastName?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [waiterCalledAt, setWaiterCalledAt] = useState<number | null>(null);
@@ -439,8 +439,9 @@ export function PublicOrder({
     const phoneOk = phoneDigits.length >= 7;
 
     if (source !== "table_qr") {
-      // Nombre y teléfono siempre obligatorios en menú en línea y kiosko.
+      // Nombre, apellido y teléfono siempre obligatorios en menú en línea y kiosko.
       if (!customerName.trim()) errs.name = true;
+      if (!customerLastName.trim()) errs.lastName = true;
       if (!phoneOk) errs.phone = true;
     }
 
@@ -451,6 +452,7 @@ export function PublicOrder({
 
     setFieldErrors(errs);
     if (errs.name) return "Ingresa tu nombre";
+    if (errs.lastName) return "Por favor ingresa tu apellido.";
     if (errs.phone) return "Ingresa un teléfono de contacto válido";
     if (errs.address || errs.neighborhood) return "Completa la dirección de envío";
 
@@ -1354,6 +1356,9 @@ export function PublicOrder({
                   <PremiumField
                     label="Apellido"
                     icon={<IdCard className="h-4 w-4" />}
+                    error={fieldErrors.lastName}
+                    errorText="Por favor ingresa tu apellido."
+                    required
                   >
                     <Input
                       placeholder="Escribe tu apellido"
@@ -1361,8 +1366,9 @@ export function PublicOrder({
                       autoComplete="family-name"
                       autoCapitalize="characters"
                       value={customerLastName}
-                      onChange={(e) => setCustomerLastName(toUpperText(e.target.value))}
-                      className="h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition"
+                      onChange={(e) => { setCustomerLastName(toUpperText(e.target.value)); if (fieldErrors.lastName) setFieldErrors({ ...fieldErrors, lastName: false }); }}
+                      className={`h-12 rounded-xl text-base uppercase tracking-wide bg-background/80 border-primary/20 focus-visible:ring-2 focus-visible:ring-primary/40 transition ${fieldErrors.lastName ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                      required
                     />
                   </PremiumField>
 
@@ -1648,7 +1654,7 @@ export function PublicOrder({
                       ? "Confirmar pedido"
                       : scheduledFor
                         ? `Confirmar programado · ${formatMoney(total)}`
-                        : `Finalizar pedido · ${formatMoney(total)}`}
+                        : `Confirmar pedido · ${formatMoney(total)}`}
               </Button>
 
 
