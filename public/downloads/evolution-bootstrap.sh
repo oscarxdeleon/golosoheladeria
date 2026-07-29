@@ -18,7 +18,7 @@ docker run -d --name evolution-api --restart always -p 8080:8080 \
   -e CONFIG_SESSION_PHONE_NAME="Chrome" \
   -e QRCODE_LIMIT=30 \
   -v evolution_instances:/evolution/instances \
-  atendai/evolution-api:v2.1.1
+  evoapicloud/evolution-api:v2.2.3
 echo
 echo "✅ Listo."
 echo "EVOLUTION_API_URL = http://$(curl -s ifconfig.me):8080"
