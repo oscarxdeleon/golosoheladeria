@@ -57,7 +57,7 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
@@ -88,7 +88,7 @@ const {
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.7.0';
+const VERSION = '1.7.1';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 const QR_TTL_MS = 55_000;
 
@@ -202,18 +202,26 @@ async function startBranch(id, opts) {
   const dir = path.join(SESSIONS_DIR, id);
   fs.mkdirSync(dir, { recursive: true });
   const { state: authState, saveCreds } = await useMultiFileAuthState(dir);
-  const { version } = await fetchLatestBaileysVersion().catch(() => ({ version: [2, 3000, 0] }));
+  // Pin a WA Web version known to work with baileys 6.7.19.
+  // fetchLatestBaileysVersion() often returns a version newer than baileys
+  // can speak, which causes the phone to hang on "Iniciando sesión…" after
+  // scan/pairing (the link succeeds but the encryption handshake never
+  // completes). Pinning avoids that mismatch.
+  const WA_VERSION = [2, 3000, 1015901307];
 
   const sock = makeWASocket({
-    version,
+    version: WA_VERSION,
     auth: authState,
     logger,
     printQRInTerminal: false,
-    browser: Browsers.ubuntu('Chrome'),
+    browser: Browsers.macOS('Desktop'),
     syncFullHistory: false,
     markOnlineOnConnect: false,
     generateHighQualityLinkPreview: false,
     shouldSyncHistoryMessage: () => false,
+    // Prevents Baileys from retrying decryption forever when we don't have
+    // the original message cached (another cause of stuck "connecting").
+    getMessage: async () => undefined,
   });
 
   st.sock = sock;
