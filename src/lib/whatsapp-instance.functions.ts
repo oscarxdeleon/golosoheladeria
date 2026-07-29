@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { readEvolutionEnv } from "@/lib/evolution-env";
 
 // ---------------------------------------------------------------------------
 // Instancias WhatsApp administradas por API (Evolution API v2).
@@ -9,9 +10,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 // ---------------------------------------------------------------------------
 
 function api() {
-  const env = process.env as Record<string, string | undefined>;
-  const url = env.EVOLUTION_API_URL;
-  const key = env.EVOLUTION_API_KEY;
+  const url = readEvolutionEnv("EVOLUTION_API_URL");
+  const key = readEvolutionEnv("EVOLUTION_API_KEY");
   if (!url || !key) throw new Error("EVOLUTION_API_URL / EVOLUTION_API_KEY no configurados");
   return { url: url.replace(/\/$/, ""), key };
 }
@@ -22,10 +22,10 @@ function publicBase() {
 }
 
 function webhookUrl() {
-  const env = process.env as Record<string, string | undefined>;
-  const token = env.EVOLUTION_WEBHOOK_TOKEN || "";
+  const token = readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN") || "";
   return `${publicBase()}/api/public/whatsapp-evolution${token ? `?t=${encodeURIComponent(token)}` : ""}`;
 }
+
 
 export function instanceName(branchId: string) {
   return `goloso-${branchId}`;
