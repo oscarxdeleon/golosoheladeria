@@ -2,8 +2,22 @@ import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 function hubBase() {
-  const url = process.env.HUB_URL;
-  const token = process.env.HUB_API_TOKEN;
+  const env = process.env as Record<string, string | undefined>;
+  // Accept translated/alternate names as fallback (some browsers auto-translate
+  // Vercel's env var form and rename the keys before saving).
+  const url =
+    env.HUB_URL ||
+    env.URL_CENTRAL ||
+    env.HUB_URL_CENTRAL ||
+    env.CENTRAL_URL ||
+    env.VITE_HUB_URL;
+  const token =
+    env.HUB_API_TOKEN ||
+    env.TOQUE_DE_LA_API_DEL_HUB ||
+    env.TOQUE_API_HUB ||
+    env.HUB_TOKEN ||
+    env.API_TOKEN_HUB ||
+    env.VITE_HUB_API_TOKEN;
   if (!url || !token) throw new Error("HUB_URL / HUB_API_TOKEN not configured");
   return { url: url.replace(/\/$/, ""), token };
 }
