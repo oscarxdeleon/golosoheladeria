@@ -70,7 +70,7 @@ const {
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.2.0';
+const VERSION = '1.3.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 
 if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
