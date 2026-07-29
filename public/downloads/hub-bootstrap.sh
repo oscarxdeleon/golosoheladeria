@@ -80,7 +80,8 @@ const logger = pino({ level: 'warn' });
 const app = express();
 app.use(express.json({ limit: '4mb' }));
 
-// branchId -> { sock, status, qr (data-url), phone, lastConnectedAt, lastError }
+// branchId -> { sock, status, qr, phone, lastConnectedAt, lastError, cfg }
+// cfg = { deviceToken, posWebhookBase } (persistido en <sessionDir>/hub-config.json)
 const branches = new Map();
 
 function safeId(id) {
@@ -89,9 +90,52 @@ function safeId(id) {
   return id;
 }
 
+function cfgPath(id) { return path.join(SESSIONS_DIR, id, 'hub-config.json'); }
+function loadCfg(id) {
+  try { return JSON.parse(fs.readFileSync(cfgPath(id), 'utf8')); } catch { return null; }
+}
+function saveCfg(id, cfg) {
+  try {
+    fs.mkdirSync(path.join(SESSIONS_DIR, id), { recursive: true });
+    fs.writeFileSync(cfgPath(id), JSON.stringify(cfg));
+  } catch (e) { console.error(`[${id}] saveCfg`, e.message); }
+}
+
 function state(id) {
-  if (!branches.has(id)) branches.set(id, { sock: null, status: 'disconnected', qr: null, phone: null });
+  if (!branches.has(id)) {
+    branches.set(id, { sock: null, status: 'disconnected', qr: null, phone: null, cfg: loadCfg(id) });
+  }
   return branches.get(id);
+}
+
+// --- Inbound forwarding hacia POS (Fase 3) ---
+async function forwardToPos(id, st, from, text, msgId) {
+  if (!st.cfg?.posWebhookBase || !st.cfg?.deviceToken) return;
+  const base = String(st.cfg.posWebhookBase).replace(/\/$/, '');
+  const url = `${base}/api/public/whatsapp-bot`;
+  const token = st.cfg.deviceToken;
+  const send = async (action, payload) => {
+    try {
+      const r = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, token, ...payload }),
+      });
+      const t = await r.text();
+      try { return JSON.parse(t); } catch { return { raw: t }; }
+    } catch (e) { console.error(`[${id}] forward ${action}`, e.message); return null; }
+  };
+  const inc = await send('incoming', { from, message: text, msg_id: msgId });
+  let reply = inc?.reply && String(inc.reply).trim();
+  if ((!reply || inc?.use_ai === true) && text && text.trim()) {
+    const ai = await send('ai_reply', { from, text, msg_id: msgId });
+    if (ai?.reply) reply = String(ai.reply).trim();
+  }
+  if (reply && st.sock && st.status === 'connected') {
+    const jid = String(from).replace(/[^0-9]/g, '') + '@s.whatsapp.net';
+    try { await st.sock.sendMessage(jid, { text: reply }); }
+    catch (e) { console.error(`[${id}] sendReply`, e.message); }
+  }
 }
 
 async function startBranch(id) {
