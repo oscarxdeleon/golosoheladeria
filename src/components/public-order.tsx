@@ -136,7 +136,7 @@ export function PublicOrder({
   const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
   const [feedbackSentRating, setFeedbackSentRating] = useState<number | null>(null);
   const [lastSaleId, setLastSaleId] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ name?: boolean; lastName?: boolean; phone?: boolean; address?: boolean; neighborhood?: boolean }>({});
   const [modalProduct, setModalProduct] = useState<Product | null>(null);
   const [callingWaiter, setCallingWaiter] = useState(false);
   const [waiterCalledAt, setWaiterCalledAt] = useState<number | null>(null);
