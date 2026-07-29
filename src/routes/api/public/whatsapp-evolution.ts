@@ -51,10 +51,6 @@ async function deviceToken(branchId: string): Promise<string | null> {
   }
 }
 
-function posBase() {
-  const env = process.env as Record<string, string | undefined>;
-  return (env.POS_PUBLIC_URL || env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
-}
 
 async function sendText(instance: string, number: string, text: string) {
   const { readEvolutionEnv } = await import("@/lib/evolution-env");
@@ -77,6 +73,8 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const expected = readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN");
         const provided = new URL(request.url).searchParams.get("t") ?? request.headers.get("x-webhook-token");
         if (!expected || provided !== expected) return json({ error: "unauthorized" }, 401);
+
+        const posBase = (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
 
 
         let body: any = null;
@@ -132,7 +130,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         if (!token) return json({ ok: true, skipped: "no_device_token" });
 
         try {
-          const res = await fetch(`${posBase()}/api/public/whatsapp-bot`, {
+          const res = await fetch(`${posBase}/api/public/whatsapp-bot`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
