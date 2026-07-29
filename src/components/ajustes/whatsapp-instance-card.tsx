@@ -57,7 +57,13 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
 
   const connectMut = useMutation({
     mutationFn: (force: boolean) => connect$({ data: { branchId: branchId!, force } }),
-    onSuccess: () => { setPolling(true); toast.success("QR generado — escanéalo desde el teléfono de la sede"); invalidate(); },
+    onSuccess: (r: any) => {
+      setPolling(true);
+      setLocalQr({ qr: r?.qr ?? null, code: r?.code ?? null });
+      if (r?.qr || r?.code) toast.success("QR generado — escanéalo desde el teléfono de la sede");
+      else toast.info("Conectando… el QR aparecerá en unos segundos");
+      invalidate();
+    },
     onError: (e: any) => toast.error(e?.message || "No se pudo generar el QR"),
   });
 
