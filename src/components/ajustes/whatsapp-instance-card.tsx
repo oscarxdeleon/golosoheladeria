@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, QrCode, LogOut, RefreshCw, CheckCircle2, AlertCircle, RotateCcw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { QRCodeCanvas } from "qrcode.react";
 import {
   getInstanceStatus,
   connectInstance,
