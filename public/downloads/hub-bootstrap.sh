@@ -266,7 +266,7 @@ app.get('/api/branch/:id/status', auth, (req, res) => {
 app.post('/api/branch/:id/connect', auth, async (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
   try {
-    const { deviceToken, posWebhookBase } = req.body || {};
+    const { deviceToken, posWebhookBase, reset } = req.body || {};
     const st = state(id);
     if (deviceToken || posWebhookBase) {
       const cfg = { ...(st.cfg || {}) };
@@ -275,8 +275,24 @@ app.post('/api/branch/:id/connect', auth, async (req, res) => {
       st.cfg = cfg;
       saveCfg(id, cfg);
     }
-    await startBranch(id);
-    res.json({ ok: true, status: state(id).status, hasWebhook: !!(st.cfg?.deviceToken && st.cfg?.posWebhookBase) });
+    // auto-reset if current session is in a broken state
+    const broken = st.status === 'needs_qr' || st.status === 'error' ||
+      (st.lastError && /stream errored|restart required|conflict|515/i.test(st.lastError));
+    const doReset = reset === true || broken;
+    st.failCount = 0;
+    await startBranch(id, { reset: doReset });
+    res.json({ ok: true, status: state(id).status, reset: doReset, hasWebhook: !!(st.cfg?.deviceToken && st.cfg?.posWebhookBase) });
+  } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
+});
+
+app.post('/api/branch/:id/reset', auth, async (req, res) => {
+  const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
+  try {
+    const st = state(id);
+    try { if (st.sock) st.sock.end(); } catch {}
+    st.sock = null; st.failCount = 0; st.lastError = null;
+    await startBranch(id, { reset: true });
+    res.json({ ok: true, status: state(id).status });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
