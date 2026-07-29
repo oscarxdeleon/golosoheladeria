@@ -88,7 +88,7 @@ const {
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.7.0';
+const VERSION = '1.7.1';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 const QR_TTL_MS = 55_000;
 
