@@ -20,10 +20,36 @@ function publicBase() {
   return (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
 }
 
+/** URL limpia: el token ya NO viaja en el query string, va en un header privado. */
 function webhookUrl() {
-  const token = readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN") || "";
-  return `${publicBase()}/api/public/whatsapp-evolution${token ? `?t=${encodeURIComponent(token)}` : ""}`;
+  return `${publicBase()}/api/public/whatsapp-evolution`;
 }
+
+/** Token propio de la sede (rotable). Fallback: token global de entorno. */
+async function branchWebhookToken(branchId: string, supabase: any): Promise<string> {
+  try {
+    const { data, error } = await supabase.rpc("whatsapp_evolution_get_token", { _branch_id: branchId });
+    if (!error && typeof data === "string" && data.length >= 16) return data;
+  } catch (e) {
+    console.warn("[evolution] no pude leer el token de la sede", e);
+  }
+  return readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN") || "";
+}
+
+function webhookConfig(token: string) {
+  return {
+    enabled: true,
+    url: webhookUrl(),
+    byEvents: false,
+    base64: true,
+    headers: {
+      "Content-Type": "application/json",
+      "x-webhook-token": token,
+    },
+    events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
+  };
+}
+
 
 
 export function instanceName(branchId: string) {
