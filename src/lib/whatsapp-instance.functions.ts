@@ -274,11 +274,9 @@ export const connectInstance = createServerFn({ method: "POST" })
     }
     // Asegura webhook actualizado (idempotente): URL sin token + header privado.
     try {
-      await evo(`/webhook/set/${encodeURIComponent(name)}`, {
-        method: "POST",
-        body: JSON.stringify({ webhook: webhookConfig(webhookToken) }),
-      });
+      await syncWebhook(name, webhookToken);
     } catch (e) { console.warn("[evolution] webhook/set falló", e); }
+
 
 
     const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);
