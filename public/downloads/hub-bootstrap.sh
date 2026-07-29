@@ -57,7 +57,7 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
