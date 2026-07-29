@@ -106,6 +106,16 @@ export function WhatsAppBotTab() {
   const { branches, activeBranchId } = useBranch();
   const qc = useQueryClient();
   const [branchId, setBranchId] = useState<string | null>(activeBranchId);
+  const [showLegacy, setShowLegacy] = useState<boolean>(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("wa_show_legacy_bot") === "1";
+  });
+  const toggleLegacy = (v: boolean) => {
+    setShowLegacy(v);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem("wa_show_legacy_bot", v ? "1" : "0");
+    }
+  };
 
   useEffect(() => {
     if (!branchId && activeBranchId) setBranchId(activeBranchId);
