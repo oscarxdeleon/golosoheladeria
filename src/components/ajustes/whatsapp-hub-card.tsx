@@ -49,8 +49,9 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
     mutationFn: (reset?: boolean) => requestQr({ data: { branchId: branchId!, reset: reset === true } }),
     onSuccess: () => {
       setPolling(true);
-      toast.success("Generando QR...");
+      toast.success("Generando QR nuevo...");
       qc.invalidateQueries({ queryKey: ["whatsapp-hub-status", branchId] });
+      setTimeout(() => refetch(), 1200);
     },
     onError: (e: any) => toast.error(e?.message || "No se pudo conectar al Hub"),
   });
@@ -61,6 +62,7 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
       setPolling(true);
       toast.success("Sesión reiniciada — escanea el nuevo QR");
       qc.invalidateQueries({ queryKey: ["whatsapp-hub-status", branchId] });
+      setTimeout(() => refetch(), 1200);
     },
     onError: (e: any) => toast.error(e?.message || "No se pudo reiniciar"),
   });
@@ -125,9 +127,9 @@ export function WhatsAppHubCard({ branchId: branchIdProp }: { branchId?: string 
 
         <div className="flex flex-wrap gap-2">
           {s !== "connected" && (
-            <Button onClick={() => connectMut.mutate(false)} disabled={connectMut.isPending}>
+            <Button onClick={() => connectMut.mutate(true)} disabled={connectMut.isPending}>
               {connectMut.isPending ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <QrCode className="h-4 w-4 mr-2" />}
-              {s === "awaiting_qr" ? "Regenerar QR" : "Generar QR y vincular"}
+              {s === "awaiting_qr" ? "Generar QR nuevo" : "Generar QR nuevo y vincular"}
             </Button>
           )}
           {s !== "connected" && (status?.lastError || s === "needs_qr" || s === "error" || s === "disconnected") && (

@@ -41,12 +41,12 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.1.0",
+  "version": "1.4.0",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
   "dependencies": {
-    "@whiskeysockets/baileys": "^6.7.9",
+    "@whiskeysockets/baileys": "6.7.24",
     "express": "^4.19.2",
     "pino": "^9.4.0",
     "qrcode": "^1.5.4"
@@ -66,11 +66,12 @@ const {
   useMultiFileAuthState,
   DisconnectReason,
   fetchLatestBaileysVersion,
+  Browsers,
 } = require('@whiskeysockets/baileys');
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.3.0';
+const VERSION = '1.4.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
 
 if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
@@ -83,6 +84,7 @@ app.use(express.json({ limit: '4mb' }));
 // branchId -> { sock, status, qr, phone, lastConnectedAt, lastError, cfg }
 // cfg = { deviceToken, posWebhookBase } (persistido en <sessionDir>/hub-config.json)
 const branches = new Map();
+const startLocks = new Map();
 
 function safeId(id) {
   if (!id || typeof id !== 'string') return null;
@@ -152,9 +154,29 @@ function wipeSession(id) {
   } catch (e) { console.error(`[${id}] wipeSession`, e.message); }
 }
 
+function stopSock(st) {
+  try { st.sock?.end?.(); } catch {}
+  try { st.sock?.ws?.close?.(); } catch {}
+  st.sock = null;
+}
+
+function isBrokenError(msg, code) {
+  return code === 515 || /stream errored|restart required|conflict|connection replaced|bad mac|logged out|multidevice|timed out|qr refs attempts ended/i.test(String(msg || ''));
+}
+
+async function startBranchLocked(id, opts = {}) {
+  const prev = startLocks.get(id) || Promise.resolve();
+  const next = prev.catch(() => {}).then(() => startBranch(id, opts));
+  startLocks.set(id, next);
+  next.finally(() => {
+    if (startLocks.get(id) === next) startLocks.delete(id);
+  }).catch(() => {});
+  return next;
+}
+
 async function startBranch(id, opts) {
   const st = state(id);
-  if (st.sock) { try { st.sock.end(); } catch {} st.sock = null; }
+  stopSock(st);
   if (opts && opts.reset) wipeSession(id);
   const dir = path.join(SESSIONS_DIR, id);
   fs.mkdirSync(dir, { recursive: true });
@@ -166,9 +188,10 @@ async function startBranch(id, opts) {
     auth: authState,
     logger,
     printQRInTerminal: false,
-    browser: ['Goloso Hub', 'Chrome', '1.0'],
+    browser: Browsers.ubuntu('Chrome'),
     syncFullHistory: false,
     markOnlineOnConnect: false,
+    shouldSyncHistoryMessage: () => false,
   });
   st.sock = sock;
   st.status = 'connecting';
@@ -194,20 +217,20 @@ async function startBranch(id, opts) {
       const code = lastDisconnect?.error?.output?.statusCode;
       const msg = lastDisconnect?.error?.message || '';
       const loggedOut = code === DisconnectReason.loggedOut;
-      const streamErr = /stream errored|restart required|conflict|515/i.test(msg) || code === 515;
+      const streamErr = isBrokenError(msg, code);
       st.lastError = msg || null;
       st.failCount = (st.failCount || 0) + 1;
       if (loggedOut) {
         st.status = 'needs_qr';
-        setTimeout(() => startBranch(id, { reset: true }).catch(() => {}), 1500);
+        setTimeout(() => startBranchLocked(id, { reset: true }).catch(() => {}), 1500);
       } else if (streamErr || st.failCount >= 3) {
         // corrupt/errored session -> wipe & re-QR
         st.status = 'needs_qr';
         st.failCount = 0;
-        setTimeout(() => startBranch(id, { reset: true }).catch(() => {}), 2000);
+        setTimeout(() => startBranchLocked(id, { reset: true }).catch(() => {}), 2000);
       } else {
         st.status = 'disconnected';
-        setTimeout(() => startBranch(id).catch(() => {}), 3000);
+        setTimeout(() => startBranchLocked(id).catch(() => {}), 3000);
       }
     }
   });
@@ -276,11 +299,13 @@ app.post('/api/branch/:id/connect', auth, async (req, res) => {
       saveCfg(id, cfg);
     }
     // auto-reset if current session is in a broken state
-    const broken = st.status === 'needs_qr' || st.status === 'error' ||
-      (st.lastError && /stream errored|restart required|conflict|515/i.test(st.lastError));
-    const doReset = reset === true || broken;
+    const broken = st.status === 'needs_qr' || st.status === 'error' || st.status === 'disconnected' ||
+      (st.lastError && isBrokenError(st.lastError, null));
+    // Para evitar QR inválidos pegados, cualquier nuevo intento fuera de una sesión conectada
+    // arranca limpio. Conserva deviceToken/posWebhookBase y solo borra credenciales WhatsApp.
+    const doReset = reset !== false || broken;
     st.failCount = 0;
-    await startBranch(id, { reset: doReset });
+    await startBranchLocked(id, { reset: doReset });
     res.json({ ok: true, status: state(id).status, reset: doReset, hasWebhook: !!(st.cfg?.deviceToken && st.cfg?.posWebhookBase) });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
@@ -289,9 +314,9 @@ app.post('/api/branch/:id/reset', auth, async (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
   try {
     const st = state(id);
-    try { if (st.sock) st.sock.end(); } catch {}
-    st.sock = null; st.failCount = 0; st.lastError = null;
-    await startBranch(id, { reset: true });
+    stopSock(st);
+    st.failCount = 0; st.lastError = null; st.qr = null; st.phone = null; st.status = 'connecting';
+    await startBranchLocked(id, { reset: true });
     res.json({ ok: true, status: state(id).status });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
@@ -300,7 +325,7 @@ app.post('/api/branch/:id/logout', auth, async (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
   const st = state(id);
   try { if (st.sock) await st.sock.logout(); } catch {}
-  try { if (st.sock) st.sock.end(); } catch {}
+  stopSock(st);
   try { fs.rmSync(path.join(SESSIONS_DIR, id), { recursive: true, force: true }); } catch {}
   branches.delete(id);
   res.json({ ok: true });
@@ -326,7 +351,7 @@ app.post('/api/send', auth, async (req, res) => {
   const dirs = fs.readdirSync(SESSIONS_DIR, { withFileTypes: true })
     .filter(d => d.isDirectory()).map(d => d.name);
   for (const id of dirs) {
-    startBranch(id).catch((e) => console.error(`[${id}] autostart failed`, e.message));
+    startBranchLocked(id).catch((e) => console.error(`[${id}] autostart failed`, e.message));
   }
 })();
 
@@ -334,6 +359,7 @@ app.listen(PORT, '0.0.0.0', () => console.log(`Goloso Hub v${VERSION} :${PORT}`)
 NODE
 
 log "4/6 Instalando dependencias (2-4 min)"
+rm -f package-lock.json
 npm install --omit=dev --no-audit --no-fund >/dev/null 2>&1 || npm install --omit=dev --no-audit --no-fund
 ok "Dependencias listas"
 
