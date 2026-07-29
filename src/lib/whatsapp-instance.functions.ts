@@ -17,8 +17,7 @@ function api() {
 }
 
 function publicBase() {
-  const env = process.env as Record<string, string | undefined>;
-  return (env.POS_PUBLIC_URL || env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
+  return (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
 }
 
 function webhookUrl() {
