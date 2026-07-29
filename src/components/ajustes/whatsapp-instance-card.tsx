@@ -127,14 +127,27 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
           </div>
         )}
 
-        {status?.qr && s !== "connected" && (
+        {(qrImage || qrCode) && s !== "connected" && (
           <div className="flex flex-col items-center gap-3 p-4 bg-muted/30 rounded-lg">
-            <img src={status.qr} alt="QR WhatsApp" className="w-64 h-64 rounded bg-white p-2" />
+            {qrImage ? (
+              <img src={qrImage} alt="QR WhatsApp" className="w-64 h-64 rounded bg-white p-2" />
+            ) : (
+              <div className="rounded bg-white p-3">
+                <QRCodeCanvas value={qrCode!} size={240} level="L" includeMargin />
+              </div>
+            )}
             <p className="text-xs text-center text-muted-foreground max-w-sm">
               En el teléfono: WhatsApp → <b>Ajustes → Dispositivos vinculados → Vincular un dispositivo</b> → escanea este QR.
             </p>
           </div>
         )}
+
+        {!qrImage && !qrCode && s !== "connected" && polling && (
+          <div className="flex items-center justify-center gap-2 p-4 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" /> Generando QR…
+          </div>
+        )}
+
 
         {status?.pairingCode && s !== "connected" && (
           <div className="flex flex-col items-center gap-2 p-3 bg-primary/5 border border-primary/30 rounded-lg">
