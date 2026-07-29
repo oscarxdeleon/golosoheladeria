@@ -41,12 +41,12 @@ cd "${HUB_DIR}"
 cat > package.json <<'JSON'
 {
   "name": "goloso-hub",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "type": "commonjs",
   "main": "server.js",
   "dependencies": {
-    "@whiskeysockets/baileys": "6.7.24",
+    "@whiskeysockets/baileys": "6.17.16",
     "express": "^4.19.2",
     "pino": "^9.4.0",
     "qrcode": "^1.5.4"
@@ -71,8 +71,9 @@ const {
 
 const PORT = parseInt(process.env.HUB_PORT || '8080', 10);
 const TOKEN = process.env.HUB_API_TOKEN || '';
-const VERSION = '1.4.0';
+const VERSION = '1.5.0';
 const SESSIONS_DIR = path.join(__dirname, 'sessions');
+const QR_TTL_MS = 35_000;
 
 if (!TOKEN) { console.error('HUB_API_TOKEN missing.'); process.exit(1); }
 fs.mkdirSync(SESSIONS_DIR, { recursive: true });
@@ -81,7 +82,7 @@ const logger = pino({ level: 'warn' });
 const app = express();
 app.use(express.json({ limit: '4mb' }));
 
-// branchId -> { sock, status, qr, phone, lastConnectedAt, lastError, cfg }
+// branchId -> { sock, status, qr, qrGeneratedAt, qrTimer, phone, lastConnectedAt, lastError, cfg }
 // cfg = { deviceToken, posWebhookBase } (persistido en <sessionDir>/hub-config.json)
 const branches = new Map();
 const startLocks = new Map();
@@ -155,6 +156,8 @@ function wipeSession(id) {
 }
 
 function stopSock(st) {
+  if (st.qrTimer) clearTimeout(st.qrTimer);
+  st.qrTimer = null;
   try { st.sock?.end?.(); } catch {}
   try { st.sock?.ws?.close?.(); } catch {}
   st.sock = null;
@@ -196,6 +199,9 @@ async function startBranch(id, opts) {
   st.sock = sock;
   st.status = 'connecting';
   st.qr = null;
+  st.qrGeneratedAt = null;
+  if (st.qrTimer) clearTimeout(st.qrTimer);
+  st.qrTimer = null;
   st.lastError = null;
   st.failCount = st.failCount || 0;
 
@@ -204,11 +210,26 @@ async function startBranch(id, opts) {
     const { connection, lastDisconnect, qr } = u;
     if (qr) {
       st.qr = await QRCode.toDataURL(qr, { margin: 1, width: 320 });
+      st.qrGeneratedAt = new Date().toISOString();
       st.status = 'awaiting_qr';
+      if (st.qrTimer) clearTimeout(st.qrTimer);
+      st.qrTimer = setTimeout(() => {
+        const current = state(id);
+        if (current.status === 'awaiting_qr' && current.qrGeneratedAt === st.qrGeneratedAt) {
+          current.qr = null;
+          current.qrGeneratedAt = null;
+          current.status = 'connecting';
+          current.lastError = null;
+          startBranchLocked(id, { reset: true }).catch(() => {});
+        }
+      }, QR_TTL_MS);
     }
     if (connection === 'open') {
       st.status = 'connected';
       st.qr = null;
+      st.qrGeneratedAt = null;
+      if (st.qrTimer) clearTimeout(st.qrTimer);
+      st.qrTimer = null;
       st.failCount = 0;
       st.phone = sock.user?.id?.split(':')[0]?.split('@')[0] || null;
       st.lastConnectedAt = new Date().toISOString();
@@ -276,10 +297,20 @@ app.get('/health', (_req, res) =>
 app.get('/api/branch/:id/status', auth, (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
   const st = state(id);
+  const qrAgeMs = st.qrGeneratedAt ? Date.now() - new Date(st.qrGeneratedAt).getTime() : null;
+  if ((st.status === 'awaiting_qr' && qrAgeMs !== null && qrAgeMs > QR_TTL_MS) || st.status === 'needs_qr') {
+    st.qr = null;
+    st.qrGeneratedAt = null;
+    st.status = 'connecting';
+    st.lastError = null;
+    startBranchLocked(id, { reset: true }).catch(() => {});
+  }
   res.json({
     branchId: id,
     status: st.status,
     qr: st.qr,
+    qrGeneratedAt: st.qrGeneratedAt || null,
+    qrExpiresInMs: st.qrGeneratedAt ? Math.max(0, QR_TTL_MS - (Date.now() - new Date(st.qrGeneratedAt).getTime())) : null,
     phone: st.phone,
     lastConnectedAt: st.lastConnectedAt || null,
     lastError: st.lastError || null,
@@ -315,7 +346,7 @@ app.post('/api/branch/:id/reset', auth, async (req, res) => {
   try {
     const st = state(id);
     stopSock(st);
-    st.failCount = 0; st.lastError = null; st.qr = null; st.phone = null; st.status = 'connecting';
+    st.failCount = 0; st.lastError = null; st.qr = null; st.qrGeneratedAt = null; st.phone = null; st.status = 'connecting';
     await startBranchLocked(id, { reset: true });
     res.json({ ok: true, status: state(id).status });
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
