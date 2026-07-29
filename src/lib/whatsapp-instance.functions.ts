@@ -16,13 +16,26 @@ function api() {
   return { url: url.replace(/\/$/, ""), key };
 }
 
-function publicBase() {
+/**
+ * URL pública del POS. Se detecta SOLA desde la petición actual (funciona igual
+ * en Vercel, en el dominio de Lovable o en un dominio propio, sin configurar
+ * nada). La variable de entorno queda solo como respaldo.
+ */
+async function publicBase(): Promise<string> {
+  try {
+    const { getRequest } = await import("@tanstack/react-start/server");
+    const req = getRequest();
+    const u = new URL(req.url);
+    const host = req.headers.get("x-forwarded-host") || u.host;
+    const proto = req.headers.get("x-forwarded-proto") || u.protocol.replace(":", "");
+    if (host && !/^(localhost|127\.0\.0\.1|\[::1\])/i.test(host)) return `${proto}://${host}`;
+  } catch { /* fuera de contexto de petición: usamos el respaldo */ }
   return (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
 }
 
 /** URL limpia: el token ya NO viaja en el query string, va en un header privado. */
-function webhookUrl() {
-  return `${publicBase()}/api/public/whatsapp-evolution`;
+async function webhookUrl() {
+  return `${await publicBase()}/api/public/whatsapp-evolution`;
 }
 
 /** Token propio de la sede (rotable). Fallback: token global de entorno. */
@@ -36,10 +49,10 @@ async function branchWebhookToken(branchId: string, supabase: any): Promise<stri
   return readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN") || "";
 }
 
-function webhookConfig(token: string) {
+async function webhookConfig(token: string) {
   return {
     enabled: true,
-    url: webhookUrl(),
+    url: await webhookUrl(),
     byEvents: false,
     base64: true,
     headers: {
@@ -49,6 +62,26 @@ function webhookConfig(token: string) {
     events: ["MESSAGES_UPSERT", "CONNECTION_UPDATE", "QRCODE_UPDATED"],
   };
 }
+
+/**
+ * Deja el webhook de la instancia exactamente como debe estar (URL del dominio
+ * actual + token privado de la sede). Idempotente: si ya coincide, no hace nada.
+ */
+async function syncWebhook(name: string, token: string) {
+  const desired = await webhookConfig(token);
+  try {
+    const current = await evo(`/webhook/find/${encodeURIComponent(name)}`);
+    const sameUrl = String(current?.url ?? "") === desired.url;
+    const sameToken = String(current?.headers?.["x-webhook-token"] ?? "") === token;
+    if (sameUrl && sameToken && current?.enabled) return { changed: false, url: desired.url };
+  } catch { /* no existe todavía: lo creamos */ }
+  await evo(`/webhook/set/${encodeURIComponent(name)}`, {
+    method: "POST",
+    body: JSON.stringify({ webhook: desired }),
+  });
+  return { changed: true, url: desired.url };
+}
+
 
 
 
@@ -150,20 +183,28 @@ async function ensureInstance(branchId: string, webhookToken: string) {
       instanceName: name,
       qrcode: true,
       integration: "WHATSAPP-BAILEYS",
-      webhook: webhookConfig(webhookToken),
+      webhook: await webhookConfig(webhookToken),
     }),
   });
   return { name, created: true };
 }
 
 
-/** Estado + QR vigente de la instancia de la sede. */
+/**
+ * Estado + QR vigente de la instancia de la sede.
+ * AUTOMÁTICO: si la instancia no existe la crea, y siempre deja el webhook
+ * apuntando al dominio desde el que se está usando el POS (Vercel, Lovable o
+ * dominio propio) con el token privado de la sede. El administrador no tiene
+ * que configurar ni pulsar nada: basta con abrir la pantalla.
+ */
 export const getInstanceStatus = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { branchId: string }) => d)
   .handler(async ({ data, context }) => {
     await assertAdmin(context);
     const name = instanceName(data.branchId);
+    const webhookToken = await branchWebhookToken(data.branchId, context.supabase);
+
     let state = "disconnected";
     let phone: string | null = null;
     let exists = true;
@@ -180,6 +221,28 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
       else throw e;
     }
 
+    // Auto-reparación: crear la instancia si falta.
+    if (!exists) {
+      try {
+        await ensureInstance(data.branchId, webhookToken);
+        exists = true;
+        state = "connecting";
+      } catch (e) {
+        console.warn("[evolution] no pude autocrear la instancia", e);
+      }
+    }
+
+    // Auto-reparación: webhook siempre sincronizado con el dominio actual.
+    let webhook: string | null = null;
+    if (exists) {
+      try {
+        const r = await syncWebhook(name, webhookToken);
+        webhook = r.url;
+      } catch (e) {
+        console.warn("[evolution] no pude sincronizar el webhook", e);
+      }
+    }
+
     let qr: string | null = null;
     let code: string | null = null;
     let pairingCode: string | null = null;
@@ -193,9 +256,10 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
     }
 
     await persist(data.branchId, { status: exists ? state : "no_instance", connected_phone: phone, last_qr: qr ?? code }, context.supabase);
-    return { exists, status: exists ? state : "no_instance", qr, code, pairingCode, phone };
+    return { exists, status: exists ? state : "no_instance", qr, code, pairingCode, phone, webhook };
 
   });
+
 
 /** Crea (si hace falta) la instancia y devuelve un QR nuevo. */
 export const connectInstance = createServerFn({ method: "POST" })
@@ -210,11 +274,9 @@ export const connectInstance = createServerFn({ method: "POST" })
     }
     // Asegura webhook actualizado (idempotente): URL sin token + header privado.
     try {
-      await evo(`/webhook/set/${encodeURIComponent(name)}`, {
-        method: "POST",
-        body: JSON.stringify({ webhook: webhookConfig(webhookToken) }),
-      });
+      await syncWebhook(name, webhookToken);
     } catch (e) { console.warn("[evolution] webhook/set falló", e); }
+
 
 
     const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);

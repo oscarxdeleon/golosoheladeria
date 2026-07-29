@@ -200,10 +200,18 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
           )}
         </div>
 
+        {(status as any)?.webhook && (
+          <p className="text-[11px] text-muted-foreground font-mono break-all">
+            Webhook configurado automáticamente: {(status as any).webhook}
+          </p>
+        )}
+
         <p className="text-xs text-muted-foreground border-t pt-3">
-          Si el QR expira, presiona <b>Generar nuevo QR</b>. Si la sesión se cae, usa <b>Reconectar</b>.
-          Solo si nada funciona, <b>Eliminar instancia</b> y vuelve a vincular desde cero.
+          Todo se configura solo: al abrir esta pantalla el sistema crea la instancia si falta
+          y deja el webhook apuntando al dominio en uso. Si el QR expira, presiona <b>Generar nuevo QR</b>.
+          Si la sesión se cae, usa <b>Reconectar</b>. Solo si nada funciona, <b>Eliminar instancia</b> y vincula de cero.
         </p>
+
       </CardContent>
     </Card>
   );
