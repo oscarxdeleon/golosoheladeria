@@ -356,6 +356,35 @@ app.post('/api/branch/:id/reset', auth, async (req, res) => {
   } catch (e) { res.status(500).json({ error: String(e.message || e) }); }
 });
 
+app.post('/api/branch/:id/pair', auth, async (req, res) => {
+  const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
+  const phone = String((req.body || {}).phone || '').replace(/[^0-9]/g, '');
+  if (phone.length < 10) return res.status(400).json({ error: 'bad_phone' });
+  try {
+    let st = state(id);
+    if (!st.sock || st.status === 'disconnected' || st.status === 'needs_qr' || st.status === 'error') {
+      await startBranchLocked(id, { reset: true });
+      // wait briefly for sock to be ready
+      for (let i = 0; i < 30; i++) {
+        st = state(id);
+        if (st.sock && !st.sock.authState?.creds?.registered) break;
+        await new Promise(r => setTimeout(r, 200));
+      }
+    }
+    st = state(id);
+    if (!st.sock) return res.status(500).json({ error: 'sock_not_ready' });
+    if (st.sock.authState?.creds?.registered) return res.status(409).json({ error: 'already_registered' });
+    const code = await st.sock.requestPairingCode(phone);
+    // format XXXX-XXXX
+    const pretty = code.length === 8 ? `${code.slice(0,4)}-${code.slice(4)}` : code;
+    st.pairingCode = pretty;
+    st.pairingCodeAt = new Date().toISOString();
+    res.json({ ok: true, code: pretty, phone });
+  } catch (e) {
+    res.status(500).json({ error: String(e.message || e) });
+  }
+});
+
 app.post('/api/branch/:id/logout', auth, async (req, res) => {
   const id = safeId(req.params.id); if (!id) return res.status(400).json({ error: 'bad_id' });
   const st = state(id);
