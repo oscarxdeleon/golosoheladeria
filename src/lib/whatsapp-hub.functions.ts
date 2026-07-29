@@ -148,7 +148,8 @@ export const logoutBranchHub = createServerFn({ method: "POST" })
 export const sendHubMessage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d: { branchId: string; to: string; text: string }) => d)
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    await assertAdmin(context);
     return hubFetch(`/api/send`, {
       method: "POST",
       body: JSON.stringify({ branchId: data.branchId, to: data.to, text: data.text }),
