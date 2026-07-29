@@ -3327,6 +3327,56 @@ export type Database = {
           },
         ]
       }
+      whatsapp_hub_sessions: {
+        Row: {
+          branch_id: string
+          connected_phone: string | null
+          created_at: string
+          hub_instance_id: string | null
+          last_connected_at: string | null
+          last_disconnected_at: string | null
+          last_error: string | null
+          last_qr: string | null
+          last_qr_at: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          branch_id: string
+          connected_phone?: string | null
+          created_at?: string
+          hub_instance_id?: string | null
+          last_connected_at?: string | null
+          last_disconnected_at?: string | null
+          last_error?: string | null
+          last_qr?: string | null
+          last_qr_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          branch_id?: string
+          connected_phone?: string | null
+          created_at?: string
+          hub_instance_id?: string | null
+          last_connected_at?: string | null
+          last_disconnected_at?: string | null
+          last_error?: string | null
+          last_qr?: string | null
+          last_qr_at?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_hub_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_outbound_queue: {
         Row: {
           attempts: number
