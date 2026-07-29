@@ -107,7 +107,7 @@ export const getBranchHubStatus = createServerFn({ method: "POST" })
       connected_phone: r.phone,
       last_qr: r.qr ?? null,
       last_error: r.lastError ?? null,
-    });
+    }, context.supabase);
     return {
       status: r.status as string,
       qr: (r.qr as string | null) ?? null,
