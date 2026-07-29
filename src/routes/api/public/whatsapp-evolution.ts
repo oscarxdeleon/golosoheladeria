@@ -155,7 +155,14 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           new URL(request.url).searchParams.get("t") ??
           "";
 
-        const posBase = (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
+        // El dominio se deduce de la propia petición (Vercel, Lovable o dominio
+        // propio) para no depender de variables de entorno.
+        const reqUrl = new URL(request.url);
+        const host = request.headers.get("x-forwarded-host") || reqUrl.host;
+        const proto = request.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
+        const selfBase = host && !/^(localhost|127\.0\.0\.1)/i.test(host) ? `${proto}://${host}` : "";
+        const posBase = (selfBase || readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
+
 
         let body: any = null;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
