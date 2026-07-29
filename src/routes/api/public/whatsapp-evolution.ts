@@ -74,6 +74,8 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const provided = new URL(request.url).searchParams.get("t") ?? request.headers.get("x-webhook-token");
         if (!expected || provided !== expected) return json({ error: "unauthorized" }, 401);
 
+        const posBase = (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
+
 
         let body: any = null;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
@@ -128,7 +130,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         if (!token) return json({ ok: true, skipped: "no_device_token" });
 
         try {
-          const res = await fetch(`${posBase()}/api/public/whatsapp-bot`, {
+          const res = await fetch(`${posBase}/api/public/whatsapp-bot`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
