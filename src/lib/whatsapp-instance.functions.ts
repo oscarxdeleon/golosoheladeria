@@ -203,10 +203,9 @@ export const connectInstance = createServerFn({ method: "POST" })
     } catch (e) { console.warn("[evolution] webhook/set falló", e); }
 
     const c = await evo(`/instance/connect/${encodeURIComponent(name)}`);
-    let qr: string | null = c?.base64 ?? null;
-    if (qr && !String(qr).startsWith("data:")) qr = `data:image/png;base64,${qr}`;
-    await persist(data.branchId, { status: qr ? "awaiting_qr" : "connecting", last_qr: qr, last_error: null }, context.supabase);
-    return { ok: true, qr, pairingCode: c?.pairingCode ?? null };
+    const { qr, code, pairingCode } = extractQr(c);
+    await persist(data.branchId, { status: qr || code ? "awaiting_qr" : "connecting", last_qr: qr ?? code, last_error: null }, context.supabase);
+    return { ok: true, qr, code, pairingCode };
   });
 
 /** Reinicia la instancia sin borrar la sesión. */
