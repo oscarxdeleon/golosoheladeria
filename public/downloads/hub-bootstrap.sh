@@ -167,9 +167,10 @@ function isBrokenError(msg, code) {
 async function startBranchLocked(id, opts = {}) {
   const prev = startLocks.get(id) || Promise.resolve();
   const next = prev.catch(() => {}).then(() => startBranch(id, opts));
-  startLocks.set(id, next.finally(() => {
+  startLocks.set(id, next);
+  next.finally(() => {
     if (startLocks.get(id) === next) startLocks.delete(id);
-  }));
+  }).catch(() => {});
   return next;
 }
 
