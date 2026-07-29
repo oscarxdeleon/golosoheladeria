@@ -29,6 +29,7 @@ import {
   DropdownMenu, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuSeparator, DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { WhatsAppHubCard } from "./whatsapp-hub-card";
 import { GeminiQuotaCard } from "./gemini-quota-card";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
