@@ -57,13 +57,37 @@ export type EvolutionEnvKey =
   | "LOVABLE_API_KEY"
   | "GEMINI_API_KEY";
 
+/**
+ * Corrige errores típicos al pegar la URL de Evolution:
+ *  - sobra `/manager` o `/manager/` al final (es el panel, no la API)
+ *  - se usa `https://` contra una IP directa que solo habla `http://`
+ */
+function normalizeEvolutionUrl(raw: string): string {
+  let value = raw.trim().replace(/\/+$/, "");
+  value = value.replace(/\/manager(\/.*)?$/i, "");
+  try {
+    const u = new URL(value);
+    const isBareIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname);
+    if (u.protocol === "https:" && isBareIp) {
+      u.protocol = "http:";
+      value = u.toString().replace(/\/+$/, "");
+    }
+  } catch {
+    /* si no parsea, devolvemos lo que haya */
+  }
+  return value;
+}
+
 export function readEvolutionEnv(
   canonical: EvolutionEnvKey,
 ): string | undefined {
 
   const env = process.env as Record<string, string | undefined>;
+  const finish = (v: string) =>
+    canonical === "EVOLUTION_API_URL" ? normalizeEvolutionUrl(v) : v.trim();
+
   const direct = env[canonical];
-  if (direct && direct.trim()) return direct.trim();
+  if (direct && direct.trim()) return finish(direct);
 
   const patterns = MATCHERS[canonical];
   for (const [rawName, rawValue] of Object.entries(env)) {
@@ -75,9 +99,10 @@ export function readEvolutionEnv(
         // Evitar que la URL se confunda con la clave y viceversa.
         if (canonical === "EVOLUTION_API_URL" && !/^https?:\/\//i.test(rawValue.trim())) continue;
         if (canonical !== "EVOLUTION_API_URL" && /^https?:\/\//i.test(rawValue.trim())) continue;
-        return rawValue.trim();
+        return finish(rawValue);
       }
     }
   }
   return undefined;
 }
+
