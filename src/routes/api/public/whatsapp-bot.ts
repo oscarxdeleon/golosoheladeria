@@ -1790,8 +1790,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // personal (cuota gratuita) como respaldo. Esto elimina el bloqueo
               // por HTTP 429 que dejaba al bot respondiendo siempre el fallback
               // genérico "Sigo contigo".
-              const lovableKey = process.env.LOVABLE_API_KEY;
-              const geminiKey = process.env.GEMINI_API_KEY;
+              // Lectura tolerante: acepta el nombre técnico y también las
+              // variantes traducidas que crean paneles como Vercel en español.
+              const lovableKey = readEvolutionEnv("LOVABLE_API_KEY");
+              const geminiKey = readEvolutionEnv("GEMINI_API_KEY");
+
               if (!lovableKey && !geminiKey) {
                 const reply = avoidRepeatedReply(
                   buildActiveSessionFallback(preloadedCart, fmtCOP, text)
