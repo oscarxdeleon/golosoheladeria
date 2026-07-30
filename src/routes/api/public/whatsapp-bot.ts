@@ -1089,7 +1089,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const resetReply = `Listo, empezamos de cero. 🍦\n¿Qué te provoca hoy?\nMenú 👉 ${menuLink}`;
                 void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text });
                 void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: resetReply });
-                return json({ ok: true, reply: resetReply, source: "reset" });
+                return json({ reply: resetReply, source: "reset", conversation_id: conversationId }, 200);
               }
 
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
