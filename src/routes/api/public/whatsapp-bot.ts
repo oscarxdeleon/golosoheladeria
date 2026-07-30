@@ -1807,6 +1807,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   ok: false,
                   metadata: { orderingEnabled },
                 });
+                // Persistimos igual el turno: así la conversación queda iniciada
+                // y nunca se vuelve a enviar el saludo de bienvenida.
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+
                 return json({ error: "ai_not_configured", reply, source: "operational_no_ai_key", conversation_id: conversationId }, 200);
               }
 
