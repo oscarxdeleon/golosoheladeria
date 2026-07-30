@@ -1139,6 +1139,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                     if (response.ok) return { response, provider };
                     if (response.status === 429 || response.status === 402 || response.status >= 500) {
                       lastResponse = response;
+                      if (response.status === 429 || response.status === 402) coolDownProvider(provider.name);
                       await logBotEvent(token, conversationId, from, "ai_provider_failover", {
                         ok: false,
                         error: `HTTP ${response.status}`,
