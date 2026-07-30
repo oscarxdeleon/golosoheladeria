@@ -1003,10 +1003,18 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 metadata: { messages: history.length, source: "bootstrap" },
               });
 
+              // ¿La conversación ya está iniciada? Si hay historial o carrito
+              // activo, Golosito NUNCA vuelve a enviar la bienvenida: el saludo
+              // solo se emite en el primer mensaje de una sesión nueva (la sesión
+              // caduca según el tiempo configurado por el administrador).
+              const alreadyGreeted = activeSessionHasState || history.length > 0;
+              const turnIntent = detectIntent(text);
+
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = activeSessionHasState || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
+              const shortCircuit = alreadyGreeted ? null : shortCircuitReply(text, menuLink, branchName);
+
               if (shortCircuit) {
                 void logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
