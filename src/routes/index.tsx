@@ -6,10 +6,10 @@ export const Route = createFileRoute("/")({
   ssr: false,
   head: () => ({
     meta: [
-      { title: "Heladería Goloso POS" },
-      { name: "description", content: "Acceso al sistema POS de Heladería Goloso para ventas, mesas, caja, domicilios y administración." },
-      { property: "og:title", content: "Heladería Goloso POS" },
-      { property: "og:description", content: "Sistema POS de Heladería Goloso para ventas, mesas, caja y domicilios." },
+      { title: "Heladería Goloso — Menú Digital" },
+      { name: "description", content: "Explora nuestro menú en línea, helados, toppings y realiza tu pedido en la sede seleccionada." },
+      { property: "og:title", content: "Heladería Goloso — Menú Digital" },
+      { property: "og:description", content: "Explora nuestro menú en línea, helados, toppings y realiza tu pedido en la sede seleccionada." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
