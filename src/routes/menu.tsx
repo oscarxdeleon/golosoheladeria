@@ -11,11 +11,17 @@ export const Route = createFileRoute("/menu")({
   validateSearch: zodValidator(menuSearch),
   head: () => ({
     meta: [
-      { title: "Menú en línea · Goloso" },
+      { title: "Heladería Goloso — Menú Digital" },
+      { name: "description", content: "Explora nuestro menú en línea, helados, toppings y realiza tu pedido en la sede seleccionada." },
+      { property: "og:title", content: "Heladería Goloso — Menú Digital" },
+      { property: "og:description", content: "Explora nuestro menú en línea, helados, toppings y realiza tu pedido en la sede seleccionada." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
+      { name: "twitter:title", content: "Heladería Goloso — Menú Digital" },
+      { name: "twitter:description", content: "Explora nuestro menú en línea, helados, toppings y realiza tu pedido en la sede seleccionada." },
       { name: "apple-mobile-web-app-title", content: "Goloso" },
       { name: "application-name", content: "Goloso" },
-    ],
-    links: [{ rel: "manifest", href: "/manifest.webmanifest" }],
+
   }),
   component: MenuPage,
 });
