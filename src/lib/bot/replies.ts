@@ -11,15 +11,14 @@ export function operationalReply(menuLink: string, takingOrders = false, _branch
   return `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}`;
 }
 
-// Dominio de Lovable: aquí es donde el proyecto tiene acceso a LOVABLE_API_KEY
-// y el webhook puede ejecutar la IA sin depender de variables en Vercel.
-export const PUBLIC_MENU_BASE = "https://golosoheladeria.lovable.app";
+// Dominio público oficial del menú (el que ven los clientes en WhatsApp).
+export const PUBLIC_MENU_BASE = "https://golosoheladeria.vercel.app";
 export const DEFAULT_MENU_LINK = `${PUBLIC_MENU_BASE}/menu`;
 
 export function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
   const raw = typeof value === "string" && value.trim() ? value.trim() : fallback;
   return raw
-    .replace(/https:\/\/golosoheladeria\.vercel\.app/gi, PUBLIC_MENU_BASE)
+    .replace(/https:\/\/golosoheladeria\.lovable\.app/gi, PUBLIC_MENU_BASE)
     .replace(/https:\/\/id-preview--[a-z0-9-]+\.lovable\.app/gi, PUBLIC_MENU_BASE);
 }
 
