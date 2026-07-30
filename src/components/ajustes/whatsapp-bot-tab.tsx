@@ -1454,9 +1454,17 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
       toast.error("Archivo muy grande (máx 10 MB)");
       return;
     }
+    await handleText(await file.text());
+  };
+
+  const handleText = async (rawText: string) => {
+    const text = rawText.trim();
+    if (text.length < 20) {
+      toast.error("Pega al menos un par Pregunta / Respuesta");
+      return;
+    }
     setImporting(true);
     try {
-      const text = await file.text();
       const host = typeof window !== "undefined" ? window.location.hostname : "";
       const isLovable = /\.lovable\.app$/.test(host);
       let result: ExtractFaqsResult;
