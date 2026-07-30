@@ -1370,6 +1370,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
   const [importAsGlobal, setImportAsGlobal] = useState(false);
+  const [pasteText, setPasteText] = useState("");
 
   // ---- Browse UI state ----
   const [search, setSearch] = useState("");
