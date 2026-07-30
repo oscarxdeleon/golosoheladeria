@@ -258,8 +258,18 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         // pudo quedar en "qr"/"disconnected" tras una reconexión sin evento.
         await persistState(branchId, token, { status: "connected", last_qr: null, last_error: null });
 
-        if (!auth.enabled || auth.chatbot_mode === "off") {
-          logSkip(auth.device_token, from, "chatbot_disabled", { chatbot_mode: auth.chatbot_mode });
+        // Normalizamos el modo: en BD se guarda 'full' | 'welcome_only' | 'disabled'
+        // (versiones antiguas usaban 'off' / 'menu_only').
+        const rawMode = String(auth.chatbot_mode ?? "full").toLowerCase();
+        const mode =
+          rawMode === "off" || rawMode === "disabled"
+            ? "disabled"
+            : rawMode === "menu_only" || rawMode === "welcome_only"
+              ? "welcome_only"
+              : "full";
+
+        if (!auth.enabled || mode === "disabled") {
+          logSkip(auth.device_token, from, "chatbot_disabled", { chatbot_mode: rawMode });
           return json({ ok: true, skipped: "chatbot_disabled" });
         }
         if (!auth.device_token) {
@@ -267,28 +277,44 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return json({ ok: true, skipped: "no_device_token" });
         }
 
-        const wantsAi = auth.ai_enabled && auth.chatbot_mode !== "menu_only";
-        const action = wantsAi ? "ai_reply" : "incoming";
+        // Solo el modo Completo usa IA. En 'welcome_only' se usan las reglas
+        // fijas de Postgres (bienvenida + link del menú) sin tocar la IA.
+        const wantsAi = mode === "full" && auth.ai_enabled;
 
         try {
           // Sin doble salto HTTP: el motor se ejecuta en el mismo proceso.
           const { runBotAction } = await import("@/lib/bot/engine");
-          const res = await runBotAction(
-            new Request("http://internal/api/public/whatsapp-bot", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                action,
-                token: auth.device_token,
-                from,
-                text: text.trim(),
-                message: text.trim(),
-                msg_id: msg?.key?.id ?? undefined,
+          const callEngine = async (action: string) => {
+            const res = await runBotAction(
+              new Request("http://internal/api/public/whatsapp-bot", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  action,
+                  token: auth.device_token,
+                  from,
+                  text: text.trim(),
+                  message: text.trim(),
+                  msg_id: msg?.key?.id ?? undefined,
+                }),
               }),
-            }),
-          );
-          const data: any = await res.json().catch(() => null);
-          const reply: string | null = data?.reply ?? null;
+            );
+            const data: any = await res.json().catch(() => null);
+            return { res, data, reply: (data?.reply as string | null) ?? null };
+          };
+
+          let action = wantsAi ? "ai_reply" : "incoming";
+          let out = await callEngine(action);
+
+          // Red de seguridad: si la IA no pudo responder (créditos, límite,
+          // gate de modo), caemos a las reglas fijas para no dejar al cliente
+          // sin respuesta.
+          if (!out.reply && action === "ai_reply") {
+            action = "incoming";
+            out = await callEngine(action);
+          }
+
+          const reply = out.reply;
           if (reply) {
             // Siempre se responde por la instancia canónica de la sede: el
             // nombre que llega en el evento puede estar desactualizado.
@@ -297,9 +323,10 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             return json({ ok: true, replied: sent, delivery: sent ? "sent" : "failed", instance: canonicalInstance });
           }
 
-          const reason = data?.skipped ?? data?.error ?? (res.ok ? "empty_reply" : `bot_${res.status}`);
-          logSkip(auth.device_token, from, String(reason), { action, status: res.status });
+          const reason = out.data?.skipped ?? out.data?.error ?? (out.res.ok ? "empty_reply" : `bot_${out.res.status}`);
+          logSkip(auth.device_token, from, String(reason), { action, mode, status: out.res.status });
           return json({ ok: true, replied: false, skipped: reason });
+
 
         } catch (e) {
           console.error("[evolution-webhook] error procesando mensaje", e);
