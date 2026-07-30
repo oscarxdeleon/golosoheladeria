@@ -254,6 +254,10 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           "";
         if (!text.trim()) return json({ ok: true, skipped: "unsupported_message" });
 
+        // Si llega un mensaje, la instancia está viva: corregimos el estado que
+        // pudo quedar en "qr"/"disconnected" tras una reconexión sin evento.
+        void persistState(branchId, token, { status: "connected", last_qr: null, last_error: null });
+
         if (!auth.enabled || auth.chatbot_mode === "off") {
           logSkip(auth.device_token, from, "chatbot_disabled", { chatbot_mode: auth.chatbot_mode });
           return json({ ok: true, skipped: "chatbot_disabled" });

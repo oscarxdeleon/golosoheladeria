@@ -19,6 +19,26 @@ type CachedContext = { data: Record<string, unknown>; expiresAt: number };
 const CONTEXT_CACHE_TTL_MS = 60_000;
 const contextCache = new Map<string, CachedContext>();
 
+// Cuando un proveedor de IA devuelve 402 (sin créditos) o 429 (cuota agotada),
+// lo dejamos "en frío" unos minutos: reintentarlo en cada mensaje sólo suma
+// 2-4 s de espera al cliente antes del mismo fallback.
+const AI_PROVIDER_COOLDOWN_MS = 5 * 60_000;
+const aiProviderCooldown = new Map<string, number>();
+
+function isProviderCold(name: string) {
+  const until = aiProviderCooldown.get(name);
+  if (!until) return false;
+  if (Date.now() > until) {
+    aiProviderCooldown.delete(name);
+    return false;
+  }
+  return true;
+}
+
+function coolDownProvider(name: string) {
+  aiProviderCooldown.set(name, Date.now() + AI_PROVIDER_COOLDOWN_MS);
+}
+
 function getCachedContext(token: string): Record<string, unknown> | null {
   const hit = contextCache.get(token);
   if (!hit) return null;
@@ -1023,7 +1043,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                 fallbackModel: string;
               };
               const providers: AiProvider[] = [];
-              if (lovableKey) {
+              if (lovableKey && !isProviderCold("lovable")) {
                 providers.push({
                   name: "lovable",
                   url: "https://ai.gateway.lovable.dev/v1/chat/completions",
@@ -1032,13 +1052,15 @@ export async function runBotAction(request: Request): Promise<Response> {
                   fallbackModel: "google/gemini-3.1-flash-lite",
                 });
               }
-              if (geminiKey) {
+              if (geminiKey && !isProviderCold("gemini_direct")) {
                 providers.push({
                   name: "gemini_direct",
                   url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                   headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
-                  primaryModel: "gemini-2.0-flash",
-                  fallbackModel: "gemini-2.0-flash-lite",
+                  // `gemini-2.0-flash*` ya no tiene cuota gratuita (limit: 0 →
+                  // 429 permanente). Los alias `*-latest` sí la conservan.
+                  primaryModel: "gemini-flash-latest",
+                  fallbackModel: "gemini-flash-lite-latest",
                 });
               }
 
@@ -1117,6 +1139,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                     if (response.ok) return { response, provider };
                     if (response.status === 429 || response.status === 402 || response.status >= 500) {
                       lastResponse = response;
+                      if (response.status === 429 || response.status === 402) coolDownProvider(provider.name);
                       await logBotEvent(token, conversationId, from, "ai_provider_failover", {
                         ok: false,
                         error: `HTTP ${response.status}`,
