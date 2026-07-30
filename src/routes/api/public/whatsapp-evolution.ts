@@ -163,30 +163,36 @@ async function sendText(instance: string, number: string, text: string, deviceTo
   }
 
   const endpoint = `${url}/message/sendText/${encodeURIComponent(instance)}`;
-  const bodies: any[] = [
-    { number, text },
-    { number, options: { delay: 300, presence: "composing" }, textMessage: { text } },
-  ];
+  // Evolution v2 solo acepta { number, text }. El formato antiguo
+  // ({ textMessage: { text } }) devuelve 400 y enmascaraba el error real,
+  // por eso reintentamos SIEMPRE con el mismo payload válido.
+  const payload = { number, text };
+  const attempts: Array<{ status: number; response: string }> = [];
 
-  let lastStatus = 0;
-  let lastBody = "";
-  for (const payload of bodies) {
+  for (let i = 0; i < 3; i++) {
     try {
       const res = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json", apikey: key },
         body: JSON.stringify(payload),
+        // La primera conexión al proveedor puede tardar; damos margen amplio.
+        signal: AbortSignal.timeout(45_000),
       });
-      lastStatus = res.status;
-      lastBody = (await res.text().catch(() => "")).slice(0, 400);
+      const responseText = (await res.text().catch(() => "")).slice(0, 400);
       if (res.ok) return true;
-      console.warn("[evolution-webhook] sendText no-ok", { status: res.status, body: lastBody });
+      attempts.push({ status: res.status, response: responseText });
+      console.warn("[evolution-webhook] sendText no-ok", { intento: i + 1, status: res.status, body: responseText });
+      // 4xx distinto de 429 no se arregla reintentando.
+      if (res.status >= 400 && res.status < 500 && res.status !== 429) break;
     } catch (e) {
-      lastBody = String(e).slice(0, 400);
-      console.warn("[evolution-webhook] sendText falló", e);
+      attempts.push({ status: 0, response: String(e).slice(0, 400) });
+      console.warn("[evolution-webhook] sendText falló", { intento: i + 1, error: String(e) });
     }
+    await new Promise((r) => setTimeout(r, 800 * (i + 1)));
   }
-  logSkip(deviceToken ?? null, number, "send_failed", { status: lastStatus, response: lastBody, endpoint });
+
+  const last = attempts[attempts.length - 1] ?? { status: 0, response: "sin_respuesta" };
+  logSkip(deviceToken ?? null, number, "send_failed", { ...last, attempts, endpoint });
   return false;
 }
 
