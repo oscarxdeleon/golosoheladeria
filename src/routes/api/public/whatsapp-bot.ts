@@ -1295,7 +1295,26 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 ].join("\n");
               })();
 
-              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock + pendingProductBlock;
+              // Bloque de continuidad: se antepone SIEMPRE (incluso con prompt
+              // personalizado por sede) para garantizar saludo único, memoria y
+              // respuesta según intención.
+              const continuityBlock = [
+                "",
+                "════════ CONTINUIDAD DE LA CONVERSACIÓN (REGLA MÁXIMA) ════════",
+                alreadyGreeted
+                  ? "⛔ ESTA CONVERSACIÓN YA ESTÁ INICIADA. PROHIBIDO saludar, presentarte, decir '¡Hola!', 'Soy Golosito', 'Bienvenido' o reenviar el link del menú por iniciativa propia. Continúa exactamente donde quedó la conversación."
+                  : "✅ Es el PRIMER mensaje de esta conversación: preséntate UNA sola vez ('Hola 👋 Soy Golosito, el asistente de Heladería Goloso.') y atiende de inmediato lo que pide el cliente.",
+                `Intención detectada en este mensaje: ${turnIntent}. Responde específicamente a esa intención, con un flujo propio; nunca respondas lo mismo para todas las consultas.`,
+                "MEMORIA: recuerda motivo de la conversación, productos consultados, productos agregados, datos ya entregados (nombre, dirección, barrio, pago) y lo que falta. NUNCA vuelvas a preguntar algo que el cliente ya respondió.",
+                "Si un dato ya está en el carrito o en el historial, dalo por recibido.",
+                "Si el cliente pide hablar con un asesor, dile que un asesor continuará por este chat y deja de insistir con el pedido.",
+                "Nunca inventes productos, precios, sabores ni promociones: usa solo la información del POS incluida abajo o consulta con las herramientas.",
+                "Expresiones naturales permitidas: 'Claro 😊', 'Con mucho gusto', 'Excelente elección', 'Perfecto', 'Déjame verificar', 'Ya te cuento'.",
+                "════════════════════════════════════════════════════════════",
+                "",
+              ].join("\n");
+
+              const finalSystemPrompt = continuityBlock + systemPrompt + orderingPromptBlock + cartStateBlock + pendingProductBlock + continuityBlock;
 
               // Herramientas expuestas a la IA (function calling)
               const orderingTools = orderingEnabled ? [
