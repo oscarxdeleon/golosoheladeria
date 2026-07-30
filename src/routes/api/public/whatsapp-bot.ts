@@ -224,42 +224,92 @@ export function detectIntent(input: string): BotIntent {
   return "otro";
 }
 
+/** Datos reales de la sede para que las respuestas deterministas no sean vagas. */
+export type BranchInfo = {
+  menuLink: string;
+  address?: string;
+  hours?: string;
+  maps?: string;
+  phone?: string;
+};
+
 /**
  * Respuesta de respaldo cuando la IA no pudo contestar. Solo saluda si la
  * conversación es NUEVA; si ya hay contexto, responde según la intención
  * detectada sin repetir bienvenida ni reiniciar el flujo.
  */
-function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
+function fallbackOrderReply(
+  input: string,
+  menuLink: string,
+  takingOrders: boolean,
+  hasHistory = false,
+  branchName?: string,
+  info?: BranchInfo,
+) {
   if (!hasHistory) return operationalReply(menuLink, takingOrders, branchName);
+
+  const location = info?.address
+    ? `📍 Estamos en ${info.address}${info.maps ? `\n🗺️ ${info.maps}` : ""}`
+    : null;
 
   switch (detectIntent(input)) {
     case "menu":
     case "productos":
     case "precios":
       return `Claro 😊 aquí tienes todo con fotos y precios actualizados 👉 ${menuLink}`;
+    case "promociones":
+      return `Las promociones vigentes las ves aquí 👉 ${menuLink}`;
     case "sabores":
-      return "Déjame verificar los sabores disponibles hoy. ¿Para qué producto los quieres (helado, malteada, jugo)?";
+      return `Los sabores disponibles hoy los ves actualizados aquí 👉 ${menuLink}\n¿Para cuál producto lo quieres?`;
+    case "ingredientes":
+      return "Cuéntame de cuál producto quieres saber los ingredientes y te confirmo. 🍦";
     case "horarios":
-      return "Con mucho gusto te confirmo el horario. ¿Lo necesitas para domicilio o para venir a la tienda?";
+      return info?.hours
+        ? `Nuestro horario de hoy es ${info.hours}. 🍦`
+        : "Estamos atendiendo ahora mismo. ¿Lo quieres a domicilio o para recoger?";
     case "pagos":
       return "Recibimos efectivo y transferencia. ¿Cómo prefieres pagar tu pedido?";
     case "sedes":
-      return "Con gusto te ayudo con la ubicación. ¿Prefieres domicilio o recoger en tienda?";
+    case "domicilio":
+      return location ?? "Con gusto te ayudo. ¿Prefieres domicilio o recoger en tienda?";
     case "asesor":
       return "Claro, en un momento un asesor de Heladería Goloso continúa contigo por este mismo chat. 🙌";
     case "cancelar":
-      return "Listo, no te preocupes. Cuando quieras retomamos tu pedido. 🍦";
+      return "Listo, cancelé lo que teníamos en curso. Cuando quieras empezamos de nuevo. 🍦";
     case "confirmar":
       return "Perfecto, déjame verificar tu pedido y te confirmo en un momento. ✅";
+    case "saludo":
+      return `¡Hola de nuevo! 🍦 ¿Qué te provoca hoy?\nMenú 👉 ${menuLink}`;
     case "pedido":
     case "agregar":
     case "modificar":
     case "eliminar":
-      return "Con mucho gusto continúo con tu pedido. ¿Me confirmas el producto y la cantidad?";
+      return `Con mucho gusto tomo tu pedido. ¿Qué producto y cuántos?\nMenú 👉 ${menuLink}`;
     default:
-      return "Sigo contigo 🍦 ¿Me repites lo último para continuar?";
+      return `Cuéntame qué necesitas y te ayudo 🍦\nMenú 👉 ${menuLink}`;
   }
 }
+
+/** Intenciones informativas: NUNCA deben ser tapadas por el estado del pedido. */
+const INFO_INTENTS: BotIntent[] = [
+  "saludo", "menu", "productos", "precios", "sabores", "promociones",
+  "ingredientes", "horarios", "pagos", "sedes", "asesor",
+];
+
+/**
+ * Anti-repetición: si el texto calculado es idéntico al último mensaje que ya
+ * enviamos, devolvemos una variante para no quedar en bucle.
+ */
+function avoidRepeatedReply(
+  reply: string,
+  history: Array<{ role: string; content: string }>,
+  menuLink: string,
+) {
+  const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content ?? "";
+  if (!lastAssistant || !sameReply(reply, lastAssistant)) return reply;
+  return `Perdón, no te entendí bien 🙈 ¿Me lo dices de otra forma?\nPuedes ver el menú y pedir aquí 👉 ${menuLink}`;
+}
+
 
 
 type CartRecord = Record<string, unknown> | null;
