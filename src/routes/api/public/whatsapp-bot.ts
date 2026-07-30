@@ -462,6 +462,10 @@ function looksLikeBareCustomerName(input: string) {
   if (raw.length < 3 || raw.length > 60) return false;
   const normalized = normalizeText(raw);
   if (!normalized || isConfirmation(raw) || isCancelOrNegativeTurn(raw) || isAlreadyOrderedTurn(raw)) return false;
+  // Un saludo o una cortesía NUNCA es un nombre de cliente. Esto evitaba que
+  // "Hola" o "Buenas noches" quedaran guardados como nombre y dejaran la
+  // sesión pegada pidiendo datos para siempre.
+  if (/\b(hola|holi|holaa|buenas|buenos|dias|días|tardes|noches|hey|hello|hi|saludos|que tal|qué tal|gracias|ok|okay|listo|si|sí|no|bien|nada|jaja|jeje|ya|hola buenas)\b/.test(normalized)) return false;
   if (detectOrderType(raw) || detectPayment(raw) || extractAddress(raw) || extractNeighborhood(raw)) return false;
   if (/[#@0-9]/.test(raw)) return false;
   if (/\b(quiero|dame|deme|pedido|pedir|producto|helado|malteada|ensalada|vaso|cono|copa|sabor|topping|domicilio|direccion|dirección|barrio|pago|efectivo|transferencia|nequi|bancolombia|menu|menú|precio|cuanto|cuánto|ya|hice|pedi|pedí)\b/.test(normalized)) return false;
