@@ -113,22 +113,22 @@ export function avoidRepeatedReply(
 
 /**
  * Toma un mensaje de bienvenida configurado por el administrador en Ajustes →
- * WhatsApp Bot. Si hay varios, elige uno al azar. Golosito siempre se presenta
- * con su nombre: si el texto configurado no lo menciona, se antepone.
+ * WhatsApp Bot y lo devuelve EXACTAMENTE como fue escrito (emojis, saltos de
+ * línea y formato incluidos). Si hay varios, elige uno al azar. Solo se agrega
+ * el link del menú cuando el mensaje configurado no incluye ningún enlace.
  */
 export function pickWelcomeMessage(messages: unknown, menuLink: string): string {
   const list = Array.isArray(messages)
-    ? messages.map((m) => String(m ?? "").trim()).filter(Boolean)
+    ? messages.map((m) => String(m ?? "")).filter((m) => m.trim().length > 0)
     : [];
   if (list.length === 0) {
-    return `¡Hola! Soy Golosito, el asistente virtual de Heladería Goloso 🍦😊\nMira el menú y pide en menos de un minuto 👉 ${menuLink}`;
+    return `¡Hola! 🍦 Mira el menú y pide en menos de un minuto 👉 ${menuLink}`;
   }
   const chosen = list[Math.floor(Math.random() * list.length)];
   const withLink = chosen.replace(/\{\{?\s*menu(_link)?\s*\}?\}/gi, menuLink);
-  return /golosito/i.test(withLink)
-    ? withLink
-    : `¡Hola! Soy Golosito, el asistente virtual de Heladería Goloso 🍦😊\n\n${withLink}`;
+  return /https?:\/\//i.test(withLink) ? withLink : `${withLink}\n\n👉 ${menuLink}`;
 }
+
 
 export function shortCircuitReply(
   input: string,
