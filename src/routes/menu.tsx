@@ -21,7 +21,8 @@ export const Route = createFileRoute("/menu")({
       { name: "twitter:description", content: "Explora nuestro menú en línea, helados, toppings y realiza tu pedido en la sede seleccionada." },
       { name: "apple-mobile-web-app-title", content: "Goloso" },
       { name: "application-name", content: "Goloso" },
-
+    ],
+    links: [{ rel: "manifest", href: "/manifest.webmanifest" }],
   }),
   component: MenuPage,
 });
