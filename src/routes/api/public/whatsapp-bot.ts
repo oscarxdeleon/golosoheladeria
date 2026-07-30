@@ -1039,6 +1039,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   ].filter(Boolean).join("\n")
                 : "";
 
+              // Datos reales de la sede usados por las respuestas deterministas
+              // (cuando la IA falla, el cliente igual recibe información válida).
+              const branchInfo: BranchInfo = {
+                menuLink,
+                address: branchFullAddress || [branchAddress, branchNeighborhood, branchCity].filter(Boolean).join(", "),
+                maps: branchMapsLink || undefined,
+                phone: branchPhone || undefined,
+                hours: typeof ctx.today_hours === "string" && ctx.today_hours.trim() ? ctx.today_hours.trim() : undefined,
+              };
+
+
               // Carrito activo viene del bootstrap: cero round-trips extra.
               const activeCartHasItems = Array.isArray(preloadedCart?.items) && (preloadedCart.items as unknown[]).length > 0;
               const activeSessionHasState = hasSessionData(preloadedCart);
