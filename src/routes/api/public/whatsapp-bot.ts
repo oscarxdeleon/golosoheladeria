@@ -992,11 +992,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
                 if (error === "rate_limited") {
                   const rateLimitTakesOrders = true;
-                  const reply = buildActiveSessionFallback(preloadedCart, formatCOP)
+                  const reply = buildActiveSessionFallback(preloadedCart, formatCOP, text)
                     ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders, hasSessionData(preloadedCart));
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
-                const fallbackReply = buildActiveSessionFallback(preloadedCart, formatCOP)
+                const fallbackReply = buildActiveSessionFallback(preloadedCart, formatCOP, text)
                   ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, true, hasSessionData(preloadedCart));
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
@@ -1776,8 +1776,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const lovableKey = process.env.LOVABLE_API_KEY;
               const geminiKey = process.env.GEMINI_API_KEY;
               if (!lovableKey && !geminiKey) {
-                const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
+                const reply = buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo);
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
@@ -1793,8 +1793,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const qData = Array.isArray(q.data) ? q.data[0] : q.data;
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
-                  const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
-                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
+                  const reply = buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo);
                   await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
                     ok: false,
                     metadata: qData ?? null,
@@ -2066,15 +2066,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (!finalReply) {
                 const progressReply = await buildOperationalOrderReply();
                 finalReply = progressReply
-                  ?? buildActiveSessionFallback(preloadedCart, fmtCOP)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
+                  ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
                   error: lastErr,
                   metadata: { finishReason: lastFinishReason },
                 });
-              } else if (sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName))) {
+              } else if (sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo))) {
                 const progressReply = await buildOperationalOrderReply();
                 if (progressReply) {
                   finalReply = progressReply;
