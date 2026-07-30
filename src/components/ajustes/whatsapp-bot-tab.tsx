@@ -1370,6 +1370,7 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
   const [importWarnings, setImportWarnings] = useState<string[]>([]);
   const [importOpen, setImportOpen] = useState(false);
   const [importAsGlobal, setImportAsGlobal] = useState(false);
+  const [pasteText, setPasteText] = useState("");
 
   // ---- Browse UI state ----
   const [search, setSearch] = useState("");
@@ -1454,9 +1455,17 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
       toast.error("Archivo muy grande (máx 10 MB)");
       return;
     }
+    await handleText(await file.text());
+  };
+
+  const handleText = async (rawText: string) => {
+    const text = rawText.trim();
+    if (text.length < 20) {
+      toast.error("Pega al menos un par Pregunta / Respuesta");
+      return;
+    }
     setImporting(true);
     try {
-      const text = await file.text();
       const host = typeof window !== "undefined" ? window.location.hostname : "";
       const isLovable = /\.lovable\.app$/.test(host);
       let result: ExtractFaqsResult;
@@ -1466,7 +1475,8 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
         const { data: sess } = await supabase.auth.getSession();
         const token = sess.session?.access_token;
         if (!token) throw new Error("Sesión expirada, vuelve a iniciar sesión");
-        const resp = await fetch("https://golosoheladeria.lovable.app/api/public/faq-extract", {
+        // Mismo dominio desde el que se abre el POS (Vercel, Lovable o propio).
+        const resp = await fetch("/api/public/faq-extract", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ text, branchId }),
@@ -1687,6 +1697,34 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
             </label>
           </div>
         </div>
+
+
+        {/* Entrenar pegando texto */}
+        <details className="rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/40 p-3">
+          <summary className="cursor-pointer text-sm font-medium flex items-center gap-1.5 select-none">
+            <Sparkles className="h-4 w-4 text-fuchsia-600" /> Entrenar pegando texto
+          </summary>
+          <div className="mt-3 space-y-2">
+            <Textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              rows={8}
+              placeholder={"Pregunta: ¿Hacen domicilios?\nRespuesta: Sí, en toda la ciudad con un costo desde $3.000.\n\nPregunta: ¿Cuál es el horario?\nRespuesta: Todos los días de 11:00 a 22:00."}
+              className="text-sm font-mono"
+            />
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                disabled={importing || pasteText.trim().length < 20}
+                onClick={async () => { await handleText(pasteText); setPasteText(""); }}
+              >
+                <Sparkles className="h-4 w-4 mr-1.5" />
+                {importing ? "Procesando…" : "Analizar y entrenar"}
+              </Button>
+            </div>
+          </div>
+        </details>
+
 
         {/* Add manual */}
         <details className="rounded-lg border bg-muted/30 p-3">
