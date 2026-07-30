@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { trackGeminiCall } from "@/lib/gemini-quota.server";
+import { readEvolutionEnv } from "@/lib/evolution-env";
 
 // Endpoint público consumido por el bot local (`whatsapp-bot/`) que corre
 // en el PC de cada sede. Se autentica con el `device_token` de la sede
