@@ -999,11 +999,16 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   const rateLimitTakesOrders = true;
                   const reply = buildActiveSessionFallback(preloadedCart, formatCOP, text)
                     ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders, hasSessionData(preloadedCart));
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
                 const fallbackReply = buildActiveSessionFallback(preloadedCart, formatCOP, text)
                   ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, true, hasSessionData(preloadedCart));
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: fallbackReply });
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
+
               }
               void logBotEvent(token, conversationId, from, "context_loaded", {
                 durationMs: elapsedMs(contextStarted),
