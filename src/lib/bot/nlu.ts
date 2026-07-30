@@ -38,7 +38,6 @@ export function selectRelevantProducts<T extends { name?: string; category?: str
     .map((item) => item.product);
 }
 
-}
 
 /**
  * Detección ligera de intención (determinista, sin IA). Sirve para dos cosas:
