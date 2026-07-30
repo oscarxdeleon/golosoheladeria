@@ -224,42 +224,92 @@ export function detectIntent(input: string): BotIntent {
   return "otro";
 }
 
+/** Datos reales de la sede para que las respuestas deterministas no sean vagas. */
+export type BranchInfo = {
+  menuLink: string;
+  address?: string;
+  hours?: string;
+  maps?: string;
+  phone?: string;
+};
+
 /**
  * Respuesta de respaldo cuando la IA no pudo contestar. Solo saluda si la
  * conversación es NUEVA; si ya hay contexto, responde según la intención
  * detectada sin repetir bienvenida ni reiniciar el flujo.
  */
-function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
+function fallbackOrderReply(
+  input: string,
+  menuLink: string,
+  takingOrders: boolean,
+  hasHistory = false,
+  branchName?: string,
+  info?: BranchInfo,
+) {
   if (!hasHistory) return operationalReply(menuLink, takingOrders, branchName);
+
+  const location = info?.address
+    ? `📍 Estamos en ${info.address}${info.maps ? `\n🗺️ ${info.maps}` : ""}`
+    : null;
 
   switch (detectIntent(input)) {
     case "menu":
     case "productos":
     case "precios":
       return `Claro 😊 aquí tienes todo con fotos y precios actualizados 👉 ${menuLink}`;
+    case "promociones":
+      return `Las promociones vigentes las ves aquí 👉 ${menuLink}`;
     case "sabores":
-      return "Déjame verificar los sabores disponibles hoy. ¿Para qué producto los quieres (helado, malteada, jugo)?";
+      return `Los sabores disponibles hoy los ves actualizados aquí 👉 ${menuLink}\n¿Para cuál producto lo quieres?`;
+    case "ingredientes":
+      return "Cuéntame de cuál producto quieres saber los ingredientes y te confirmo. 🍦";
     case "horarios":
-      return "Con mucho gusto te confirmo el horario. ¿Lo necesitas para domicilio o para venir a la tienda?";
+      return info?.hours
+        ? `Nuestro horario de hoy es ${info.hours}. 🍦`
+        : "Estamos atendiendo ahora mismo. ¿Lo quieres a domicilio o para recoger?";
     case "pagos":
       return "Recibimos efectivo y transferencia. ¿Cómo prefieres pagar tu pedido?";
     case "sedes":
-      return "Con gusto te ayudo con la ubicación. ¿Prefieres domicilio o recoger en tienda?";
+    case "domicilio":
+      return location ?? "Con gusto te ayudo. ¿Prefieres domicilio o recoger en tienda?";
     case "asesor":
       return "Claro, en un momento un asesor de Heladería Goloso continúa contigo por este mismo chat. 🙌";
     case "cancelar":
-      return "Listo, no te preocupes. Cuando quieras retomamos tu pedido. 🍦";
+      return "Listo, cancelé lo que teníamos en curso. Cuando quieras empezamos de nuevo. 🍦";
     case "confirmar":
       return "Perfecto, déjame verificar tu pedido y te confirmo en un momento. ✅";
+    case "saludo":
+      return `¡Hola de nuevo! 🍦 ¿Qué te provoca hoy?\nMenú 👉 ${menuLink}`;
     case "pedido":
     case "agregar":
     case "modificar":
     case "eliminar":
-      return "Con mucho gusto continúo con tu pedido. ¿Me confirmas el producto y la cantidad?";
+      return `Con mucho gusto tomo tu pedido. ¿Qué producto y cuántos?\nMenú 👉 ${menuLink}`;
     default:
-      return "Sigo contigo 🍦 ¿Me repites lo último para continuar?";
+      return `Cuéntame qué necesitas y te ayudo 🍦\nMenú 👉 ${menuLink}`;
   }
 }
+
+/** Intenciones informativas: NUNCA deben ser tapadas por el estado del pedido. */
+const INFO_INTENTS: BotIntent[] = [
+  "saludo", "menu", "productos", "precios", "sabores", "promociones",
+  "ingredientes", "horarios", "pagos", "sedes", "asesor",
+];
+
+/**
+ * Anti-repetición: si el texto calculado es idéntico al último mensaje que ya
+ * enviamos, devolvemos una variante para no quedar en bucle.
+ */
+function avoidRepeatedReply(
+  reply: string,
+  history: Array<{ role: string; content: string }>,
+  menuLink: string,
+) {
+  const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content ?? "";
+  if (!lastAssistant || !sameReply(reply, lastAssistant)) return reply;
+  return `Perdón, no te entendí bien 🙈 ¿Me lo dices de otra forma?\nPuedes ver el menú y pedir aquí 👉 ${menuLink}`;
+}
+
 
 
 type CartRecord = Record<string, unknown> | null;
@@ -412,6 +462,10 @@ function looksLikeBareCustomerName(input: string) {
   if (raw.length < 3 || raw.length > 60) return false;
   const normalized = normalizeText(raw);
   if (!normalized || isConfirmation(raw) || isCancelOrNegativeTurn(raw) || isAlreadyOrderedTurn(raw)) return false;
+  // Un saludo o una cortesía NUNCA es un nombre de cliente. Esto evitaba que
+  // "Hola" o "Buenas noches" quedaran guardados como nombre y dejaran la
+  // sesión pegada pidiendo datos para siempre.
+  if (/\b(hola|holi|holaa|buenas|buenos|dias|días|tardes|noches|hey|hello|hi|saludos|que tal|qué tal|gracias|ok|okay|listo|si|sí|no|bien|nada|jaja|jeje|ya|hola buenas)\b/.test(normalized)) return false;
   if (detectOrderType(raw) || detectPayment(raw) || extractAddress(raw) || extractNeighborhood(raw)) return false;
   if (/[#@0-9]/.test(raw)) return false;
   if (/\b(quiero|dame|deme|pedido|pedir|producto|helado|malteada|ensalada|vaso|cono|copa|sabor|topping|domicilio|direccion|dirección|barrio|pago|efectivo|transferencia|nequi|bancolombia|menu|menú|precio|cuanto|cuánto|ya|hice|pedi|pedí)\b/.test(normalized)) return false;
@@ -604,7 +658,17 @@ function buildCartProgressReply(cart: CartRecord, fmtCOP: (n: number) => string,
   return `${prefix}${summary}\n\n${name ? `${name}, ` : ""}¿confirmas el pedido?`;
 }
 
-function buildActiveSessionFallback(cart: CartRecord, fmtCOP: (n: number) => string) {
+/**
+ * Respaldo cuando hay un pedido realmente en curso. REGLA CLAVE: la intención
+ * actual del cliente manda. Si pregunta algo informativo (saludo, menú,
+ * horarios, precios...), devolvemos null para responder a eso y NO repetir el
+ * estado del pedido. Además, sin productos en el carrito nunca se contesta
+ * "me falta X": eso era lo que producía el bucle infinito.
+ */
+function buildActiveSessionFallback(cart: CartRecord, fmtCOP: (n: number) => string, input = "") {
+  const intent = detectIntent(input);
+  if (INFO_INTENTS.includes(intent)) return null;
+
   if (hasCartItems(cart)) {
     return buildCartProgressReply(cart, fmtCOP, "Sigo con tu pedido en curso.")
       ?? "Sigo con tu pedido en curso. 🍦 ¿Confirmas para registrarlo?";
@@ -614,13 +678,10 @@ function buildActiveSessionFallback(cart: CartRecord, fmtCOP: (n: number) => str
     const productName = String(pending?.name ?? "ese producto").trim() || "ese producto";
     return `Sigo con ${productName}. 🍦 ¿Qué sabor, topping o detalle quieres agregarle?`;
   }
-  if (hasSessionData(cart)) {
-    const missing = missingCartFields(cart);
-    if (missing.length > 0) return `Sigo con tu pedido. 🍦 Me falta ${missing[0]}.`;
-    return "Sigo con tu pedido. 🍦 Dime qué producto deseas agregar.";
-  }
+  // Sin items no hay pedido que continuar: que responda la intención real.
   return null;
 }
+
 
 async function persistCartPatch(token: string, phone: string, patch: Record<string, unknown>) {
   const first = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: phone, _patch: patch });
@@ -935,11 +996,11 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
                 if (error === "rate_limited") {
                   const rateLimitTakesOrders = true;
-                  const reply = buildActiveSessionFallback(preloadedCart, formatCOP)
+                  const reply = buildActiveSessionFallback(preloadedCart, formatCOP, text)
                     ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, rateLimitTakesOrders, hasSessionData(preloadedCart));
                   return json({ reply, source: "operational", error, conversation_id: conversationId }, 200);
                 }
-                const fallbackReply = buildActiveSessionFallback(preloadedCart, formatCOP)
+                const fallbackReply = buildActiveSessionFallback(preloadedCart, formatCOP, text)
                   ?? fallbackOrderReply(text, DEFAULT_MENU_LINK, true, hasSessionData(preloadedCart));
                 return json({ error, reply: fallbackReply, source: "operational", conversation_id: conversationId }, 200);
               }
@@ -982,6 +1043,17 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   ].filter(Boolean).join("\n")
                 : "";
 
+              // Datos reales de la sede usados por las respuestas deterministas
+              // (cuando la IA falla, el cliente igual recibe información válida).
+              const branchInfo: BranchInfo = {
+                menuLink,
+                address: branchFullAddress || [branchAddress, branchNeighborhood, branchCity].filter(Boolean).join(", "),
+                maps: branchMapsLink || undefined,
+                phone: branchPhone || undefined,
+                hours: typeof ctx.today_hours === "string" && ctx.today_hours.trim() ? ctx.today_hours.trim() : undefined,
+              };
+
+
               // Carrito activo viene del bootstrap: cero round-trips extra.
               const activeCartHasItems = Array.isArray(preloadedCart?.items) && (preloadedCart.items as unknown[]).length > 0;
               const activeSessionHasState = hasSessionData(preloadedCart);
@@ -1009,6 +1081,16 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // caduca según el tiempo configurado por el administrador).
               const alreadyGreeted = activeSessionHasState || history.length > 0;
               const turnIntent = detectIntent(text);
+
+              // 🚨 ESCAPE MANUAL: si el cliente pide reiniciar/empezar de nuevo,
+              // limpiamos por completo la sesión para que nunca quede atrapado.
+              if (/\b(reiniciar|reinicia|empezar de nuevo|empecemos de nuevo|comenzar de nuevo|borra todo|olvida todo|nueva orden|nuevo pedido desde cero)\b/i.test(normalizeText(text))) {
+                await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
+                const resetReply = `Listo, empezamos de cero. 🍦\n¿Qué te provoca hoy?\nMenú 👉 ${menuLink}`;
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text });
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: resetReply });
+                return json({ reply: resetReply, source: "reset", conversation_id: conversationId }, 200);
+              }
 
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
@@ -1685,7 +1767,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 return null; // datos completos: la IA cierra con el cliente
               };
 
-              const operationalOrderReply = await buildOperationalOrderReply();
+              const rawOperationalOrderReply = await buildOperationalOrderReply();
+              const operationalOrderReply = rawOperationalOrderReply
+                ? avoidRepeatedReply(rawOperationalOrderReply, history, menuLink)
+                : null;
               if (operationalOrderReply) {
                 // Fire-and-forget: la respuesta al cliente no espera por escrituras.
                 void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
@@ -1708,8 +1793,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const lovableKey = process.env.LOVABLE_API_KEY;
               const geminiKey = process.env.GEMINI_API_KEY;
               if (!lovableKey && !geminiKey) {
-                const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
+                const reply = avoidRepeatedReply(
+                  buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo),
+                  history,
+                  menuLink,
+                );
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
@@ -1725,8 +1814,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const qData = Array.isArray(q.data) ? q.data[0] : q.data;
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
-                  const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
-                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
+                  const reply = avoidRepeatedReply(
+                    buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                      ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo),
+                    history,
+                    menuLink,
+                  );
                   await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
                     ok: false,
                     metadata: qData ?? null,
@@ -1998,15 +2091,15 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (!finalReply) {
                 const progressReply = await buildOperationalOrderReply();
                 finalReply = progressReply
-                  ?? buildActiveSessionFallback(preloadedCart, fmtCOP)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
+                  ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
                   error: lastErr,
                   metadata: { finishReason: lastFinishReason },
                 });
-              } else if (sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName))) {
+              } else if (sameReply(finalReply, fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo))) {
                 const progressReply = await buildOperationalOrderReply();
                 if (progressReply) {
                   finalReply = progressReply;
@@ -2016,6 +2109,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                   });
                 }
               }
+
+              // 🔁 Guardia anti-bucle: jamás enviamos dos veces seguidas el
+              // mismo texto al cliente.
+              finalReply = avoidRepeatedReply(finalReply, history, menuLink);
+
+
 
               // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
               // de estas escrituras afecta el texto que ve el cliente.
