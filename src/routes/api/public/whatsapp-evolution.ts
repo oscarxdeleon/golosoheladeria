@@ -132,17 +132,44 @@ function logSkip(deviceToken: string | null, phone: string, reason: string, meta
   }).catch(() => {});
 }
 
-async function sendText(instance: string, number: string, text: string) {
+async function sendText(instance: string, number: string, text: string, deviceToken?: string | null) {
   const { readEvolutionEnv } = await import("@/lib/evolution-env");
   const url = (readEvolutionEnv("EVOLUTION_API_URL") || "").replace(/\/$/, "");
   const key = readEvolutionEnv("EVOLUTION_API_KEY");
-  if (!url || !key) return;
-  await fetch(`${url}/message/sendText/${encodeURIComponent(instance)}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json", apikey: key },
-    body: JSON.stringify({ number, text }),
-  }).catch((e) => console.warn("[evolution-webhook] sendText falló", e));
+  if (!url || !key) {
+    console.error("[evolution-webhook] sendText sin credenciales", { hasUrl: Boolean(url), hasKey: Boolean(key) });
+    logSkip(deviceToken ?? null, number, "send_no_credentials", { hasUrl: Boolean(url), hasKey: Boolean(key) });
+    return false;
+  }
+
+  const endpoint = `${url}/message/sendText/${encodeURIComponent(instance)}`;
+  const bodies: any[] = [
+    { number, text },
+    { number, options: { delay: 300, presence: "composing" }, textMessage: { text } },
+  ];
+
+  let lastStatus = 0;
+  let lastBody = "";
+  for (const payload of bodies) {
+    try {
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", apikey: key },
+        body: JSON.stringify(payload),
+      });
+      lastStatus = res.status;
+      lastBody = (await res.text().catch(() => "")).slice(0, 400);
+      if (res.ok) return true;
+      console.warn("[evolution-webhook] sendText no-ok", { status: res.status, body: lastBody });
+    } catch (e) {
+      lastBody = String(e).slice(0, 400);
+      console.warn("[evolution-webhook] sendText falló", e);
+    }
+  }
+  logSkip(deviceToken ?? null, number, "send_failed", { status: lastStatus, response: lastBody, endpoint });
+  return false;
 }
+
 
 export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
