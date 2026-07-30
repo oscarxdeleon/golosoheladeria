@@ -1037,8 +1037,10 @@ export async function runBotAction(request: Request): Promise<Response> {
                   name: "gemini_direct",
                   url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
                   headers: { Authorization: `Bearer ${geminiKey}`, "Content-Type": "application/json" },
-                  primaryModel: "gemini-2.0-flash",
-                  fallbackModel: "gemini-2.0-flash-lite",
+                  // `gemini-2.0-flash*` ya no tiene cuota gratuita (limit: 0 →
+                  // 429 permanente). Los alias `*-latest` sí la conservan.
+                  primaryModel: "gemini-flash-latest",
+                  fallbackModel: "gemini-flash-lite-latest",
                 });
               }
 
