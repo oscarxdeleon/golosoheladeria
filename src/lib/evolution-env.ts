@@ -37,11 +37,30 @@ const MATCHERS: Record<string, string[][]> = {
     ["POS", "URL", "PUBLICO"],
     ["URL", "PUBLICA", "POS"],
   ],
+  LOVABLE_API_KEY: [
+    ["LOVABLE", "API", "KEY"],
+    ["LOVABLE", "API", "CLAVE"],
+    ["CLAVE", "API", "LOVABLE"],
+  ],
+  GEMINI_API_KEY: [
+    ["GEMINI", "API", "KEY"],
+    ["GEMINI", "API", "CLAVE"],
+    ["CLAVE", "API", "GEMINI"],
+  ],
 };
 
+export type EvolutionEnvKey =
+  | "EVOLUTION_API_URL"
+  | "EVOLUTION_API_KEY"
+  | "EVOLUTION_WEBHOOK_TOKEN"
+  | "POS_PUBLIC_URL"
+  | "LOVABLE_API_KEY"
+  | "GEMINI_API_KEY";
+
 export function readEvolutionEnv(
-  canonical: "EVOLUTION_API_URL" | "EVOLUTION_API_KEY" | "EVOLUTION_WEBHOOK_TOKEN" | "POS_PUBLIC_URL",
+  canonical: EvolutionEnvKey,
 ): string | undefined {
+
   const env = process.env as Record<string, string | undefined>;
   const direct = env[canonical];
   if (direct && direct.trim()) return direct.trim();
