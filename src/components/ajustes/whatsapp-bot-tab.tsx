@@ -1466,7 +1466,8 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
         const { data: sess } = await supabase.auth.getSession();
         const token = sess.session?.access_token;
         if (!token) throw new Error("Sesión expirada, vuelve a iniciar sesión");
-        const resp = await fetch("https://golosoheladeria.lovable.app/api/public/faq-extract", {
+        // Mismo dominio desde el que se abre el POS (Vercel, Lovable o propio).
+        const resp = await fetch("/api/public/faq-extract", {
           method: "POST",
           headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
           body: JSON.stringify({ text, branchId }),
