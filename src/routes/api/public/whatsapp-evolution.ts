@@ -119,7 +119,26 @@ async function persistState(branchId: string, token: string, patch: Record<strin
 
 /** Deja rastro del motivo por el que un mensaje no se respondió. */
 function logSkip(deviceToken: string | null, phone: string, reason: string, metadata: Record<string, unknown> = {}) {
-  if (!deviceToken) return;
+  const fallback = async () => {
+    try {
+      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+      await supabaseAdmin.from("whatsapp_ai_diagnostics").insert({
+        conversation_id: `evo-${Date.now()}`,
+        phone,
+        stage: "evolution_webhook",
+        ok: false,
+        error: reason,
+        metadata,
+      } as never);
+    } catch (e) {
+      console.warn("[evolution-webhook] no pude registrar diagnóstico", e);
+    }
+  };
+
+  if (!deviceToken) {
+    void fallback();
+    return;
+  }
   void callRpc("whatsapp_bot_ai_log_event", {
     _token: deviceToken,
     _conversation_id: `evo-${Date.now()}`,
@@ -129,8 +148,9 @@ function logSkip(deviceToken: string | null, phone: string, reason: string, meta
     _duration_ms: null,
     _error: reason,
     _metadata: metadata,
-  }).catch(() => {});
+  }).then((r) => { if (!r.ok) void fallback(); }).catch(() => { void fallback(); });
 }
+
 
 async function sendText(instance: string, number: string, text: string, deviceToken?: string | null) {
   const { readEvolutionEnv } = await import("@/lib/evolution-env");
