@@ -1079,7 +1079,7 @@ function MenuTriggersCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; branch?
 
   useEffect(() => { setTriggers(cfg.menu_triggers ?? []); setMessage(cfg.menu_message); }, [cfg.menu_triggers, cfg.menu_message]);
 
-  const menuLink = branch?.slug ? `https://golosoheladeria.vercel.app/menu?sede=${branch.slug}` : "(sin slug de sede)";
+  const menuLink = branch?.slug ? `https://golosoheladeria.lovable.app/menu?sede=${branch.slug}` : "(sin slug de sede)";
   const preview = message.replace("{menu_link}", menuLink);
 
   const addTrigger = () => {
