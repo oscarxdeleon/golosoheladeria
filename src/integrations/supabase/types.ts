@@ -4004,6 +4004,10 @@ export type Database = {
         Args: { _query: string; _token: string }
         Returns: Json
       }
+      whatsapp_bot_append_menu_link: {
+        Args: { _menu_link: string; _reply: string }
+        Returns: string
+      }
       whatsapp_bot_contact_key: { Args: { _raw: string }; Returns: string }
       whatsapp_bot_enqueue_reply: {
         Args: { _body: string; _purpose?: string; _to: string; _token: string }
