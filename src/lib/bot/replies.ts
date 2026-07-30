@@ -95,22 +95,48 @@ export const INFO_INTENTS: BotIntent[] = [
 ];
 
 /**
- * Anti-repetición: si el texto calculado es idéntico al último mensaje que ya
- * enviamos, devolvemos una variante para no quedar en bucle.
+ * Anti-repetición: si el texto calculado ya se envió en alguno de los últimos
+ * turnos del asistente, devolvemos una variante para no quedar en bucle.
  */
 export function avoidRepeatedReply(
   reply: string,
   history: Array<{ role: string; content: string }>,
   menuLink: string,
 ) {
-  const lastAssistant = [...history].reverse().find((m) => m.role === "assistant")?.content ?? "";
-  if (!lastAssistant || !sameReply(reply, lastAssistant)) return reply;
+  const lastAssistants = [...history]
+    .reverse()
+    .filter((m) => m.role === "assistant")
+    .slice(0, 3)
+    .map((m) => m.content);
+  if (!lastAssistants.some((prev) => prev && sameReply(reply, prev))) return reply;
   return `Perdón, no te entendí bien 🙈 ¿Me lo dices de otra forma?\nPuedes ver el menú y pedir aquí 👉 ${menuLink}`;
 }
 
+/**
+ * Toma un mensaje de bienvenida configurado por el administrador en Ajustes →
+ * WhatsApp Bot. Si hay varios, elige uno al azar. Golosito siempre se presenta
+ * con su nombre: si el texto configurado no lo menciona, se antepone.
+ */
+export function pickWelcomeMessage(messages: unknown, menuLink: string): string {
+  const list = Array.isArray(messages)
+    ? messages.map((m) => String(m ?? "").trim()).filter(Boolean)
+    : [];
+  if (list.length === 0) {
+    return `¡Hola! Soy Golosito, el asistente virtual de Heladería Goloso 🍦😊\nMira el menú y pide en menos de un minuto 👉 ${menuLink}`;
+  }
+  const chosen = list[Math.floor(Math.random() * list.length)];
+  const withLink = chosen.replace(/\{\{?\s*menu(_link)?\s*\}?\}/gi, menuLink);
+  return /golosito/i.test(withLink)
+    ? withLink
+    : `¡Hola! Soy Golosito, el asistente virtual de Heladería Goloso 🍦😊\n\n${withLink}`;
+}
 
-
-export function shortCircuitReply(input: string, menuLink: string, branchName?: string): { reply: string; event: string | null } | null {
+export function shortCircuitReply(
+  input: string,
+  menuLink: string,
+  branchName?: string,
+  welcomeMessages?: unknown,
+): { reply: string; event: string | null } | null {
   const raw = input.trim();
   if (!raw) return null;
   const normalized = raw
@@ -143,10 +169,10 @@ export function shortCircuitReply(input: string, menuLink: string, branchName?: 
     };
   }
 
-  // Saludos cortos → bienvenida breve.
+  // Saludos cortos → bienvenida configurada en el POS (aleatoria si hay varias).
   if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
     return {
-      reply: `Hola 👋 Soy Golosito, el asistente de Heladería Goloso. Mira el menú y pide en menos de un minuto 👉 ${menuLink}`,
+      reply: pickWelcomeMessage(welcomeMessages, menuLink),
       event: "welcome",
     };
   }

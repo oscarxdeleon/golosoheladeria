@@ -161,6 +161,34 @@ export async function extractFaqs(text: string): Promise<ExtractFaqsResult> {
   };
 }
 
+/**
+ * Autoriza al usuario: debe ser admin o supervisor y, si no es admin,
+ * la sede solicitada debe ser la suya. Se valida SIEMPRE en servidor.
+ */
+export async function assertFaqImportAllowed(
+  supabase: {
+    rpc: (fn: string, args: Record<string, unknown>) => Promise<{ data: unknown; error: unknown }>;
+    from: (t: string) => any;
+  },
+  userId: string,
+  branchId: string,
+) {
+  const [{ data: isAdmin }, { data: isSupervisor }] = await Promise.all([
+    supabase.rpc("has_role", { _user_id: userId, _role: "admin" }),
+    supabase.rpc("has_role", { _user_id: userId, _role: "supervisor" }),
+  ]);
+  if (isAdmin === true) return;
+  if (isSupervisor !== true) throw new Error("No autorizado");
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("branch_id")
+    .eq("id", userId)
+    .maybeSingle();
+  const ownBranch = (profile as { branch_id?: string | null } | null)?.branch_id ?? null;
+  if (!ownBranch || ownBranch !== branchId) throw new Error("No autorizado");
+}
+
 export const extractFaqsFromChat = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: unknown) => {
@@ -170,6 +198,7 @@ export const extractFaqsFromChat = createServerFn({ method: "POST" })
     // Cap grande (200 KB) para permitir archivos con 200+ pares
     return { text: d.text.slice(0, 200_000), branchId: d.branchId };
   })
-  .handler(async ({ data }): Promise<ExtractFaqsResult> => {
+  .handler(async ({ data, context }): Promise<ExtractFaqsResult> => {
+    await assertFaqImportAllowed(context.supabase as never, context.userId, data.branchId);
     return extractFaqs(data.text);
   });

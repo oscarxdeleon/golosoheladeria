@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { extractFaqs } from "@/lib/whatsapp-faq-import.functions";
+import { extractFaqs, assertFaqImportAllowed } from "@/lib/whatsapp-faq-import.functions";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -44,10 +44,17 @@ export const Route = createFileRoute("/api/public/faq-extract")({
             return Response.json({ error: "Faltan datos (text, branchId)" }, { status: 400, headers: CORS });
           }
 
+          try {
+            await assertFaqImportAllowed(supa as never, userRes.user.id, branchId);
+          } catch {
+            return Response.json({ error: "No autorizado" }, { status: 403, headers: CORS });
+          }
+
           const result = await extractFaqs(text);
           return Response.json(result, { headers: CORS });
         } catch (err) {
-          return Response.json({ error: (err as Error).message }, { status: 500, headers: CORS });
+          console.error("[faq-extract]", err);
+          return Response.json({ error: "No se pudo procesar el archivo" }, { status: 500, headers: CORS });
         }
       },
     },

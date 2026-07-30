@@ -139,7 +139,10 @@ export function buildContinuityBlock(alreadyGreeted: boolean, turnIntent: string
       ? "⛔ ESTA CONVERSACIÓN YA ESTÁ INICIADA. PROHIBIDO saludar, presentarte, decir '¡Hola!', 'Soy Golosito', 'Bienvenido' o reenviar el link del menú por iniciativa propia. Continúa exactamente donde quedó la conversación."
       : "✅ Es el PRIMER mensaje de esta conversación: preséntate UNA sola vez ('Hola 👋 Soy Golosito, el asistente de Heladería Goloso.') y atiende de inmediato lo que pide el cliente.",
     `Intención detectada en este mensaje: ${turnIntent}. Responde específicamente a esa intención, con un flujo propio; nunca respondas lo mismo para todas las consultas.`,
-    "MEMORIA: recuerda motivo de la conversación, productos consultados, productos agregados, datos ya entregados (nombre, dirección, barrio, pago) y lo que falta. NUNCA vuelvas a preguntar algo que el cliente ya respondió.",
+    "MEMORIA (obligatoria): recuerda producto, cantidad, sabores, toppings, modificaciones, nombre del cliente, dirección, barrio, sede y tipo de pedido (domicilio o recoger). NUNCA vuelvas a preguntar un dato que el cliente ya respondió en esta conversación.",
+    "Pregunta ÚNICAMENTE el dato que falta, de a uno por mensaje, y en el mismo orden lógico del pedido.",
+    "Si ya hay un pedido en curso, PROHIBIDO reenviar el link del menú o reiniciar el flujo: continúa donde quedó.",
+    "PROHIBIDO repetir textualmente tu mensaje anterior o volver a hacer la misma pregunta. Si el cliente no fue claro, pide la aclaración de otra forma.",
     "Si un dato ya está en el carrito o en el historial, dalo por recibido.",
     "Si el cliente pide hablar con un asesor, dile que un asesor continuará por este chat y deja de insistir con el pedido.",
     "Nunca inventes productos, precios, sabores ni promociones: usa solo la información del POS incluida abajo o consulta con las herramientas.",
