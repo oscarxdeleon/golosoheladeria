@@ -1043,7 +1043,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                 fallbackModel: string;
               };
               const providers: AiProvider[] = [];
-              if (lovableKey) {
+              if (lovableKey && !isProviderCold("lovable")) {
                 providers.push({
                   name: "lovable",
                   url: "https://ai.gateway.lovable.dev/v1/chat/completions",
