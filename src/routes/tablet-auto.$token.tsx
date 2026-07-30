@@ -41,18 +41,20 @@ function AutoLogin() {
           redirect(search);
           return;
         }
-        setMessage("Descargando credenciales…");
+        setMessage("Conectando con el servidor…");
         const r = await fetch(`/api/public/tablet-auth/${encodeURIComponent(token)}`, { cache: "no-store" });
         if (!r.ok) throw new Error("Tablet no registrada o desactivada");
-        const { email, password, branch_slug } = await r.json();
+        const { email, branch_slug, access_token, refresh_token } = await r.json();
+        if (!access_token || !refresh_token) throw new Error("No se pudo iniciar la sesión de la tablet");
         if (typeof window !== "undefined") {
           window.localStorage.setItem(`goloso.tablet.email.${token}`, email);
           if (branch_slug) window.localStorage.setItem("goloso.tablet.sede", branch_slug);
         }
         setMessage("Iniciando sesión…");
-        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        const { error } = await supabase.auth.setSession({ access_token, refresh_token });
         if (error) throw error;
         if (!cancelled) redirect(search, branch_slug);
+
       } catch (e) {
         if (cancelled) return;
         setStatus("error");

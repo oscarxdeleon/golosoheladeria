@@ -44,14 +44,27 @@ export const Route = createFileRoute("/api/public/tablet-auth/$token")({
             status: 404, headers: { "Content-Type": "application/json" },
           });
         }
+        // Nunca devolvemos la contraseña: iniciamos sesión aquí y entregamos
+        // solo los tokens de sesión (de vida limitada y revocables).
+        const { data: signIn, error: signInError } = await supa.auth.signInWithPassword({
+          email: row.email,
+          password: row.password,
+        });
+        if (signInError || !signIn.session) {
+          return new Response(JSON.stringify({ error: "sign_in_failed" }), {
+            status: 401, headers: { "Content-Type": "application/json" },
+          });
+        }
         // best-effort touch (ignore errors)
         void supa.rpc("touch_tablet_last_seen", { _token: token });
         return new Response(JSON.stringify({
           email: row.email,
-          password: row.password,
           branch_slug: row.branch_slug,
           branch_name: row.branch_name,
+          access_token: signIn.session.access_token,
+          refresh_token: signIn.session.refresh_token,
         }), { headers: { "Content-Type": "application/json", "Cache-Control": "no-store" } });
+
       },
     },
   },
