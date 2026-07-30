@@ -690,7 +690,7 @@ function shortCircuitReply(input: string, menuLink: string, branchName?: string)
   // Saludos cortos → bienvenida breve.
   if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
     return {
-      reply: `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}`,
+      reply: `Hola 👋 Soy Golosito, el asistente de Heladería Goloso. Mira el menú y pide en menos de un minuto 👉 ${menuLink}`,
       event: "welcome",
     };
   }
