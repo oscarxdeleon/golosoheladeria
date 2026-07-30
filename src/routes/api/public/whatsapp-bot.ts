@@ -1082,6 +1082,16 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const alreadyGreeted = activeSessionHasState || history.length > 0;
               const turnIntent = detectIntent(text);
 
+              // 🚨 ESCAPE MANUAL: si el cliente pide reiniciar/empezar de nuevo,
+              // limpiamos por completo la sesión para que nunca quede atrapado.
+              if (/\b(reiniciar|reinicia|empezar de nuevo|empecemos de nuevo|comenzar de nuevo|borra todo|olvida todo|nueva orden|nuevo pedido desde cero)\b/i.test(normalizeText(text))) {
+                await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
+                const resetReply = `Listo, empezamos de cero. 🍦\n¿Qué te provoca hoy?\nMenú 👉 ${menuLink}`;
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text });
+                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: resetReply });
+                return json({ ok: true, reply: resetReply, source: "reset" });
+              }
+
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
