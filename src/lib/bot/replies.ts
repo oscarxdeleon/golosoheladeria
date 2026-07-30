@@ -21,6 +21,7 @@ export function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) 
   return raw
     .replace(/https:\/\/golosoheladeria\.vercel\.app/gi, PUBLIC_MENU_BASE)
     .replace(/https:\/\/id-preview--[a-z0-9-]+\.lovable\.app/gi, PUBLIC_MENU_BASE);
+}
 
 export type BranchInfo = {
   menuLink: string;
