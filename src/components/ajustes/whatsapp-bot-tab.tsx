@@ -1695,8 +1695,34 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                 {importing ? "Procesando…" : "Subir .txt"}
               </span>
             </label>
-          </div>
         </div>
+
+        {/* Entrenar pegando texto */}
+        <details className="rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/40 p-3">
+          <summary className="cursor-pointer text-sm font-medium flex items-center gap-1.5 select-none">
+            <Sparkles className="h-4 w-4 text-fuchsia-600" /> Entrenar pegando texto
+          </summary>
+          <div className="mt-3 space-y-2">
+            <Textarea
+              value={pasteText}
+              onChange={(e) => setPasteText(e.target.value)}
+              rows={8}
+              placeholder={"Pregunta: ¿Hacen domicilios?\nRespuesta: Sí, en toda la ciudad con un costo desde $3.000.\n\nPregunta: ¿Cuál es el horario?\nRespuesta: Todos los días de 11:00 a 22:00."}
+              className="text-sm font-mono"
+            />
+            <div className="flex justify-end">
+              <Button
+                size="sm"
+                disabled={importing || pasteText.trim().length < 20}
+                onClick={async () => { await handleText(pasteText); setPasteText(""); }}
+              >
+                <Sparkles className="h-4 w-4 mr-1.5" />
+                {importing ? "Procesando…" : "Analizar y entrenar"}
+              </Button>
+            </div>
+          </div>
+        </details>
+
 
         {/* Add manual */}
         <details className="rounded-lg border bg-muted/30 p-3">
