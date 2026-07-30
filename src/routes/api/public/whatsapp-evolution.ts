@@ -272,9 +272,10 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           const data: any = await res.json().catch(() => null);
           const reply: string | null = data?.reply ?? null;
           if (reply) {
-            await sendText(instance, from, reply);
-            return json({ ok: true, replied: true });
+            const sent = await sendText(instance, from, reply, auth.device_token);
+            return json({ ok: true, replied: sent, delivery: sent ? "sent" : "failed" });
           }
+
           const reason = data?.skipped ?? data?.error ?? (res.ok ? "empty_reply" : `bot_${res.status}`);
           logSkip(auth.device_token, from, String(reason), { action, status: res.status });
           return json({ ok: true, replied: false, skipped: reason });
