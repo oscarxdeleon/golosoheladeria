@@ -1004,7 +1004,7 @@ function PickupAfterHoursCard({ cfg, branch, onSaved }: { cfg: BotConfigRow; bra
     setMessages(cfg.pickup_after_hours_messages ?? []);
   }, [cfg.pickup_after_hours_enabled, cfg.pickup_after_hours_messages]);
 
-  const menuLink = branch?.slug ? `https://golosoheladeria.vercel.app/menu?sede=${branch.slug}` : "(sin slug de sede)";
+  const menuLink = branch?.slug ? `https://golosoheladeria.lovable.app/menu?sede=${branch.slug}` : "(sin slug de sede)";
 
   const save = async () => {
     const clean = messages.map((s) => s.trim()).filter(Boolean);
