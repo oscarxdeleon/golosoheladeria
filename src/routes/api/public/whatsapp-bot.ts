@@ -190,15 +190,77 @@ function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
     .replace(/https:\/\/id-preview--[a-z0-9-]+\.lovable\.app/gi, PUBLIC_MENU_BASE);
 }
 
-function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
-  if (!takingOrders) return operationalReply(menuLink, false, branchName);
-  if (hasHistory) {
-    // Durante conversación activa NUNCA reiniciamos con "¿Qué te provoca pedir?".
-    // Damos una respuesta neutra que invita al cliente a repetir su último punto.
-    return `Perdona, se me trabó un segundo. 🍦 ¿Me repites lo último para continuar tu pedido?`;
-  }
-  return operationalReply(menuLink, true, branchName);
+/**
+ * Detección ligera de intención (determinista, sin IA). Sirve para dos cosas:
+ * 1) Nunca volver a saludar cuando la conversación ya empezó.
+ * 2) Dar un fallback coherente con lo que el cliente pidió si la IA falla.
+ */
+export type BotIntent =
+  | "saludo" | "menu" | "productos" | "sabores" | "precios" | "promociones"
+  | "ingredientes" | "horarios" | "pagos" | "sedes" | "domicilio"
+  | "pedido" | "agregar" | "modificar" | "eliminar" | "confirmar" | "cancelar"
+  | "asesor" | "otro";
+
+export function detectIntent(input: string): BotIntent {
+  const n = normalizeText(input);
+  if (!n) return "otro";
+  if (/\b(asesor|humano|persona real|hablar con alguien|agente)\b/.test(n)) return "asesor";
+  if (/\b(cancelar|cancela|anular|ya no quiero|olvidalo)\b/.test(n)) return "cancelar";
+  if (/\b(confirmo|confirmar|confirmado|listo asi|asi esta bien|dale pues|si confirmo)\b/.test(n)) return "confirmar";
+  if (/\b(quita|quitar|elimina|eliminar|borra|borrar|sin ese)\b/.test(n)) return "eliminar";
+  if (/\b(cambia|cambiar|modificar|modifica|en vez de|mejor)\b/.test(n)) return "modificar";
+  if (/\b(agrega|agregar|añade|anade|suma|tambien quiero|y ademas)\b/.test(n)) return "agregar";
+  if (/\b(pedido|pedir|quiero|deme|dame|comprar|orden|llevar|domicilio|envio|envío)\b/.test(n)) return "pedido";
+  if (/\b(horario|hora|abren|cierran|abierto|cerrado)\b/.test(n)) return "horarios";
+  if (/\b(pago|pagar|nequi|daviplata|transferencia|efectivo|tarjeta|datafono)\b/.test(n)) return "pagos";
+  if (/\b(sede|sedes|sucursal|direccion|ubicacion|donde quedan|donde estan)\b/.test(n)) return "sedes";
+  if (/\b(promocion|promo|descuento|oferta|combo|2x1)\b/.test(n)) return "promociones";
+  if (/\b(ingrediente|ingredientes|contiene|lleva|azucar|lactosa|gluten)\b/.test(n)) return "ingredientes";
+  if (/\b(sabor|sabores)\b/.test(n)) return "sabores";
+  if (/\b(precio|precios|cuanto vale|cuanto cuesta|valor)\b/.test(n)) return "precios";
+  if (/\b(menu|carta|catalogo|lista)\b/.test(n)) return "menu";
+  if (/\b(producto|productos|tienen|venden|helado|malteada|jugo|waffle|copa|cono|banana|brownie|cholado)\b/.test(n)) return "productos";
+  if (/^(hola|holaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)\b/.test(n)) return "saludo";
+  return "otro";
 }
+
+/**
+ * Respuesta de respaldo cuando la IA no pudo contestar. Solo saluda si la
+ * conversación es NUEVA; si ya hay contexto, responde según la intención
+ * detectada sin repetir bienvenida ni reiniciar el flujo.
+ */
+function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
+  if (!hasHistory) return operationalReply(menuLink, takingOrders, branchName);
+
+  switch (detectIntent(input)) {
+    case "menu":
+    case "productos":
+    case "precios":
+      return `Claro 😊 aquí tienes todo con fotos y precios actualizados 👉 ${menuLink}`;
+    case "sabores":
+      return "Déjame verificar los sabores disponibles hoy. ¿Para qué producto los quieres (helado, malteada, jugo)?";
+    case "horarios":
+      return "Con mucho gusto te confirmo el horario. ¿Lo necesitas para domicilio o para venir a la tienda?";
+    case "pagos":
+      return "Recibimos efectivo y transferencia. ¿Cómo prefieres pagar tu pedido?";
+    case "sedes":
+      return "Con gusto te ayudo con la ubicación. ¿Prefieres domicilio o recoger en tienda?";
+    case "asesor":
+      return "Claro, en un momento un asesor de Heladería Goloso continúa contigo por este mismo chat. 🙌";
+    case "cancelar":
+      return "Listo, no te preocupes. Cuando quieras retomamos tu pedido. 🍦";
+    case "confirmar":
+      return "Perfecto, déjame verificar tu pedido y te confirmo en un momento. ✅";
+    case "pedido":
+    case "agregar":
+    case "modificar":
+    case "eliminar":
+      return "Con mucho gusto continúo con tu pedido. ¿Me confirmas el producto y la cantidad?";
+    default:
+      return "Sigo contigo 🍦 ¿Me repites lo último para continuar?";
+  }
+}
+
 
 type CartRecord = Record<string, unknown> | null;
 
@@ -628,7 +690,7 @@ function shortCircuitReply(input: string, menuLink: string, branchName?: string)
   // Saludos cortos → bienvenida breve.
   if (/^(hola|holaa|holaaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)$/.test(normalized)) {
     return {
-      reply: `¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}`,
+      reply: `Hola 👋 Soy Golosito, el asistente de Heladería Goloso. Mira el menú y pide en menos de un minuto 👉 ${menuLink}`,
       event: "welcome",
     };
   }
@@ -941,10 +1003,18 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 metadata: { messages: history.length, source: "bootstrap" },
               });
 
+              // ¿La conversación ya está iniciada? Si hay historial o carrito
+              // activo, Golosito NUNCA vuelve a enviar la bienvenida: el saludo
+              // solo se emite en el primer mensaje de una sesión nueva (la sesión
+              // caduca según el tiempo configurado por el administrador).
+              const alreadyGreeted = activeSessionHasState || history.length > 0;
+              const turnIntent = detectIntent(text);
+
               // 🛡️ CORTOCIRCUITO DE AHORRO DE CRÉDITOS
               // Antes de invocar el modelo (que consume ~13k tokens de input),
               // detectamos mensajes triviales y respondemos deterministamente.
-              const shortCircuit = activeSessionHasState || history.length > 0 ? null : shortCircuitReply(text, menuLink, branchName);
+              const shortCircuit = alreadyGreeted ? null : shortCircuitReply(text, menuLink, branchName);
+
               if (shortCircuit) {
                 void logBotEvent(token, conversationId, from, "short_circuit_hit", {
                   durationMs: elapsedMs(requestStarted),
@@ -1039,7 +1109,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 "- Confirma antes de asumir ('¿te confirmo con dos vasos?').",
                 "",
                 "PRIORIDAD #1 — MENÚ EN LÍNEA:",
-                `- Primera respuesta a un saludo/pregunta general: da la bienvenida de forma cálida SIN mencionar el nombre interno de la sede e invita al menú en una línea. Ejemplo: '¡Hola! 👋🍦 Bienvenido a Heladería Goloso. Mira el menú y realiza tu pedido en menos de un minuto 👉 ${menuLink}'. NUNCA escribas el nombre técnico de la sede (por ejemplo 'GOLOSO SANTA', 'goloso-parque') al cliente.`,
+                alreadyGreeted
+                  ? "- La conversación ya empezó: NO saludes, NO te presentes y NO reenvíes el link del menú salvo que el cliente lo pida expresamente."
+                  : `- Es el primer mensaje: preséntate una sola vez de forma cálida SIN mencionar el nombre interno de la sede e invita al menú en una línea. Ejemplo: 'Hola 👋 Soy Golosito, el asistente de Heladería Goloso. Mira el menú aquí 👉 ${menuLink}'. NUNCA escribas el nombre técnico de la sede (por ejemplo 'GOLOSO SANTA', 'goloso-parque') al cliente.`,
                 "- No repitas el enlace en mensajes siguientes.",
                 "- Toma pedido por chat solo si el cliente lo pide explícitamente.",
                 "",
@@ -1225,7 +1297,26 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 ].join("\n");
               })();
 
-              const finalSystemPrompt = systemPrompt + orderingPromptBlock + cartStateBlock + pendingProductBlock;
+              // Bloque de continuidad: se antepone SIEMPRE (incluso con prompt
+              // personalizado por sede) para garantizar saludo único, memoria y
+              // respuesta según intención.
+              const continuityBlock = [
+                "",
+                "════════ CONTINUIDAD DE LA CONVERSACIÓN (REGLA MÁXIMA) ════════",
+                alreadyGreeted
+                  ? "⛔ ESTA CONVERSACIÓN YA ESTÁ INICIADA. PROHIBIDO saludar, presentarte, decir '¡Hola!', 'Soy Golosito', 'Bienvenido' o reenviar el link del menú por iniciativa propia. Continúa exactamente donde quedó la conversación."
+                  : "✅ Es el PRIMER mensaje de esta conversación: preséntate UNA sola vez ('Hola 👋 Soy Golosito, el asistente de Heladería Goloso.') y atiende de inmediato lo que pide el cliente.",
+                `Intención detectada en este mensaje: ${turnIntent}. Responde específicamente a esa intención, con un flujo propio; nunca respondas lo mismo para todas las consultas.`,
+                "MEMORIA: recuerda motivo de la conversación, productos consultados, productos agregados, datos ya entregados (nombre, dirección, barrio, pago) y lo que falta. NUNCA vuelvas a preguntar algo que el cliente ya respondió.",
+                "Si un dato ya está en el carrito o en el historial, dalo por recibido.",
+                "Si el cliente pide hablar con un asesor, dile que un asesor continuará por este chat y deja de insistir con el pedido.",
+                "Nunca inventes productos, precios, sabores ni promociones: usa solo la información del POS incluida abajo o consulta con las herramientas.",
+                "Expresiones naturales permitidas: 'Claro 😊', 'Con mucho gusto', 'Excelente elección', 'Perfecto', 'Déjame verificar', 'Ya te cuento'.",
+                "════════════════════════════════════════════════════════════",
+                "",
+              ].join("\n");
+
+              const finalSystemPrompt = continuityBlock + systemPrompt + orderingPromptBlock + cartStateBlock + pendingProductBlock + continuityBlock;
 
               // Herramientas expuestas a la IA (function calling)
               const orderingTools = orderingEnabled ? [
@@ -1618,7 +1709,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const geminiKey = process.env.GEMINI_API_KEY;
               if (!lovableKey && !geminiKey) {
                 const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
@@ -1635,7 +1726,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
                   const reply = buildActiveSessionFallback(preloadedCart, fmtCOP)
-                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, false, branchName);
+                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
                   await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
                     ok: false,
                     metadata: qData ?? null,
@@ -1908,7 +1999,7 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const progressReply = await buildOperationalOrderReply();
                 finalReply = progressReply
                   ?? buildActiveSessionFallback(preloadedCart, fmtCOP)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, history.length > 0, branchName);
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,
