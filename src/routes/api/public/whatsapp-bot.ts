@@ -190,15 +190,77 @@ function normalizeMenuLink(value: unknown, fallback = DEFAULT_MENU_LINK) {
     .replace(/https:\/\/id-preview--[a-z0-9-]+\.lovable\.app/gi, PUBLIC_MENU_BASE);
 }
 
-function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
-  if (!takingOrders) return operationalReply(menuLink, false, branchName);
-  if (hasHistory) {
-    // Durante conversación activa NUNCA reiniciamos con "¿Qué te provoca pedir?".
-    // Damos una respuesta neutra que invita al cliente a repetir su último punto.
-    return `Perdona, se me trabó un segundo. 🍦 ¿Me repites lo último para continuar tu pedido?`;
-  }
-  return operationalReply(menuLink, true, branchName);
+/**
+ * Detección ligera de intención (determinista, sin IA). Sirve para dos cosas:
+ * 1) Nunca volver a saludar cuando la conversación ya empezó.
+ * 2) Dar un fallback coherente con lo que el cliente pidió si la IA falla.
+ */
+export type BotIntent =
+  | "saludo" | "menu" | "productos" | "sabores" | "precios" | "promociones"
+  | "ingredientes" | "horarios" | "pagos" | "sedes" | "domicilio"
+  | "pedido" | "agregar" | "modificar" | "eliminar" | "confirmar" | "cancelar"
+  | "asesor" | "otro";
+
+export function detectIntent(input: string): BotIntent {
+  const n = normalizeText(input);
+  if (!n) return "otro";
+  if (/\b(asesor|humano|persona real|hablar con alguien|agente)\b/.test(n)) return "asesor";
+  if (/\b(cancelar|cancela|anular|ya no quiero|olvidalo)\b/.test(n)) return "cancelar";
+  if (/\b(confirmo|confirmar|confirmado|listo asi|asi esta bien|dale pues|si confirmo)\b/.test(n)) return "confirmar";
+  if (/\b(quita|quitar|elimina|eliminar|borra|borrar|sin ese)\b/.test(n)) return "eliminar";
+  if (/\b(cambia|cambiar|modificar|modifica|en vez de|mejor)\b/.test(n)) return "modificar";
+  if (/\b(agrega|agregar|añade|anade|suma|tambien quiero|y ademas)\b/.test(n)) return "agregar";
+  if (/\b(pedido|pedir|quiero|deme|dame|comprar|orden|llevar|domicilio|envio|envío)\b/.test(n)) return "pedido";
+  if (/\b(horario|hora|abren|cierran|abierto|cerrado)\b/.test(n)) return "horarios";
+  if (/\b(pago|pagar|nequi|daviplata|transferencia|efectivo|tarjeta|datafono)\b/.test(n)) return "pagos";
+  if (/\b(sede|sedes|sucursal|direccion|ubicacion|donde quedan|donde estan)\b/.test(n)) return "sedes";
+  if (/\b(promocion|promo|descuento|oferta|combo|2x1)\b/.test(n)) return "promociones";
+  if (/\b(ingrediente|ingredientes|contiene|lleva|azucar|lactosa|gluten)\b/.test(n)) return "ingredientes";
+  if (/\b(sabor|sabores)\b/.test(n)) return "sabores";
+  if (/\b(precio|precios|cuanto vale|cuanto cuesta|valor)\b/.test(n)) return "precios";
+  if (/\b(menu|carta|catalogo|lista)\b/.test(n)) return "menu";
+  if (/\b(producto|productos|tienen|venden|helado|malteada|jugo|waffle|copa|cono|banana|brownie|cholado)\b/.test(n)) return "productos";
+  if (/^(hola|holaa|buenas|buen dia|buenos dias|buenas tardes|buenas noches|hey|holi|saludos|que tal|hi|hello)\b/.test(n)) return "saludo";
+  return "otro";
 }
+
+/**
+ * Respuesta de respaldo cuando la IA no pudo contestar. Solo saluda si la
+ * conversación es NUEVA; si ya hay contexto, responde según la intención
+ * detectada sin repetir bienvenida ni reiniciar el flujo.
+ */
+function fallbackOrderReply(input: string, menuLink: string, takingOrders: boolean, hasHistory = false, branchName?: string) {
+  if (!hasHistory) return operationalReply(menuLink, takingOrders, branchName);
+
+  switch (detectIntent(input)) {
+    case "menu":
+    case "productos":
+    case "precios":
+      return `Claro 😊 aquí tienes todo con fotos y precios actualizados 👉 ${menuLink}`;
+    case "sabores":
+      return "Déjame verificar los sabores disponibles hoy. ¿Para qué producto los quieres (helado, malteada, jugo)?";
+    case "horarios":
+      return "Con mucho gusto te confirmo el horario. ¿Lo necesitas para domicilio o para venir a la tienda?";
+    case "pagos":
+      return "Recibimos efectivo y transferencia. ¿Cómo prefieres pagar tu pedido?";
+    case "sedes":
+      return "Con gusto te ayudo con la ubicación. ¿Prefieres domicilio o recoger en tienda?";
+    case "asesor":
+      return "Claro, en un momento un asesor de Heladería Goloso continúa contigo por este mismo chat. 🙌";
+    case "cancelar":
+      return "Listo, no te preocupes. Cuando quieras retomamos tu pedido. 🍦";
+    case "confirmar":
+      return "Perfecto, déjame verificar tu pedido y te confirmo en un momento. ✅";
+    case "pedido":
+    case "agregar":
+    case "modificar":
+    case "eliminar":
+      return "Con mucho gusto continúo con tu pedido. ¿Me confirmas el producto y la cantidad?";
+    default:
+      return "Sigo contigo 🍦 ¿Me repites lo último para continuar?";
+  }
+}
+
 
 type CartRecord = Record<string, unknown> | null;
 
