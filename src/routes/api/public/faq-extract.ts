@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
-import { extractFaqs } from "@/lib/whatsapp-faq-import.functions";
+import { extractFaqs, assertFaqImportAllowed } from "@/lib/whatsapp-faq-import.functions";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
