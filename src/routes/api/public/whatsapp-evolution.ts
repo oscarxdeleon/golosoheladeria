@@ -196,20 +196,10 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
     handlers: {
       GET: () => json({ ok: true, service: "whatsapp-evolution-webhook" }),
       POST: async ({ request }) => {
-        const { readEvolutionEnv } = await import("@/lib/evolution-env");
         const provided =
           request.headers.get("x-webhook-token") ??
           new URL(request.url).searchParams.get("t") ??
           "";
-
-        // El dominio se deduce de la propia petición (Vercel, Lovable o dominio
-        // propio) para no depender de variables de entorno.
-        const reqUrl = new URL(request.url);
-        const host = request.headers.get("x-forwarded-host") || reqUrl.host;
-        const proto = request.headers.get("x-forwarded-proto") || reqUrl.protocol.replace(":", "");
-        const selfBase = host && !/^(localhost|127\.0\.0\.1)/i.test(host) ? `${proto}://${host}` : "";
-        const posBase = (selfBase || readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
-
 
         let body: any = null;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }
@@ -277,28 +267,36 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         const action = wantsAi ? "ai_reply" : "incoming";
 
         try {
-          const res = await fetch(`${posBase}/api/public/whatsapp-bot`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              action,
-              token: auth.device_token,
-              from,
-              text: text.trim(),
-              message: text.trim(),
-              msg_id: msg?.key?.id ?? undefined,
+          // Sin doble salto HTTP: el motor se ejecuta en el mismo proceso.
+          const { runBotAction } = await import("@/lib/bot/engine");
+          const res = await runBotAction(
+            new Request("http://internal/api/public/whatsapp-bot", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                action,
+                token: auth.device_token,
+                from,
+                text: text.trim(),
+                message: text.trim(),
+                msg_id: msg?.key?.id ?? undefined,
+              }),
             }),
-          });
+          );
           const data: any = await res.json().catch(() => null);
           const reply: string | null = data?.reply ?? null;
           if (reply) {
-            const sent = await sendText(instance, from, reply, auth.device_token);
-            return json({ ok: true, replied: sent, delivery: sent ? "sent" : "failed" });
+            // Siempre se responde por la instancia canónica de la sede: el
+            // nombre que llega en el evento puede estar desactualizado.
+            const canonicalInstance = `goloso-${branchId}`;
+            const sent = await sendText(canonicalInstance, from, reply, auth.device_token);
+            return json({ ok: true, replied: sent, delivery: sent ? "sent" : "failed", instance: canonicalInstance });
           }
 
           const reason = data?.skipped ?? data?.error ?? (res.ok ? "empty_reply" : `bot_${res.status}`);
           logSkip(auth.device_token, from, String(reason), { action, status: res.status });
           return json({ ok: true, replied: false, skipped: reason });
+
         } catch (e) {
           console.error("[evolution-webhook] error procesando mensaje", e);
           logSkip(auth.device_token, from, "processing_failed", { error: String(e) });
