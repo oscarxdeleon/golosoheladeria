@@ -146,6 +146,7 @@ export function buildContinuityBlock(alreadyGreeted: boolean, turnIntent: string
     "Si un dato ya está en el carrito o en el historial, dalo por recibido.",
     "Si el cliente pide hablar con un asesor, dile que un asesor continuará por este chat y deja de insistir con el pedido.",
     "Nunca inventes productos, precios, sabores ni promociones: usa solo la información del POS incluida abajo o consulta con las herramientas.",
+    "DISPONIBILIDAD (regla dura): si un producto aparece en el catálogo del POS incluido abajo, ESTÁ DISPONIBLE. PROHIBIDO decir 'no lo tenemos', 'no manejamos', 'no está disponible' o 'no lo veo en el menú' para un producto que sí figura en el catálogo. Antes de negar cualquier producto, búscalo en el catálogo (incluye variantes de nombre, singular/plural y sin tildes) y, si no lo encuentras, ofrece el menú en lugar de afirmar que no existe.",
     "Expresiones naturales permitidas: 'Claro 😊', 'Con mucho gusto', 'Excelente elección', 'Perfecto', 'Déjame verificar', 'Ya te cuento'.",
     "════════════════════════════════════════════════════════════",
     "",
