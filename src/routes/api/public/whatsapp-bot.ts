@@ -1753,7 +1753,10 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 return null; // datos completos: la IA cierra con el cliente
               };
 
-              const operationalOrderReply = await buildOperationalOrderReply();
+              const rawOperationalOrderReply = await buildOperationalOrderReply();
+              const operationalOrderReply = rawOperationalOrderReply
+                ? avoidRepeatedReply(rawOperationalOrderReply, history, menuLink)
+                : null;
               if (operationalOrderReply) {
                 // Fire-and-forget: la respuesta al cliente no espera por escrituras.
                 void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
@@ -1776,8 +1779,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               const lovableKey = process.env.LOVABLE_API_KEY;
               const geminiKey = process.env.GEMINI_API_KEY;
               if (!lovableKey && !geminiKey) {
-                const reply = buildActiveSessionFallback(preloadedCart, fmtCOP, text)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo);
+                const reply = avoidRepeatedReply(
+                  buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo),
+                  history,
+                  menuLink,
+                );
                 await logBotEvent(token, conversationId, from, "ai_not_configured_operational", {
                   ok: false,
                   metadata: { orderingEnabled },
@@ -1793,8 +1800,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 const qData = Array.isArray(q.data) ? q.data[0] : q.data;
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
-                  const reply = buildActiveSessionFallback(preloadedCart, fmtCOP, text)
-                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo);
+                  const reply = avoidRepeatedReply(
+                    buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                      ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo),
+                    history,
+                    menuLink,
+                  );
                   await logBotEvent(token, conversationId, from, "gemini_quota_exhausted_skip_ai", {
                     ok: false,
                     metadata: qData ?? null,
