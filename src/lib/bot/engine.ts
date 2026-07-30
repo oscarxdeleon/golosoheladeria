@@ -1052,7 +1052,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                   fallbackModel: "google/gemini-3.1-flash-lite",
                 });
               }
-              if (geminiKey) {
+              if (geminiKey && !isProviderCold("gemini_direct")) {
                 providers.push({
                   name: "gemini_direct",
                   url: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
