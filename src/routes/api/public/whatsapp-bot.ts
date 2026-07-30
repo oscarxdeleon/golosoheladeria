@@ -654,7 +654,17 @@ function buildCartProgressReply(cart: CartRecord, fmtCOP: (n: number) => string,
   return `${prefix}${summary}\n\n${name ? `${name}, ` : ""}¿confirmas el pedido?`;
 }
 
-function buildActiveSessionFallback(cart: CartRecord, fmtCOP: (n: number) => string) {
+/**
+ * Respaldo cuando hay un pedido realmente en curso. REGLA CLAVE: la intención
+ * actual del cliente manda. Si pregunta algo informativo (saludo, menú,
+ * horarios, precios...), devolvemos null para responder a eso y NO repetir el
+ * estado del pedido. Además, sin productos en el carrito nunca se contesta
+ * "me falta X": eso era lo que producía el bucle infinito.
+ */
+function buildActiveSessionFallback(cart: CartRecord, fmtCOP: (n: number) => string, input = "") {
+  const intent = detectIntent(input);
+  if (INFO_INTENTS.includes(intent)) return null;
+
   if (hasCartItems(cart)) {
     return buildCartProgressReply(cart, fmtCOP, "Sigo con tu pedido en curso.")
       ?? "Sigo con tu pedido en curso. 🍦 ¿Confirmas para registrarlo?";
@@ -664,13 +674,10 @@ function buildActiveSessionFallback(cart: CartRecord, fmtCOP: (n: number) => str
     const productName = String(pending?.name ?? "ese producto").trim() || "ese producto";
     return `Sigo con ${productName}. 🍦 ¿Qué sabor, topping o detalle quieres agregarle?`;
   }
-  if (hasSessionData(cart)) {
-    const missing = missingCartFields(cart);
-    if (missing.length > 0) return `Sigo con tu pedido. 🍦 Me falta ${missing[0]}.`;
-    return "Sigo con tu pedido. 🍦 Dime qué producto deseas agregar.";
-  }
+  // Sin items no hay pedido que continuar: que responda la intención real.
   return null;
 }
+
 
 async function persistCartPatch(token: string, phone: string, patch: Record<string, unknown>) {
   const first = await callRpc("whatsapp_bot_ai_cart_upsert", { _token: token, _phone: phone, _patch: patch });
