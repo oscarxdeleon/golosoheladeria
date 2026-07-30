@@ -1088,8 +1088,8 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               if (/\b(reiniciar|reinicia|empezar de nuevo|empecemos de nuevo|comenzar de nuevo|borra todo|olvida todo|nueva orden|nuevo pedido desde cero)\b/i.test(normalizeText(text))) {
                 await callRpc("whatsapp_bot_ai_cart_cancel", { _token: token, _phone: from });
                 const resetReply = `Listo, empezamos de cero. 🍦\n¿Qué te provoca hoy?\nMenú 👉 ${menuLink}`;
-                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text });
-                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: resetReply });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: resetReply });
                 return json({ reply: resetReply, source: "reset", conversation_id: conversationId }, 200);
               }
 
@@ -1105,12 +1105,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 });
                 // Fire-and-forget: no bloqueamos la respuesta esperando por las
                 // escrituras de mensajes (~200-400 ms cada una).
-                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[mensaje corto]" });
                 if (!shortCircuit.reply) {
                   return json({ reply: null, source: "short_circuit_silent", conversation_id: conversationId }, 200);
                 }
-                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
-                void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: shortCircuit.reply });
+                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
                 return json({
                   reply: shortCircuit.reply,
                   source: "short_circuit",
@@ -1774,9 +1774,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 : null;
               if (operationalOrderReply) {
                 // Fire-and-forget: la respuesta al cliente no espera por escrituras.
-                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: operationalOrderReply });
-                void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: operationalOrderReply });
+                await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
                 void logBotEvent(token, conversationId, from, "operational_order_flow", {
                   durationMs: elapsedMs(requestStarted),
                   metadata: { replyLength: operationalOrderReply.length },
@@ -1828,9 +1828,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                     ok: false,
                     metadata: qData ?? null,
                   });
-                  void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
-                  void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
-                  void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: text || "[nota de voz]" });
+                  await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: reply });
+                  await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
                   return json({
                     reply,
                     source: "quota_exhausted_operational_no_lovable_credits",
@@ -2123,9 +2123,9 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
               // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
               // de estas escrituras afecta el texto que ve el cliente.
               const userLog = text && text.length > 0 ? text : "[nota de voz]";
-              void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
-              void callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
-              void callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
+              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
+              await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
+              await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
 
               void logBotEvent(token, conversationId, from, "request_completed", {
                 ok: !lastErr,
