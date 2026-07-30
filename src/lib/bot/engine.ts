@@ -19,6 +19,26 @@ type CachedContext = { data: Record<string, unknown>; expiresAt: number };
 const CONTEXT_CACHE_TTL_MS = 60_000;
 const contextCache = new Map<string, CachedContext>();
 
+// Cuando un proveedor de IA devuelve 402 (sin créditos) o 429 (cuota agotada),
+// lo dejamos "en frío" unos minutos: reintentarlo en cada mensaje sólo suma
+// 2-4 s de espera al cliente antes del mismo fallback.
+const AI_PROVIDER_COOLDOWN_MS = 5 * 60_000;
+const aiProviderCooldown = new Map<string, number>();
+
+function isProviderCold(name: string) {
+  const until = aiProviderCooldown.get(name);
+  if (!until) return false;
+  if (Date.now() > until) {
+    aiProviderCooldown.delete(name);
+    return false;
+  }
+  return true;
+}
+
+function coolDownProvider(name: string) {
+  aiProviderCooldown.set(name, Date.now() + AI_PROVIDER_COOLDOWN_MS);
+}
+
 function getCachedContext(token: string): Record<string, unknown> | null {
   const hit = contextCache.get(token);
   if (!hit) return null;
