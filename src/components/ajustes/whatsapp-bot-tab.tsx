@@ -1695,7 +1695,9 @@ function FaqManagerCard({ branchId }: { branchId: string }) {
                 {importing ? "Procesando…" : "Subir .txt"}
               </span>
             </label>
+          </div>
         </div>
+
 
         {/* Entrenar pegando texto */}
         <details className="rounded-lg border border-dashed border-fuchsia-300 bg-fuchsia-50/40 p-3">
