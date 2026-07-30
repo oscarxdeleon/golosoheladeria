@@ -61,6 +61,10 @@ export type EvolutionEnvKey =
  * Corrige errores típicos al pegar la URL de Evolution:
  *  - sobra `/manager` o `/manager/` al final (es el panel, no la API)
  *  - se usa `https://` contra una IP directa que solo habla `http://`
+ *  - se apunta a una IP desnuda: el runtime de producción (Cloudflare) bloquea
+ *    las peticiones salientes a IPs directas con `error code: 1003`, por eso
+ *    la convertimos a un hostname equivalente vía nip.io (misma IP, mismo
+ *    puerto, sin cambios en el servidor).
  */
 function normalizeEvolutionUrl(raw: string): string {
   let value = raw.trim().replace(/\/+$/, "");
@@ -68,8 +72,9 @@ function normalizeEvolutionUrl(raw: string): string {
   try {
     const u = new URL(value);
     const isBareIp = /^\d{1,3}(\.\d{1,3}){3}$/.test(u.hostname);
-    if (u.protocol === "https:" && isBareIp) {
-      u.protocol = "http:";
+    if (isBareIp) {
+      if (u.protocol === "https:") u.protocol = "http:";
+      u.hostname = `${u.hostname.replace(/\./g, "-")}.nip.io`;
       value = u.toString().replace(/\/+$/, "");
     }
   } catch {
@@ -77,6 +82,7 @@ function normalizeEvolutionUrl(raw: string): string {
   }
   return value;
 }
+
 
 export function readEvolutionEnv(
   canonical: EvolutionEnvKey,

@@ -256,7 +256,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
 
         // Si llega un mensaje, la instancia está viva: corregimos el estado que
         // pudo quedar en "qr"/"disconnected" tras una reconexión sin evento.
-        void persistState(branchId, token, { status: "connected", last_qr: null, last_error: null });
+        await persistState(branchId, token, { status: "connected", last_qr: null, last_error: null });
 
         if (!auth.enabled || auth.chatbot_mode === "off") {
           logSkip(auth.device_token, from, "chatbot_disabled", { chatbot_mode: auth.chatbot_mode });
