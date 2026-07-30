@@ -2085,6 +2085,12 @@ export const Route = createFileRoute("/api/public/whatsapp-bot")({
                 }
               }
 
+              // 🔁 Guardia anti-bucle: jamás enviamos dos veces seguidas el
+              // mismo texto al cliente.
+              finalReply = avoidRepeatedReply(finalReply, history, menuLink);
+
+
+
               // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
               // de estas escrituras afecta el texto que ve el cliente.
               const userLog = text && text.length > 0 ? text : "[nota de voz]";
