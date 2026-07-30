@@ -561,155 +561,24 @@ export async function runBotAction(request: Request): Promise<Response> {
 
 
               // Prompt adicional cuando el bot toma pedidos
-              const orderingPromptBlock = orderingEnabled ? [
-                "",
-                "🛒 TOMA DE PEDIDOS (SOLO DOMICILIO):",
-                "- REGLA SUPERIOR: si el cliente dice que quiere pedir, menciona un producto, una cantidad, un sabor, dirección o pago, NO respondas solo con el link del menú. Atiéndelo por WhatsApp y avanza el pedido paso a paso usando las herramientas.",
-                `- Domicilio: ${onlineOpen ? "ABIERTO" : "CERRADO — no aceptes pedidos ahora, invita a volver en horario"}.`,
-                `- Monto mínimo del pedido (subtotal antes de domicilio): ${fmtCOP(Number(orderCfg?.min_amount ?? 0))}.`,
-                `- Costo de domicilio por defecto: ${fmtCOP(Number(orderCfg?.delivery_fee ?? 0))} (ajústalo si la zona lo requiere).`,
-                orderCfg?.zones ? `- Zonas de cobertura: ${orderCfg.zones}` : "",
-                orderCfg?.transfer_info ? `- Datos de transferencia (compártelos SOLO si el cliente elige transferir): ${orderCfg.transfer_info}` : "",
-                "",
-                "🛑 REGLAS DURAS ANTIRRIESGO (violarlas rechaza la venta):",
-                "- NO registres, agregues ni asumas NINGÚN producto por iniciativa propia. Solo agregas al carrito lo que el cliente pidió con palabras claras.",
-                "- NO uses add_to_cart hasta que el cliente diga QUÉ producto quiere Y hayas confirmado con él TODOS los modificadores obligatorios (sabor, tamaño, toppings requeridos). Si el producto tiene grupos requeridos y no tienes las opciones elegidas por el cliente, get_modifiers primero y pregúntale con lista clara: 'Para el/la X, ¿qué [sabor/tamaño] eliges? Tenemos: A, B, C'.",
-                "- NUNCA elijas un modificador por el cliente. Si duda, ofrece las opciones y espera su respuesta.",
-                "- Si el cliente solo saluda, pregunta precios o pide el menú, NO llames add_to_cart. Responde y espera a que él pida.",
-                "- Un mensaje ambiguo (\"quiero algo rico\", \"lo de siempre\", \"un helado\") NO es un pedido: pide especificación antes de tocar el carrito.",
-                "- Solo llama confirm_order cuando el cliente diga explícitamente SÍ/CONFIRMO/DALE tras ver el resumen completo. Un simple \"ok\" o \"listo\" a media conversación NO confirma.",
-                "",
-                "PROTOCOLO OBLIGATORIO PARA TOMAR PEDIDOS:",
-                "1) Usa search_products para encontrar el producto exacto que pide el cliente (no inventes precios).",
-                "2) Si el producto tiene grupos de modificadores, llama get_modifiers, muéstrale al cliente SOLO esas opciones y espera su elección. NO asumas ni pongas por defecto.",
-                "3) Cuando tengas producto+modificadores CONFIRMADOS por el cliente+cantidad, llama add_to_cart. Si el servidor responde 'missing_required_modifiers', significa que faltó preguntar: hazlo y vuelve a intentar.",
-                "4) Pregunta y guarda con set_delivery_info los datos EN ESTE ORDEN, SIN OMITIR NINGUNO:",
-                "   a) NOMBRE del cliente (OBLIGATORIO — SIEMPRE pregunta primero '¿A nombre de quién registro el pedido?' y NO continues con dirección/barrio/pago hasta tenerlo).",
-                "   b) Dirección completa.",
-                "   c) Barrio.",
-                "   d) Método de pago (cash o transfer).",
-                "   e) Notas adicionales si aplica.",
-                "   ⚠️ NUNCA llames confirm_order si no has capturado el NOMBRE del cliente. Si intentas confirmar sin nombre, el sistema rechazará el pedido.",
-                "5) Antes de confirmar, muestra un RESUMEN completo incluyendo NOMBRE del cliente, productos, subtotal, domicilio, total y método de pago; pide confirmación explícita ('¿Confirmas el pedido, [nombre]?').",
-                "6) Solo cuando el cliente diga SÍ / CONFIRMO / DALE, llama confirm_order. Devolverá el nº de pedido.",
-                "7) Si el cliente cambia de opinión, llama cancel_order.",
-                "8) Recuerda: el pedido queda PENDIENTE DE REVISIÓN por el cajero. Dile al cliente: 'Tu pedido quedó registrado con el nº X y será confirmado en unos minutos por nuestro equipo.'",
-                dryRun ? "⚠️ MODO PRUEBA ACTIVO: al llamar confirm_order NO se registra pedido real; devuelve un nº simulado. Igual muestra el resumen normal al cliente; internamente sabrás que fue simulado por la respuesta del tool." : "",
-                "",
-              ].filter(Boolean).join("\n") : "";
+              const orderingPromptBlock = orderingEnabled
+                ? buildOrderingPromptBlock(orderCfg, onlineOpen, dryRun)
+                : "";
 
-              // 🧠 BLOQUE DE ESTADO CONVERSACIONAL: si hay carrito activo,
-              // inyectamos su estado exacto en el system prompt. Esto elimina
-              // la causa raíz de "no me figura ningún pedido" y del reinicio
-              // del flujo: la IA ve items, datos capturados y qué falta.
-              const cartStateBlock = (() => {
-                if (!preloadedCart) return "";
-                const items = cartItems(preloadedCart);
-                const fsmState = String(preloadedCart.fsm_state ?? nextFsmState(preloadedCart));
-                const name = fieldText(preloadedCart, "customer_name");
-                const addr = fieldText(preloadedCart, "delivery_address");
-                const nbh = fieldText(preloadedCart, "delivery_neighborhood");
-                const pay = fieldText(preloadedCart, "payment_method");
-                const notes = fieldText(preloadedCart, "delivery_notes");
-                const otype = effectiveOrderType(preloadedCart);
-                const missing = missingCartFields(preloadedCart);
-                const hasAny = items.length > 0 || name || addr || nbh || pay;
-                if (!hasAny) return "";
-                const lines: string[] = [
-                  "",
-                  "════════ ESTADO ACTUAL DEL PEDIDO EN CURSO (memoria del cliente) ════════",
-                  "USA ESTA INFORMACIÓN COMO VERDAD ABSOLUTA. NO vuelvas a saludar. NO envíes el link del menú. NO reinicies el flujo. NO preguntes datos ya listados abajo. NO digas 'no tengo pedido registrado'.",
-                  `- Estado FSM actual: ${fsmState}`,
-                  `- Tipo: ${otype === "pickup" ? "recoger en tienda" : "domicilio"}`,
-                ];
-                if (items.length > 0) {
-                  lines.push("- Productos en el carrito:");
-                  for (const it of items) {
-                    const qty = Number(it.qty ?? 1);
-                    const nm = String(it.product_name ?? it.name ?? "Producto");
-                    const up = Number(it.unit_price ?? 0);
-                    const mods = Array.isArray(it.modifiers)
-                      ? (it.modifiers as Array<Record<string, unknown>>).map((m) => String(m?.name ?? "")).filter(Boolean).join(", ")
-                      : "";
-                    const iNotes = String(it.notes ?? "").trim();
-                    lines.push(`  • ${qty} × ${nm} — ${fmtCOP(qty * up)}${mods ? ` [${mods}]` : ""}${iNotes ? ` (notas: ${iNotes})` : ""}`);
-                  }
-                  lines.push(`- Subtotal: ${fmtCOP(Number(preloadedCart.subtotal ?? 0))}`);
-                  if (Number(preloadedCart.delivery_fee ?? 0) > 0) lines.push(`- Domicilio: ${fmtCOP(Number(preloadedCart.delivery_fee))}`);
-                  lines.push(`- Total: ${fmtCOP(Number(preloadedCart.total ?? 0))}`);
-                } else {
-                  lines.push("- Productos: (aún sin items — el cliente ya nos dio datos y estamos armando el pedido)");
-                }
-                if (name) lines.push(`- Nombre: ${name}`);
-                if (addr) lines.push(`- Dirección: ${addr}`);
-                if (nbh)  lines.push(`- Barrio: ${nbh}`);
-                if (pay)  lines.push(`- Pago: ${pay}`);
-                if (notes) lines.push(`- Notas: ${notes}`);
-                if (missing.length > 0) {
-                  lines.push(`- FALTA por capturar: ${missing.join(", ")}. Pregunta SOLO lo que falta, UNA cosa a la vez. NO repitas lo que ya está arriba.`);
-                } else if (items.length > 0) {
-                    lines.push("- Datos completos. Muestra RESUMEN y pide confirmación explícita antes de llamar confirm_order. Si el cliente acaba de decir sí/confirmo, el servidor confirmará de forma determinística.");
-                }
-                lines.push("════════════════════════════════════════════════════════════");
-                return lines.join("\n");
-              })();
+              // 🧠 Estado conversacional del carrito activo.
+              const cartStateBlock = buildCartStateBlock(preloadedCart);
 
-              // 🔒 BLOQUE DE PRODUCTO ACTIVO EN CONFIGURACIÓN
-              // Si el cliente ya eligió un producto y estamos preguntando sus
-              // modificadores (sabores/toppings/tamaño), el modelo DEBE
-              // continuar con ESE producto y NO ofrecer alternativas ni
-              // cambiar a otra línea (ej.: "Copa Queso" → NO ofrecer "Cono/Vaso").
-              const pendingProductBlock = (() => {
-                const pp = (preloadedCart && typeof preloadedCart === "object")
-                  ? (preloadedCart as Record<string, unknown>).pending_product as { id?: string; name?: string; price?: number } | null | undefined
-                  : null;
-                if (!pp || !pp.name) return "";
-                return [
-                  "",
-                  "════════ PRODUCTO ACTIVO EN CONFIGURACIÓN ════════",
-                  `El cliente YA eligió: "${pp.name}". Estás preguntando/confirmando sus modificadores (sabores, toppings, tamaño, cantidad).`,
-                  "REGLAS DURAS:",
-                  `- NO cambies el producto. Sigue siempre con "${pp.name}" hasta que se agregue al carrito o el cliente lo cancele explícitamente.`,
-                  "- NO ofrezcas presentaciones ni productos alternativos (por ejemplo NO preguntes '¿Cono o Vaso?' si el producto activo es una Copa/Ensalada/Banana Split/Malteada específica).",
-                  "- Interpreta las respuestas del cliente (sabores, toppings, cantidades, notas) SIEMPRE como parte de la configuración de ESTE producto.",
-                  "- Pregunta ÚNICAMENTE los modificadores obligatorios pendientes de ESTE producto, uno a la vez.",
-                  "- Cuando tengas todos los modificadores obligatorios elegidos por el cliente, llama add_to_cart con este product_id exacto.",
-                  `- product_id activo: ${pp.id ?? "(desconocido)"} · precio base: $${Math.round(Number(pp.price ?? 0)).toLocaleString("es-CO")}`,
-                  "════════════════════════════════════════════════════════════",
-                ].join("\n");
-              })();
+              // 🔒 Producto activo en configuración.
+              const pendingProductBlock = buildPendingProductBlock(preloadedCart);
 
-              // Bloque de continuidad: se antepone SIEMPRE (incluso con prompt
-              // personalizado por sede) para garantizar saludo único, memoria y
-              // respuesta según intención.
-              const continuityBlock = [
-                "",
-                "════════ CONTINUIDAD DE LA CONVERSACIÓN (REGLA MÁXIMA) ════════",
-                alreadyGreeted
-                  ? "⛔ ESTA CONVERSACIÓN YA ESTÁ INICIADA. PROHIBIDO saludar, presentarte, decir '¡Hola!', 'Soy Golosito', 'Bienvenido' o reenviar el link del menú por iniciativa propia. Continúa exactamente donde quedó la conversación."
-                  : "✅ Es el PRIMER mensaje de esta conversación: preséntate UNA sola vez ('Hola 👋 Soy Golosito, el asistente de Heladería Goloso.') y atiende de inmediato lo que pide el cliente.",
-                `Intención detectada en este mensaje: ${turnIntent}. Responde específicamente a esa intención, con un flujo propio; nunca respondas lo mismo para todas las consultas.`,
-                "MEMORIA: recuerda motivo de la conversación, productos consultados, productos agregados, datos ya entregados (nombre, dirección, barrio, pago) y lo que falta. NUNCA vuelvas a preguntar algo que el cliente ya respondió.",
-                "Si un dato ya está en el carrito o en el historial, dalo por recibido.",
-                "Si el cliente pide hablar con un asesor, dile que un asesor continuará por este chat y deja de insistir con el pedido.",
-                "Nunca inventes productos, precios, sabores ni promociones: usa solo la información del POS incluida abajo o consulta con las herramientas.",
-                "Expresiones naturales permitidas: 'Claro 😊', 'Con mucho gusto', 'Excelente elección', 'Perfecto', 'Déjame verificar', 'Ya te cuento'.",
-                "════════════════════════════════════════════════════════════",
-                "",
-              ].join("\n");
+              // Bloque de continuidad (saludo único, memoria, intención).
+              const continuityBlock = buildContinuityBlock(alreadyGreeted, turnIntent);
 
               const finalSystemPrompt = continuityBlock + systemPrompt + orderingPromptBlock + cartStateBlock + pendingProductBlock + continuityBlock;
 
               // Herramientas expuestas a la IA (function calling)
-              const orderingTools = orderingEnabled ? [
-                { type: "function", function: { name: "search_products", description: "Busca productos activos de la sede por nombre. Devuelve id, name, price, modifier_group_ids.", parameters: { type: "object", properties: { query: { type: "string", description: "Palabra clave del producto que busca el cliente." } }, required: ["query"] } } },
-                { type: "function", function: { name: "get_modifiers", description: "Obtiene los grupos de modificadores (sabores, toppings) disponibles para un producto.", parameters: { type: "object", properties: { product_id: { type: "string" } }, required: ["product_id"] } } },
-                { type: "function", function: { name: "add_to_cart", description: "Agrega un item al carrito del cliente. Los modificadores deben venir con id, name y price obtenidos de get_modifiers.", parameters: { type: "object", properties: { product_id: { type: "string" }, product_name: { type: "string" }, unit_price: { type: "number" }, qty: { type: "number" }, modifiers: { type: "array", items: { type: "object", properties: { id: { type: "string" }, name: { type: "string" }, price: { type: "number" } } } }, notes: { type: "string" } }, required: ["product_name", "unit_price", "qty"] } } },
-                { type: "function", function: { name: "set_delivery_info", description: "Guarda los datos de entrega, tipo de pedido y pago en el carrito.", parameters: { type: "object", properties: { order_type: { type: "string", description: "'delivery' para domicilio o 'pickup' para recoger" }, customer_name: { type: "string" }, delivery_address: { type: "string" }, delivery_neighborhood: { type: "string" }, delivery_notes: { type: "string" }, payment_method: { type: "string", description: "'cash' o 'transfer'" }, delivery_fee: { type: "number" } } } } },
-                { type: "function", function: { name: "show_cart", description: "Muestra el contenido actual del carrito (útil antes de confirmar).", parameters: { type: "object", properties: {} } } },
-                { type: "function", function: { name: "confirm_order", description: "Confirma el pedido y lo envía al POS. Solo llámalo cuando el cliente lo confirme explícitamente.", parameters: { type: "object", properties: {} } } },
-                { type: "function", function: { name: "cancel_order", description: "Cancela el carrito en construcción.", parameters: { type: "object", properties: {} } } },
-              ] : [];
+              const orderingTools = orderingEnabled ? (ORDERING_TOOLS as unknown as Array<Record<string, unknown>>) : [];
+
 
               // Ejecutor de tools server-side
               const execTool = async (name: string, args: Record<string, unknown>): Promise<unknown> => {
