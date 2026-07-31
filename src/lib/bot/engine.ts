@@ -1353,7 +1353,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                  const freshCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                  const freshCart = (freshCartRes.ok ? freshCartRes.data : preloadedCart) as Record<string, unknown> | null;
                  finalReply = buildActiveSessionFallback(freshCart, fmtCOP, text)
-                   ?? (hasPendingProduct(freshCart)
+                   ?? (freshCart?.pending_product && typeof freshCart.pending_product === "object"
                      ? "Sigo con ese producto. 🍦 ¿Qué opción o sabor prefieres?"
                      : "Sigo contigo. ¿Qué producto deseas agregar al pedido?");
                }
