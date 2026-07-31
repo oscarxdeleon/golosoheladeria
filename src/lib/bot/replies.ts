@@ -101,7 +101,7 @@ export const INFO_INTENTS: BotIntent[] = [
 export function avoidRepeatedReply(
   reply: string,
   history: Array<{ role: string; content: string }>,
-  menuLink: string,
+  _menuLink: string,
 ) {
   const lastAssistants = [...history]
     .reverse()

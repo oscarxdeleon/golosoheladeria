@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test, describe } from "node:test";
 import { detectIntent } from "../nlu";
 import { nextFsmState, missingCartFields, summarizeCart } from "../cart";
-import { fallbackOrderReply, operationalReply } from "../replies";
+import { avoidRepeatedReply, fallbackOrderReply, operationalReply } from "../replies";
 
 describe("WhatsApp Bot Logic Validation", () => {
   const menuLink = "https://goloso.app/menu";
@@ -46,6 +46,19 @@ describe("WhatsApp Bot Logic Validation", () => {
       assert.equal(detectIntent("cancela el pedido"), "cancelar");
       assert.equal(detectIntent("cambiar por otra cosa"), "modificar");
       assert.equal(detectIntent("quitar producto"), "eliminar");
+    });
+
+    test("ordering and modification fallbacks do not resend the menu", () => {
+      for (const input of ["quiero un helado", "agrega otro", "cambia el producto", "quita ese"]) {
+        assert.doesNotMatch(fallbackOrderReply(input, menuLink, true, true), /https?:\/\//);
+      }
+    });
+
+    test("repeated replies use a neutral clarification without menu link", () => {
+      const previous = "¿Qué sabor prefieres?";
+      const reply = avoidRepeatedReply(previous, [{ role: "assistant", content: previous }], menuLink);
+      assert.doesNotMatch(reply, /https?:\/\//);
+      assert.doesNotMatch(reply, /menú/i);
     });
   });
 
