@@ -216,6 +216,7 @@ export function WhatsAppBotTab() {
           Modo "Chatbot completo" activa IA + toma de pedidos automáticamente. */}
       <FaqManagerCard branchId={cfg.branch_id} />
       <ReportRecipientsCard branchId={cfg.branch_id} />
+      {isAdmin && <AiKeyCard />}
       {isAdmin && <GeminiQuotaCard />}
       <MessagesCard messages={messages} />
     </div>
