@@ -110,7 +110,8 @@ export const sendCashReport = createServerFn({ method: "POST" })
     // duplicating the connector secrets outside Lovable Cloud.
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
-    if (!supabaseUrl || !supabaseAnon) {
+    const relaySecret = process.env.REPORT_EMAIL_RELAY_SECRET;
+    if (!supabaseUrl || !supabaseAnon || !relaySecret) {
       return { skipped: true, reason: "Backend no configurado (SUPABASE_URL/PUBLISHABLE_KEY)" };
     }
 
@@ -280,6 +281,7 @@ export const sendCashReport = createServerFn({ method: "POST" })
             "Content-Type": "application/json",
             "Authorization": `Bearer ${supabaseAnon}`,
             "apikey": supabaseAnon,
+            "x-relay-secret": relaySecret,
           },
           body: JSON.stringify({ from, to: [to], subject, html }),
         });

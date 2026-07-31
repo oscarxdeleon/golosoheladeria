@@ -5,8 +5,7 @@
 
 // deno-lint-ignore-file no-explicit-any
 const cors = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-relay-secret",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
@@ -22,6 +21,15 @@ Deno.serve(async (req: Request) => {
   if (req.method !== "POST") {
     return new Response(JSON.stringify({ error: "method_not_allowed" }), {
       status: 405,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+
+  const relaySecret = Deno.env.get("REPORT_EMAIL_RELAY_SECRET");
+  const providedSecret = req.headers.get("x-relay-secret");
+  if (!relaySecret || !providedSecret || providedSecret !== relaySecret) {
+    return new Response(JSON.stringify({ error: "unauthorized" }), {
+      status: 401,
       headers: { ...cors, "Content-Type": "application/json" },
     });
   }
@@ -45,6 +53,18 @@ Deno.serve(async (req: Request) => {
     });
   }
 
+  const recipients = Array.isArray(body.to)
+    ? body.to.filter((value) => typeof value === "string" && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)).slice(0, 2)
+    : [];
+  if (recipients.length === 0 || typeof body.subject !== "string" || typeof body.html !== "string") {
+    return new Response(JSON.stringify({ error: "invalid_payload" }), {
+      status: 400,
+      headers: { ...cors, "Content-Type": "application/json" },
+    });
+  }
+  body.subject = body.subject.slice(0, 200);
+  body.html = body.html.slice(0, 250_000);
+
   const from = body.from || "Heladería Goloso <reportes@heladeriagoloso.com>";
   const useGateway = Boolean(lovableKey);
   const url = useGateway
@@ -62,7 +82,7 @@ Deno.serve(async (req: Request) => {
     const resp = await fetch(url, {
       method: "POST",
       headers,
-      body: JSON.stringify({ from, to: body.to, subject: body.subject, html: body.html }),
+      body: JSON.stringify({ from, to: recipients, subject: body.subject, html: body.html }),
     });
     const text = await resp.text();
     let json: any = null;

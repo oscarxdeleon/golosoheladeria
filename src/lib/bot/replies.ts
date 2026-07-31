@@ -52,12 +52,13 @@ export function fallbackOrderReply(
   switch (detectIntent(input)) {
     case "menu":
     case "productos":
-    case "precios":
       return `Claro 😊 aquí tienes todo con fotos y precios actualizados 👉 ${menuLink}`;
+    case "precios":
+      return "Dime cuál producto te interesa y te confirmo su precio exacto. 🍦";
     case "promociones":
       return `Las promociones vigentes las ves aquí 👉 ${menuLink}`;
     case "sabores":
-      return `Los sabores disponibles hoy los ves actualizados aquí 👉 ${menuLink}\n¿Para cuál producto lo quieres?`;
+      return "¿Para cuál producto quieres conocer los sabores disponibles? 🍦";
     case "ingredientes":
       return "Cuéntame de cuál producto quieres saber los ingredientes y te confirmo. 🍦";
     case "horarios":
@@ -76,14 +77,14 @@ export function fallbackOrderReply(
     case "confirmar":
       return "Perfecto, déjame verificar tu pedido y te confirmo en un momento. ✅";
     case "saludo":
-      return `¡Hola de nuevo! 🍦 ¿Qué te provoca hoy?\nMenú 👉 ${menuLink}`;
+      return "¡Hola de nuevo! 🍦 ¿Qué te provoca hoy?";
     case "pedido":
     case "agregar":
     case "modificar":
     case "eliminar":
-      return `Con mucho gusto tomo tu pedido. ¿Qué producto y cuántos?\nMenú 👉 ${menuLink}`;
+      return "Con mucho gusto tomo tu pedido. ¿Qué producto y cuántos?";
     default:
-      return `Cuéntame qué necesitas y te ayudo 🍦\nMenú 👉 ${menuLink}`;
+      return "Cuéntame qué necesitas y te ayudo con tu pedido. 🍦";
   }
 }
 
@@ -100,7 +101,7 @@ export const INFO_INTENTS: BotIntent[] = [
 export function avoidRepeatedReply(
   reply: string,
   history: Array<{ role: string; content: string }>,
-  menuLink: string,
+  _menuLink: string,
 ) {
   const lastAssistants = [...history]
     .reverse()
@@ -108,7 +109,7 @@ export function avoidRepeatedReply(
     .slice(0, 3)
     .map((m) => m.content);
   if (!lastAssistants.some((prev) => prev && sameReply(reply, prev))) return reply;
-  return `Perdón, no te entendí bien 🙈 ¿Me lo dices de otra forma?\nPuedes ver el menú y pedir aquí 👉 ${menuLink}`;
+  return "Perdón, no te entendí bien 🙈 ¿Me lo dices de otra forma?";
 }
 
 /**

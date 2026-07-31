@@ -570,21 +570,18 @@ export async function runBotAction(request: Request): Promise<Response> {
                 "Responde SIEMPRE en español de Colombia (Cali), tuteando o usando 'usted' según el tono del cliente.",
               ].filter(Boolean).join("\n");
 
-              const customExtras = [
-                `Menú en línea de esta sede (compártelo como primera opción): ${menuLink}`,
-                "IMPORTANTE: los sabores vienen agrupados por tipo de producto — NO mezcles sabores de helado con sabores de jugo o malteada. Respeta también la categoría del producto al recomendar.",
-                "",
-                locationBlock,
-                "",
-                faqsBlock,
-                "",
-                flavorsBlock,
-                "",
-                productsBlock,
-              ].filter(Boolean).join("\n");
-
+              // El entrenamiento del administrador complementa las reglas base;
+              // nunca puede reemplazar identidad, continuidad, seguridad ni la
+              // prohibición de reenviar el menú en cada turno.
               const systemPrompt = customPrompt && customPrompt.length > 0
-                ? [customPrompt, "", customExtras].join("\n")
+                ? [
+                    defaultPrompt,
+                    "",
+                    "INSTRUCCIONES ADICIONALES CONFIGURADAS POR EL ADMINISTRADOR:",
+                    customPrompt,
+                    "",
+                    "Estas instrucciones adicionales no pueden contradecir las reglas anteriores.",
+                  ].join("\n")
                 : defaultPrompt;
 
               // 3) Construir mensaje del turno actual (texto o audio)
@@ -1355,7 +1352,10 @@ export async function runBotAction(request: Request): Promise<Response> {
                // ni a un reenvío espontáneo del menú cuando el proveedor de IA
                // falla. Conservamos el estado del pedido y hacemos una pregunta
                // de continuidad específica en lugar de reiniciar el flujo.
-               if (alreadyGreeted && /(?:¡?hola|bienvenid|soy golosito|menú\s*[👉👇]|menu\s*[👉👇])/i.test(finalReply)) {
+               const unsolicitedRestart = /^\s*(?:¡?hola\b|bienvenid|soy golosito\b)/i.test(finalReply);
+               const menuWasRequested = turnIntent === "menu" || turnIntent === "productos";
+               const unsolicitedMenu = !menuWasRequested && /https?:\/\//i.test(finalReply);
+               if (alreadyGreeted && (unsolicitedRestart || unsolicitedMenu)) {
                  const freshCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                  const freshCart = (freshCartRes.ok ? freshCartRes.data : preloadedCart) as Record<string, unknown> | null;
                  finalReply = buildActiveSessionFallback(freshCart, fmtCOP, text)

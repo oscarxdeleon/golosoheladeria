@@ -37,7 +37,8 @@ async function callRpc(rpc: string, args: Record<string, unknown>): Promise<Trac
 async function sendAlertEmail(level: "80" | "95", count: number, limit: number, recipients: string[]) {
   const url = process.env.SUPABASE_URL;
   const anon = process.env.SUPABASE_PUBLISHABLE_KEY;
-  if (!url || !anon || recipients.length === 0) return;
+  const relaySecret = process.env.REPORT_EMAIL_RELAY_SECRET;
+  if (!url || !anon || !relaySecret || recipients.length === 0) return;
 
   const pct = Math.round((count / Math.max(limit, 1)) * 100);
   const critical = level === "95";
@@ -70,6 +71,7 @@ async function sendAlertEmail(level: "80" | "95", count: number, limit: number, 
           "Content-Type": "application/json",
           Authorization: `Bearer ${anon}`,
           apikey: anon,
+          "x-relay-secret": relaySecret,
         },
         body: JSON.stringify({ from, to: [to], subject, html }),
       }).catch(() => null),
