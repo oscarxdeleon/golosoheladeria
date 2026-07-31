@@ -98,10 +98,10 @@ describe("WhatsApp Bot Logic Validation", () => {
         delivery_fee: 2000,
         total: 12000
       };
-      const summary = summarizeCart(cart, (n) => );
+      const summary = summarizeCart(cart, (n) => `$${n}`);
       expect(summary).toContain("2 x Helado");
-      expect(summary).toContain("Subtotal: 0000");
-      expect(summary).toContain("Total: 2000");
+      expect(summary).toContain("Subtotal: $10000");
+      expect(summary).toContain("Total: $12000");
     });
   });
 });
