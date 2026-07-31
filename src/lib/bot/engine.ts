@@ -1353,7 +1353,8 @@ export async function runBotAction(request: Request): Promise<Response> {
                // falla. Conservamos el estado del pedido y hacemos una pregunta
                // de continuidad específica en lugar de reiniciar el flujo.
                const unsolicitedRestart = /^\s*(?:¡?hola\b|bienvenid|soy golosito\b)/i.test(finalReply);
-               const unsolicitedMenu = turnIntent !== "menu" && /https?:\/\//i.test(finalReply);
+               const menuWasRequested = turnIntent === "menu" || turnIntent === "productos";
+               const unsolicitedMenu = !menuWasRequested && /https?:\/\//i.test(finalReply);
                if (alreadyGreeted && (unsolicitedRestart || unsolicitedMenu)) {
                  const freshCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                  const freshCart = (freshCartRes.ok ? freshCartRes.data : preloadedCart) as Record<string, unknown> | null;
