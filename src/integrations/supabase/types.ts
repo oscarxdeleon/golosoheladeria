@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_ai_credentials: {
+        Row: {
+          api_key: string
+          provider: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          api_key: string
+          provider: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          api_key?: string
+          provider?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       attendance_employees: {
         Row: {
           active: boolean
@@ -3465,6 +3486,7 @@ export type Database = {
         Returns: Json
       }
       _whatsapp_normalize_text: { Args: { _value: string }; Returns: string }
+      admin_ai_key_status: { Args: never; Returns: Json }
       admin_cash_session_detail_rpc: {
         Args: { _cash_session_id: string }
         Returns: Json
@@ -3514,6 +3536,10 @@ export type Database = {
       admin_release_deleted_user_email: {
         Args: { _email?: string; _user_id: string }
         Returns: undefined
+      }
+      admin_set_ai_key: {
+        Args: { _api_key: string; _provider: string }
+        Returns: Json
       }
       admin_update_app_user: {
         Args: {
@@ -4013,6 +4039,7 @@ export type Database = {
         Args: { _body: string; _purpose?: string; _to: string; _token: string }
         Returns: Json
       }
+      whatsapp_bot_get_ai_keys: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_get_config: { Args: { _token: string }; Returns: Json }
       whatsapp_bot_get_mode: { Args: { _token: string }; Returns: string }
       whatsapp_bot_get_pending: { Args: { _token: string }; Returns: Json }

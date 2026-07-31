@@ -208,6 +208,7 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
     let state = "disconnected";
     let phone: string | null = null;
     let exists = true;
+    let loggedOut = false;
     try {
       const list = await evo(`/instance/fetchInstances?instanceName=${encodeURIComponent(name)}`);
       const arr = Array.isArray(list) ? list : [list];
@@ -216,9 +217,25 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
       state = mapState(inst?.connectionStatus ?? inst?.instance?.state ?? inst?.state);
       const owner = inst?.ownerJid ?? inst?.owner ?? inst?.instance?.owner ?? null;
       phone = owner ? String(owner).split("@")[0].split(":")[0] : null;
+      // El teléfono cerró la sesión desde WhatsApp (Dispositivos vinculados).
+      // Evolution se queda en "connecting" para siempre y nunca entrega QR:
+      // hay que recrear la instancia para poder volver a vincular.
+      if (Number(inst?.disconnectionReasonCode) === 401 && state !== "connected") loggedOut = true;
     } catch (e: any) {
       if (e?.status === 404) exists = false;
       else throw e;
+    }
+
+    // Auto-reparación: sesión cerrada desde el teléfono → recrear para dar QR nuevo.
+    if (loggedOut) {
+      try {
+        try { await evo(`/instance/logout/${encodeURIComponent(name)}`, { method: "DELETE" }); } catch { /* ya cerrada */ }
+        try { await evo(`/instance/delete/${encodeURIComponent(name)}`, { method: "DELETE" }); } catch { /* ya borrada */ }
+        exists = false;
+        phone = null;
+      } catch (e) {
+        console.warn("[evolution] no pude limpiar la instancia deslogueada", e);
+      }
     }
 
     // Auto-reparación: crear la instancia si falta.
@@ -231,6 +248,7 @@ export const getInstanceStatus = createServerFn({ method: "POST" })
         console.warn("[evolution] no pude autocrear la instancia", e);
       }
     }
+
 
     // Auto-reparación: webhook siempre sincronizado con el dominio actual.
     let webhook: string | null = null;

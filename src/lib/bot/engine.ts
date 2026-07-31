@@ -58,6 +58,28 @@ function setCachedContext(token: string, data: Record<string, unknown>) {
   }
 }
 
+// Claves de IA guardadas en la base de datos por el administrador.
+// Respaldo para despliegues (p. ej. Vercel) donde las variables de entorno
+// no están disponibles. Cache corto para no consultar en cada mensaje.
+type CachedKeys = { keys: { lovable?: string; gemini?: string }; expiresAt: number };
+let aiKeysCache: CachedKeys | null = null;
+
+async function getStoredAiKeys(token: string): Promise<{ lovable?: string; gemini?: string }> {
+  if (aiKeysCache && Date.now() < aiKeysCache.expiresAt) return aiKeysCache.keys;
+  try {
+    const r = await callRpc("whatsapp_bot_get_ai_keys", { _token: token });
+    const data = (r.ok ? r.data : null) as Record<string, unknown> | null;
+    const keys = {
+      lovable: typeof data?.lovable === "string" && data.lovable ? data.lovable : undefined,
+      gemini: typeof data?.gemini === "string" && data.gemini ? data.gemini : undefined,
+    };
+    aiKeysCache = { keys, expiresAt: Date.now() + 60_000 };
+    return keys;
+  } catch {
+    return {};
+  }
+}
+
 
 
 function normalizeHistory(messages: Array<{ role: string; content: string }>) {
@@ -985,8 +1007,13 @@ export async function runBotAction(request: Request): Promise<Response> {
               // genérico "Sigo contigo".
               // Lectura tolerante: acepta el nombre técnico y también las
               // variantes traducidas que crean paneles como Vercel en español.
-              const lovableKey = readEvolutionEnv("LOVABLE_API_KEY");
-              const geminiKey = readEvolutionEnv("GEMINI_API_KEY");
+              // Si el hosting no tiene la variable (caso Vercel), usamos la
+              // clave guardada por el administrador en el POS. Así el asistente
+              // funciona igual en cualquier despliegue.
+              const storedKeys = await getStoredAiKeys(token);
+              const lovableKey = readEvolutionEnv("LOVABLE_API_KEY") || storedKeys.lovable;
+              const geminiKey = readEvolutionEnv("GEMINI_API_KEY") || storedKeys.gemini;
+
 
               if (!lovableKey && !geminiKey) {
                 const reply = avoidRepeatedReply(

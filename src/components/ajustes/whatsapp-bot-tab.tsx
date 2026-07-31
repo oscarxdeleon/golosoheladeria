@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WhatsAppInstanceCard } from "./whatsapp-instance-card";
 import { GeminiQuotaCard } from "./gemini-quota-card";
+import { AiKeyCard } from "./ai-key-card";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
 import {
@@ -216,6 +217,7 @@ export function WhatsAppBotTab() {
           Modo "Chatbot completo" activa IA + toma de pedidos automáticamente. */}
       <FaqManagerCard branchId={cfg.branch_id} />
       <ReportRecipientsCard branchId={cfg.branch_id} />
+      {isAdmin && <AiKeyCard />}
       {isAdmin && <GeminiQuotaCard />}
       <MessagesCard messages={messages} />
     </div>
