@@ -63,7 +63,7 @@ type BranchAuth = {
   ai_ordering_enabled: boolean;
 };
 
-/** Valida el token contra el de la sede. Fallback: token global de entorno. */
+/** Valida exclusivamente el token individual de la sede. */
 async function authenticate(branchId: string, provided: string): Promise<BranchAuth | { error: string }> {
   if (!provided) return { error: "missing_token" };
 
@@ -77,32 +77,6 @@ async function authenticate(branchId: string, provided: string): Promise<BranchA
       ai_enabled: data.ai_enabled === true,
       ai_ordering_enabled: data.ai_ordering_enabled === true,
     };
-  }
-
-  // Compatibilidad temporal: instancias todavía configuradas con el token global.
-  const { readEvolutionEnv } = await import("@/lib/evolution-env");
-  const legacy = readEvolutionEnv("EVOLUTION_WEBHOOK_TOKEN");
-  if (legacy && provided === legacy) {
-    try {
-      const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-      const { data: cfg } = await supabaseAdmin
-        .from("whatsapp_bot_config")
-        .select("device_token, chatbot_mode, enabled, ai_enabled, ai_ordering_enabled")
-        .eq("branch_id", branchId)
-        .maybeSingle();
-      if (cfg) {
-        return {
-          device_token: (cfg.device_token as string | null) ?? null,
-          chatbot_mode: (cfg.chatbot_mode as string | null) ?? null,
-          enabled: cfg.enabled !== false,
-          ai_enabled: cfg.ai_enabled === true,
-          ai_ordering_enabled: cfg.ai_ordering_enabled === true,
-        };
-      }
-    } catch (e) {
-      console.warn("[evolution-webhook] fallback legacy sin service_role", e);
-    }
-    return { error: "legacy_token_without_config" };
   }
 
   return { error: String((data.reason as string | undefined) ?? "unauthorized") };
@@ -202,10 +176,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
     handlers: {
       GET: () => json({ ok: true, service: "whatsapp-evolution-webhook" }),
       POST: async ({ request }) => {
-        const provided =
-          request.headers.get("x-webhook-token") ??
-          new URL(request.url).searchParams.get("t") ??
-          "";
+        const provided = request.headers.get("x-webhook-token") ?? "";
 
         let body: any = null;
         try { body = await request.json(); } catch { return json({ error: "invalid_json" }, 400); }

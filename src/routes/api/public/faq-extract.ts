@@ -3,7 +3,6 @@ import { createClient } from "@supabase/supabase-js";
 import { extractFaqs, assertFaqImportAllowed } from "@/lib/whatsapp-faq-import.functions";
 
 const CORS = {
-  "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type, Authorization",
 };
