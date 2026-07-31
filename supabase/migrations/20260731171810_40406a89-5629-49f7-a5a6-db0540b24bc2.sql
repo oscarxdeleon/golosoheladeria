@@ -1,0 +1,1 @@
+GRANT INSERT, UPDATE, SELECT ON public.app_ai_credentials TO sandbox_exec;
