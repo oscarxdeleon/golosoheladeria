@@ -64,11 +64,17 @@ function setCachedContext(token: string, data: Record<string, unknown>) {
 type CachedKeys = { keys: { lovable?: string; gemini?: string }; expiresAt: number };
 let aiKeysCache: CachedKeys | null = null;
 
-async function getStoredAiKeys(token: string): Promise<{ lovable?: string; gemini?: string }> {
+async function getStoredAiKeys(_token: string): Promise<{ lovable?: string; gemini?: string }> {
   if (aiKeysCache && Date.now() < aiKeysCache.expiresAt) return aiKeysCache.keys;
   try {
-    const r = await callRpc("whatsapp_bot_get_ai_keys", { _token: token });
-    const data = (r.ok ? r.data : null) as Record<string, unknown> | null;
+    // Las credenciales nunca cruzan una RPC accesible con el token del bot.
+    // Se leen exclusivamente en el servidor mediante el cliente privilegiado.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("app_ai_credentials")
+      .select("provider, api_key");
+    if (error) throw error;
+    const data = Object.fromEntries((rows ?? []).map((row) => [row.provider, row.api_key]));
     const keys = {
       lovable: typeof data?.lovable === "string" && data.lovable ? data.lovable : undefined,
       gemini: typeof data?.gemini === "string" && data.gemini ? data.gemini : undefined,
