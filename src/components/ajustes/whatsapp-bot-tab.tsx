@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { WhatsAppInstanceCard } from "./whatsapp-instance-card";
 import { GeminiQuotaCard } from "./gemini-quota-card";
+import { AiKeyCard } from "./ai-key-card";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
 import {
