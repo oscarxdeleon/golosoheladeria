@@ -54,6 +54,28 @@ export const Route = createFileRoute("/api/public/user-admin")({
           }
 
           const { backendUrl, publishableKey } = getBackendConfig();
+           const userResponse = await fetch(`${backendUrl}/auth/v1/user`, {
+             headers: { apikey: publishableKey, Authorization: authHeader },
+           });
+           const user = await userResponse.json().catch(() => null) as { id?: string } | null;
+           if (!userResponse.ok || !user?.id) {
+             return jsonResponse({ error: "Tu sesión no es válida." }, 401);
+           }
+
+           const roleResponse = await fetch(`${backendUrl}/rest/v1/rpc/has_role`, {
+             method: "POST",
+             headers: {
+               apikey: publishableKey,
+               Authorization: authHeader,
+               "Content-Type": "application/json",
+             },
+             body: JSON.stringify({ _user_id: user.id, _role: "admin" }),
+           });
+           const isAdmin = await roleResponse.json().catch(() => false);
+           if (!roleResponse.ok || isAdmin !== true) {
+             return jsonResponse({ error: "Solo un administrador puede gestionar usuarios." }, 403);
+           }
+
           const response = await fetch(`${backendUrl}/rest/v1/rpc/${action}`, {
             method: "POST",
             headers: {

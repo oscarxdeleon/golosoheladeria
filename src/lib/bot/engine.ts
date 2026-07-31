@@ -64,11 +64,17 @@ function setCachedContext(token: string, data: Record<string, unknown>) {
 type CachedKeys = { keys: { lovable?: string; gemini?: string }; expiresAt: number };
 let aiKeysCache: CachedKeys | null = null;
 
-async function getStoredAiKeys(token: string): Promise<{ lovable?: string; gemini?: string }> {
+async function getStoredAiKeys(_token: string): Promise<{ lovable?: string; gemini?: string }> {
   if (aiKeysCache && Date.now() < aiKeysCache.expiresAt) return aiKeysCache.keys;
   try {
-    const r = await callRpc("whatsapp_bot_get_ai_keys", { _token: token });
-    const data = (r.ok ? r.data : null) as Record<string, unknown> | null;
+    // Las credenciales nunca cruzan una RPC accesible con el token del bot.
+    // Se leen exclusivamente en el servidor mediante el cliente privilegiado.
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    const { data: rows, error } = await supabaseAdmin
+      .from("app_ai_credentials")
+      .select("provider, api_key");
+    if (error) throw error;
+    const data = Object.fromEntries((rows ?? []).map((row) => [row.provider, row.api_key]));
     const keys = {
       lovable: typeof data?.lovable === "string" && data.lovable ? data.lovable : undefined,
       gemini: typeof data?.gemini === "string" && data.gemini ? data.gemini : undefined,
@@ -645,7 +651,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                       if (r.ok && pid) {
                         const prod = allProducts.find((p) => String(p.id ?? "") === pid);
                         if (prod?.name) {
-                          void persistCartPatch(token, from, { pending_product: { id: pid, name: String(prod.name), price: Number(prod.price ?? 0) } });
+                          await persistCartPatch(token, from, { pending_product: { id: pid, name: String(prod.name), price: Number(prod.price ?? 0) } });
                         }
                       }
                       return r.ok ? r.data : { error: "get_modifiers_failed" };
@@ -775,7 +781,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                       // configuración" para no bloquear la siguiente elección
                       // del cliente.
                       if (r.ok) {
-                        void persistCartPatch(token, from, { pending_product: null });
+                         await persistCartPatch(token, from, { pending_product: null });
                       }
                       return r.ok
                         ? { ok: true, deduped: existingIdx >= 0, cart: r.data }
@@ -1343,7 +1349,20 @@ export async function runBotAction(request: Request): Promise<Response> {
 
               // 🔁 Guardia anti-bucle: jamás enviamos dos veces seguidas el
               // mismo texto al cliente.
-              finalReply = avoidRepeatedReply(finalReply, history, menuLink);
+               finalReply = avoidRepeatedReply(finalReply, history, menuLink);
+
+               // Una conversación iniciada nunca debe degradar a otra bienvenida
+               // ni a un reenvío espontáneo del menú cuando el proveedor de IA
+               // falla. Conservamos el estado del pedido y hacemos una pregunta
+               // de continuidad específica en lugar de reiniciar el flujo.
+               if (alreadyGreeted && /(?:¡?hola|bienvenid|soy golosito|menú\s*[👉👇]|menu\s*[👉👇])/i.test(finalReply)) {
+                 const freshCartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                 const freshCart = (freshCartRes.ok ? freshCartRes.data : preloadedCart) as Record<string, unknown> | null;
+                 finalReply = buildActiveSessionFallback(freshCart, fmtCOP, text)
+                   ?? (freshCart?.pending_product && typeof freshCart.pending_product === "object"
+                     ? "Sigo con ese producto. 🍦 ¿Qué opción o sabor prefieres?"
+                     : "Sigo contigo. ¿Qué producto deseas agregar al pedido?");
+               }
 
 
 
@@ -1380,7 +1399,7 @@ export async function runBotAction(request: Request): Promise<Response> {
             return json({
               error: "server_error",
               detail: message,
-              reply: fallbackOrderReply(String(body?.text ?? body?.message ?? ""), DEFAULT_MENU_LINK, true),
+               reply: "Tuve una dificultad momentánea, pero sigo contigo. ¿Qué dato del pedido deseas continuar?",
               source: "operational_error_fallback",
             }, 200);
           }
