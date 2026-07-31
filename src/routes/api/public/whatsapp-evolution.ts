@@ -309,14 +309,17 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             return { res, data, reply: (data?.reply as string | null) ?? null };
           };
 
-          let action = wantsAi ? "ai_reply" : "incoming";
+          // Toda entrada pasa PRIMERO por la puerta transaccional de sesión.
+          // Esa RPC deduplica msg_id, registra el mensaje entrante, aplica el
+          // cooldown de bienvenida y decide si este turno continúa con IA.
+          // Antes el modo completo saltaba esta puerta y ejecutaba ai_reply
+          // directamente: los reintentos del webhook se procesaban dos veces y
+          // la bienvenida/contexto quedaban en dos fuentes divergentes.
+          let action = "incoming";
           let out = await callEngine(action);
 
-          // Red de seguridad: si la IA no pudo responder (créditos, límite,
-          // gate de modo), caemos a las reglas fijas para no dejar al cliente
-          // sin respuesta.
-          if (!out.reply && action === "ai_reply") {
-            action = "incoming";
+          if (!out.reply && out.data?.use_ai === true && wantsAi) {
+            action = "ai_reply";
             out = await callEngine(action);
           }
 
