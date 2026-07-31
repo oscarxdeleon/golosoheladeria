@@ -1,4 +1,5 @@
-import { expect, test, describe } from "bun:test";
+import assert from "node:assert/strict";
+import { test, describe } from "node:test";
 import { detectIntent } from "../nlu";
 import { nextFsmState, missingCartFields, summarizeCart } from "../cart";
 import { fallbackOrderReply, operationalReply } from "../replies";
@@ -8,55 +9,55 @@ describe("WhatsApp Bot Logic Validation", () => {
 
   describe("Scenario 1: Greeting", () => {
     test("detects greeting intent", () => {
-      expect(detectIntent("Hola")).toBe("saludo");
-      expect(detectIntent("Buenas tardes")).toBe("saludo");
+      assert.equal(detectIntent("Hola"), "saludo");
+      assert.equal(detectIntent("Buenas tardes"), "saludo");
     });
 
     test("generates greeting reply", () => {
       const reply = operationalReply(menuLink, true);
-      expect(reply).toContain("Bienvenido");
-      expect(reply).toContain(menuLink);
+      assert.match(reply, /Bienvenido/);
+      assert.match(reply, new RegExp(menuLink.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
     });
   });
 
   describe("Scenario 2: Price Query", () => {
     test("detects price/menu intent", () => {
-      expect(detectIntent("¿cuánto cuesta?")).toBe("precios");
-      expect(detectIntent("ver menu")).toBe("menu");
-      expect(detectIntent("precios")).toBe("precios");
+      assert.equal(detectIntent("¿cuánto cuesta?"), "precios");
+      assert.equal(detectIntent("ver menu"), "menu");
+      assert.equal(detectIntent("precios"), "precios");
     });
 
-    test("fallback reply for prices contains menu link", () => {
+    test("price fallback asks for the product without resending the menu", () => {
       const reply = fallbackOrderReply("precios", menuLink, true, true);
-      expect(reply).toContain(menuLink);
-      expect(reply).toContain("precios");
+      assert.doesNotMatch(reply, /https?:\/\//);
+      assert.match(reply, /producto/i);
     });
   });
 
   describe("Scenario 3: Product Ordering", () => {
     test("detects ordering intent", () => {
-      expect(detectIntent("quiero pedir un helado")).toBe("pedido");
-      expect(detectIntent("deme 2 malteadas")).toBe("pedido");
+      assert.equal(detectIntent("quiero pedir un helado"), "pedido");
+      assert.equal(detectIntent("deme 2 malteadas"), "pedido");
     });
   });
 
   describe("Scenario 4: Cart Modification", () => {
     test("detects cancel/modification intent", () => {
-      expect(detectIntent("cancela el pedido")).toBe("cancelar");
-      expect(detectIntent("cambiar por otra cosa")).toBe("modificar");
-      expect(detectIntent("quitar producto")).toBe("eliminar");
+      assert.equal(detectIntent("cancela el pedido"), "cancelar");
+      assert.equal(detectIntent("cambiar por otra cosa"), "modificar");
+      assert.equal(detectIntent("quitar producto"), "eliminar");
     });
   });
 
   describe("Scenario 5: Checkout & FSM States", () => {
     test("detects confirmation intent", () => {
-      expect(detectIntent("confirmo")).toBe("confirmar");
-      expect(detectIntent("listo asi")).toBe("confirmar");
+      assert.equal(detectIntent("confirmo"), "confirmar");
+      assert.equal(detectIntent("listo asi"), "confirmar");
     });
 
     test("FSM transitions: GREETING -> SELECTING_PRODUCT -> COLLECTING_NAME -> ... -> AWAITING_CONFIRMATION", () => {
       // Empty cart
-      expect(nextFsmState(null)).toBe("GREETING");
+      assert.equal(nextFsmState(null), "GREETING");
 
       // Item added, no customer info
       const cartWithItem = { 
@@ -64,15 +65,15 @@ describe("WhatsApp Bot Logic Validation", () => {
         subtotal: 5000,
         total: 5000
       };
-      expect(nextFsmState(cartWithItem)).toBe("COLLECTING_NAME");
+      assert.equal(nextFsmState(cartWithItem), "COLLECTING_NAME");
 
       // Name added, but delivery info missing
       const cartWithName = { ...cartWithItem, customer_name: "Juan", order_type: "delivery" };
-      expect(nextFsmState(cartWithName)).toBe("COLLECTING_ADDRESS");
+      assert.equal(nextFsmState(cartWithName), "COLLECTING_ADDRESS");
 
       // Address added, but neighborhood missing
       const cartWithAddress = { ...cartWithName, delivery_address: "Calle 10 #20-30" };
-      expect(nextFsmState(cartWithAddress)).toBe("COLLECTING_NEIGHBORHOOD");
+      assert.equal(nextFsmState(cartWithAddress), "COLLECTING_NEIGHBORHOOD");
 
       // All info present
       const completeCart = { 
@@ -80,15 +81,15 @@ describe("WhatsApp Bot Logic Validation", () => {
         delivery_neighborhood: "Centro", 
         payment_method: "efectivo" 
       };
-      expect(nextFsmState(completeCart)).toBe("AWAITING_CONFIRMATION");
+      assert.equal(nextFsmState(completeCart), "AWAITING_CONFIRMATION");
     });
 
     test("identifies missing fields correctly", () => {
       const cart = { items: [{}], order_type: "delivery", customer_name: "Juan" };
       const missing = missingCartFields(cart);
-      expect(missing).toContain("dirección");
-      expect(missing).toContain("barrio");
-      expect(missing).toContain("método de pago");
+      assert.ok(missing.includes("dirección"));
+      assert.ok(missing.includes("barrio"));
+      assert.ok(missing.includes("método de pago"));
     });
 
     test("summarizes cart correctly", () => {
@@ -99,9 +100,9 @@ describe("WhatsApp Bot Logic Validation", () => {
         total: 12000
       };
       const summary = summarizeCart(cart, (n) => `$${n}`);
-      expect(summary).toContain("2 x Helado");
-      expect(summary).toContain("Subtotal: $10000");
-      expect(summary).toContain("Total: $12000");
+      assert.match(summary, /2 x Helado/);
+      assert.match(summary, /Subtotal: \$10000/);
+      assert.match(summary, /Total: \$12000/);
     });
   });
 });
