@@ -3401,6 +3401,35 @@ export type Database = {
           },
         ]
       }
+      whatsapp_inbound_receipts: {
+        Row: {
+          branch_id: string
+          phone_key: string
+          provider_message_id: string
+          received_at: string
+        }
+        Insert: {
+          branch_id: string
+          phone_key: string
+          provider_message_id: string
+          received_at?: string
+        }
+        Update: {
+          branch_id?: string
+          phone_key?: string
+          provider_message_id?: string
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_inbound_receipts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       whatsapp_outbound_queue: {
         Row: {
           attempts: number
