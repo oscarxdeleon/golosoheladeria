@@ -985,8 +985,13 @@ export async function runBotAction(request: Request): Promise<Response> {
               // genérico "Sigo contigo".
               // Lectura tolerante: acepta el nombre técnico y también las
               // variantes traducidas que crean paneles como Vercel en español.
-              const lovableKey = readEvolutionEnv("LOVABLE_API_KEY");
-              const geminiKey = readEvolutionEnv("GEMINI_API_KEY");
+              // Si el hosting no tiene la variable (caso Vercel), usamos la
+              // clave guardada por el administrador en el POS. Así el asistente
+              // funciona igual en cualquier despliegue.
+              const storedKeys = await getStoredAiKeys(token);
+              const lovableKey = readEvolutionEnv("LOVABLE_API_KEY") || storedKeys.lovable;
+              const geminiKey = readEvolutionEnv("GEMINI_API_KEY") || storedKeys.gemini;
+
 
               if (!lovableKey && !geminiKey) {
                 const reply = avoidRepeatedReply(
