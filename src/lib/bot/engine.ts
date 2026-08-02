@@ -2,7 +2,7 @@ import { callRpc, elapsedMs, formatCOP, json, logBotEvent, makeConversationId, t
 import { ProductLite, detectIntent, extractAllEntitiesFromText, hasRecentProductEvidence, isAlreadyOrderedTurn, isConfirmation, isGeneralHelpTurn, looksLikeBareAddress, looksLikeBareCustomerName, looksLikeBareNeighborhood, normalizeText, sameReply, selectRelevantFaqs, selectRelevantProducts } from "@/lib/bot/nlu";
 import { BranchInfo, DEFAULT_MENU_LINK, avoidRepeatedReply, fallbackOrderReply, isCancelOrNegativeTurn, normalizeMenuLink, pickWelcomeMessage, shortCircuitReply } from "@/lib/bot/replies";
 import { buildActiveSessionFallback, buildCartProgressReply, cartItems, effectiveOrderType, fieldText, hasSessionData, missingCartFields, nextFsmState, persistCartPatch } from "@/lib/bot/cart";
-import { buildCatalogReply } from "@/lib/bot/catalog-match";
+import { buildCatalogReply, matchCatalogProducts } from "@/lib/bot/catalog-match";
 import { buildCartStateBlock, buildContinuityBlock, buildOrderingPromptBlock, buildPendingProductBlock } from "@/lib/bot/prompt";
 import { ORDERING_TOOLS } from "@/lib/bot/tools";
 import { trackGeminiCall } from "@/lib/gemini-quota.server";
@@ -512,8 +512,14 @@ export async function runBotAction(request: Request): Promise<Response> {
                 ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
                 : [];
               const allProducts = Array.isArray(ctx.products) ? ctx.products as ProductLite[] : [];
-              // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
-              const products = selectRelevantProducts(allProducts, text, 12);
+              // El emparejador tolerante (sinónimos, plurales y errores) debe
+              // decidir primero qué ve la IA. Completamos con relevancia
+              // literal solo para consultas generales sin coincidencia fuzzy.
+              const fuzzyProducts = matchCatalogProducts(allProducts, text, 12).map((match) => match.product);
+              const products = Array.from(new Map(
+                [...fuzzyProducts, ...selectRelevantProducts(allProducts, text, 12)]
+                  .map((product) => [String(product.id ?? product.name), product]),
+              ).values()).slice(0, 12);
 
               const fmtCOP = formatCOP;
 
@@ -830,6 +836,32 @@ export async function runBotAction(request: Request): Promise<Response> {
                       const r = await persistCartPatch(token, from, patch);
                       return r.ok ? { ok: true, cart: r.data } : { error: "delivery_info_failed", detail: r.data };
                     }
+                    case "update_cart_item": {
+                      const cartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      const cart = (cartRes.ok ? cartRes.data : null) as { items?: unknown[] } | null;
+                      const items = Array.isArray(cart?.items) ? [...cart.items] : [];
+                      const index = Math.floor(Number(args.item_index ?? 0)) - 1;
+                      if (index < 0 || index >= items.length) return { error: "item_not_found", cart: cartRes.data };
+                      const current = (items[index] && typeof items[index] === "object" ? items[index] : {}) as Record<string, unknown>;
+                      items[index] = {
+                        ...current,
+                        ...(typeof args.qty === "number" ? { qty: Math.max(1, Math.floor(args.qty)) } : {}),
+                        ...(Array.isArray(args.modifiers) ? { modifiers: args.modifiers } : {}),
+                        ...(typeof args.notes === "string" ? { notes: args.notes.trim() || null } : {}),
+                      };
+                      const r = await persistCartPatch(token, from, { items });
+                      return r.ok ? { ok: true, cart: r.data } : { error: "update_failed", detail: r.data };
+                    }
+                    case "remove_cart_item": {
+                      const cartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      const cart = (cartRes.ok ? cartRes.data : null) as { items?: unknown[] } | null;
+                      const items = Array.isArray(cart?.items) ? [...cart.items] : [];
+                      const index = Math.floor(Number(args.item_index ?? 0)) - 1;
+                      if (index < 0 || index >= items.length) return { error: "item_not_found", cart: cartRes.data };
+                      items.splice(index, 1);
+                      const r = await persistCartPatch(token, from, { items });
+                      return r.ok ? { ok: true, cart: r.data } : { error: "remove_failed", detail: r.data };
+                    }
                     case "show_cart": {
                       const r = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                       return r.ok ? (r.data ?? { empty: true }) : { error: "cart_read_failed" };
@@ -1117,7 +1149,11 @@ export async function runBotAction(request: Request): Promise<Response> {
                 providers.push({
                   name: "lovable",
                   url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-                  headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+                  headers: {
+                    "Lovable-API-Key": lovableKey,
+                    "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+                    "Content-Type": "application/json",
+                  },
                   primaryModel: "google/gemini-3.6-flash",
                   fallbackModel: "google/gemini-3.1-flash-lite",
                 });

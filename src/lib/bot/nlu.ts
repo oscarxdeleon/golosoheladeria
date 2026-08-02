@@ -306,9 +306,13 @@ export function hasCurrentTurnProductEvidence(input: string, productName: string
   const productWords = textTokens(productName)
     .filter((word) => word.length >= 4 && !["sabor", "sabores", "helado", "helados", "goloso"].includes(word));
   const hasSpecificProductWord = productWords.some((word) => normalized.includes(word));
-  const hasGenericOrderWord = /\b(cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
+  const hasGenericOrderWord = /\b(helado|helados|cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
   const hasOrderVerb = ORDER_VERB_REGEX.test(normalized) || /\b(agrega|agregar|anade|anadir|anota|recoger)\b/.test(normalized);
-  return (hasSpecificProductWord || hasGenericOrderWord) && hasOrderVerb;
+  const looksLikeDirectProductRequest =
+    (hasSpecificProductWord || hasGenericOrderWord)
+    && normalized.split(/\s+/).filter(Boolean).length <= 8
+    && !/[?¿]/.test(input);
+  return (hasSpecificProductWord || hasGenericOrderWord) && (hasOrderVerb || looksLikeDirectProductRequest);
 }
 
 export function hasRecentProductEvidence(input: string, productName: string) {
@@ -316,7 +320,7 @@ export function hasRecentProductEvidence(input: string, productName: string) {
   const productWords = textTokens(productName)
     .filter((word) => word.length >= 4 && !["sabor", "sabores", "helado", "helados", "goloso"].includes(word));
   const hasSpecificProductWord = productWords.some((word) => normalized.includes(word));
-  const hasGenericOrderWord = /\b(cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
+  const hasGenericOrderWord = /\b(helado|helados|cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
   const hasOrderVerb = ORDER_VERB_REGEX.test(normalized) || /\b(agrega|agregar|anade|anadir|anota|recoger)\b/.test(normalized);
   return hasCurrentTurnProductEvidence(input, productName) || ((hasSpecificProductWord || hasGenericOrderWord) && hasOrderVerb);
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { test, describe } from "node:test";
 import { detectIntent, hasRecentProductEvidence } from "../nlu";
+import { matchCatalogProducts } from "../catalog-match";
 import { nextFsmState, missingCartFields, summarizeCart } from "../cart";
 import { avoidRepeatedReply, fallbackOrderReply, operationalReply, shortCircuitReply } from "../replies";
 
@@ -60,6 +61,23 @@ describe("WhatsApp Bot Logic Validation", () => {
     test("natural purchase verbs are valid recent product evidence", () => {
       assert.equal(hasRecentProductEvidence("Necesito una ensalada de frutas", "ENSALADA FRUTAS 1 SABOR HELADO"), true);
       assert.equal(hasRecentProductEvidence("Regálame un cono", "CONO 1 SABOR HELADO"), true);
+    });
+
+    test("bare product requests are valid evidence for the cart", () => {
+      for (const input of ["Una malteada", "Una limonada", "Una ensalada", "Un helado", "Una estrella", "Un brownie", "Un waffle", "Una banana split"]) {
+        assert.equal(hasRecentProductEvidence(input, input.replace(/^(una?|un)\s+/i, "")), true, input);
+      }
+    });
+
+    test("catalog matcher tolerates natural phrases and spelling variants", () => {
+      const catalog = [
+        { id: "1", name: "Malteada de Chocolate", price: 12000, category: "Malteadas" },
+        { id: "2", name: "Ensalada de Frutas con Helado", price: 15000, category: "Ensaladas" },
+        { id: "3", name: "Banana Split", price: 17000, category: "Copas" },
+      ];
+      assert.equal(matchCatalogProducts(catalog, "Quiero una maltiada")[0]?.product.id, "1");
+      assert.equal(matchCatalogProducts(catalog, "una ensalada con helado")[0]?.product.id, "2");
+      assert.equal(matchCatalogProducts(catalog, "banana split")[0]?.product.id, "3");
     });
 
     test("only explicit short menu requests are short-circuited to the menu", () => {

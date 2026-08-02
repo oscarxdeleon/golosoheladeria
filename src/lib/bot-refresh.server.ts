@@ -70,7 +70,11 @@ async function syncAiKeys(supabase: SupabaseClient<Database>): Promise<boolean> 
     try {
       const probe = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
-        headers: { "Content-Type": "application/json", Authorization: `Bearer ${lovableKey}` },
+        headers: {
+          "Content-Type": "application/json",
+          "Lovable-API-Key": lovableKey,
+          "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+        },
         body: JSON.stringify({
           model: "google/gemini-3.6-flash",
           messages: [{ role: "user", content: "ping" }],
