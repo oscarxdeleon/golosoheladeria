@@ -208,7 +208,9 @@ export function WhatsAppInstanceCard({ branchId: branchIdProp }: { branchId?: st
 
         <p className="text-xs text-muted-foreground border-t pt-3">
           Todo se configura solo: al abrir esta pantalla el sistema crea la instancia si falta
-          y deja el webhook apuntando al dominio en uso. Si el QR expira, presiona <b>Generar nuevo QR</b>.
+          y deja el webhook apuntando SIEMPRE al dominio oficial de producción (Vercel), aunque
+          estés viendo el POS desde la vista previa. Si el QR expira, presiona <b>Generar nuevo QR</b>.
+
           Si la sesión se cae, usa <b>Reconectar</b>. Solo si nada funciona, <b>Eliminar instancia</b> y vincula de cero.
         </p>
 
