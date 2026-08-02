@@ -1117,7 +1117,11 @@ export async function runBotAction(request: Request): Promise<Response> {
                 providers.push({
                   name: "lovable",
                   url: "https://ai.gateway.lovable.dev/v1/chat/completions",
-                  headers: { Authorization: `Bearer ${lovableKey}`, "Content-Type": "application/json" },
+                  headers: {
+                    "Lovable-API-Key": lovableKey,
+                    "X-Lovable-AIG-SDK": "vercel-ai-sdk",
+                    "Content-Type": "application/json",
+                  },
                   primaryModel: "google/gemini-3.6-flash",
                   fallbackModel: "google/gemini-3.1-flash-lite",
                 });
