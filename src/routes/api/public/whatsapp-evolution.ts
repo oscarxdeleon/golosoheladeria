@@ -402,7 +402,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             // Siempre se responde por la instancia canónica de la sede: el
             // nombre que llega en el evento puede estar desactualizado.
             const canonicalInstance = `goloso-${branchId}`;
-            const sent = await sendText(canonicalInstance, from, reply, auth.device_token);
+            const sent = await sendReply(canonicalInstance, from, reply, auth.device_token);
             await completeIncoming(
               auth.device_token,
               messageId,
