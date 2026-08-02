@@ -59,7 +59,7 @@ export function detectIntent(input: string): BotIntent {
   if (/\b(quita|quitar|elimina|eliminar|borra|borrar|sin ese)\b/.test(n)) return "eliminar";
   if (/\b(cambia|cambiar|modificar|modifica|en vez de|mejor)\b/.test(n)) return "modificar";
   if (/\b(agrega|agregar|añade|anade|suma|tambien quiero|y ademas)\b/.test(n)) return "agregar";
-  if (/\b(pedido|pedir|quiero|deme|dame|comprar|orden|llevar|domicilio|envio|envío)\b/.test(n)) return "pedido";
+  if (/\b(pedido|pedir|quiero|quisiera|necesito|deseo|deme|dame|comprar|orden|llevar|domicilio|envio|envío)\b/.test(n)) return "pedido";
   if (/\b(horario|hora|abren|cierran|abierto|cerrado)\b/.test(n)) return "horarios";
   if (/\b(pago|pagar|nequi|daviplata|transferencia|efectivo|tarjeta|datafono)\b/.test(n)) return "pagos";
   if (/\b(sede|sedes|sucursal|direccion|ubicacion|donde quedan|donde estan)\b/.test(n)) return "sedes";
