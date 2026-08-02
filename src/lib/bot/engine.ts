@@ -2,7 +2,7 @@ import { callRpc, elapsedMs, formatCOP, json, logBotEvent, makeConversationId, t
 import { ProductLite, detectIntent, extractAllEntitiesFromText, hasRecentProductEvidence, isAlreadyOrderedTurn, isConfirmation, isGeneralHelpTurn, looksLikeBareAddress, looksLikeBareCustomerName, looksLikeBareNeighborhood, normalizeText, sameReply, selectRelevantFaqs, selectRelevantProducts } from "@/lib/bot/nlu";
 import { BranchInfo, DEFAULT_MENU_LINK, avoidRepeatedReply, fallbackOrderReply, isCancelOrNegativeTurn, normalizeMenuLink, pickWelcomeMessage, shortCircuitReply } from "@/lib/bot/replies";
 import { buildActiveSessionFallback, buildCartProgressReply, cartItems, effectiveOrderType, fieldText, hasSessionData, missingCartFields, nextFsmState, persistCartPatch } from "@/lib/bot/cart";
-import { buildCatalogReply } from "@/lib/bot/catalog-match";
+import { buildCatalogReply, matchCatalogProducts } from "@/lib/bot/catalog-match";
 import { buildCartStateBlock, buildContinuityBlock, buildOrderingPromptBlock, buildPendingProductBlock } from "@/lib/bot/prompt";
 import { ORDERING_TOOLS } from "@/lib/bot/tools";
 import { trackGeminiCall } from "@/lib/gemini-quota.server";
@@ -512,8 +512,14 @@ export async function runBotAction(request: Request): Promise<Response> {
                 ? ctx.flavor_groups as Array<{ group_name?: string; flavors?: Array<{ name?: string; extra_price?: number | null }> }>
                 : [];
               const allProducts = Array.isArray(ctx.products) ? ctx.products as ProductLite[] : [];
-              // Reducido de 60 → 20: recorta ~4-6k tokens por request sin afectar precisión.
-              const products = selectRelevantProducts(allProducts, text, 12);
+              // El emparejador tolerante (sinónimos, plurales y errores) debe
+              // decidir primero qué ve la IA. Completamos con relevancia
+              // literal solo para consultas generales sin coincidencia fuzzy.
+              const fuzzyProducts = matchCatalogProducts(allProducts, text, 12).map((match) => match.product);
+              const products = Array.from(new Map(
+                [...fuzzyProducts, ...selectRelevantProducts(allProducts, text, 12)]
+                  .map((product) => [String(product.id ?? product.name), product]),
+              ).values()).slice(0, 12);
 
               const fmtCOP = formatCOP;
 
