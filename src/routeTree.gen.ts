@@ -71,6 +71,7 @@ import { Route as ApiPublicWhatsappEvolutionRouteImport } from './routes/api/pub
 import { Route as ApiPublicWhatsappBotRouteImport } from './routes/api/public/whatsapp-bot'
 import { Route as ApiPublicUserAdminRouteImport } from './routes/api/public/user-admin'
 import { Route as ApiPublicFaqExtractRouteImport } from './routes/api/public/faq-extract'
+import { Route as ApiPublicBotRefreshRouteImport } from './routes/api/public/bot-refresh'
 import { Route as AuthenticatedReportesVentasRouteImport } from './routes/_authenticated/reportes.ventas'
 import { Route as AuthenticatedReportesResumenRouteImport } from './routes/_authenticated/reportes.resumen'
 import { Route as AuthenticatedReportesCajasRouteImport } from './routes/_authenticated/reportes.cajas'
@@ -406,6 +407,11 @@ const ApiPublicFaqExtractRoute = ApiPublicFaqExtractRouteImport.update({
   path: '/api/public/faq-extract',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicBotRefreshRoute = ApiPublicBotRefreshRouteImport.update({
+  id: '/api/public/bot-refresh',
+  path: '/api/public/bot-refresh',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AuthenticatedReportesVentasRoute =
   AuthenticatedReportesVentasRouteImport.update({
     id: '/ventas',
@@ -539,6 +545,7 @@ export interface FileRoutesByFullPath {
   '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/bot-refresh': typeof ApiPublicBotRefreshRoute
   '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
@@ -612,6 +619,7 @@ export interface FileRoutesByTo {
   '/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/bot-refresh': typeof ApiPublicBotRefreshRoute
   '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
@@ -689,6 +697,7 @@ export interface FileRoutesById {
   '/_authenticated/reportes/cajas': typeof AuthenticatedReportesCajasRoute
   '/_authenticated/reportes/resumen': typeof AuthenticatedReportesResumenRoute
   '/_authenticated/reportes/ventas': typeof AuthenticatedReportesVentasRoute
+  '/api/public/bot-refresh': typeof ApiPublicBotRefreshRoute
   '/api/public/faq-extract': typeof ApiPublicFaqExtractRoute
   '/api/public/user-admin': typeof ApiPublicUserAdminRoute
   '/api/public/whatsapp-bot': typeof ApiPublicWhatsappBotRoute
@@ -766,6 +775,7 @@ export interface FileRouteTypes {
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
+    | '/api/public/bot-refresh'
     | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
@@ -839,6 +849,7 @@ export interface FileRouteTypes {
     | '/reportes/cajas'
     | '/reportes/resumen'
     | '/reportes/ventas'
+    | '/api/public/bot-refresh'
     | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
@@ -915,6 +926,7 @@ export interface FileRouteTypes {
     | '/_authenticated/reportes/cajas'
     | '/_authenticated/reportes/resumen'
     | '/_authenticated/reportes/ventas'
+    | '/api/public/bot-refresh'
     | '/api/public/faq-extract'
     | '/api/public/user-admin'
     | '/api/public/whatsapp-bot'
@@ -946,6 +958,7 @@ export interface RootRouteChildren {
   SSlugRoute: typeof SSlugRouteWithChildren
   TTableNumberRoute: typeof TTableNumberRoute
   TabletAutoTokenRoute: typeof TabletAutoTokenRoute
+  ApiPublicBotRefreshRoute: typeof ApiPublicBotRefreshRoute
   ApiPublicFaqExtractRoute: typeof ApiPublicFaqExtractRoute
   ApiPublicUserAdminRoute: typeof ApiPublicUserAdminRoute
   ApiPublicWhatsappBotRoute: typeof ApiPublicWhatsappBotRoute
@@ -1390,6 +1403,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPublicFaqExtractRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/bot-refresh': {
+      id: '/api/public/bot-refresh'
+      path: '/api/public/bot-refresh'
+      fullPath: '/api/public/bot-refresh'
+      preLoaderRoute: typeof ApiPublicBotRefreshRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_authenticated/reportes/ventas': {
       id: '/_authenticated/reportes/ventas'
       path: '/ventas'
@@ -1628,6 +1648,7 @@ const rootRouteChildren: RootRouteChildren = {
   SSlugRoute: SSlugRouteWithChildren,
   TTableNumberRoute: TTableNumberRoute,
   TabletAutoTokenRoute: TabletAutoTokenRoute,
+  ApiPublicBotRefreshRoute: ApiPublicBotRefreshRoute,
   ApiPublicFaqExtractRoute: ApiPublicFaqExtractRoute,
   ApiPublicUserAdminRoute: ApiPublicUserAdminRoute,
   ApiPublicWhatsappBotRoute: ApiPublicWhatsappBotRoute,
