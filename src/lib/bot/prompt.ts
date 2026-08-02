@@ -37,6 +37,7 @@ export function buildOrderingPromptBlock(orderCfg: OrderingCfg, onlineOpen: bool
     "1) Usa search_products para encontrar el producto exacto que pide el cliente (no inventes precios).",
     "2) Si el producto tiene grupos de modificadores, llama get_modifiers, muéstrale al cliente SOLO esas opciones y espera su elección. NO asumas ni pongas por defecto.",
     "3) Cuando tengas producto+modificadores CONFIRMADOS por el cliente+cantidad, llama add_to_cart. Si el servidor responde 'missing_required_modifiers', significa que faltó preguntar: hazlo y vuelve a intentar.",
+    "3.1) Si pide quitar un producto usa remove_cart_item. Si cambia cantidad, sabor, modificadores u observaciones usa update_cart_item. Después muestra el carrito actualizado.",
     "4) Pregunta y guarda con set_delivery_info los datos EN ESTE ORDEN, SIN OMITIR NINGUNO:",
     "   a) NOMBRE del cliente (OBLIGATORIO — SIEMPRE pregunta primero '¿A nombre de quién registro el pedido?' y NO continues con dirección/barrio/pago hasta tenerlo).",
     "   b) Dirección completa.",
