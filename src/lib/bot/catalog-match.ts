@@ -127,12 +127,21 @@ export function matchCatalogCategory(products: ProductLite[], input: string): st
  * el asistente muestra productos reales con precios reales y avanza el pedido.
  */
 export function buildCatalogReply(
-  products: ProductLite[],
+  allProducts: ProductLite[],
   input: string,
   fmtCOP: (value: number) => string,
   orderingEnabled: boolean,
 ): string | null {
-  if (!Array.isArray(products) || products.length === 0) return null;
+  if (!Array.isArray(allProducts) || allProducts.length === 0) return null;
+  // Deduplicamos por nombre: el catálogo puede traer el mismo producto
+  // replicado entre sedes y el cliente no debe ver la lista repetida.
+  const seen = new Set<string>();
+  const products = allProducts.filter((p) => {
+    const key = normalizeText(String(p?.name ?? ""));
+    if (!key || seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
 
   const category = matchCatalogCategory(products, input);
   if (category) {
