@@ -2,6 +2,7 @@ import { callRpc, elapsedMs, formatCOP, json, logBotEvent, makeConversationId, t
 import { ProductLite, detectIntent, extractAllEntitiesFromText, hasRecentProductEvidence, isAlreadyOrderedTurn, isConfirmation, isGeneralHelpTurn, looksLikeBareAddress, looksLikeBareCustomerName, looksLikeBareNeighborhood, normalizeText, sameReply, selectRelevantFaqs, selectRelevantProducts } from "@/lib/bot/nlu";
 import { BranchInfo, DEFAULT_MENU_LINK, avoidRepeatedReply, fallbackOrderReply, isCancelOrNegativeTurn, normalizeMenuLink, pickWelcomeMessage, shortCircuitReply } from "@/lib/bot/replies";
 import { buildActiveSessionFallback, buildCartProgressReply, cartItems, effectiveOrderType, fieldText, hasSessionData, missingCartFields, nextFsmState, persistCartPatch } from "@/lib/bot/cart";
+import { buildCatalogReply } from "@/lib/bot/catalog-match";
 import { buildCartStateBlock, buildContinuityBlock, buildOrderingPromptBlock, buildPendingProductBlock } from "@/lib/bot/prompt";
 import { ORDERING_TOOLS } from "@/lib/bot/tools";
 import { trackGeminiCall } from "@/lib/gemini-quota.server";
