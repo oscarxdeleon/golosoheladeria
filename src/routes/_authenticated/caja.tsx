@@ -32,6 +32,12 @@ import {
   type ValidationResult,
   type PendingCategory,
 } from "@/lib/close-cash-validation";
+import {
+  loadCashCloseDraft,
+  saveCashCloseDraft,
+  clearCashCloseDraft,
+  isDraftEmpty,
+} from "@/lib/cash-close-draft";
 
 export const Route = createFileRoute("/_authenticated/caja")({
   head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
