@@ -346,18 +346,22 @@ function CajaPage() {
 
       // Enviar reporte por correo en segundo plano (silencioso si no está configurado)
       sendReport({ data: { sessionId: closed.id } })
-        .then((r: { sent?: boolean; skipped?: boolean; reason?: string }) => {
+        .then((r: { sent?: boolean; skipped?: boolean; reason?: string; results?: Array<{ error?: string }> }) => {
           if (r?.sent) toast.success("Reporte enviado por correo");
-          else if (r?.skipped) console.info("[cash-report] skipped:", r.reason);
+          else if (r?.skipped) toast.warning(`Correo no enviado: ${r.reason ?? "sin configurar"}`);
+          else {
+            const err = r?.results?.find((x) => x.error)?.error;
+            toast.error(`Correo no enviado${err ? `: ${err}` : ""}`);
+          }
         })
-        .catch((e: Error) => console.warn("[cash-report] error:", e.message));
+        .catch((e: Error) => toast.error(`Correo no enviado: ${e.message}`));
 
-      // Enviar reporte por WhatsApp a los números configurados de la sede.
-      // El cajero no ve el contenido; se encola y envía desde el bot local.
+      // Reporte por WhatsApp: se encola y se entrega de inmediato por Evolution.
       sendReportWa({ data: { sessionId: closed.id } })
-        .then((r: { queued?: number; skipped?: boolean; reason?: string }) => {
-          if (r?.queued) toast.success(`Reporte encolado a ${r.queued} número(s) de WhatsApp`);
+        .then((r: { queued?: number; sent?: number; failed?: number; skipped?: boolean; reason?: string; error?: string }) => {
+          if (r?.sent) toast.success(`Reporte enviado por WhatsApp a ${r.sent} número(s)`);
           else if (r?.skipped) console.info("[cash-report-wa] skipped:", r.reason);
+          else if (r?.queued) toast.error(`WhatsApp no enviado${r.error ? `: ${r.error}` : ""}`);
         })
         .catch((e: Error) => console.warn("[cash-report-wa] error:", e.message));
 
