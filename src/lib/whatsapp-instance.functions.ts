@@ -17,26 +17,46 @@ function api() {
 }
 
 /**
- * URL pública del POS. Se detecta SOLA desde la petición actual (funciona igual
- * en Vercel, en el dominio de Lovable o en un dominio propio, sin configurar
- * nada). La variable de entorno queda solo como respaldo.
+ * Dominio público OFICIAL del POS (despliegue de producción en Vercel).
+ * El webhook SIEMPRE debe apuntar aquí: si se configura desde la vista previa
+ * de Lovable, los mensajes de WhatsApp los atiende ese despliegue antiguo y los
+ * cambios publicados en Vercel nunca se ven reflejados en el chatbot.
+ */
+export const CANONICAL_POS_BASE = "https://golosoheladeria.vercel.app";
+
+/** Hosts que NUNCA deben quedar registrados como webhook de WhatsApp. */
+function isNonProductionHost(host: string) {
+  return /^(localhost|127\.0\.0\.1|\[::1\])/i.test(host)
+    || /lovable\.app$/i.test(host)
+    || /lovableproject\.com$/i.test(host)
+    || /\.vercel\.app$/i.test(host) && /-git-|-[a-z0-9]{9,}\./i.test(host); // previews de Vercel
+}
+
+/**
+ * URL pública del POS usada para el webhook. Prioridad:
+ *  1. Variable de entorno POS_PUBLIC_URL (permite mover el dominio sin código).
+ *  2. Host de la petición actual, solo si es un dominio de producción.
+ *  3. Dominio canónico de producción.
  */
 async function publicBase(): Promise<string> {
+  const configured = readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL;
+  if (configured && configured.trim()) return configured.trim().replace(/\/$/, "");
   try {
     const { getRequest } = await import("@tanstack/react-start/server");
     const req = getRequest();
     const u = new URL(req.url);
     const host = req.headers.get("x-forwarded-host") || u.host;
     const proto = req.headers.get("x-forwarded-proto") || u.protocol.replace(":", "");
-    if (host && !/^(localhost|127\.0\.0\.1|\[::1\])/i.test(host)) return `${proto}://${host}`;
-  } catch { /* fuera de contexto de petición: usamos el respaldo */ }
-  return (readEvolutionEnv("POS_PUBLIC_URL") || process.env.PUBLIC_URL || "https://golosoheladeria.lovable.app").replace(/\/$/, "");
+    if (host && !isNonProductionHost(host)) return `${proto}://${host}`;
+  } catch { /* fuera de contexto de petición: usamos el dominio canónico */ }
+  return CANONICAL_POS_BASE;
 }
 
 /** URL limpia: el token ya NO viaja en el query string, va en un header privado. */
 async function webhookUrl() {
   return `${await publicBase()}/api/public/whatsapp-evolution`;
 }
+
 
 /** Token propio de la sede (rotable). Fallback: token global de entorno. */
 async function branchWebhookToken(branchId: string, supabase: any): Promise<string> {
