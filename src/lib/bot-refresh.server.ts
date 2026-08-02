@@ -1,3 +1,6 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import type { Database } from "@/integrations/supabase/types";
+
 const SYNC_TARGETS = [
   { name: "Lovable", base: "https://golosoheladeria.lovable.app" },
   { name: "Vercel", base: "https://golosoheladeria-swart.vercel.app" },
@@ -81,9 +84,7 @@ async function refreshTarget(
 }
 
 export async function synchronizeChatbot(
-  supabase: {
-    rpc: (name: string, args?: Record<string, unknown>) => PromiseLike<{ data: unknown; error: { message: string } | null }>;
-  },
+  supabase: SupabaseClient<Database>,
 ): Promise<ChatbotRefreshResult> {
   const { data: bumped, error: bumpError } = await supabase.rpc("bot_bump_config_revision");
   if (bumpError) throw new Error(bumpError.message);
