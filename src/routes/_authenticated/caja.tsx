@@ -364,6 +364,9 @@ function CajaPage() {
       setCloseDialog(false);
       setCashCounted(""); setNequiCounted(""); setBancoCounted(""); setClosingNotes("");
       setCoinQty({}); setBillQty({});
+      // El borrador sólo se elimina cuando el cierre fue exitoso.
+      if (activeBranchId && current?.id) clearCashCloseDraft(activeBranchId, current.id);
+      draftRestoredRef.current = null;
       setCloseResult(closed);
       await qc.refetchQueries({ queryKey: ["cash-sessions-history"] });
     } catch (e) {
