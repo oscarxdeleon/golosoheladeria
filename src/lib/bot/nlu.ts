@@ -50,6 +50,9 @@ export type BotIntent =
   | "pedido" | "agregar" | "modificar" | "eliminar" | "confirmar" | "cancelar"
   | "asesor" | "otro";
 
+const ORDER_VERB_PATTERN = "pedido|pedir|quiero|quisiera|necesito|necesitaria|deseo|deme|dame|regalame|me das|me da|me provoca|se me antoja|comprar|orden|llevar|domicilio|envio";
+const ORDER_VERB_REGEX = new RegExp(`\\b(${ORDER_VERB_PATTERN})\\b`);
+
 export function detectIntent(input: string): BotIntent {
   const n = normalizeText(input);
   if (!n) return "otro";
@@ -59,7 +62,7 @@ export function detectIntent(input: string): BotIntent {
   if (/\b(quita|quitar|elimina|eliminar|borra|borrar|sin ese)\b/.test(n)) return "eliminar";
   if (/\b(cambia|cambiar|modificar|modifica|en vez de|mejor)\b/.test(n)) return "modificar";
   if (/\b(agrega|agregar|añade|anade|suma|tambien quiero|y ademas)\b/.test(n)) return "agregar";
-  if (/\b(pedido|pedir|quiero|quisiera|necesito|deseo|deme|dame|comprar|orden|llevar|domicilio|envio|envío)\b/.test(n)) return "pedido";
+  if (ORDER_VERB_REGEX.test(n)) return "pedido";
   if (/\b(horario|hora|abren|cierran|abierto|cerrado)\b/.test(n)) return "horarios";
   if (/\b(pago|pagar|nequi|daviplata|transferencia|efectivo|tarjeta|datafono)\b/.test(n)) return "pagos";
   if (/\b(sede|sedes|sucursal|direccion|ubicacion|donde quedan|donde estan)\b/.test(n)) return "sedes";
@@ -304,7 +307,7 @@ export function hasCurrentTurnProductEvidence(input: string, productName: string
     .filter((word) => word.length >= 4 && !["sabor", "sabores", "helado", "helados", "goloso"].includes(word));
   const hasSpecificProductWord = productWords.some((word) => normalized.includes(word));
   const hasGenericOrderWord = /\b(cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
-  const hasOrderVerb = /\b(quiero|dame|deme|pedir|pedido|comprar|agrega|agregar|añade|añadir|anota|llevar|domicilio|recoger)\b/.test(normalized);
+  const hasOrderVerb = ORDER_VERB_REGEX.test(normalized) || /\b(agrega|agregar|anade|anadir|anota|recoger)\b/.test(normalized);
   return (hasSpecificProductWord || hasGenericOrderWord) && hasOrderVerb;
 }
 
@@ -314,7 +317,7 @@ export function hasRecentProductEvidence(input: string, productName: string) {
     .filter((word) => word.length >= 4 && !["sabor", "sabores", "helado", "helados", "goloso"].includes(word));
   const hasSpecificProductWord = productWords.some((word) => normalized.includes(word));
   const hasGenericOrderWord = /\b(cono|vaso|copa|estrella|malteada|jugo|banana|ensalada|brownie|waffle|cholado|fresas|crema|cremas|litro|medio|paleta|gelatina)\b/.test(normalized);
-  const hasOrderVerb = /\b(quiero|dame|deme|pedir|pedido|comprar|agrega|agregar|añade|añadir|anota|llevar|domicilio|recoger)\b/.test(normalized);
+  const hasOrderVerb = ORDER_VERB_REGEX.test(normalized) || /\b(agrega|agregar|anade|anadir|anota|recoger)\b/.test(normalized);
   return hasCurrentTurnProductEvidence(input, productName) || ((hasSpecificProductWord || hasGenericOrderWord) && hasOrderVerb);
 }
 

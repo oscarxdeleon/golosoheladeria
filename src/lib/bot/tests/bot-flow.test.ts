@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { test, describe } from "node:test";
-import { detectIntent } from "../nlu";
+import { detectIntent, hasRecentProductEvidence } from "../nlu";
 import { nextFsmState, missingCartFields, summarizeCart } from "../cart";
 import { avoidRepeatedReply, fallbackOrderReply, operationalReply, shortCircuitReply } from "../replies";
 
@@ -45,6 +45,8 @@ describe("WhatsApp Bot Logic Validation", () => {
         "Quiero un helado",
         "Quiero una ensalada",
         "Necesito un vaso de helado",
+        "Quisiera una ensalada",
+        "Regálame un helado",
         "Quiero dos helados de fresa",
         "Agregar otro producto",
       ]) {
@@ -53,6 +55,11 @@ describe("WhatsApp Bot Logic Validation", () => {
         assert.notEqual(intent, "saludo");
         assert.doesNotMatch(fallbackOrderReply(input, menuLink, true, true), /https?:\/\//);
       }
+    });
+
+    test("natural purchase verbs are valid recent product evidence", () => {
+      assert.equal(hasRecentProductEvidence("Necesito una ensalada de frutas", "ENSALADA FRUTAS 1 SABOR HELADO"), true);
+      assert.equal(hasRecentProductEvidence("Regálame un cono", "CONO 1 SABOR HELADO"), true);
     });
 
     test("only explicit short menu requests are short-circuited to the menu", () => {
