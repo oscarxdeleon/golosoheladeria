@@ -111,6 +111,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "attendance_employees_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "attendance_employees_profile_id_fkey"
             columns: ["profile_id"]
             isOneToOne: false
@@ -277,6 +284,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "attendance_terminals_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       audit_log: {
@@ -429,6 +443,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "branch_detection_log_detected_branch_id_fkey"
+            columns: ["detected_branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       branch_print_settings: {
@@ -468,6 +489,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: true
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "branch_print_settings_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -611,6 +639,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "cash_deposits_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "cash_deposits_cash_session_id_fkey"
             columns: ["cash_session_id"]
             isOneToOne: false
@@ -736,6 +771,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "cash_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       categories: {
@@ -807,6 +849,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "company_holidays_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       couriers: {
@@ -846,6 +895,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "couriers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -896,6 +952,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credit_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -973,6 +1036,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "credits_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -1140,6 +1210,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "expense_categories_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       expenses: {
@@ -1188,6 +1265,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "expenses_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -1335,6 +1419,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "kiosk_feedback_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "kiosk_feedback_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
@@ -1382,6 +1473,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "modifier_groups_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       modifiers: {
@@ -1421,6 +1519,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "modifiers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -1486,6 +1591,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "payroll_late_rules_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       payroll_manual_deductions: {
@@ -1531,6 +1643,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payroll_manual_deductions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -1647,6 +1766,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "payroll_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "payroll_payments_employee_id_fkey"
             columns: ["employee_id"]
             isOneToOne: false
@@ -1710,6 +1836,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "print_jobs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -1785,6 +1918,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "printers_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -1906,6 +2046,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "profiles_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       purchase_items: {
@@ -2018,6 +2165,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "purchases_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "purchases_cash_session_id_fkey"
             columns: ["cash_session_id"]
             isOneToOne: false
@@ -2090,6 +2244,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "restaurant_tables_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -2169,6 +2330,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rooms_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -2280,6 +2448,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sale_modifications_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -2433,6 +2608,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "sales_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -2613,6 +2795,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "supplier_credit_payments_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "supplier_credit_payments_cash_session_id_fkey"
             columns: ["cash_session_id"]
             isOneToOne: false
@@ -2680,6 +2869,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supplier_credits_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -2782,6 +2978,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "table_events_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "table_events_sale_id_fkey"
             columns: ["sale_id"]
             isOneToOne: false
@@ -2847,6 +3050,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tablet_devices_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -2915,6 +3125,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "waiter_calls_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
           {
@@ -3014,6 +3231,13 @@ export type Database = {
             referencedColumns: ["id"]
           },
           {
+            foreignKeyName: "whatsapp_ai_carts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "whatsapp_ai_carts_posted_sale_id_fkey"
             columns: ["posted_sale_id"]
             isOneToOne: false
@@ -3067,6 +3291,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_ai_diagnostics_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       whatsapp_ai_messages: {
@@ -3100,6 +3331,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_messages_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -3138,6 +3376,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_ai_usage_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -3295,6 +3540,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_bot_config_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       whatsapp_bot_faqs: {
@@ -3336,6 +3588,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_bot_faqs_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       whatsapp_bot_greeted: {
@@ -3374,6 +3633,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_bot_greeted_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       whatsapp_bot_messages: {
@@ -3410,6 +3676,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_bot_messages_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -3462,6 +3735,13 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_hub_sessions_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: true
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
       whatsapp_inbound_receipts: {
@@ -3504,6 +3784,13 @@ export type Database = {
             columns: ["branch_id"]
             isOneToOne: false
             referencedRelation: "branches"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_inbound_receipts_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
             referencedColumns: ["id"]
           },
         ]
@@ -3556,11 +3843,47 @@ export type Database = {
             referencedRelation: "branches"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "whatsapp_outbound_queue_branch_id_fkey"
+            columns: ["branch_id"]
+            isOneToOne: false
+            referencedRelation: "public_branches"
+            referencedColumns: ["id"]
+          },
         ]
       }
     }
     Views: {
-      [_ in never]: never
+      public_branches: {
+        Row: {
+          address: string | null
+          id: string | null
+          is_main: boolean | null
+          name: string | null
+          phone: string | null
+          schedules: Json | null
+          slug: string | null
+        }
+        Insert: {
+          address?: string | null
+          id?: string | null
+          is_main?: boolean | null
+          name?: string | null
+          phone?: string | null
+          schedules?: Json | null
+          slug?: string | null
+        }
+        Update: {
+          address?: string | null
+          id?: string | null
+          is_main?: boolean | null
+          name?: string | null
+          phone?: string | null
+          schedules?: Json | null
+          slug?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       _daykey_from_date: { Args: { _d: string }; Returns: string }
