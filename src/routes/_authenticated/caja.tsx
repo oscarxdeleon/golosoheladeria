@@ -206,6 +206,51 @@ function CajaPage() {
     setCashCounted(cashFromDenoms > 0 ? formatThousands(String(cashFromDenoms)) : "");
   }, [cashFromDenoms]);
 
+  // ── Guardado automático del cierre (borrador local) ───────────────────────
+  // Restaura el último estado digitado al volver al módulo y guarda cada
+  // cambio con un pequeño debounce para no afectar el rendimiento.
+  const draftSessionId = current?.id ?? null;
+  const draftRestoredRef = useRef<string | null>(null);
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!activeBranchId || !draftSessionId) return;
+    const key = `${activeBranchId}:${draftSessionId}`;
+    if (draftRestoredRef.current === key) return;
+    draftRestoredRef.current = key;
+    const draft = loadCashCloseDraft(activeBranchId, draftSessionId);
+    if (!draft) return;
+    setCoinQty(draft.coinQty as unknown as Record<number, string>);
+    setBillQty(draft.billQty as unknown as Record<number, string>);
+    setNequiCounted(draft.nequiCounted);
+    setBancoCounted(draft.bancoCounted);
+    setClosingNotes(draft.closingNotes);
+    if (!isDraftEmpty(draft)) setDraftRestoredAt(draft.savedAt);
+  }, [activeBranchId, draftSessionId]);
+
+  useEffect(() => {
+    if (!activeBranchId || !draftSessionId) return;
+    if (draftRestoredRef.current !== `${activeBranchId}:${draftSessionId}`) return;
+    const payload = {
+      coinQty: coinQty as unknown as Record<string, string>,
+      billQty: billQty as unknown as Record<string, string>,
+      nequiCounted,
+      bancoCounted,
+      closingNotes,
+    };
+    const t = setTimeout(() => {
+      saveCashCloseDraft(activeBranchId, draftSessionId, payload);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [activeBranchId, draftSessionId, coinQty, billQty, nequiCounted, bancoCounted, closingNotes]);
+
+  // Aviso único al cajero de que se recuperó su conteo previo.
+  useEffect(() => {
+    if (draftRestoredAt == null) return;
+    toast.info("Se restauró el conteo de cierre que habías digitado.");
+    setDraftRestoredAt(null);
+  }, [draftRestoredAt]);
+
   // Live clock while the close dialog is open
   useEffect(() => {
     if (!closeDialog) return;
