@@ -1,0 +1,1 @@
+GRANT EXECUTE ON FUNCTION public.whatsapp_bot_get_ai_keys(text) TO anon;
