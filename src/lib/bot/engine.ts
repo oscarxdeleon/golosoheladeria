@@ -1042,7 +1042,8 @@ export async function runBotAction(request: Request): Promise<Response> {
 
               if (!lovableKey && !geminiKey) {
                 const reply = avoidRepeatedReply(
-                  buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                  buildCatalogReply(allProducts, text, fmtCOP, orderingEnabled)
+                    ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
                     ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo),
                   history,
                   menuLink,
