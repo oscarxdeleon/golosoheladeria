@@ -181,6 +181,76 @@ async function sendText(instance: string, number: string, text: string, deviceTo
   return false;
 }
 
+/**
+ * Envía la respuesta con opciones cliqueables cuando tiene sentido
+ * (tipo de pedido, medios de pago, categorías, confirmación…).
+ *
+ * WhatsApp no garantiza los mensajes interactivos en todos los dispositivos,
+ * así que el envío es progresivo: botones → lista → texto numerado. El
+ * cliente siempre recibe las opciones.
+ */
+async function sendReply(
+  instance: string,
+  number: string,
+  reply: string,
+  deviceToken?: string | null,
+) {
+  const { deriveQuickOptions, optionsAsText } = await import("@/lib/bot/interactive");
+  const set = deriveQuickOptions(reply);
+  if (!set) return sendText(instance, number, reply, deviceToken);
+
+  const { readEvolutionEnv } = await import("@/lib/evolution-env");
+  const url = (readEvolutionEnv("EVOLUTION_API_URL") || "").replace(/\/$/, "");
+  const key = readEvolutionEnv("EVOLUTION_API_KEY");
+
+  if (url && key) {
+    const post = async (path: string, body: unknown) => {
+      try {
+        const res = await fetch(`${url}${path}/${encodeURIComponent(instance)}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", apikey: key },
+          body: JSON.stringify(body),
+          signal: AbortSignal.timeout(25_000),
+        });
+        if (res.ok) return true;
+        console.warn("[evolution-webhook] interactivo no soportado", { path, status: res.status });
+      } catch (e) {
+        console.warn("[evolution-webhook] interactivo falló", { path, error: String(e) });
+      }
+      return false;
+    };
+
+    if (set.options.length <= 3) {
+      const ok = await post("/message/sendButtons", {
+        number,
+        title: "Heladería Goloso",
+        description: reply,
+        footer: set.footer ?? "Toca una opción",
+        buttons: set.options.map((o) => ({ type: "reply", displayText: o.label, id: o.id })),
+      });
+      if (ok) return true;
+    }
+
+    const okList = await post("/message/sendList", {
+      number,
+      title: "Heladería Goloso",
+      description: reply,
+      buttonText: "Ver opciones",
+      footerText: set.footer ?? "Toca una opción",
+      sections: [
+        {
+          title: "Opciones",
+          rows: set.options.map((o) => ({ title: o.label, rowId: o.id, description: "" })),
+        },
+      ],
+    });
+    if (okList) return true;
+  }
+
+  // Respaldo universal: mismas opciones, numeradas en texto.
+  return sendText(instance, number, optionsAsText(reply, set), deviceToken);
+}
+
 
 export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
