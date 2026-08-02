@@ -203,7 +203,10 @@ export function WhatsAppBotTab() {
         </Card>
       )}
 
+      {isAdmin && <ChatbotRefreshCard />}
+
       <WhatsAppInstanceCard branchId={branchId} />
+
 
       {/* Bot Windows (legacy) fue retirado. El Hub Centralizado es la única vía soportada. */}
 
