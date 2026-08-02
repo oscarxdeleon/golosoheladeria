@@ -1326,7 +1326,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                 const progressReply = await buildOperationalOrderReply();
                 finalReply = progressReply
                   ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
-                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo);
+                  ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {
                   ok: false,

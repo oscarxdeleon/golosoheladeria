@@ -55,6 +55,17 @@ async function callRpc(name: string, params: Record<string, unknown>) {
   return { ok: res.ok, status: res.status, data };
 }
 
+async function completeIncoming(deviceToken: string, messageId: string, delivered: boolean, error?: string) {
+  if (!messageId) return;
+  const result = await callRpc("whatsapp_bot_complete_incoming", {
+    _token: deviceToken,
+    _msg_id: messageId,
+    _delivered: delivered,
+    _error: error ?? null,
+  });
+  if (!result.ok) console.warn("[evolution-webhook] no pude cerrar recibo entrante", result.data);
+}
+
 type BranchAuth = {
   device_token: string | null;
   chatbot_mode: string | null;
@@ -224,6 +235,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
           return json({ ok: true, skipped: "not_direct_chat" });
         }
         const from = remoteJid.split("@")[0];
+        const messageId = String(msg?.key?.id ?? "");
         const text: string =
           msg?.message?.conversation ??
           msg?.message?.extendedTextMessage?.text ??
@@ -272,7 +284,7 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
                   from,
                   text: text.trim(),
                   message: text.trim(),
-                  msg_id: msg?.key?.id ?? undefined,
+                  msg_id: messageId || undefined,
                 }),
               }),
             );
@@ -300,16 +312,25 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
             // nombre que llega en el evento puede estar desactualizado.
             const canonicalInstance = `goloso-${branchId}`;
             const sent = await sendText(canonicalInstance, from, reply, auth.device_token);
+            await completeIncoming(
+              auth.device_token,
+              messageId,
+              sent,
+              sent ? undefined : "evolution_send_failed",
+            );
             return json({ ok: true, replied: sent, delivery: sent ? "sent" : "failed", instance: canonicalInstance });
           }
 
           const reason = out.data?.skipped ?? out.data?.error ?? (out.res.ok ? "empty_reply" : `bot_${out.res.status}`);
+          const duplicate = String(reason).startsWith("duplicate_message_");
+          if (!duplicate) await completeIncoming(auth.device_token, messageId, true);
           logSkip(auth.device_token, from, String(reason), { action, mode, status: out.res.status });
           return json({ ok: true, replied: false, skipped: reason });
 
 
         } catch (e) {
           console.error("[evolution-webhook] error procesando mensaje", e);
+          await completeIncoming(auth.device_token, messageId, false, String(e));
           logSkip(auth.device_token, from, "processing_failed", { error: String(e) });
           return json({ ok: false, error: "processing_failed" }, 200);
         }
