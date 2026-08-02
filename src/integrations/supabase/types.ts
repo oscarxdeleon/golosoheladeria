@@ -321,6 +321,69 @@ export type Database = {
         }
         Relationships: []
       }
+      bot_runtime_state: {
+        Row: {
+          config_revision: number
+          id: number
+          last_sync_at: string | null
+          last_sync_details: Json
+          last_sync_status: string | null
+          refresh_token: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          config_revision?: number
+          id?: number
+          last_sync_at?: string | null
+          last_sync_details?: Json
+          last_sync_status?: string | null
+          refresh_token?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          config_revision?: number
+          id?: number
+          last_sync_at?: string | null
+          last_sync_details?: Json
+          last_sync_status?: string | null
+          refresh_token?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      bot_sync_log: {
+        Row: {
+          config_revision: number | null
+          created_at: string
+          created_by: string | null
+          error: string | null
+          id: string
+          status: string
+          targets: Json
+        }
+        Insert: {
+          config_revision?: number | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          status: string
+          targets?: Json
+        }
+        Update: {
+          config_revision?: number | null
+          created_at?: string
+          created_by?: string | null
+          error?: string | null
+          id?: string
+          status?: string
+          targets?: Json
+        }
+        Relationships: []
+      }
       branch_detection_log: {
         Row: {
           created_at: string
@@ -3599,6 +3662,29 @@ export type Database = {
       }
       assert_current_user_is_admin: { Args: never; Returns: string }
       attend_waiter_call: { Args: { _call_id: string }; Returns: Json }
+      bot_bump_config_revision: {
+        Args: never
+        Returns: {
+          config_revision: number
+          refresh_token: string
+        }[]
+      }
+      bot_record_sync: {
+        Args: {
+          _error?: string
+          _revision: number
+          _status: string
+          _targets: Json
+        }
+        Returns: undefined
+      }
+      bot_refresh_authorize: {
+        Args: { _token: string }
+        Returns: {
+          config_revision: number
+          ok: boolean
+        }[]
+      }
       cancel_sale:
         | { Args: { _reason: string; _sale_id: string }; Returns: Json }
         | {

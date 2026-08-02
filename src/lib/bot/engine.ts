@@ -58,6 +58,28 @@ function setCachedContext(token: string, data: Record<string, unknown>) {
   }
 }
 
+// Revisión de configuración aplicada por este proceso. El botón "Actualizar
+// chatbot" del POS sube la revisión en la base y avisa a cada despliegue
+// (Lovable y Vercel) para que descarten sus cachés en caliente, sin tocar la
+// sesión de WhatsApp ni reiniciar nada.
+let appliedRevision = 0;
+
+export function getAppliedRevision() {
+  return appliedRevision;
+}
+
+export function clearBotCaches(revision?: number) {
+  contextCache.clear();
+  aiKeysCache = null;
+  aiProviderCooldown.clear();
+  if (typeof revision === "number" && Number.isFinite(revision)) {
+    appliedRevision = revision;
+  }
+  return appliedRevision;
+}
+
+
+
 // Claves de IA guardadas en la base de datos por el administrador.
 // Respaldo para despliegues (p. ej. Vercel) donde las variables de entorno
 // no están disponibles. Cache corto para no consultar en cada mensaje.
