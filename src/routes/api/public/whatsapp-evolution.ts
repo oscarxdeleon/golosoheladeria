@@ -185,7 +185,20 @@ async function sendText(instance: string, number: string, text: string, deviceTo
 export const Route = createFileRoute("/api/public/whatsapp-evolution")({
   server: {
     handlers: {
-      GET: () => json({ ok: true, service: "whatsapp-evolution-webhook" }),
+      GET: () =>
+        json({
+          ok: true,
+          service: "whatsapp-evolution-webhook",
+          // Permite verificar qué despliegue está atendiendo realmente el webhook.
+          deployment:
+            process.env.VERCEL_URL ??
+            process.env.VERCEL_BRANCH_URL ??
+            process.env.PUBLIC_URL ??
+            "unknown",
+          commit: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
+          built_at: process.env.VERCEL_DEPLOYMENT_ID ?? null,
+        }),
+
       POST: async ({ request }) => {
         const provided = request.headers.get("x-webhook-token") ?? "";
 
