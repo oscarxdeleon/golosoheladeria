@@ -166,7 +166,7 @@ export const refreshChatbot = createServerFn({ method: "POST" })
       _revision: revision,
       _status: status,
       _targets: results as unknown as never,
-      _error: allOk ? null : message,
+      _error: allOk ? undefined : message,
     });
 
     return { status, revision, targets: results, message };
