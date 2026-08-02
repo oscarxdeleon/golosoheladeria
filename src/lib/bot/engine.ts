@@ -1070,7 +1070,8 @@ export async function runBotAction(request: Request): Promise<Response> {
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
                   const reply = avoidRepeatedReply(
-                    buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                    buildCatalogReply(allProducts, text, fmtCOP, orderingEnabled)
+                      ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
                       ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo),
                     history,
                     menuLink,
