@@ -280,7 +280,16 @@ export function PublicOrder({
 
   const { data: settings } = useQuery({
     queryKey: ["public-settings"],
-    queryFn: async () => (await supabase.from("settings").select("*").eq("id", 1).maybeSingle()).data,
+    queryFn: async () =>
+      (
+        await supabase
+          .from("settings")
+          .select(
+            "id,business_name,address,city,phone,nit,logo_url,delivery_fee,tax_rate,enable_tips,schedules,menu_link,nequi_number,bancolombia_account,loyalty_enabled,loyalty_min_redeem,loyalty_point_value,loyalty_points_per_1000,loyalty_expiration_days,loyalty_welcome_text,ticket_header,ticket_footer,ticket_config",
+          )
+          .eq("id", 1)
+          .maybeSingle()
+      ).data,
     staleTime: 0,
     refetchOnWindowFocus: true,
   });
