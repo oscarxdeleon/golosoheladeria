@@ -207,6 +207,7 @@ export function WhatsAppBotTab() {
       )}
 
       {isAdmin && <ChatbotRefreshCard />}
+      {isAdmin && <VercelDeployCard />}
 
       <WhatsAppInstanceCard branchId={branchId} />
 
