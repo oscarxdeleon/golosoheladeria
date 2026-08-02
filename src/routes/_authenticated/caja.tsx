@@ -32,6 +32,12 @@ import {
   type ValidationResult,
   type PendingCategory,
 } from "@/lib/close-cash-validation";
+import {
+  loadCashCloseDraft,
+  saveCashCloseDraft,
+  clearCashCloseDraft,
+  isDraftEmpty,
+} from "@/lib/cash-close-draft";
 
 export const Route = createFileRoute("/_authenticated/caja")({
   head: () => ({ meta: [{ title: "Caja · Goloso POS" }] }),
@@ -200,6 +206,51 @@ function CajaPage() {
     setCashCounted(cashFromDenoms > 0 ? formatThousands(String(cashFromDenoms)) : "");
   }, [cashFromDenoms]);
 
+  // ── Guardado automático del cierre (borrador local) ───────────────────────
+  // Restaura el último estado digitado al volver al módulo y guarda cada
+  // cambio con un pequeño debounce para no afectar el rendimiento.
+  const draftSessionId = current?.id ?? null;
+  const draftRestoredRef = useRef<string | null>(null);
+  const [draftRestoredAt, setDraftRestoredAt] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!activeBranchId || !draftSessionId) return;
+    const key = `${activeBranchId}:${draftSessionId}`;
+    if (draftRestoredRef.current === key) return;
+    draftRestoredRef.current = key;
+    const draft = loadCashCloseDraft(activeBranchId, draftSessionId);
+    if (!draft) return;
+    setCoinQty(draft.coinQty as unknown as Record<number, string>);
+    setBillQty(draft.billQty as unknown as Record<number, string>);
+    setNequiCounted(draft.nequiCounted);
+    setBancoCounted(draft.bancoCounted);
+    setClosingNotes(draft.closingNotes);
+    if (!isDraftEmpty(draft)) setDraftRestoredAt(draft.savedAt);
+  }, [activeBranchId, draftSessionId]);
+
+  useEffect(() => {
+    if (!activeBranchId || !draftSessionId) return;
+    if (draftRestoredRef.current !== `${activeBranchId}:${draftSessionId}`) return;
+    const payload = {
+      coinQty: coinQty as unknown as Record<string, string>,
+      billQty: billQty as unknown as Record<string, string>,
+      nequiCounted,
+      bancoCounted,
+      closingNotes,
+    };
+    const t = setTimeout(() => {
+      saveCashCloseDraft(activeBranchId, draftSessionId, payload);
+    }, 300);
+    return () => clearTimeout(t);
+  }, [activeBranchId, draftSessionId, coinQty, billQty, nequiCounted, bancoCounted, closingNotes]);
+
+  // Aviso único al cajero de que se recuperó su conteo previo.
+  useEffect(() => {
+    if (draftRestoredAt == null) return;
+    toast.info("Se restauró el conteo de cierre que habías digitado.");
+    setDraftRestoredAt(null);
+  }, [draftRestoredAt]);
+
   // Live clock while the close dialog is open
   useEffect(() => {
     if (!closeDialog) return;
@@ -313,6 +364,9 @@ function CajaPage() {
       setCloseDialog(false);
       setCashCounted(""); setNequiCounted(""); setBancoCounted(""); setClosingNotes("");
       setCoinQty({}); setBillQty({});
+      // El borrador sólo se elimina cuando el cierre fue exitoso.
+      if (activeBranchId && current?.id) clearCashCloseDraft(activeBranchId, current.id);
+      draftRestoredRef.current = null;
       setCloseResult(closed);
       await qc.refetchQueries({ queryKey: ["cash-sessions-history"] });
     } catch (e) {
@@ -760,22 +814,17 @@ function CajaPage() {
               Number(closeResult.nequi_difference ?? 0) +
               Number(closeResult.bancolombia_difference ?? 0);
             const rounded = Math.round(total);
-            const isZero = rounded === 0;
-            const isPositive = rounded > 0;
-            const headerBg = isZero
-              ? "bg-gradient-to-br from-emerald-400/20 via-sky-400/15 to-emerald-500/10"
-              : isPositive
-              ? "bg-gradient-to-br from-amber-300/25 via-amber-400/15 to-yellow-500/10"
-              : "bg-gradient-to-br from-rose-400/25 via-red-400/15 to-rose-500/10";
-            const emoji = isZero ? "😊" : "😟";
-            const title = isZero
-              ? "¡Excelente trabajo!"
-              : isPositive
-              ? "Se detectó un sobrante en caja"
-              : "Se detectó un faltante en caja";
-            const subtitle = isZero
-              ? "Caja cuadrada perfectamente. No hay diferencias."
-              : "Por favor, revisa los movimientos registrados.";
+            // Cuadre exacto y sobrante se consideran cierres exitosos.
+            // Sólo el faltante muestra advertencia y el valor exacto.
+            const isShortage = rounded < 0;
+            const headerBg = isShortage
+              ? "bg-gradient-to-br from-rose-400/25 via-red-400/15 to-rose-500/10"
+              : "bg-gradient-to-br from-emerald-400/20 via-sky-400/15 to-emerald-500/10";
+            const emoji = isShortage ? "😟" : "😊";
+            const title = isShortage ? "Faltante en el cierre de caja" : "¡Cierre de caja exitoso!";
+            const subtitle = isShortage
+              ? "Revisa este faltante con el administrador."
+              : "Cierre de caja realizado exitosamente.";
             return (
               <>
                 <div className={`relative flex flex-col items-center gap-3 px-6 pt-8 pb-6 text-center ${headerBg}`}>
@@ -796,19 +845,21 @@ function CajaPage() {
                   </DialogHeader>
                 </div>
                 <div className="space-y-4 px-6 pb-6 pt-4">
-                  {!isZero && (
-                    <div className={`rounded-xl border p-4 text-center ${isPositive ? "border-amber-400/40 bg-amber-500/5" : "border-rose-400/40 bg-rose-500/5"}`}>
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {isPositive ? "Sobrante" : "Faltante"}
+                  {isShortage && (
+                    <>
+                      <div className="rounded-xl border border-rose-400/40 bg-rose-500/5 p-4 text-center">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Faltante
+                        </div>
+                        <div className="mt-1 font-display text-3xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                          −{formatMoney(Math.abs(rounded))}
+                        </div>
                       </div>
-                      <div className={`mt-1 font-display text-3xl font-bold tabular-nums ${isPositive ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"}`}>
-                        {isPositive ? "+" : "−"}{formatMoney(Math.abs(rounded))}
+                      <div className="rounded-md border bg-muted/40 p-3 text-center text-sm font-medium">
+                        Existe un faltante en el cierre de caja. Verifícalo con el administrador.
                       </div>
-                    </div>
+                    </>
                   )}
-                  <div className="rounded-md border bg-muted/40 p-3 text-center text-sm font-medium">
-                    Verifica con el administrador.
-                  </div>
                   <Button className="w-full" onClick={() => setCloseResult(null)}>Entendido</Button>
                 </div>
               </>
