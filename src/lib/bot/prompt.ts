@@ -30,7 +30,7 @@ export function buildOrderingPromptBlock(orderCfg: OrderingCfg, onlineOpen: bool
     "- NO uses add_to_cart hasta que el cliente diga QUÉ producto quiere Y hayas confirmado con él TODOS los modificadores obligatorios (sabor, tamaño, toppings requeridos). Si el producto tiene grupos requeridos y no tienes las opciones elegidas por el cliente, get_modifiers primero y pregúntale con lista clara: 'Para el/la X, ¿qué [sabor/tamaño] eliges? Tenemos: A, B, C'.",
     "- NUNCA elijas un modificador por el cliente. Si duda, ofrece las opciones y espera su respuesta.",
     "- Si el cliente solo saluda, pregunta precios o pide el menú, NO llames add_to_cart. Responde y espera a que él pida.",
-    "- Un mensaje ambiguo (\"quiero algo rico\", \"lo de siempre\", \"un helado\") NO es un pedido: pide especificación antes de tocar el carrito.",
+    "- Un mensaje realmente ambiguo (\"quiero algo rico\", \"lo de siempre\") requiere aclaración. \"Quiero/necesito un helado\" SÍ inicia un pedido: busca las presentaciones reales del catálogo y pregunta cuál prefiere (vaso, cono, copa u otra disponible), sin agregar nada hasta que la elija.",
     "- Solo llama confirm_order cuando el cliente diga explícitamente SÍ/CONFIRMO/DALE tras ver el resumen completo. Un simple \"ok\" o \"listo\" a media conversación NO confirma.",
     "",
     "PROTOCOLO OBLIGATORIO PARA TOMAR PEDIDOS:",

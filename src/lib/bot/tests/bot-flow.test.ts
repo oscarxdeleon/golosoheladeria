@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test, describe } from "node:test";
-import { detectIntent } from "../nlu";
+import { detectIntent, hasRecentProductEvidence } from "../nlu";
 import { nextFsmState, missingCartFields, summarizeCart } from "../cart";
-import { avoidRepeatedReply, fallbackOrderReply, operationalReply } from "../replies";
+import { avoidRepeatedReply, fallbackOrderReply, operationalReply, shortCircuitReply } from "../replies";
 
 describe("WhatsApp Bot Logic Validation", () => {
   const menuLink = "https://goloso.app/menu";
@@ -38,6 +38,34 @@ describe("WhatsApp Bot Logic Validation", () => {
     test("detects ordering intent", () => {
       assert.equal(detectIntent("quiero pedir un helado"), "pedido");
       assert.equal(detectIntent("deme 2 malteadas"), "pedido");
+    });
+
+    test("real ordering phrases never resolve to menu or greeting", () => {
+      for (const input of [
+        "Quiero un helado",
+        "Quiero una ensalada",
+        "Necesito un vaso de helado",
+        "Quisiera una ensalada",
+        "Regálame un helado",
+        "Quiero dos helados de fresa",
+        "Agregar otro producto",
+      ]) {
+        const intent = detectIntent(input);
+        assert.notEqual(intent, "menu");
+        assert.notEqual(intent, "saludo");
+        assert.doesNotMatch(fallbackOrderReply(input, menuLink, true, true), /https?:\/\//);
+      }
+    });
+
+    test("natural purchase verbs are valid recent product evidence", () => {
+      assert.equal(hasRecentProductEvidence("Necesito una ensalada de frutas", "ENSALADA FRUTAS 1 SABOR HELADO"), true);
+      assert.equal(hasRecentProductEvidence("Regálame un cono", "CONO 1 SABOR HELADO"), true);
+    });
+
+    test("only explicit short menu requests are short-circuited to the menu", () => {
+      assert.equal(shortCircuitReply("Quiero un helado", menuLink), null);
+      assert.equal(shortCircuitReply("Necesito un vaso de helado", menuLink), null);
+      assert.match(shortCircuitReply("menú", menuLink)?.reply ?? "", /https?:\/\//);
     });
   });
 

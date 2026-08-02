@@ -3403,22 +3403,37 @@ export type Database = {
       }
       whatsapp_inbound_receipts: {
         Row: {
+          attempts: number
           branch_id: string
+          completed_at: string | null
+          last_error: string | null
+          lease_until: string | null
           phone_key: string
           provider_message_id: string
           received_at: string
+          status: string
         }
         Insert: {
+          attempts?: number
           branch_id: string
+          completed_at?: string | null
+          last_error?: string | null
+          lease_until?: string | null
           phone_key: string
           provider_message_id: string
           received_at?: string
+          status?: string
         }
         Update: {
+          attempts?: number
           branch_id?: string
+          completed_at?: string | null
+          last_error?: string | null
+          lease_until?: string | null
           phone_key?: string
           provider_message_id?: string
           received_at?: string
+          status?: string
         }
         Relationships: [
           {
@@ -4062,6 +4077,15 @@ export type Database = {
       whatsapp_bot_append_menu_link: {
         Args: { _menu_link: string; _reply: string }
         Returns: string
+      }
+      whatsapp_bot_complete_incoming: {
+        Args: {
+          _delivered: boolean
+          _error?: string
+          _msg_id: string
+          _token: string
+        }
+        Returns: boolean
       }
       whatsapp_bot_contact_key: { Args: { _raw: string }; Returns: string }
       whatsapp_bot_enqueue_reply: {
