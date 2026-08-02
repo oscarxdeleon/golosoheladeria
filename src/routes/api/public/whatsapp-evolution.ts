@@ -249,11 +249,19 @@ export const Route = createFileRoute("/api/public/whatsapp-evolution")({
         }
         const from = remoteJid.split("@")[0];
         const messageId = String(msg?.key?.id ?? "");
+        // Además del texto libre, aceptamos las respuestas de los mensajes
+        // interactivos (botones, listas y quick replies) que envía el bot.
         const text: string =
           msg?.message?.conversation ??
           msg?.message?.extendedTextMessage?.text ??
           msg?.message?.imageMessage?.caption ??
+          msg?.message?.buttonsResponseMessage?.selectedDisplayText ??
+          msg?.message?.templateButtonReplyMessage?.selectedDisplayText ??
+          msg?.message?.listResponseMessage?.title ??
+          msg?.message?.listResponseMessage?.singleSelectReply?.selectedRowId ??
+          msg?.message?.interactiveResponseMessage?.body?.text ??
           "";
+
         if (!text.trim()) return json({ ok: true, skipped: "unsupported_message" });
 
         // Si llega un mensaje, la instancia está viva: corregimos el estado que
