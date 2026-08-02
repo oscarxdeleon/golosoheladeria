@@ -1021,7 +1021,7 @@ export async function runBotAction(request: Request): Promise<Response> {
               if (!lovableKey && !geminiKey) {
                 const reply = avoidRepeatedReply(
                   buildActiveSessionFallback(preloadedCart, fmtCOP, text)
-                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo),
+                    ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo),
                   history,
                   menuLink,
                 );
@@ -1047,7 +1047,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                 if (exhausted) {
                   const reply = avoidRepeatedReply(
                     buildActiveSessionFallback(preloadedCart, fmtCOP, text)
-                      ?? fallbackOrderReply(text, menuLink, orderingEnabled, alreadyGreeted, branchName, branchInfo),
+                      ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo),
                     history,
                     menuLink,
                   );
