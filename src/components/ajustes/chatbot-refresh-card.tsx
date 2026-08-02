@@ -16,6 +16,14 @@ type RuntimeState = {
   last_sync_status: string | null;
 };
 
+type SyncLogRow = {
+  id: string;
+  created_at: string;
+  config_revision: number | null;
+  status: string;
+  targets: unknown;
+};
+
 function fmt(value: string | null | undefined) {
   if (!value) return "—";
   return new Date(value).toLocaleString("es-CO", { dateStyle: "medium", timeStyle: "short" });
@@ -58,6 +66,18 @@ export function ChatbotRefreshCard() {
     },
   });
 
+  const { data: history } = useQuery({
+    queryKey: ["bot-sync-log"],
+    queryFn: async () => {
+      const { data } = await supabase
+        .from("bot_sync_log")
+        .select("id, created_at, config_revision, status, targets")
+        .order("created_at", { ascending: false })
+        .limit(8);
+      return (data ?? []) as SyncLogRow[];
+    },
+  });
+
   const { data: lastChange } = useQuery({
     queryKey: ["bot-content-last-change"],
     refetchInterval: 60_000,
@@ -86,7 +106,7 @@ export function ChatbotRefreshCard() {
     try {
       const out = await run({ data: {} as never });
       setResult(out);
-      if (out.status === "ok") toast.success("Chatbot actualizado y sincronizado");
+      if (out.status === "ok") toast.success("Chatbot actualizado y verificado");
       else if (out.status === "partial") toast.warning("Sincronización incompleta", { description: out.message });
       else toast.error("No se pudo sincronizar", { description: out.message });
     } catch (e) {
@@ -95,6 +115,7 @@ export function ChatbotRefreshCard() {
       setBusy(false);
       qc.invalidateQueries({ queryKey: ["bot-runtime-state"] });
       qc.invalidateQueries({ queryKey: ["bot-content-last-change"] });
+      qc.invalidateQueries({ queryKey: ["bot-sync-log"] });
     }
   };
 
@@ -107,7 +128,8 @@ export function ChatbotRefreshCard() {
         <CardDescription>
           Aplica de inmediato todos los cambios del chatbot (entrenamiento, preguntas y respuestas, prompts,
           bienvenidas, menú, productos, categorías, modificadores, horarios, domicilios y sedes) en Lovable y en
-          Vercel. No desconecta WhatsApp ni pide volver a escanear el QR.
+          Vercel, sincroniza la clave de IA y ejecuta pruebas funcionales reales. No desconecta WhatsApp ni pide
+          volver a escanear el QR.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -126,7 +148,7 @@ export function ChatbotRefreshCard() {
 
         <Button onClick={apply} disabled={busy} size="lg" className="w-full sm:w-auto">
           <RefreshCw className={`mr-2 h-4 w-4 ${busy ? "animate-spin" : ""}`} />
-          {busy ? "Aplicando cambios…" : "🔄 Actualizar chatbot"}
+          {busy ? "Aplicando cambios y verificando…" : "🔄 Actualizar chatbot"}
         </Button>
 
         {result && (
@@ -149,6 +171,44 @@ export function ChatbotRefreshCard() {
                   {t.error ? ` · ${t.error}` : ""}
                 </li>
               ))}
+            </ul>
+            {result.tests.length > 0 && (
+              <div className="mt-3">
+                <p className="text-xs font-semibold">Pruebas funcionales</p>
+                <ul className="mt-1 space-y-1 text-xs">
+                  {result.tests.map((t, i) => (
+                    <li key={`${t.target}-${i}`}>
+                      {t.ok ? "🟢" : "🔴"} <b>{t.target}</b> · “{t.prompt}” →{" "}
+                      <span className="text-muted-foreground">{t.reply.slice(0, 120)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            <p className="mt-2 text-xs text-muted-foreground">
+              Clave de IA sincronizada: {result.ai_key_synced ? "sí" : "no"} · Duración:{" "}
+              {(result.duration_ms / 1000).toFixed(1)} s
+            </p>
+          </div>
+        )}
+
+        {history && history.length > 0 && (
+          <div className="rounded-xl border p-3">
+            <p className="text-sm font-medium">Historial de versiones</p>
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+              {history.map((row) => {
+                const meta = (row.targets ?? {}) as { duration_ms?: number; tests?: unknown[] };
+                const tests = Array.isArray(meta.tests) ? meta.tests.length : 0;
+                return (
+                  <li key={row.id} className="flex flex-wrap gap-x-2">
+                    <span>{row.status === "ok" ? "🟢" : row.status === "partial" ? "🟡" : "🔴"}</span>
+                    <b className="text-foreground">v1.0.{row.config_revision ?? "?"}</b>
+                    <span>{fmt(row.created_at)}</span>
+                    {typeof meta.duration_ms === "number" && <span>· {(meta.duration_ms / 1000).toFixed(1)} s</span>}
+                    {tests > 0 && <span>· {tests} pruebas</span>}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

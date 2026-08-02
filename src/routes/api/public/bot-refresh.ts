@@ -62,7 +62,49 @@ async function authorize(token: string): Promise<{ ok: boolean; revision: number
   return { ok: true, revision: row.config_revision ?? null };
 }
 
+/**
+ * Publica en la base de datos la clave de IA válida de ESTE despliegue.
+ * Vercel no tiene `LOVABLE_API_KEY`; el chatbot allí lee la clave desde la
+ * base. Si esa clave quedó desactualizada, el gateway responde 403 y el bot
+ * pierde la IA (respuestas incoherentes o genéricas).
+ */
+async function publishAiKeys(): Promise<boolean> {
+  const env = process.env as Record<string, string | undefined>;
+  let published = false;
+  try {
+    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+    if (env.LOVABLE_API_KEY) {
+      const probe = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${env.LOVABLE_API_KEY}` },
+        body: JSON.stringify({
+          model: "google/gemini-3.6-flash",
+          messages: [{ role: "user", content: "ping" }],
+          max_tokens: 4,
+        }),
+        signal: AbortSignal.timeout(12_000),
+      }).catch(() => null);
+      if (probe?.ok) {
+        const { error } = await supabaseAdmin
+          .from("app_ai_credentials")
+          .upsert({ provider: "lovable", api_key: env.LOVABLE_API_KEY, updated_at: new Date().toISOString() });
+        if (!error) published = true;
+      }
+    }
+    if (env.GEMINI_API_KEY) {
+      const { error } = await supabaseAdmin
+        .from("app_ai_credentials")
+        .upsert({ provider: "gemini", api_key: env.GEMINI_API_KEY, updated_at: new Date().toISOString() });
+      if (!error) published = true;
+    }
+  } catch {
+    /* despliegue sin clave de servicio o sin claves de IA */
+  }
+  return published;
+}
+
 export const Route = createFileRoute("/api/public/bot-refresh")({
+
   server: {
     handlers: {
       // Sonda pública: sirve para comparar qué versión está sirviendo cada
@@ -84,8 +126,15 @@ export const Route = createFileRoute("/api/public/bot-refresh")({
         }
         if (!auth.ok) return json({ error: "unauthorized" }, 401);
 
+        // Si ESTE despliegue tiene una clave de IA válida en variables de
+        // entorno (caso Lovable), la publica en la base de datos para que los
+        // despliegues sin variables (Vercel) usen exactamente la misma clave.
+        // Esta era la causa raíz de que el chatbot perdiera la IA en Vercel.
+        const ai_key_published = await publishAiKeys();
+
         const { clearBotCaches } = await import("@/lib/bot/engine");
         const applied = clearBotCaches(auth.revision ?? undefined);
+
 
         return json({
           ok: true,
@@ -93,6 +142,8 @@ export const Route = createFileRoute("/api/public/bot-refresh")({
           expected_revision: auth.revision,
           in_sync: auth.revision === null ? true : applied === auth.revision,
           whatsapp_session: "untouched",
+          ai_key_published,
+
           ...deploymentInfo(),
         });
       },

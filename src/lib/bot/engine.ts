@@ -1144,7 +1144,7 @@ export async function runBotAction(request: Request): Promise<Response> {
               const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
               const callAiOnce = async (provider: AiProvider, model: string, timeoutMs = AI_CALL_TIMEOUT_MS) => {
                 const bodyReq: Record<string, unknown> = {
-                  model, messages, max_tokens: 800, temperature: 0.6,
+                  model, messages, max_tokens: 1200, temperature: 0.6,
                 };
                 if (orderingTools.length > 0) {
                   bodyReq.tools = orderingTools;
@@ -1207,9 +1207,15 @@ export async function runBotAction(request: Request): Promise<Response> {
                     const response = await callAiWithProvider(provider);
                     lastProvider = provider;
                     if (response.ok) return { response, provider };
-                    if (response.status === 429 || response.status === 402 || response.status >= 500) {
+                    // 401/403 = clave inválida o no registrada en ese despliegue
+                    // (caso típico en Vercel cuando la clave guardada quedó vieja).
+                    // Se descarta la caché de claves para releerlas y se intenta el
+                    // siguiente proveedor en vez de caer al modo determinista.
+                    const invalidKey = response.status === 401 || response.status === 403;
+                    if (invalidKey) aiKeysCache = null;
+                    if (invalidKey || response.status === 429 || response.status === 402 || response.status >= 500) {
                       lastResponse = response;
-                      if (response.status === 429 || response.status === 402) coolDownProvider(provider.name);
+                      if (invalidKey || response.status === 429 || response.status === 402) coolDownProvider(provider.name);
                       await logBotEvent(token, conversationId, from, "ai_provider_failover", {
                         ok: false,
                         error: `HTTP ${response.status}`,
@@ -1217,6 +1223,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                       });
                       continue;
                     }
+
                     return { response, provider };
                   } catch (error) {
                     lastError = error;
@@ -1405,9 +1412,17 @@ export async function runBotAction(request: Request): Promise<Response> {
 
 
 
+              // WhatsApp no entiende Markdown: **negrita** se ve literal.
+              finalReply = finalReply
+                .replace(/\*\*\*(.+?)\*\*\*/g, "*$1*")
+                .replace(/\*\*(.+?)\*\*/g, "*$1*")
+                .replace(/(^|\n)#{1,6}\s*/g, "$1")
+                .trim();
+
               // 6-7) Persistir turno + registrar uso. Fire-and-forget: ninguna
               // de estas escrituras afecta el texto que ve el cliente.
               const userLog = text && text.length > 0 ? text : "[nota de voz]";
+
               await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "user", _content: userLog });
               await callRpc("whatsapp_bot_ai_save_message", { _token: token, _phone: from, _role: "assistant", _content: finalReply });
               await callRpc("whatsapp_bot_ai_record_reply", { _token: token, _phone: from });
