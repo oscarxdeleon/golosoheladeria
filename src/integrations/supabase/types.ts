@@ -4169,6 +4169,19 @@ export type Database = {
         Args: { _branch_id: string }
         Returns: string
       }
+      whatsapp_queue_claim: {
+        Args: { _branch_id: string; _limit?: number }
+        Returns: {
+          body: string
+          id: string
+          purpose: string
+          to_phone: string
+        }[]
+      }
+      whatsapp_queue_complete: {
+        Args: { _error?: string; _id: string; _ok: boolean }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "cajero" | "mesero" | "domiciliario" | "supervisor"
