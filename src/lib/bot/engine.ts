@@ -2,6 +2,7 @@ import { callRpc, elapsedMs, formatCOP, json, logBotEvent, makeConversationId, t
 import { ProductLite, detectIntent, extractAllEntitiesFromText, hasRecentProductEvidence, isAlreadyOrderedTurn, isConfirmation, isGeneralHelpTurn, looksLikeBareAddress, looksLikeBareCustomerName, looksLikeBareNeighborhood, normalizeText, sameReply, selectRelevantFaqs, selectRelevantProducts } from "@/lib/bot/nlu";
 import { BranchInfo, DEFAULT_MENU_LINK, avoidRepeatedReply, fallbackOrderReply, isCancelOrNegativeTurn, normalizeMenuLink, pickWelcomeMessage, shortCircuitReply } from "@/lib/bot/replies";
 import { buildActiveSessionFallback, buildCartProgressReply, cartItems, effectiveOrderType, fieldText, hasSessionData, missingCartFields, nextFsmState, persistCartPatch } from "@/lib/bot/cart";
+import { buildCatalogReply } from "@/lib/bot/catalog-match";
 import { buildCartStateBlock, buildContinuityBlock, buildOrderingPromptBlock, buildPendingProductBlock } from "@/lib/bot/prompt";
 import { ORDERING_TOOLS } from "@/lib/bot/tools";
 import { trackGeminiCall } from "@/lib/gemini-quota.server";
@@ -86,27 +87,40 @@ export function clearBotCaches(revision?: number) {
 type CachedKeys = { keys: { lovable?: string; gemini?: string }; expiresAt: number };
 let aiKeysCache: CachedKeys | null = null;
 
-async function getStoredAiKeys(_token: string): Promise<{ lovable?: string; gemini?: string }> {
+async function getStoredAiKeys(token: string): Promise<{ lovable?: string; gemini?: string }> {
   if (aiKeysCache && Date.now() < aiKeysCache.expiresAt) return aiKeysCache.keys;
+  let data: Record<string, unknown> = {};
   try {
-    // Las credenciales nunca cruzan una RPC accesible con el token del bot.
-    // Se leen exclusivamente en el servidor mediante el cliente privilegiado.
+    // Ruta preferida: cliente privilegiado del servidor.
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const { data: rows, error } = await supabaseAdmin
       .from("app_ai_credentials")
       .select("provider, api_key");
     if (error) throw error;
-    const data = Object.fromEntries((rows ?? []).map((row) => [row.provider, row.api_key]));
-    const keys = {
-      lovable: typeof data?.lovable === "string" && data.lovable ? data.lovable : undefined,
-      gemini: typeof data?.gemini === "string" && data.gemini ? data.gemini : undefined,
-    };
-    aiKeysCache = { keys, expiresAt: Date.now() + 60_000 };
-    return keys;
+    data = Object.fromEntries((rows ?? []).map((row) => [row.provider, row.api_key]));
   } catch {
-    return {};
+    data = {};
   }
+  if (!data.lovable && !data.gemini) {
+    // Respaldo para despliegues sin clave de servicio (por ejemplo Vercel):
+    // la función valida el token secreto de la sede antes de devolver nada.
+    try {
+      const res = await callRpc("whatsapp_bot_get_ai_keys", { _token: token });
+      if (res.ok && res.data && typeof res.data === "object") {
+        data = res.data as Record<string, unknown>;
+      }
+    } catch {
+      /* sin claves disponibles */
+    }
+  }
+  const keys = {
+    lovable: typeof data?.lovable === "string" && data.lovable ? data.lovable : undefined,
+    gemini: typeof data?.gemini === "string" && data.gemini ? data.gemini : undefined,
+  };
+  aiKeysCache = { keys, expiresAt: Date.now() + 60_000 };
+  return keys;
 }
+
 
 
 
@@ -1042,7 +1056,8 @@ export async function runBotAction(request: Request): Promise<Response> {
 
               if (!lovableKey && !geminiKey) {
                 const reply = avoidRepeatedReply(
-                  buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                  buildCatalogReply(allProducts, text, fmtCOP, orderingEnabled)
+                    ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
                     ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo),
                   history,
                   menuLink,
@@ -1068,7 +1083,8 @@ export async function runBotAction(request: Request): Promise<Response> {
                 const exhausted = Boolean((qData as { exhausted?: boolean } | null)?.exhausted);
                 if (exhausted) {
                   const reply = avoidRepeatedReply(
-                    buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                    buildCatalogReply(allProducts, text, fmtCOP, orderingEnabled)
+                      ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
                       ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo),
                     history,
                     menuLink,
@@ -1348,6 +1364,7 @@ export async function runBotAction(request: Request): Promise<Response> {
                 const progressReply = await buildOperationalOrderReply();
                 finalReply = progressReply
                   ?? buildActiveSessionFallback(preloadedCart, fmtCOP, text)
+                  ?? buildCatalogReply(allProducts, text, fmtCOP, orderingEnabled)
                   ?? fallbackOrderReply(text, menuLink, orderingEnabled, true, branchName, branchInfo);
                 lastErr = lastErr ?? `fallback_used(finish=${lastFinishReason ?? "?"})`;
                 await logBotEvent(token, conversationId, from, "operational_fallback_used", {

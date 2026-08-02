@@ -109,7 +109,15 @@ export function avoidRepeatedReply(
     .slice(0, 3)
     .map((m) => m.content);
   if (!lastAssistants.some((prev) => prev && sameReply(reply, prev))) return reply;
-  return "Perdón, no te entendí bien 🙈 ¿Me lo dices de otra forma?";
+  // Nunca decimos "no te entendí": ofrecemos avanzar la venta con una
+  // pregunta útil y variada para no repetir el mismo texto.
+  const nudges = [
+    "¿Te muestro nuestros helados, malteadas o ensaladas de frutas? 🍦",
+    "Cuéntame qué se te antoja y te digo el precio al instante 😊",
+    "¿Lo quieres para recoger en la sede o a domicilio?",
+    "Puedo recomendarte lo más pedido de hoy, ¿te cuento? 🍨",
+  ];
+  return nudges[Math.floor(Math.random() * nudges.length)] as string;
 }
 
 /**
