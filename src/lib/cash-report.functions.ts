@@ -104,15 +104,21 @@ export const sendCashReport = createServerFn({ method: "POST" })
       return { skipped: true, reason: "Sede sin correos configurados" };
     }
 
-    // Sending goes through the Supabase Edge Function `resend-send`, which
-    // holds the Lovable-managed RESEND_API_KEY / LOVABLE_API_KEY. This lets
-    // the app work on any deployment target (Vercel included) without
-    // duplicating the connector secrets outside Lovable Cloud.
+    // Envío principal: Edge Function `resend-send` (guarda la llave de Resend).
+    // Si el despliegue tiene RESEND_API_KEY propia (p. ej. Vercel), se usa como
+    // respaldo directo para que el reporte no dependa de un solo camino.
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
     const relaySecret = process.env.REPORT_EMAIL_RELAY_SECRET;
-    if (!supabaseUrl || !supabaseAnon || !relaySecret) {
-      return { skipped: true, reason: "Backend no configurado (SUPABASE_URL/PUBLISHABLE_KEY)" };
+    const directResendKey = process.env.RESEND_API_KEY;
+    const canRelay = Boolean(supabaseUrl && supabaseAnon && relaySecret);
+    if (!canRelay && !directResendKey) {
+      const missing = [
+        !supabaseUrl ? "SUPABASE_URL" : null,
+        !supabaseAnon ? "SUPABASE_PUBLISHABLE_KEY" : null,
+        !relaySecret ? "REPORT_EMAIL_RELAY_SECRET" : null,
+      ].filter(Boolean).join(", ");
+      return { skipped: true, reason: `Envío de correo no configurado (falta ${missing || "RESEND_API_KEY"})` };
     }
 
 
