@@ -814,22 +814,17 @@ function CajaPage() {
               Number(closeResult.nequi_difference ?? 0) +
               Number(closeResult.bancolombia_difference ?? 0);
             const rounded = Math.round(total);
-            const isZero = rounded === 0;
-            const isPositive = rounded > 0;
-            const headerBg = isZero
-              ? "bg-gradient-to-br from-emerald-400/20 via-sky-400/15 to-emerald-500/10"
-              : isPositive
-              ? "bg-gradient-to-br from-amber-300/25 via-amber-400/15 to-yellow-500/10"
-              : "bg-gradient-to-br from-rose-400/25 via-red-400/15 to-rose-500/10";
-            const emoji = isZero ? "😊" : "😟";
-            const title = isZero
-              ? "¡Excelente trabajo!"
-              : isPositive
-              ? "Se detectó un sobrante en caja"
-              : "Se detectó un faltante en caja";
-            const subtitle = isZero
-              ? "Caja cuadrada perfectamente. No hay diferencias."
-              : "Por favor, revisa los movimientos registrados.";
+            // Cuadre exacto y sobrante se consideran cierres exitosos.
+            // Sólo el faltante muestra advertencia y el valor exacto.
+            const isShortage = rounded < 0;
+            const headerBg = isShortage
+              ? "bg-gradient-to-br from-rose-400/25 via-red-400/15 to-rose-500/10"
+              : "bg-gradient-to-br from-emerald-400/20 via-sky-400/15 to-emerald-500/10";
+            const emoji = isShortage ? "😟" : "😊";
+            const title = isShortage ? "Faltante en el cierre de caja" : "¡Cierre de caja exitoso!";
+            const subtitle = isShortage
+              ? "Revisa este faltante con el administrador."
+              : "Cierre de caja realizado exitosamente.";
             return (
               <>
                 <div className={`relative flex flex-col items-center gap-3 px-6 pt-8 pb-6 text-center ${headerBg}`}>
@@ -850,19 +845,21 @@ function CajaPage() {
                   </DialogHeader>
                 </div>
                 <div className="space-y-4 px-6 pb-6 pt-4">
-                  {!isZero && (
-                    <div className={`rounded-xl border p-4 text-center ${isPositive ? "border-amber-400/40 bg-amber-500/5" : "border-rose-400/40 bg-rose-500/5"}`}>
-                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                        {isPositive ? "Sobrante" : "Faltante"}
+                  {isShortage && (
+                    <>
+                      <div className="rounded-xl border border-rose-400/40 bg-rose-500/5 p-4 text-center">
+                        <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                          Faltante
+                        </div>
+                        <div className="mt-1 font-display text-3xl font-bold tabular-nums text-rose-600 dark:text-rose-400">
+                          −{formatMoney(Math.abs(rounded))}
+                        </div>
                       </div>
-                      <div className={`mt-1 font-display text-3xl font-bold tabular-nums ${isPositive ? "text-amber-600 dark:text-amber-400" : "text-rose-600 dark:text-rose-400"}`}>
-                        {isPositive ? "+" : "−"}{formatMoney(Math.abs(rounded))}
+                      <div className="rounded-md border bg-muted/40 p-3 text-center text-sm font-medium">
+                        Existe un faltante en el cierre de caja. Verifícalo con el administrador.
                       </div>
-                    </div>
+                    </>
                   )}
-                  <div className="rounded-md border bg-muted/40 p-3 text-center text-sm font-medium">
-                    Verifica con el administrador.
-                  </div>
                   <Button className="w-full" onClick={() => setCloseResult(null)}>Entendido</Button>
                 </div>
               </>
