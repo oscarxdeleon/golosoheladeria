@@ -206,5 +206,10 @@ _Notificación automática de Goloso POS_`;
     const { error: insErr } = await supabase.from("whatsapp_outbound_queue").insert(rows);
     if (insErr) throw new Error(`No se pudo encolar: ${insErr.message}`);
 
-    return { queued: rows.length };
+    // Entrega inmediata por Evolution API. Antes la cola la vaciaba el bot
+    // local; tras la migración nadie la procesaba y los mensajes nunca salían.
+    const { flushBranchQueue } = await import("@/lib/whatsapp-queue.server");
+    const flush = await flushBranchQueue(supabase as never, session.branch_id, 15);
+
+    return { queued: rows.length, sent: flush.sent, failed: flush.failed, error: flush.error };
   });
