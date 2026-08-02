@@ -830,6 +830,32 @@ export async function runBotAction(request: Request): Promise<Response> {
                       const r = await persistCartPatch(token, from, patch);
                       return r.ok ? { ok: true, cart: r.data } : { error: "delivery_info_failed", detail: r.data };
                     }
+                    case "update_cart_item": {
+                      const cartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      const cart = (cartRes.ok ? cartRes.data : null) as { items?: unknown[] } | null;
+                      const items = Array.isArray(cart?.items) ? [...cart.items] : [];
+                      const index = Math.floor(Number(args.item_index ?? 0)) - 1;
+                      if (index < 0 || index >= items.length) return { error: "item_not_found", cart: cartRes.data };
+                      const current = (items[index] && typeof items[index] === "object" ? items[index] : {}) as Record<string, unknown>;
+                      items[index] = {
+                        ...current,
+                        ...(typeof args.qty === "number" ? { qty: Math.max(1, Math.floor(args.qty)) } : {}),
+                        ...(Array.isArray(args.modifiers) ? { modifiers: args.modifiers } : {}),
+                        ...(typeof args.notes === "string" ? { notes: args.notes.trim() || null } : {}),
+                      };
+                      const r = await persistCartPatch(token, from, { items });
+                      return r.ok ? { ok: true, cart: r.data } : { error: "update_failed", detail: r.data };
+                    }
+                    case "remove_cart_item": {
+                      const cartRes = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
+                      const cart = (cartRes.ok ? cartRes.data : null) as { items?: unknown[] } | null;
+                      const items = Array.isArray(cart?.items) ? [...cart.items] : [];
+                      const index = Math.floor(Number(args.item_index ?? 0)) - 1;
+                      if (index < 0 || index >= items.length) return { error: "item_not_found", cart: cartRes.data };
+                      items.splice(index, 1);
+                      const r = await persistCartPatch(token, from, { items });
+                      return r.ok ? { ok: true, cart: r.data } : { error: "remove_failed", detail: r.data };
+                    }
                     case "show_cart": {
                       const r = await callRpc("whatsapp_bot_ai_cart_get", { _token: token, _phone: from });
                       return r.ok ? (r.data ?? { empty: true }) : { error: "cart_read_failed" };
