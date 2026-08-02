@@ -34,6 +34,7 @@ import { GeminiQuotaCard } from "./gemini-quota-card";
 import { AiKeyCard } from "./ai-key-card";
 import { useServerFn } from "@tanstack/react-start";
 import { extractFaqsFromChat, type ExtractedFaq, type ExtractFaqsResult } from "@/lib/whatsapp-faq-import.functions";
+import { flushWhatsappQueue } from "@/lib/whatsapp-queue.functions";
 import {
   BOT_NAME,
   BOT_VERSION,
@@ -1242,6 +1243,8 @@ function ReportRecipientsCard({ branchId }: { branchId: string }) {
     qc.invalidateQueries({ queryKey: ["branch-report-wa", branchId] });
   };
 
+  const flushQueue = useServerFn(flushWhatsappQueue);
+
   const sendTest = async (i: number) => {
     const row = rows[i];
     const phone = normalizeColombiaWhatsApp(row.phone);
@@ -1251,9 +1254,16 @@ function ReportRecipientsCard({ branchId }: { branchId: string }) {
     const { error } = await supabase
       .from("whatsapp_outbound_queue")
       .insert({ branch_id: branchId, to_phone: phone, body, purpose: "test" } as never);
-    setTestingIdx(null);
-    if (error) { toast.error(error.message); return; }
-    toast.success("Prueba encolada. Debe llegar en menos de 30s si el bot está conectado.");
+    if (error) { setTestingIdx(null); toast.error(error.message); return; }
+    try {
+      const r = await flushQueue({ data: { branchId } }) as { sent?: number; failed?: number; error?: string };
+      if (r?.sent) toast.success("Mensaje de prueba enviado por WhatsApp");
+      else toast.error(`No se pudo enviar: ${r?.error ?? "revisa la conexión de WhatsApp de la sede"}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Error enviando la prueba");
+    } finally {
+      setTestingIdx(null);
+    }
   };
 
   return (

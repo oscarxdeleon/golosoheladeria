@@ -104,15 +104,21 @@ export const sendCashReport = createServerFn({ method: "POST" })
       return { skipped: true, reason: "Sede sin correos configurados" };
     }
 
-    // Sending goes through the Supabase Edge Function `resend-send`, which
-    // holds the Lovable-managed RESEND_API_KEY / LOVABLE_API_KEY. This lets
-    // the app work on any deployment target (Vercel included) without
-    // duplicating the connector secrets outside Lovable Cloud.
+    // Envío principal: Edge Function `resend-send` (guarda la llave de Resend).
+    // Si el despliegue tiene RESEND_API_KEY propia (p. ej. Vercel), se usa como
+    // respaldo directo para que el reporte no dependa de un solo camino.
     const supabaseUrl = process.env.SUPABASE_URL;
     const supabaseAnon = process.env.SUPABASE_PUBLISHABLE_KEY;
     const relaySecret = process.env.REPORT_EMAIL_RELAY_SECRET;
-    if (!supabaseUrl || !supabaseAnon || !relaySecret) {
-      return { skipped: true, reason: "Backend no configurado (SUPABASE_URL/PUBLISHABLE_KEY)" };
+    const directResendKey = process.env.RESEND_API_KEY;
+    const canRelay = Boolean(supabaseUrl && supabaseAnon && relaySecret);
+    if (!canRelay && !directResendKey) {
+      const missing = [
+        !supabaseUrl ? "SUPABASE_URL" : null,
+        !supabaseAnon ? "SUPABASE_PUBLISHABLE_KEY" : null,
+        !relaySecret ? "REPORT_EMAIL_RELAY_SECRET" : null,
+      ].filter(Boolean).join(", ");
+      return { skipped: true, reason: `Envío de correo no configurado (falta ${missing || "RESEND_API_KEY"})` };
     }
 
 
@@ -274,30 +280,60 @@ export const sendCashReport = createServerFn({ method: "POST" })
       let sent = false;
       let errorMsg: string | undefined;
       let providerId: string | undefined;
-      try {
-        const resp = await fetch(`${supabaseUrl}/functions/v1/resend-send`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${supabaseAnon}`,
-            "apikey": supabaseAnon,
-            "x-relay-secret": relaySecret,
-          },
-          body: JSON.stringify({ from, to: [to], subject, html }),
-        });
-        const text = await resp.text();
-        let json: { ok?: boolean; id?: string | null; error?: string; detail?: unknown; status?: number } | null = null;
-        try { json = JSON.parse(text); } catch { /* non-json */ }
-        if (!resp.ok || !json?.ok) {
-          const detail = typeof json?.detail === "string" ? json.detail : JSON.stringify(json?.detail ?? text);
-          errorMsg = `resend-send ${resp.status}${json?.status ? `/${json.status}` : ""}: ${json?.error ?? ""} ${detail}`.trim();
-        } else {
-          providerId = json.id ?? undefined;
-          sent = true;
-          sentCount++;
+
+      if (canRelay) {
+        try {
+          const resp = await fetch(`${supabaseUrl}/functions/v1/resend-send`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${supabaseAnon ?? ""}`,
+              "apikey": supabaseAnon ?? "",
+              "x-relay-secret": relaySecret ?? "",
+            },
+            body: JSON.stringify({ from, to: [to], subject, html }),
+          });
+          const text = await resp.text();
+          let json: { ok?: boolean; id?: string | null; error?: string; detail?: unknown; status?: number } | null = null;
+          try { json = JSON.parse(text); } catch { /* non-json */ }
+          if (!resp.ok || !json?.ok) {
+            const detail = typeof json?.detail === "string" ? json.detail : JSON.stringify(json?.detail ?? text);
+            errorMsg = `resend-send ${resp.status}${json?.status ? `/${json.status}` : ""}: ${json?.error ?? ""} ${detail}`.trim();
+          } else {
+            providerId = json.id ?? undefined;
+            sent = true;
+            sentCount++;
+          }
+        } catch (e) {
+          errorMsg = e instanceof Error ? e.message : String(e);
         }
-      } catch (e) {
-        errorMsg = e instanceof Error ? e.message : String(e);
+      }
+
+      // Respaldo: llave de Resend disponible en el propio despliegue.
+      if (!sent && directResendKey) {
+        try {
+          const resp = await fetch("https://api.resend.com/emails", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Authorization": `Bearer ${directResendKey}`,
+            },
+            body: JSON.stringify({ from, to: [to], subject, html }),
+          });
+          const text = await resp.text();
+          let json: { id?: string; message?: string } | null = null;
+          try { json = JSON.parse(text); } catch { /* non-json */ }
+          if (resp.ok) {
+            providerId = json?.id ?? undefined;
+            errorMsg = undefined;
+            sent = true;
+            sentCount++;
+          } else {
+            errorMsg = `resend ${resp.status}: ${json?.message ?? text.slice(0, 200)}`;
+          }
+        } catch (e) {
+          errorMsg = e instanceof Error ? e.message : String(e);
+        }
       }
 
       results.push({ email: to, sent, error: errorMsg, id: providerId });
