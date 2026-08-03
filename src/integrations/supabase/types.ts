@@ -35,6 +35,66 @@ export type Database = {
         }
         Relationships: []
       }
+      app_deploy_config: {
+        Row: {
+          hook_url: string
+          provider: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          hook_url: string
+          provider: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          hook_url?: string
+          provider?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
+      app_deploy_log: {
+        Row: {
+          build_url: string | null
+          created_at: string
+          duration_ms: number | null
+          http_status: number | null
+          id: string
+          job_id: string | null
+          message: string | null
+          provider: string
+          status: string
+          triggered_by: string | null
+        }
+        Insert: {
+          build_url?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          http_status?: number | null
+          id?: string
+          job_id?: string | null
+          message?: string | null
+          provider?: string
+          status: string
+          triggered_by?: string | null
+        }
+        Update: {
+          build_url?: string | null
+          created_at?: string
+          duration_ms?: number | null
+          http_status?: number | null
+          id?: string
+          job_id?: string | null
+          message?: string | null
+          provider?: string
+          status?: string
+          triggered_by?: string | null
+        }
+        Relationships: []
+      }
       attendance_employees: {
         Row: {
           active: boolean
